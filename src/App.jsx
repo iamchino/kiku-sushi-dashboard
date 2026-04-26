@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { supabase } from './lib/supabase'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Sidebar } from './components/layout/Sidebar'
 import Dashboard from './pages/Dashboard'
 import MenuPage from './pages/Menu'
@@ -128,10 +129,12 @@ export default function App() {
   if (!session) return <Login />
 
   return (
-    <RoleContext.Provider value={role}>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </RoleContext.Provider>
+    <ErrorBoundary>
+      <RoleContext.Provider value={role}>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </RoleContext.Provider>
+    </ErrorBoundary>
   )
 }
