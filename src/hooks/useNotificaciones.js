@@ -33,7 +33,7 @@ export function useNotificaciones() {
 
   // Push notification nativa del browser
   const pushNativa = useCallback((titulo, cuerpo) => {
-    if (Notification.permission === 'granted') {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       new Notification(titulo, {
         body: cuerpo,
         icon: '/favicon.ico',
@@ -70,8 +70,8 @@ export function useNotificaciones() {
   }, [playBeep, pushNativa])
 
   useEffect(() => {
-    // Pedir permiso para notificaciones nativas
-    if (Notification.permission === 'default') {
+    // Pedir permiso para notificaciones nativas (solo si el browser lo soporta)
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
       Notification.requestPermission().catch(() => {})
     }
 

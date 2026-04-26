@@ -12,9 +12,22 @@ export function useDashboard() {
   const [error, setError] = useState(null)
 
   const fetchKpisHoy = useCallback(async () => {
-    const { data, error } = await supabase.from('v_kpis_dia').select('*').single()
+    const hoy = new Date()
+    const { data, error } = await supabase
+      .from('pedidos')
+      .select('total, canal, estado')
+      .gte('created_at', startOfDay(hoy).toISOString())
+      .lte('created_at', endOfDay(hoy).toISOString())
     if (error) throw error
-    return data
+    const valid = (data || []).filter(p => p.estado !== 'cancelado')
+    const ventas = valid.reduce((acc, p) => acc + Number(p.total || 0), 0)
+    return {
+      ventas_total:     ventas,
+      ticket_promedio:  valid.length > 0 ? ventas / valid.length : 0,
+      pedidos_salon:    valid.filter(p => p.canal === 'salon').length,
+      pedidos_delivery: valid.filter(p => p.canal !== 'salon').length,
+      pedidos_total:    valid.length,
+    }
   }, [])
 
   const fetchKpisAyer = useCallback(async () => {
@@ -91,9 +104,9 @@ export function useDashboard() {
   }, [])
 
   const fetchAlertasStock = useCallback(async () => {
-    const { data, error } = await supabase.from('v_alertas_stock').select('*')
+    const { data, error } = await supabase.from('stock').select('nombre, stock_actual, stock_minimo, unidad')
     if (error) throw error
-    return data
+    return (data || []).filter(s => parseFloat(s.stock_actual) <= parseFloat(s.stock_minimo))
   }, [])
 
   const fetchAll = useCallback(async () => {
