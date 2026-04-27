@@ -26,7 +26,7 @@ function useAutoClose(setOpen) {
 }
 
 // ── Sidebar content (reutilizado en desktop y drawer) ────────────────────────
-function SidebarContent({ onClose }) {
+function SidebarContent({ onClose, showBell = false }) {
   useAutoClose(onClose ?? (() => {}))
 
   return (
@@ -51,7 +51,7 @@ function SidebarContent({ onClose }) {
         </div>
         {/* Right side: bell + close (mobile) */}
         <div className="flex items-center gap-1">
-          <NotificationBell />
+          {showBell && <NotificationBell />}
           {onClose && (
             <button
               onClick={onClose}
@@ -115,7 +115,7 @@ export function Sidebar() {
         className="hidden lg:flex flex-col w-56 flex-shrink-0 h-screen sticky top-0"
         style={{ borderRight: '1px solid #2a2a2e' }}
       >
-        <SidebarContent />
+        <SidebarContent showBell={true} />
       </aside>
 
       {/* ── MOBILE/TABLET: botón hamburguesa ──────────────────────────────── */}
