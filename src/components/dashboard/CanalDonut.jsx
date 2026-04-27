@@ -1,7 +1,7 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 
 const COLORES = {
-  salon: '#E8673A',
+  salon: '#7c3aed',
   delivery: '#4f8ef7',
   whatsapp: '#34d399',
   pedidosya: '#fbbf24',
@@ -21,7 +21,7 @@ const CustomTooltip = ({ active, payload }) => {
     const d = payload[0]
     return (
       <div style={{ background: '#111113', border: '1px solid #2a2a2e', borderRadius: 8, padding: '8px 12px' }}>
-        <p style={{ color: COLORES[d.name] || '#E8673A', fontSize: 13, fontWeight: 600 }}>
+        <p style={{ color: COLORES[d.name] || '#7c3aed', fontSize: 13, fontWeight: 600 }}>
           {ETIQUETAS[d.name] || d.name}: {d.value}
         </p>
       </div>

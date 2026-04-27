@@ -30,14 +30,14 @@ export function NotificationBell() {
       <button
         onClick={handleOpen}
         className="relative w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-white/5"
-        style={{ color: unread > 0 ? '#E8673A' : '#52525b' }}
+        style={{ color: unread > 0 ? '#7c3aed' : '#52525b' }}
         aria-label="Notificaciones"
       >
         <Bell size={15} className={unread > 0 ? 'animate-[wiggle_0.5s_ease-in-out]' : ''} />
         {unread > 0 && (
           <span
             className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
-            style={{ background: '#E8673A', boxShadow: '0 0 6px rgba(232,103,58,0.5)' }}
+            style={{ background: '#7c3aed', boxShadow: '0 0 6px rgba(124,58,237,0.5)' }}
           >
             {unread > 9 ? '9+' : unread}
           </span>
@@ -47,7 +47,7 @@ export function NotificationBell() {
       {/* Panel */}
       {open && (
         <div
-          className="absolute right-0 top-10 z-50 w-80 rounded-xl overflow-hidden shadow-2xl"
+          className="absolute left-0 top-10 z-50 w-80 max-w-[calc(100vw-2rem)] rounded-xl overflow-hidden shadow-2xl"
           style={{ background: '#1c1c1f', border: '1px solid #2a2a2e', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}
         >
           {/* Header */}

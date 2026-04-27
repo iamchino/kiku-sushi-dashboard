@@ -106,7 +106,7 @@ export default function ClienteModal({ open, onClose, cliente, onSave }) {
               <button key={t.id} onClick={() => setTab(t.id)}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
                 style={tab === t.id
-                  ? { background: 'rgba(232,103,58,0.15)', color: '#E8673A', border: '1px solid rgba(232,103,58,0.3)' }
+                  ? { background: 'rgba(124,58,237,0.15)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.3)' }
                   : { color: '#52525b' }
                 }
               >
@@ -193,7 +193,7 @@ export default function ClienteModal({ open, onClose, cliente, onSave }) {
               </button>
               <button type="submit" disabled={saving}
                 className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, #E8673A, #C4501F)', boxShadow: '0 4px 16px rgba(232,103,58,0.25)' }}>
+                style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}>
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 {saving ? 'Guardando…' : cliente ? 'Guardar cambios' : 'Crear cliente'}
               </button>
@@ -223,7 +223,7 @@ export default function ClienteModal({ open, onClose, cliente, onSave }) {
                         {p.estado && <span className="ml-2">· {p.estado}</span>}
                       </p>
                     </div>
-                    <span className="text-sm font-bold" style={{ color: '#E8673A' }}>
+                    <span className="text-sm font-bold" style={{ color: '#7c3aed' }}>
                       ${parseFloat(p.total || 0).toLocaleString('es-AR')}
                     </span>
                   </div>
@@ -240,7 +240,7 @@ export default function ClienteModal({ open, onClose, cliente, onSave }) {
           border-radius: 8px; padding: 9px 12px; font-size: 13px;
           color: #e4e4e7; outline: none; transition: border-color 0.15s;
         }
-        .input-crm:focus { border-color: rgba(232,103,58,0.5); }
+        .input-crm:focus { border-color: rgba(124,58,237,0.5); }
         .input-crm::placeholder { color: #3f3f46; }
       `}</style>
     </div>

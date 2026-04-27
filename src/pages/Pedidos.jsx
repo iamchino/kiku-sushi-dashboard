@@ -9,9 +9,9 @@ const COLUMNAS = [
     id:      'pendiente',
     label:   'Pendiente',
     icon:    Flame,
-    color:   '#E8673A',
-    bg:      'rgba(232,103,58,0.08)',
-    border:  'rgba(232,103,58,0.2)',
+    color:   '#7c3aed',
+    bg:      'rgba(124,58,237,0.08)',
+    border:  'rgba(124,58,237,0.2)',
   },
   {
     id:      'preparando',
@@ -61,9 +61,9 @@ export default function PedidosPage() {
             Kanban en tiempo real
             <span
               className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
-              style={{ background: 'rgba(232,103,58,0.1)', color: '#E8673A', border: '1px solid rgba(232,103,58,0.2)' }}
+              style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.2)' }}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-[#E8673A] animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#7c3aed] animate-pulse" />
               Live
             </span>
           </p>
@@ -74,7 +74,7 @@ export default function PedidosPage() {
           <div className="hidden md:flex items-center gap-2 text-xs">
             {[
               { label: 'Total',      value: stats.total,      color: '#a1a1aa' },
-              { label: 'Pendientes', value: stats.pendientes, color: '#E8673A' },
+              { label: 'Pendientes', value: stats.pendientes, color: '#7c3aed' },
               { label: 'En cocina',  value: stats.enCocina,   color: '#4f8ef7' },
               { label: 'Listos',     value: stats.listos,     color: '#34d399' },
             ].map(s => (
@@ -99,7 +99,7 @@ export default function PedidosPage() {
           <button
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
-            style={{ background: 'linear-gradient(135deg, #E8673A, #C4501F)', boxShadow: '0 4px 16px rgba(232,103,58,0.25)' }}
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}
           >
             <Plus size={15} />
             <span className="hidden sm:inline">Nuevo pedido</span>

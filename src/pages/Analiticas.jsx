@@ -66,8 +66,8 @@ function VentasChart({ data, loading, dias }) {
         <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
           <defs>
             <linearGradient id="gVentas" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%"  stopColor="#E8673A" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#E8673A" stopOpacity={0}   />
+              <stop offset="5%"  stopColor="#7c3aed" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="#7c3aed" stopOpacity={0}   />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#1e1e22" vertical={false} />
@@ -79,8 +79,8 @@ function VentasChart({ data, loading, dias }) {
             formatter={(v) => [`$${v.toLocaleString('es-AR')}`, 'Ventas']}
             labelStyle={{ color: '#52525b', marginBottom: 4 }}
           />
-          <Area type="monotone" dataKey="ventas" stroke="#E8673A" strokeWidth={2}
-            fill="url(#gVentas)" dot={false} activeDot={{ r: 4, fill: '#E8673A' }} />
+          <Area type="monotone" dataKey="ventas" stroke="#7c3aed" strokeWidth={2}
+            fill="url(#gVentas)" dot={false} activeDot={{ r: 4, fill: '#7c3aed' }} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -160,13 +160,13 @@ function TopProductos({ topProductos, loading }) {
           {topProductos.map((p, i) => (
             <div key={p.nombre} className="flex items-center gap-3">
               <span className="w-5 text-right text-xs font-bold flex-shrink-0"
-                style={{ color: i < 3 ? '#E8673A' : '#3f3f46' }}>
+                style={{ color: i < 3 ? '#7c3aed' : '#3f3f46' }}>
                 {i + 1}
               </span>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline mb-1">
                   <p className="text-xs font-medium truncate text-white/80">{p.nombre}</p>
-                  <p className="text-xs font-bold flex-shrink-0 ml-2" style={{ color: '#E8673A' }}>
+                  <p className="text-xs font-bold flex-shrink-0 ml-2" style={{ color: '#7c3aed' }}>
                     {p.unidades} u
                   </p>
                 </div>
@@ -175,7 +175,7 @@ function TopProductos({ topProductos, loading }) {
                     style={{
                       width: `${(p.unidades / max) * 100}%`,
                       background: i < 3
-                        ? 'linear-gradient(90deg, #E8673A, #C4501F)'
+                        ? 'linear-gradient(90deg, #7c3aed, #5b21b6)'
                         : '#2a2a2e',
                     }} />
                 </div>
@@ -281,7 +281,7 @@ export default function AnaliticasPage() {
           <button key={p.label} onClick={() => { setCustomMode(false); applyPreset(p) }}
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
             style={preset === p.label && !customMode
-              ? { background: 'rgba(232,103,58,0.12)', color: '#E8673A', border: '1px solid rgba(232,103,58,0.3)' }
+              ? { background: 'rgba(124,58,237,0.12)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.3)' }
               : { color: '#52525b', border: '1px solid #2a2a2e' }
             }>
             {p.label}
@@ -319,7 +319,7 @@ export default function AnaliticasPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard label="Ventas totales"   icon={TrendingUp}   color="#E8673A"
+        <KpiCard label="Ventas totales"   icon={TrendingUp}   color="#7c3aed"
           value={loading ? '—' : `$${(data?.ventas || 0).toLocaleString('es-AR')}`}
           delta={data?.dVentas} />
         <KpiCard label="Ticket promedio"  icon={BarChart2}    color="#4f8ef7"

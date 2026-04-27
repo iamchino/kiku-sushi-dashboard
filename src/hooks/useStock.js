@@ -13,7 +13,7 @@ export const ESTADO_STOCK = (item) => {
 export const ESTADO_CONFIG = {
   critico: { label: 'Crítico', color: '#f87171', bg: 'rgba(248,113,113,0.1)', border: 'rgba(248,113,113,0.25)' },
   bajo:    { label: 'Bajo',    color: '#fbbf24', bg: 'rgba(251,191,36,0.1)', border: 'rgba(251,191,36,0.25)'   },
-  medio:   { label: 'Medio',   color: '#E8673A', bg: 'rgba(232,103,58,0.08)',border: 'rgba(232,103,58,0.2)'   },
+  medio:   { label: 'Medio',   color: '#7c3aed', bg: 'rgba(124,58,237,0.08)',border: 'rgba(124,58,237,0.2)'   },
   ok:      { label: 'OK',      color: '#34d399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.2)'  },
 }
 

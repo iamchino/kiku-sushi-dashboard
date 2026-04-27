@@ -202,8 +202,8 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
                     className="sr-only peer"
                   />
                   <div
-                    className="w-9 h-5 rounded-full transition-colors peer-checked:bg-[#E8673A]"
-                    style={{ background: form.activo ? '#E8673A' : '#2a2a2e' }}
+                    className="w-9 h-5 rounded-full transition-colors peer-checked:bg-[#7c3aed]"
+                    style={{ background: form.activo ? '#7c3aed' : '#2a2a2e' }}
                   />
                   <div
                     className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
@@ -253,15 +253,15 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
                   onClick={() => fileInputRef.current?.click()}
                   className="flex flex-col items-center justify-center gap-3 rounded-xl cursor-pointer h-52 transition-all"
                   style={{
-                    border: `2px dashed ${dragOver ? '#E8673A' : '#2a2a2e'}`,
-                    background: dragOver ? 'rgba(232,103,58,0.05)' : '#111113',
+                    border: `2px dashed ${dragOver ? '#7c3aed' : '#2a2a2e'}`,
+                    background: dragOver ? 'rgba(124,58,237,0.05)' : '#111113',
                   }}
                 >
                   <div
                     className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                    style={{ background: 'rgba(232,103,58,0.1)' }}
+                    style={{ background: 'rgba(124,58,237,0.1)' }}
                   >
-                    <ImageIcon size={22} style={{ color: '#E8673A' }} />
+                    <ImageIcon size={22} style={{ color: '#7c3aed' }} />
                   </div>
                   <div className="text-center">
                     <p className="text-sm font-medium text-white/70">Arrastrá o hacé clic</p>
@@ -311,7 +311,7 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
               <button
                 type="submit" disabled={saving}
                 className="px-5 py-2 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-50 flex items-center gap-2"
-                style={{ background: saving ? '#C4501F' : 'linear-gradient(135deg, #E8673A, #C4501F)', boxShadow: '0 4px 16px rgba(232,103,58,0.25)' }}
+                style={{ background: saving ? '#5b21b6' : 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}
               >
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 {saving ? 'Guardando…' : item ? 'Guardar cambios' : 'Crear producto'}
@@ -333,7 +333,7 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
           outline: none;
           transition: border-color 0.15s;
         }
-        .input-dark:focus { border-color: rgba(232,103,58,0.5); }
+        .input-dark:focus { border-color: rgba(124,58,237,0.5); }
         .input-dark::placeholder { color: #3f3f46; }
       `}</style>
     </div>

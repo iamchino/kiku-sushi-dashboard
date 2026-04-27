@@ -9,7 +9,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 // ── Avatar de iniciales ───────────────────────────────────────────────────────
-const AVATAR_COLORS = ['#E8673A','#4f8ef7','#34d399','#a855f7','#f59e0b','#ec4899']
+const AVATAR_COLORS = ['#7c3aed','#4f8ef7','#34d399','#a855f7','#f59e0b','#ec4899']
 function Avatar({ nombre }) {
   const initials = (nombre || '?').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
   const color    = AVATAR_COLORS[(nombre || '').charCodeAt(0) % AVATAR_COLORS.length] || AVATAR_COLORS[0]
@@ -112,7 +112,7 @@ export default function ClientesPage() {
           </button>
           <button onClick={openNew}
             className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
-            style={{ background: 'linear-gradient(135deg, #E8673A, #C4501F)', boxShadow: '0 4px 16px rgba(232,103,58,0.25)' }}>
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}>
             <Plus size={15} />
             <span className="hidden sm:inline">Nuevo cliente</span>
             <span className="sm:hidden">Nuevo</span>
@@ -125,7 +125,7 @@ export default function ClientesPage() {
         <StatCard icon={Users}      label="Total clientes"    value={stats.total}        color="#a1a1aa" />
         <StatCard icon={Star}       label="VIP"               value={stats.vip}          color="#fbbf24" />
         <StatCard icon={TrendingUp} label="Nuevos este mes"   value={stats.nuevos}       color="#34d399" />
-        <StatCard icon={Star}       label="Puntos emitidos"   value={stats.totalPuntos.toLocaleString('es-AR')} color="#E8673A" />
+        <StatCard icon={Star}       label="Puntos emitidos"   value={stats.totalPuntos.toLocaleString('es-AR')} color="#7c3aed" />
       </div>
 
       {/* ── Filtros ── */}
@@ -137,7 +137,7 @@ export default function ClientesPage() {
             placeholder="Buscar por nombre, teléfono o email…"
             className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-white placeholder:text-zinc-600 outline-none"
             style={{ background: '#111113', border: '1px solid #2a2a2e' }}
-            onFocus={e => e.target.style.border = '1px solid rgba(232,103,58,0.4)'}
+            onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.4)'}
             onBlur={e => e.target.style.border = '1px solid #2a2a2e'} />
         </div>
 
@@ -146,7 +146,7 @@ export default function ClientesPage() {
           <button onClick={() => setTagFilter('')}
             className="px-3 py-2 rounded-lg text-xs font-medium transition-all"
             style={!tagFilter
-              ? { background: 'rgba(232,103,58,0.12)', color: '#E8673A', border: '1px solid rgba(232,103,58,0.3)' }
+              ? { background: 'rgba(124,58,237,0.12)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.3)' }
               : { color: '#52525b', border: '1px solid #2a2a2e' }
             }>
             Todos
@@ -209,7 +209,7 @@ export default function ClientesPage() {
                 {search || tagFilter ? 'Sin resultados para este filtro' : 'No hay clientes todavía'}
               </p>
               {!search && !tagFilter && (
-                <button onClick={openNew} className="text-xs" style={{ color: '#E8673A' }}>
+                <button onClick={openNew} className="text-xs" style={{ color: '#7c3aed' }}>
                   + Agregar el primer cliente
                 </button>
               )}
@@ -291,7 +291,7 @@ export default function ClientesPage() {
                         </p>
                       )}
                       {c._totalGastado > 0 && (
-                        <p className="text-xs font-bold" style={{ color: '#E8673A' }}>
+                        <p className="text-xs font-bold" style={{ color: '#7c3aed' }}>
                           ${c._totalGastado.toLocaleString('es-AR')}
                         </p>
                       )}

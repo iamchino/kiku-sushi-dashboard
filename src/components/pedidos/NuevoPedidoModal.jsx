@@ -128,7 +128,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                         onClick={() => setCanal(c.id)}
                         className="px-3 py-2 rounded-lg text-sm text-left transition-all"
                         style={canal === c.id
-                          ? { background: 'rgba(232,103,58,0.15)', color: '#E8673A', border: '1px solid rgba(232,103,58,0.3)' }
+                          ? { background: 'rgba(124,58,237,0.15)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.3)' }
                           : { background: '#111113', color: '#71717a', border: '1px solid #2a2a2e' }
                         }
                       >
@@ -146,7 +146,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                       type="number" min={1} value={mesa} onChange={e => setMesa(e.target.value)}
                       className="w-full px-3 py-2.5 rounded-lg text-sm text-white outline-none"
                       style={{ background: '#111113', border: '1px solid #2a2a2e' }}
-                      onFocus={e => e.target.style.border = '1px solid rgba(232,103,58,0.5)'}
+                      onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.5)'}
                       onBlur={e => e.target.style.border = '1px solid #2a2a2e'}
                       placeholder="Nº de mesa"
                     />
@@ -161,7 +161,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                     rows={3} placeholder="Alergias, indicaciones especiales…"
                     className="w-full px-3 py-2.5 rounded-lg text-sm text-white outline-none resize-none"
                     style={{ background: '#111113', border: '1px solid #2a2a2e' }}
-                    onFocus={e => e.target.style.border = '1px solid rgba(232,103,58,0.5)'}
+                    onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.5)'}
                     onBlur={e => e.target.style.border = '1px solid #2a2a2e'}
                   />
                 </div>
@@ -184,7 +184,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                 <div className="flex-1 overflow-y-auto space-y-1 max-h-48 pr-1">
                   {loadingMenu ? (
                     <div className="flex justify-center py-4">
-                      <Loader2 size={18} className="animate-spin" style={{ color: '#E8673A' }} />
+                      <Loader2 size={18} className="animate-spin" style={{ color: '#7c3aed' }} />
                     </div>
                   ) : filtered.length === 0 ? (
                     <p className="text-xs text-center py-4" style={{ color: '#3f3f46' }}>Sin resultados</p>
@@ -196,7 +196,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                           key={m.id} type="button"
                           onClick={() => addItem(m)}
                           className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-all hover:bg-white/5"
-                          style={{ border: inCart ? '1px solid rgba(232,103,58,0.3)' : '1px solid transparent' }}
+                          style={{ border: inCart ? '1px solid rgba(124,58,237,0.3)' : '1px solid transparent' }}
                         >
                           <div className="min-w-0">
                             <p className="text-xs font-medium text-white truncate">{m.nombre}</p>
@@ -205,11 +205,11 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                             {inCart && (
                               <span className="text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center"
-                                style={{ background: '#E8673A', color: 'white' }}>
+                                style={{ background: '#7c3aed', color: 'white' }}>
                                 {inCart.cantidad}
                               </span>
                             )}
-                            <Plus size={13} style={{ color: '#E8673A' }} />
+                            <Plus size={13} style={{ color: '#7c3aed' }} />
                           </div>
                         </button>
                       )
@@ -240,7 +240,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                     ))}
                     <div className="flex justify-between pt-2" style={{ borderTop: '1px solid #2a2a2e' }}>
                       <span className="text-xs" style={{ color: '#52525b' }}>Total estimado</span>
-                      <span className="text-xs font-bold" style={{ color: '#E8673A' }}>
+                      <span className="text-xs font-bold" style={{ color: '#7c3aed' }}>
                         ${total.toLocaleString('es-AR')}
                       </span>
                     </div>
@@ -264,7 +264,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
               </button>
               <button type="submit" disabled={saving}
                 className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, #E8673A, #C4501F)', boxShadow: '0 4px 16px rgba(232,103,58,0.25)' }}>
+                style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}>
                 {saving
                   ? <><Loader2 size={14} className="animate-spin" /> Creando…</>
                   : <><ShoppingBag size={14} /> Crear pedido</>

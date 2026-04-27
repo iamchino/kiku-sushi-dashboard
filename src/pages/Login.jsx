@@ -32,7 +32,7 @@ export default function Login() {
       <div
         className="min-h-screen flex items-center justify-center p-4"
         style={{
-          background: 'radial-gradient(ellipse at 60% 20%, rgba(232,103,58,0.08) 0%, transparent 60%), #0f0f11',
+          background: 'radial-gradient(ellipse at 60% 20%, rgba(124,58,237,0.08) 0%, transparent 60%), #0f0f11',
         }}
       >
         {/* Dot pattern overlay */}
@@ -58,12 +58,12 @@ export default function Login() {
           <div className="text-center mb-8">
             <div
               className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-xl mx-auto mb-4"
-              style={{ background: 'linear-gradient(135deg, #E8673A, #C4501F)', boxShadow: '0 8px 24px rgba(232,103,58,0.3)' }}
+              style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 8px 24px rgba(124,58,237,0.3)' }}
             >
               K
             </div>
             <p className="text-xl font-bold tracking-tight text-white">
-              KIKU <span style={{ color: '#E8673A' }}>SUSHI</span>
+              KIKU <span style={{ color: '#7c3aed' }}>SUSHI</span>
             </p>
             <p className="text-sm mt-1" style={{ color: '#52525b' }}>Sistema de gestión</p>
           </div>
@@ -82,7 +82,7 @@ export default function Login() {
                   background: '#111113',
                   border: '1px solid #2a2a2e',
                 }}
-                onFocus={e => e.target.style.border = '1px solid rgba(232,103,58,0.5)'}
+                onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.5)'}
                 onBlur={e => e.target.style.border = '1px solid #2a2a2e'}
                 placeholder="admin@kikusushi.com"
                 required
@@ -101,7 +101,7 @@ export default function Login() {
                   background: '#111113',
                   border: '1px solid #2a2a2e',
                 }}
-                onFocus={e => e.target.style.border = '1px solid rgba(232,103,58,0.5)'}
+                onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.5)'}
                 onBlur={e => e.target.style.border = '1px solid #2a2a2e'}
                 placeholder="••••••••"
                 required
@@ -120,8 +120,8 @@ export default function Login() {
               disabled={loading}
               className="w-full text-white text-sm font-semibold py-2.5 rounded-lg transition-all duration-150 mt-2 disabled:opacity-50"
               style={{
-                background: loading ? '#C4501F' : 'linear-gradient(135deg, #E8673A, #C4501F)',
-                boxShadow: '0 4px 16px rgba(232,103,58,0.25)',
+                background: loading ? '#5b21b6' : 'linear-gradient(135deg, #7c3aed, #5b21b6)',
+                boxShadow: '0 4px 16px rgba(124,58,237,0.25)',
               }}
             >
               {loading ? 'Ingresando...' : 'Ingresar'}

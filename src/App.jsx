@@ -34,7 +34,7 @@ const Pendiente = ({ nombre }) => (
   <div className="flex items-center justify-center h-full">
     <div className="text-center space-y-3">
       <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto">
-        <Clock size={22} className="text-[#E8673A]/70" />
+        <Clock size={22} className="text-[#7c3aed]/70" />
       </div>
       <p className="text-base font-semibold text-white/80">{nombre}</p>
       <p className="text-sm text-white/30">Próximamente — en construcción</p>
@@ -121,7 +121,7 @@ export default function App() {
   if (session === undefined) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0f0f11]">
-        <div className="w-6 h-6 border-2 border-[#E8673A] border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-[#7c3aed] border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }

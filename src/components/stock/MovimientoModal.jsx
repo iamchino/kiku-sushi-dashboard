@@ -88,7 +88,7 @@ export default function MovimientoModal({ open, onClose, item, onSave, modoEdici
                 <input value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))}
                   required className="w-full px-3 py-2.5 rounded-lg text-sm text-white outline-none"
                   style={{ background: '#111113', border: '1px solid #2a2a2e' }}
-                  onFocus={e => e.target.style.border = '1px solid rgba(232,103,58,0.4)'}
+                  onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.4)'}
                   onBlur={e => e.target.style.border = '1px solid #2a2a2e'}
                   placeholder="Ej: Salmón rosado" />
               </div>
@@ -123,7 +123,7 @@ export default function MovimientoModal({ open, onClose, item, onSave, modoEdici
                 <input value={form.proveedor} onChange={e => setForm(f => ({ ...f, proveedor: e.target.value }))}
                   className="w-full px-3 py-2.5 rounded-lg text-sm text-white outline-none"
                   style={{ background: '#111113', border: '1px solid #2a2a2e' }}
-                  onFocus={e => e.target.style.border = '1px solid rgba(232,103,58,0.4)'}
+                  onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.4)'}
                   onBlur={e => e.target.style.border = '1px solid #2a2a2e'}
                   placeholder="Nombre del proveedor" />
               </div>
@@ -166,7 +166,7 @@ export default function MovimientoModal({ open, onClose, item, onSave, modoEdici
                   onChange={e => setCantidad(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-lg text-sm text-white outline-none text-center text-lg font-semibold"
                   style={{ background: '#111113', border: '1px solid #2a2a2e' }}
-                  onFocus={e => e.target.style.border = '1px solid rgba(232,103,58,0.4)'}
+                  onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.4)'}
                   onBlur={e => e.target.style.border = '1px solid #2a2a2e'}
                   placeholder="0" autoFocus />
               </div>
@@ -199,7 +199,7 @@ export default function MovimientoModal({ open, onClose, item, onSave, modoEdici
                   className="w-full px-3 py-2.5 rounded-lg text-sm text-white outline-none"
                   style={{ background: '#111113', border: '1px solid #2a2a2e' }}
                   placeholder={modo === 'entrada' ? 'Ej: Proveedor Los Andes, factura 001' : ''}
-                  onFocus={e => e.target.style.border = '1px solid rgba(232,103,58,0.4)'}
+                  onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.4)'}
                   onBlur={e => e.target.style.border = '1px solid #2a2a2e'} />
               </div>
             </>
@@ -213,7 +213,7 @@ export default function MovimientoModal({ open, onClose, item, onSave, modoEdici
               style={{ color: '#71717a', border: '1px solid #2a2a2e' }}>Cancelar</button>
             <button type="submit" disabled={saving}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #E8673A, #C4501F)', boxShadow: '0 4px 16px rgba(232,103,58,0.2)' }}>
+              style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.2)' }}>
               {saving ? <Loader2 size={14} className="animate-spin mx-auto" /> : 'Confirmar'}
             </button>
           </div>

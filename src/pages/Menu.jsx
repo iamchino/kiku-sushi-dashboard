@@ -12,7 +12,7 @@ const TABS = [
 ]
 
 const BADGE_COLORS = {
-  Popular:  { bg: 'rgba(232,103,58,0.12)', color: '#E8673A',  border: 'rgba(232,103,58,0.25)' },
+  Popular:  { bg: 'rgba(124,58,237,0.12)', color: '#7c3aed',  border: 'rgba(124,58,237,0.25)' },
   Premium:  { bg: 'rgba(168,85,247,0.12)', color: '#a855f7',  border: 'rgba(168,85,247,0.25)' },
   Nuevo:    { bg: 'rgba(52,211,153,0.12)', color: '#34d399',  border: 'rgba(52,211,153,0.25)' },
   Limitado: { bg: 'rgba(251,191,36,0.12)', color: '#fbbf24',  border: 'rgba(251,191,36,0.25)' },
@@ -108,7 +108,7 @@ export default function MenuPage() {
           <button
             onClick={openNew}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
-            style={{ background: 'linear-gradient(135deg, #E8673A, #C4501F)', boxShadow: '0 4px 16px rgba(232,103,58,0.25)' }}
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}
           >
             <Plus size={15} />
             Nuevo producto
@@ -124,7 +124,7 @@ export default function MenuPage() {
             onClick={() => { setActiveTab(id); setSearch('') }}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
             style={activeTab === id
-              ? { background: '#1c1c1f', color: '#E8673A', border: '1px solid #2a2a2e' }
+              ? { background: '#1c1c1f', color: '#7c3aed', border: '1px solid #2a2a2e' }
               : { color: '#52525b' }
             }
           >
@@ -162,7 +162,7 @@ export default function MenuPage() {
           placeholder="Buscar producto…"
           className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-white placeholder:text-zinc-600 outline-none transition-all"
           style={{ background: '#111113', border: '1px solid #2a2a2e' }}
-          onFocus={e => e.target.style.border = '1px solid rgba(232,103,58,0.4)'}
+          onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.4)'}
           onBlur={e => e.target.style.border = '1px solid #2a2a2e'}
         />
       </div>
@@ -209,7 +209,7 @@ export default function MenuPage() {
               {search ? `Sin resultados para "${search}"` : 'No hay productos todavía'}
             </p>
             {!search && (
-              <button onClick={openNew} className="text-xs mt-2" style={{ color: '#E8673A' }}>
+              <button onClick={openNew} className="text-xs mt-2" style={{ color: '#7c3aed' }}>
                 + Agregar el primer producto
               </button>
             )}
@@ -273,7 +273,7 @@ export default function MenuPage() {
 
                       {/* Price */}
                       {item.precio && (
-                        <span className="text-xs font-semibold flex-shrink-0 text-right" style={{ color: '#E8673A', minWidth: '80px' }}>
+                        <span className="text-xs font-semibold flex-shrink-0 text-right" style={{ color: '#7c3aed', minWidth: '80px' }}>
                           {item.precio}
                         </span>
                       )}

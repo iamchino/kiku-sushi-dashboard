@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
 const ESTADO_LABELS = {
-  pendiente:  { label: 'Nuevo pedido',       emoji: '🔔', color: '#E8673A' },
+  pendiente:  { label: 'Nuevo pedido',       emoji: '🔔', color: '#7c3aed' },
   preparando: { label: 'En preparación',      emoji: '👨‍🍳', color: '#4f8ef7' },
   listo:      { label: 'Listo para entregar', emoji: '✅', color: '#34d399' },
   entregado:  { label: 'Entregado',           emoji: '🎉', color: '#52525b' },

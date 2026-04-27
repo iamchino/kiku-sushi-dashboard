@@ -56,9 +56,9 @@ function KdsCard({ pedido, estado, onAction }) {
 
   const config = {
     pendiente:  {
-      border: 'rgba(232,103,58,0.35)',
-      bg:     'rgba(232,103,58,0.06)',
-      btnBg:  'linear-gradient(135deg, #E8673A, #C4501F)',
+      border: 'rgba(124,58,237,0.35)',
+      bg:     'rgba(124,58,237,0.06)',
+      btnBg:  'linear-gradient(135deg, #7c3aed, #5b21b6)',
       btnLabel: 'TOMAR PEDIDO',
       btnIcon: ChefHat,
     },
@@ -103,7 +103,7 @@ function KdsCard({ pedido, estado, onAction }) {
             <div key={item.id} className="flex items-baseline gap-3">
               <span
                 className="text-xl font-black leading-none flex-shrink-0 w-7 text-right"
-                style={{ color: estado === 'pendiente' ? '#E8673A' : '#4f8ef7' }}
+                style={{ color: estado === 'pendiente' ? '#7c3aed' : '#4f8ef7' }}
               >
                 {item.cantidad}×
               </span>
@@ -130,7 +130,7 @@ function KdsCard({ pedido, estado, onAction }) {
           fontSize: '15px',
           letterSpacing: '0.05em',
           boxShadow: estado === 'pendiente'
-            ? '0 4px 20px rgba(232,103,58,0.3)'
+            ? '0 4px 20px rgba(124,58,237,0.3)'
             : '0 4px 20px rgba(52,211,153,0.3)',
         }}
       >
@@ -144,7 +144,7 @@ function KdsCard({ pedido, estado, onAction }) {
 // ── Columna del Kanban ────────────────────────────────────────────────────────
 function Column({ estado, cards, onAction }) {
   const config = {
-    pendiente:  { label: 'NUEVOS',          icon: Flame,       color: '#E8673A' },
+    pendiente:  { label: 'NUEVOS',          icon: Flame,       color: '#7c3aed' },
     preparando: { label: 'EN PREPARACIÓN',  icon: ChefHat,     color: '#4f8ef7' },
   }[estado]
 
@@ -221,13 +221,13 @@ export default function CocinaKDS() {
         <div className="flex items-center gap-3">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold"
-            style={{ background: 'linear-gradient(135deg, #E8673A, #C4501F)' }}
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)' }}
           >
             K
           </div>
           <div className="hidden sm:block">
             <p className="text-sm font-bold text-white leading-none">
-              KIKU <span style={{ color: '#E8673A' }}>SUSHI</span>
+              KIKU <span style={{ color: '#7c3aed' }}>SUSHI</span>
             </p>
             <p className="text-[10px] uppercase tracking-widest mt-0.5" style={{ color: '#3f3f46' }}>
               Cocina
@@ -245,7 +245,7 @@ export default function CocinaKDS() {
           )}
           {totalActivo > 0 && (
             <span className="text-xs font-bold px-3 py-1 rounded-full animate-pulse"
-              style={{ background: 'rgba(232,103,58,0.15)', color: '#E8673A', border: '1px solid rgba(232,103,58,0.3)' }}>
+              style={{ background: 'rgba(124,58,237,0.15)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.3)' }}>
               {totalActivo} {totalActivo === 1 ? 'pedido activo' : 'pedidos activos'}
             </span>
           )}
@@ -277,7 +277,7 @@ export default function CocinaKDS() {
       <div className="flex-1 overflow-hidden p-5 md:p-6">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="w-8 h-8 border-2 border-[#E8673A] border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-[#7c3aed] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <div className="flex gap-5 md:gap-6 h-full">

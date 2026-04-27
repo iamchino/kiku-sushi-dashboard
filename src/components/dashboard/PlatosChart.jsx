@@ -5,7 +5,7 @@ const CustomTooltip = ({ active, payload, label }) => {
     return (
       <div style={{ background: '#111113', border: '1px solid #2a2a2e', borderRadius: 8, padding: '8px 12px' }}>
         <p style={{ color: '#a1a1aa', fontSize: 11, marginBottom: 2 }}>{label}</p>
-        <p style={{ color: '#E8673A', fontSize: 13, fontWeight: 600 }}>{payload[0].value} unidades</p>
+        <p style={{ color: '#7c3aed', fontSize: 13, fontWeight: 600 }}>{payload[0].value} unidades</p>
       </div>
     )
   }
@@ -53,7 +53,7 @@ export function PlatosChart({ data, loading }) {
               {data.map((_, i) => (
                 <Cell
                   key={i}
-                  fill={`rgba(232,103,58,${1 - i * 0.15})`}
+                  fill={`rgba(124,58,237,${1 - i * 0.15})`}
                 />
               ))}
             </Bar>

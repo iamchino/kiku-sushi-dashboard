@@ -207,7 +207,7 @@ export default function StockPage() {
           </button>
           <button onClick={openNew}
             className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
-            style={{ background: 'linear-gradient(135deg, #E8673A, #C4501F)', boxShadow: '0 4px 16px rgba(232,103,58,0.25)' }}>
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}>
             <Plus size={15} />
             <span className="hidden sm:inline">Nuevo ingrediente</span>
             <span className="sm:hidden">Nuevo</span>
@@ -246,7 +246,7 @@ export default function StockPage() {
           <button key={f.id} onClick={() => setFiltro(f.id)}
             className="px-3 py-2 rounded-lg text-xs font-medium transition-all"
             style={filtro === f.id
-              ? { background: 'rgba(232,103,58,0.12)', color: '#E8673A', border: '1px solid rgba(232,103,58,0.3)' }
+              ? { background: 'rgba(124,58,237,0.12)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.3)' }
               : { color: '#52525b', border: '1px solid #2a2a2e' }
             }>
             {f.label}
@@ -276,7 +276,7 @@ export default function StockPage() {
             {filtro !== 'todos' ? 'No hay ingredientes en esta categoría' : 'No hay ingredientes en el inventario'}
           </p>
           {filtro === 'todos' && (
-            <button onClick={openNew} className="text-xs" style={{ color: '#E8673A' }}>
+            <button onClick={openNew} className="text-xs" style={{ color: '#7c3aed' }}>
               + Agregar primer ingrediente
             </button>
           )}

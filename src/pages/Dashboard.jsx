@@ -42,9 +42,9 @@ export default function Dashboard() {
         <div className="flex items-center gap-3">
           <span
             className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full"
-            style={{ background: 'rgba(232,103,58,0.1)', color: '#E8673A', border: '1px solid rgba(232,103,58,0.2)' }}
+            style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.2)' }}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#E8673A] animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#7c3aed] animate-pulse" />
             En vivo
           </span>
           <button

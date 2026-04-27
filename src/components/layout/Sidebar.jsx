@@ -36,13 +36,13 @@ function SidebarContent({ onClose, showBell = false }) {
         <div className="flex items-center gap-2.5">
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-            style={{ background: 'linear-gradient(135deg, #E8673A, #C4501F)' }}
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)' }}
           >
             K
           </div>
           <div>
             <p className="font-semibold text-sm tracking-tight text-white leading-tight">
-              KIKU <span style={{ color: '#E8673A' }}>SUSHI</span>
+              KIKU <span style={{ color: '#7c3aed' }}>SUSHI</span>
             </p>
             <p className="text-[10px] mt-0.5 uppercase tracking-widest" style={{ color: '#52525b' }}>
               Sistema de gestión
@@ -76,7 +76,7 @@ function SidebarContent({ onClose, showBell = false }) {
               isActive ? 'font-medium' : 'hover:bg-white/5'
             )}
             style={({ isActive }) => isActive
-              ? { background: 'rgba(232,103,58,0.12)', color: '#E8673A' }
+              ? { background: 'rgba(124,58,237,0.12)', color: '#7c3aed' }
               : { color: '#a1a1aa' }
             }
           >
