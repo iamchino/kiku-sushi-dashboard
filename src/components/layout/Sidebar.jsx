@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, ClipboardList, Package, Receipt,
-  Users, ChefHat, LogOut, UtensilsCrossed, X, Menu, BarChart2
+  Users, ChefHat, LogOut, UtensilsCrossed, X, Menu, BarChart2,
+  Sun, Moon
 } from 'lucide-react'
 import clsx from 'clsx'
 import { auth } from '../../lib/supabase'
 import { NotificationBell } from './NotificationBell'
+import { useTheme } from '../../context/ThemeContext'
 
 const NAV_ITEMS = [
   { to: '/',           icon: LayoutDashboard, label: 'Dashboard'    },
@@ -25,14 +27,62 @@ function useAutoClose(setOpen) {
   useEffect(() => { setOpen(false) }, [location.pathname, setOpen])
 }
 
+// ── Botón de toggle de tema ───────────────────────────────────────────────────
+function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme()
+  const isDark = theme === 'dark'
+
+  return (
+    <button
+      onClick={toggleTheme}
+      title={isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+      className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-sm transition-all duration-150"
+      style={{
+        background: 'var(--bg-active)',
+        border: '1px solid var(--accent-border)',
+        color: 'var(--accent)',
+      }}
+    >
+      <span
+        className="flex items-center justify-center w-6 h-6 rounded-md transition-transform duration-300"
+        style={{
+          background: 'var(--accent-soft)',
+          transform: isDark ? 'rotate(0deg)' : 'rotate(180deg)',
+        }}
+      >
+        {isDark ? <Sun size={13} /> : <Moon size={13} />}
+      </span>
+      <span className="font-medium text-xs tracking-wide">
+        {isDark ? 'Tema claro' : 'Tema oscuro'}
+      </span>
+      {/* Indicador visual del estado actual */}
+      <span
+        className="ml-auto flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
+        style={{
+          background: 'var(--accent-soft)',
+          color: 'var(--text-muted)',
+        }}
+      >
+        {isDark ? '🌙' : '☀️'}
+      </span>
+    </button>
+  )
+}
+
 // ── Sidebar content (reutilizado en desktop y drawer) ────────────────────────
 function SidebarContent({ onClose, showBell = false }) {
   useAutoClose(onClose ?? (() => {}))
 
   return (
-    <div className="flex flex-col h-full" style={{ background: '#161618' }}>
+    <div
+      className="flex flex-col h-full transition-colors duration-250"
+      style={{ background: 'var(--bg-sidebar)' }}
+    >
       {/* Logo + close button (solo en mobile) */}
-      <div className="flex items-center justify-between px-5 py-5" style={{ borderBottom: '1px solid #2a2a2e' }}>
+      <div
+        className="flex items-center justify-between px-5 py-5"
+        style={{ borderBottom: '1px solid var(--border)' }}
+      >
         <div className="flex items-center gap-2.5">
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold"
@@ -41,10 +91,10 @@ function SidebarContent({ onClose, showBell = false }) {
             K
           </div>
           <div>
-            <p className="font-semibold text-sm tracking-tight text-white leading-tight">
+            <p className="font-semibold text-sm tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>
               KIKU <span style={{ color: '#7c3aed' }}>SUSHI</span>
             </p>
-            <p className="text-[10px] mt-0.5 uppercase tracking-widest" style={{ color: '#52525b' }}>
+            <p className="text-[10px] mt-0.5 uppercase tracking-widest" style={{ color: 'var(--text-xmuted)' }}>
               Sistema de gestión
             </p>
           </div>
@@ -55,8 +105,10 @@ function SidebarContent({ onClose, showBell = false }) {
           {onClose && (
             <button
               onClick={onClose}
-              className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5 transition-colors"
-              style={{ color: '#71717a' }}
+              className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               <X size={16} />
             </button>
@@ -73,11 +125,11 @@ function SidebarContent({ onClose, showBell = false }) {
             end={to === '/'}
             className={({ isActive }) => clsx(
               'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
-              isActive ? 'font-medium' : 'hover:bg-white/5'
+              !isActive && 'hover:bg-[var(--bg-hover)]'
             )}
             style={({ isActive }) => isActive
-              ? { background: 'rgba(124,58,237,0.12)', color: '#7c3aed' }
-              : { color: '#a1a1aa' }
+              ? { background: 'var(--bg-active)', color: 'var(--accent)' }
+              : { color: 'var(--text-secondary)' }
             }
           >
             <Icon size={16} />
@@ -86,14 +138,24 @@ function SidebarContent({ onClose, showBell = false }) {
         ))}
       </nav>
 
-      {/* Logout */}
-      <div className="px-3 py-4" style={{ borderTop: '1px solid #2a2a2e' }}>
+      {/* Footer: toggle de tema + logout */}
+      <div className="px-3 pb-4 space-y-2" style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+        {/* Toggle claro / oscuro */}
+        <ThemeToggle />
+
+        {/* Logout */}
         <button
           onClick={() => auth.logout()}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm transition-all duration-150 hover:bg-red-500/10"
-          style={{ color: '#71717a' }}
-          onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
-          onMouseLeave={e => e.currentTarget.style.color = '#71717a'}
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm transition-all duration-150"
+          style={{ color: 'var(--text-muted)' }}
+          onMouseEnter={e => {
+            e.currentTarget.style.color = '#f87171'
+            e.currentTarget.style.background = 'rgba(248,113,113,0.08)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.color = 'var(--text-muted)'
+            e.currentTarget.style.background = 'transparent'
+          }}
         >
           <LogOut size={16} />
           Cerrar sesión
@@ -113,7 +175,7 @@ export function Sidebar() {
       {/* ── DESKTOP: sidebar fijo (≥ lg = 1024px) ─────────────────────────── */}
       <aside
         className="hidden lg:flex flex-col w-56 flex-shrink-0 h-screen sticky top-0"
-        style={{ borderRight: '1px solid #2a2a2e' }}
+        style={{ borderRight: '1px solid var(--border)' }}
       >
         <SidebarContent showBell={true} />
       </aside>
@@ -122,7 +184,7 @@ export function Sidebar() {
       <button
         onClick={() => setMobileOpen(true)}
         className="lg:hidden fixed top-4 left-4 z-40 w-9 h-9 rounded-xl flex items-center justify-center shadow-lg transition-all hover:scale-105"
-        style={{ background: '#1c1c1f', border: '1px solid #2a2a2e', color: '#a1a1aa' }}
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
         aria-label="Abrir menú"
       >
         <Menu size={18} />
@@ -141,7 +203,7 @@ export function Sidebar() {
         className="lg:hidden fixed top-0 left-0 z-50 h-full w-64 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out"
         style={{
           transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
-          borderRight: '1px solid #2a2a2e',
+          borderRight: '1px solid var(--border)',
         }}
       >
         <SidebarContent onClose={close} />

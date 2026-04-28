@@ -12,6 +12,7 @@ import StockPage from './pages/Stock'
 import AnaliticasPage from './pages/Analiticas'
 import Login from './pages/Login'
 import { Clock } from 'lucide-react'
+import { ThemeProvider } from './context/ThemeContext'
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SISTEMA DE ROLES
@@ -33,11 +34,14 @@ export const useRole = () => useContext(RoleContext)
 const Pendiente = ({ nombre }) => (
   <div className="flex items-center justify-center h-full">
     <div className="text-center space-y-3">
-      <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto">
-        <Clock size={22} className="text-[#7c3aed]/70" />
+      <div
+        className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+      >
+        <Clock size={22} style={{ color: 'rgba(124,58,237,0.7)' }} />
       </div>
-      <p className="text-base font-semibold text-white/80">{nombre}</p>
-      <p className="text-sm text-white/30">Próximamente — en construcción</p>
+      <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{nombre}</p>
+      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Próximamente — en construcción</p>
     </div>
   </div>
 )
@@ -45,7 +49,7 @@ const Pendiente = ({ nombre }) => (
 // ── Layout con sidebar (para admin) ──────────────────────────────────────────
 function AdminLayout({ children }) {
   return (
-    <div className="flex h-screen bg-[#0f0f11] overflow-hidden">
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-app)' }}>
       <Sidebar />
       {/* padding-top en mobile para que el hamburger no tape el contenido */}
       <main className="flex-1 overflow-y-auto pt-14 lg:pt-0">
@@ -120,8 +124,8 @@ export default function App() {
   // Cargando
   if (session === undefined) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#0f0f11]">
-        <div className="w-6 h-6 border-2 border-[#7c3aed] border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center h-screen" style={{ background: 'var(--bg-app)' }}>
+        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#7c3aed', borderTopColor: 'transparent' }} />
       </div>
     )
   }
@@ -129,12 +133,14 @@ export default function App() {
   if (!session) return <Login />
 
   return (
-    <ErrorBoundary>
-      <RoleContext.Provider value={role}>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </RoleContext.Provider>
-    </ErrorBoundary>
+    <ThemeProvider>
+      <ErrorBoundary>
+        <RoleContext.Provider value={role}>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </RoleContext.Provider>
+      </ErrorBoundary>
+    </ThemeProvider>
   )
 }

@@ -3,8 +3,14 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div style={{ background: '#111113', border: '1px solid #2a2a2e', borderRadius: 8, padding: '8px 12px' }}>
-        <p style={{ color: '#a1a1aa', fontSize: 11, marginBottom: 2 }}>{label}</p>
+      <div style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        padding: '8px 12px',
+        boxShadow: 'var(--shadow-card)',
+      }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 11, marginBottom: 2 }}>{label}</p>
         <p style={{ color: '#7c3aed', fontSize: 13, fontWeight: 600 }}>{payload[0].value} unidades</p>
       </div>
     )
@@ -16,9 +22,9 @@ export function PlatosChart({ data, loading }) {
   return (
     <div
       className="rounded-xl p-5 h-full"
-      style={{ background: '#1c1c1f', border: '1px solid #2a2a2e' }}
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}
     >
-      <h2 className="text-xs font-medium uppercase tracking-wide mb-4" style={{ color: '#52525b' }}>
+      <h2 className="text-xs font-medium uppercase tracking-wide mb-4" style={{ color: 'var(--text-xmuted)' }}>
         Platos más vendidos hoy
       </h2>
       {loading ? (
@@ -30,16 +36,16 @@ export function PlatosChart({ data, loading }) {
           ))}
         </div>
       ) : !data?.length ? (
-        <div className="h-52 flex items-center justify-center text-sm" style={{ color: '#3f3f46' }}>
+        <div className="h-52 flex items-center justify-center text-sm" style={{ color: 'var(--text-xmuted)' }}>
           Sin ventas aún hoy
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={data} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#232327" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis
               dataKey="nombre"
-              tick={{ fontSize: 11, fill: '#3f3f46' }}
+              tick={{ fontSize: 11, fill: 'var(--text-xmuted)' }}
               axisLine={false}
               tickLine={false}
               interval={0}
@@ -47,8 +53,8 @@ export function PlatosChart({ data, loading }) {
               textAnchor="end"
               height={45}
             />
-            <YAxis tick={{ fontSize: 11, fill: '#3f3f46' }} axisLine={false} tickLine={false} />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+            <YAxis tick={{ fontSize: 11, fill: 'var(--text-xmuted)' }} axisLine={false} tickLine={false} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg-hover)' }} />
             <Bar dataKey="unidades" radius={[4, 4, 0, 0]}>
               {data.map((_, i) => (
                 <Cell
@@ -62,4 +68,4 @@ export function PlatosChart({ data, loading }) {
       )}
     </div>
   )
-}
+}

@@ -5,7 +5,7 @@ const HORAS = Array.from({ length: 13 }, (_, i) => `${i + 11}h`)
 const DIAS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 function getCellStyle(valor, max) {
-  if (max === 0 || valor === 0) return { background: '#232327' }
+  if (max === 0 || valor === 0) return { background: 'var(--bg-hover)' }
   const ratio = valor / max
   const alpha = 0.1 + ratio * 0.85
   return {
@@ -21,9 +21,9 @@ export function HeatmapHoras({ data, loading }) {
   return (
     <div
       className="rounded-xl p-5"
-      style={{ background: '#1c1c1f', border: '1px solid #2a2a2e' }}
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}
     >
-      <h2 className="text-xs font-medium uppercase tracking-wide mb-4" style={{ color: '#52525b' }}>
+      <h2 className="text-xs font-medium uppercase tracking-wide mb-4" style={{ color: 'var(--text-xmuted)' }}>
         Mapa de calor — horarios de mayor demanda
       </h2>
       {loading ? (
@@ -43,13 +43,13 @@ export function HeatmapHoras({ data, loading }) {
               <div className="grid mb-1.5" style={{ gridTemplateColumns: '40px repeat(13, 1fr)' }}>
                 <div />
                 {HORAS.map(h => (
-                  <div key={h} className="text-center text-[10px]" style={{ color: '#3f3f46' }}>{h}</div>
+                  <div key={h} className="text-center text-[10px]" style={{ color: 'var(--text-xmuted)' }}>{h}</div>
                 ))}
               </div>
               {/* Filas por día */}
               {DIAS.map((dia, di) => (
                 <div key={dia} className="grid mb-1" style={{ gridTemplateColumns: '40px repeat(13, 1fr)' }}>
-                  <div className="text-[11px] flex items-center justify-end pr-2" style={{ color: '#52525b' }}>{dia}</div>
+                  <div className="text-[11px] flex items-center justify-end pr-2" style={{ color: 'var(--text-xmuted)' }}>{dia}</div>
                   {HORAS.map((_, hi) => {
                     const hora = hi + 11
                     const key = `${DIAS_EN[di]}-${hora}`
@@ -69,18 +69,18 @@ export function HeatmapHoras({ data, loading }) {
           </div>
           {/* Leyenda */}
           <div className="flex items-center gap-2 mt-4">
-            <span className="text-[10px]" style={{ color: '#3f3f46' }}>Menos</span>
+            <span className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>Menos</span>
             {[0.05, 0.2, 0.4, 0.6, 0.8, 1].map((alpha, i) => (
               <div
                 key={i}
                 className="w-5 h-3 rounded"
-                style={{ background: alpha < 0.1 ? '#232327' : `rgba(124,58,237,${alpha})` }}
+                style={{ background: alpha < 0.1 ? 'var(--bg-hover)' : `rgba(124,58,237,${alpha})` }}
               />
             ))}
-            <span className="text-[10px]" style={{ color: '#3f3f46' }}>Más pedidos</span>
+            <span className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>Más pedidos</span>
           </div>
         </>
       )}
     </div>
   )
-}
+}

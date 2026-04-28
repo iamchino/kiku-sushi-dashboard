@@ -4,9 +4,9 @@ export function AlertasStock({ alertas }) {
   return (
     <div
       className="rounded-xl p-5"
-      style={{ background: '#1c1c1f', border: '1px solid #2a2a2e' }}
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}
     >
-      <h2 className="text-xs font-medium uppercase tracking-wide mb-3" style={{ color: '#52525b' }}>
+      <h2 className="text-xs font-medium uppercase tracking-wide mb-3" style={{ color: 'var(--text-xmuted)' }}>
         Alertas de stock
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -18,7 +18,7 @@ export function AlertasStock({ alertas }) {
               className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm"
               style={critico
                 ? { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }
-                : { background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)', color: '#fbbf24' }
+                : { background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)', color: '#f59e0b' }
               }
             >
               {critico
@@ -36,4 +36,4 @@ export function AlertasStock({ alertas }) {
       </div>
     </div>
   )
-}
+}

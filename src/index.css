@@ -1,5 +1,71 @@
 @import "tailwindcss";
 
+/* ══════════════════════════════════════════════════════════════
+   VARIABLES DE TEMA — Dashboard Kiku Sushi
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── TEMA OSCURO (default) ──────────────────────────────────── */
+:root,
+[data-theme="dark"] {
+  --bg-app:         #0f0f11;
+  --bg-sidebar:     #161618;
+  --bg-card:        #1c1c1f;
+  --bg-card-hover:  #222226;
+  --bg-input:       #1c1c1f;
+  --bg-hover:       rgba(255,255,255,0.05);
+  --bg-active:      rgba(124,58,237,0.12);
+
+  --border:         #2a2a2e;
+  --border-card:    #2a2a2e;
+
+  --text-primary:   #f1f1f3;
+  --text-secondary: #a1a1aa;
+  --text-muted:     #71717a;
+  --text-xmuted:    #52525b;
+
+  --accent:         #7c3aed;
+  --accent-soft:    rgba(124,58,237,0.1);
+  --accent-border:  rgba(124,58,237,0.2);
+
+  --scrollbar-track: #161618;
+  --scrollbar-thumb: #2e2e33;
+
+  --shadow-card:    0 1px 3px rgba(0,0,0,0.4);
+  --skeleton-bg:    rgba(255,255,255,0.05);
+}
+
+/* ── TEMA CLARO ─────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-app:         #f4f4f8;
+  --bg-sidebar:     #ffffff;
+  --bg-card:        #ffffff;
+  --bg-card-hover:  #f9f9fb;
+  --bg-input:       #f9f9fb;
+  --bg-hover:       rgba(0,0,0,0.04);
+  --bg-active:      rgba(124,58,237,0.08);
+
+  --border:         #e4e4e8;
+  --border-card:    #e4e4e8;
+
+  --text-primary:   #111113;
+  --text-secondary: #4b4b52;
+  --text-muted:     #717179;
+  --text-xmuted:    #9494a0;
+
+  --accent:         #7c3aed;
+  --accent-soft:    rgba(124,58,237,0.08);
+  --accent-border:  rgba(124,58,237,0.25);
+
+  --scrollbar-track: #ebebef;
+  --scrollbar-thumb: #c4c4ce;
+
+  --shadow-card:    0 1px 4px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  --skeleton-bg:    rgba(0,0,0,0.06);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BASE GLOBAL
+   ══════════════════════════════════════════════════════════════ */
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
@@ -8,13 +74,14 @@
 
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: #0f0f11;
-    color: #f1f1f3;
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    transition: background-color 0.25s ease, color 0.2s ease;
   }
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: #2a2a2e #161618;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
 
   *::-webkit-scrollbar {
@@ -23,36 +90,40 @@
   }
 
   *::-webkit-scrollbar-track {
-    background: #161618;
+    background: var(--scrollbar-track);
   }
 
   *::-webkit-scrollbar-thumb {
-    background-color: #2e2e33;
+    background-color: var(--scrollbar-thumb);
     border-radius: 99px;
   }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   UTILIDADES REUTILIZABLES
+   ══════════════════════════════════════════════════════════════ */
 @utility skeleton {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   border-radius: 6px;
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--skeleton-bg);
 }
 
 @utility card-dark {
-  background: #1c1c1f;
-  border: 1px solid #2a2a2e;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
   border-radius: 12px;
+  box-shadow: var(--shadow-card);
 }
 
 @utility text-muted {
-  color: #71717a;
+  color: var(--text-muted);
 }
 
 @utility text-soft {
-  color: #a1a1aa;
+  color: var(--text-secondary);
 }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50%       { opacity: 0.4; }
 }

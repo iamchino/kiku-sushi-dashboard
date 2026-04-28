@@ -16,11 +16,15 @@ export default function Dashboard() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-3">
           <p className="font-medium" style={{ color: '#f87171' }}>Error cargando datos</p>
-          <p className="text-sm" style={{ color: '#52525b' }}>{error}</p>
+          <p className="text-sm" style={{ color: 'var(--text-xmuted)' }}>{error}</p>
           <button
             onClick={refetch}
-            className="mt-2 px-4 py-2 rounded-lg text-sm font-medium text-white/70 hover:text-white transition-colors"
-            style={{ background: '#1c1c1f', border: '1px solid #2a2a2e' }}
+            className="mt-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-secondary)',
+            }}
           >
             Reintentar
           </button>
@@ -36,24 +40,26 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white tracking-tight">Dashboard</h1>
-          <p className="text-sm mt-0.5 capitalize" style={{ color: '#52525b' }}>{hoy}</p>
+          <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Dashboard</h1>
+          <p className="text-sm mt-0.5 capitalize" style={{ color: 'var(--text-xmuted)' }}>{hoy}</p>
         </div>
         <div className="flex items-center gap-3">
           <span
             className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full"
-            style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.2)' }}
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#7c3aed] animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent)' }} />
             En vivo
           </span>
           <button
             onClick={refetch}
             disabled={loading}
-            className="p-2 rounded-lg transition-all duration-150 hover:bg-white/5 disabled:opacity-50"
-            style={{ border: '1px solid #2a2a2e' }}
+            className="p-2 rounded-lg transition-all duration-150 disabled:opacity-50"
+            style={{ border: '1px solid var(--border)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} style={{ color: '#52525b' }} />
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} style={{ color: 'var(--text-xmuted)' }} />
           </button>
         </div>
       </div>
@@ -83,4 +89,4 @@ export default function Dashboard() {
       )}
     </div>
   )
-}
+}

@@ -20,7 +20,13 @@ const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
     const d = payload[0]
     return (
-      <div style={{ background: '#111113', border: '1px solid #2a2a2e', borderRadius: 8, padding: '8px 12px' }}>
+      <div style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        padding: '8px 12px',
+        boxShadow: 'var(--shadow-card)',
+      }}>
         <p style={{ color: COLORES[d.name] || '#7c3aed', fontSize: 13, fontWeight: 600 }}>
           {ETIQUETAS[d.name] || d.name}: {d.value}
         </p>
@@ -41,9 +47,9 @@ export function CanalDonut({ kpis, loading }) {
   return (
     <div
       className="rounded-xl p-5 h-full"
-      style={{ background: '#1c1c1f', border: '1px solid #2a2a2e' }}
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}
     >
-      <h2 className="text-xs font-medium uppercase tracking-wide mb-4" style={{ color: '#52525b' }}>
+      <h2 className="text-xs font-medium uppercase tracking-wide mb-4" style={{ color: 'var(--text-xmuted)' }}>
         Por canal
       </h2>
       {loading ? (
@@ -55,7 +61,7 @@ export function CanalDonut({ kpis, loading }) {
           </div>
         </div>
       ) : !data.length ? (
-        <div className="h-52 flex items-center justify-center text-sm" style={{ color: '#3f3f46' }}>
+        <div className="h-52 flex items-center justify-center text-sm" style={{ color: 'var(--text-xmuted)' }}>
           Sin pedidos aún
         </div>
       ) : (
@@ -74,8 +80,8 @@ export function CanalDonut({ kpis, loading }) {
             {/* Texto central */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center">
-                <p className="text-xl font-bold text-white">{total}</p>
-                <p className="text-[10px] uppercase tracking-wider" style={{ color: '#52525b' }}>total</p>
+                <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{total}</p>
+                <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-xmuted)' }}>total</p>
               </div>
             </div>
           </div>
@@ -84,10 +90,10 @@ export function CanalDonut({ kpis, loading }) {
               <div key={d.name} className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full" style={{ background: COLORES[d.name] }} />
-                  <span style={{ color: '#a1a1aa' }}>{ETIQUETAS[d.name] || d.name}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>{ETIQUETAS[d.name] || d.name}</span>
                 </span>
-                <span className="font-semibold text-white">
-                  {d.value} <span style={{ color: '#52525b' }}>({Math.round(d.value / total * 100)}%)</span>
+                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  {d.value} <span style={{ color: 'var(--text-xmuted)' }}>({Math.round(d.value / total * 100)}%)</span>
                 </span>
               </div>
             ))}
@@ -96,4 +102,4 @@ export function CanalDonut({ kpis, loading }) {
       )}
     </div>
   )
-}
+}
