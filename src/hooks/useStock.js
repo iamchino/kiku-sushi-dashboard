@@ -11,10 +11,21 @@ export const ESTADO_STOCK = (item) => {
 }
 
 export const ESTADO_CONFIG = {
-  critico: { label: 'Crítico', color: '#f87171', bg: 'rgba(248,113,113,0.1)', border: 'rgba(248,113,113,0.25)' },
-  bajo:    { label: 'Bajo',    color: '#fbbf24', bg: 'rgba(251,191,36,0.1)', border: 'rgba(251,191,36,0.25)'   },
-  medio:   { label: 'Medio',   color: '#7c3aed', bg: 'rgba(124,58,237,0.08)',border: 'rgba(124,58,237,0.2)'   },
-  ok:      { label: 'OK',      color: '#34d399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.2)'  },
+  critico: { label: 'Crítico', color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.18)' },
+  bajo:    { label: 'Bajo',    color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.18)' },
+  medio:   { label: 'Medio',   color: '#7c3aed', bg: 'rgba(124,58,237,0.06)', border: 'rgba(124,58,237,0.15)' },
+  ok:      { label: 'OK',      color: '#22c55e', bg: 'rgba(34,197,94,0.06)',  border: 'rgba(34,197,94,0.15)' },
+}
+
+/**
+ * Calcula el costo real por unidad utilizable (después de merma).
+ * costo_real = precio_unitario / rendimiento
+ */
+export function costoReal(item) {
+  const precio = parseFloat(item.precio_unitario) || 0
+  const rend   = parseFloat(item.rendimiento) || 1
+  if (rend <= 0) return precio
+  return precio / rend
 }
 
 export function useStock() {
@@ -55,10 +66,10 @@ export function useStock() {
     const actual = parseFloat(stockActual)
     const cant   = parseFloat(cantidad)
     const nuevo  = tipo === 'ajuste'
-      ? cant                             // valor exacto (conteo físico)
+      ? cant
       : tipo === 'entrada'
-        ? actual + cant                  // suma
-        : Math.max(0, actual - cant)     // resta (salida / merma)
+        ? actual + cant
+        : Math.max(0, actual - cant)
 
     const { error: e1 } = await supabase
       .from('stock').update({ stock_actual: nuevo }).eq('id', stockId)
@@ -84,6 +95,16 @@ export function useStock() {
     stockActual: item.stock_actual,
   })
 
+  // Actualización rápida de precio (inline edit)
+  const updatePrecio = async (id, precio_unitario) => {
+    const { error } = await supabase
+      .from('stock')
+      .update({ precio_unitario: parseFloat(precio_unitario) || 0 })
+      .eq('id', id)
+    if (!error) fetchStock()
+    return error
+  }
+
   // CRUD ingredientes
   const createItem = async (payload) => {
     const { error } = await supabase.from('stock').insert(payload)
@@ -104,6 +125,6 @@ export function useStock() {
   return {
     items, stats, loading, error,
     fetchStock, registrarMovimiento, quickAdjust,
-    createItem, updateItem, deleteItem,
+    updatePrecio, createItem, updateItem, deleteItem,
   }
 }

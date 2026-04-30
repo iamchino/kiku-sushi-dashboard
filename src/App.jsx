@@ -10,6 +10,7 @@ import CocinaKDS from './pages/Cocina'
 import ClientesPage from './pages/Clientes'
 import StockPage from './pages/Stock'
 import AnaliticasPage from './pages/Analiticas'
+import RecetasPage from './pages/Recetas'
 import Login from './pages/Login'
 import { Clock } from 'lucide-react'
 import { ThemeProvider } from './context/ThemeContext'
@@ -95,6 +96,7 @@ function AppRoutes() {
           <Route path="/menu"    element={<MenuPage />} />
           <Route path="/cocina"  element={<CocinaKDS />} />
           <Route path="/stock"   element={<StockPage />} />
+          <Route path="/recetas" element={<RecetasPage />} />
           <Route path="/caja"    element={<Pendiente nombre="Caja y Facturación AFIP" />} />
           <Route path="/clientes"element={<ClientesPage />} />
           <Route path="*"        element={<Navigate to="/" replace />} />
