@@ -2,13 +2,14 @@ import { useState, useEffect, useMemo } from 'react'
 import { X, Loader2, Plus, Trash2 } from 'lucide-react'
 
 export default function RecetaModal({
-  open, onClose, receta, stockItems, menuItems, onSave, costoIngrediente,
+  open, onClose, receta, recetas = [], stockItems, menuItems, onSave, costoIngrediente,
 }) {
   const [nombre,      setNombre]      = useState('')
   const [menuItemId,  setMenuItemId]  = useState('')
   const [porciones,   setPorciones]   = useState('1')
   const [notas,       setNotas]       = useState('')
-  const [ingredientes, setIngredientes] = useState([]) // [{stock_id, cantidad}]
+  const [es_subreceta, setEsSubreceta] = useState(false)
+  const [ingredientes, setIngredientes] = useState([]) // [{id, tipo: 'stock'|'subreceta', cantidad}]
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState(null)
 
@@ -21,17 +22,19 @@ export default function RecetaModal({
       setMenuItemId(receta.menu_item_id || '')
       setPorciones(String(receta.porciones || 1))
       setNotas(receta.notas || '')
+      setEsSubreceta(!!receta.es_subreceta)
       setIngredientes(
-        (receta.receta_ingredientes || []).map(ri => ({
-          stock_id: ri.stock_id,
-          cantidad: String(ri.cantidad),
-        }))
+        (receta.receta_ingredientes || []).map(ri => {
+          if (ri.subreceta_id) return { id: ri.subreceta_id, tipo: 'subreceta', cantidad: String(ri.cantidad) }
+          return { id: ri.stock_id, tipo: 'stock', cantidad: String(ri.cantidad) }
+        })
       )
     } else {
       setNombre('')
       setMenuItemId('')
       setPorciones('1')
       setNotas('')
+      setEsSubreceta(false)
       setIngredientes([])
     }
   }, [open, receta])
@@ -39,12 +42,16 @@ export default function RecetaModal({
   // ── Cálculos en vivo ──────────────────────────────────────────────────────
   const costoTotal = useMemo(() => {
     return ingredientes.reduce((sum, ing) => {
-      const stock = stockItems.find(s => s.id === ing.stock_id)
-      if (!stock) return sum
-      return sum + costoIngrediente({
-        cantidad: parseFloat(ing.cantidad) || 0,
-        stock,
-      })
+      let riMock = null
+      if (ing.tipo === 'stock') {
+        const stock = stockItems.find(s => s.id === ing.id)
+        if (!stock) return sum
+        riMock = { stock, cantidad: parseFloat(ing.cantidad) || 0 }
+      } else if (ing.tipo === 'subreceta') {
+        riMock = { subreceta_id: ing.id, cantidad: parseFloat(ing.cantidad) || 0 }
+      }
+      if (!riMock) return sum
+      return sum + costoIngrediente(riMock)
     }, 0)
   }, [ingredientes, stockItems, costoIngrediente])
 
@@ -60,7 +67,7 @@ export default function RecetaModal({
 
   // ── Ingredientes CRUD ─────────────────────────────────────────────────────
   const addIngrediente = () => {
-    setIngredientes(prev => [...prev, { stock_id: '', cantidad: '' }])
+    setIngredientes(prev => [...prev, { id: '', tipo: 'stock', cantidad: '' }])
   }
 
   const updateIng = (idx, field, value) => {
@@ -79,7 +86,7 @@ export default function RecetaModal({
     if (!nombre.trim()) { setError('Nombre requerido.'); return }
     if (ingredientes.length === 0) { setError('Agregá al menos un ingrediente.'); return }
 
-    const valid = ingredientes.filter(i => i.stock_id && parseFloat(i.cantidad) > 0)
+    const valid = ingredientes.filter(i => i.id && parseFloat(i.cantidad) > 0)
     if (valid.length === 0) { setError('Completá los ingredientes con cantidad válida.'); return }
 
     setSaving(true); setError(null)
@@ -89,6 +96,7 @@ export default function RecetaModal({
       menu_item_id: menuItemId || null,
       porciones: parseInt(porciones) || 1,
       notas: notas.trim() || null,
+      es_subreceta,
       ingredientes: valid,
     })
 
@@ -144,6 +152,14 @@ export default function RecetaModal({
               style={inputStyle} placeholder='Ej: Roll New York' />
           </div>
 
+          <label className="flex items-center gap-2 cursor-pointer mt-1">
+            <input type="checkbox" checked={es_subreceta} onChange={e => setEsSubreceta(e.target.checked)}
+              className="w-4 h-4 rounded" style={{ accentColor: 'var(--accent)' }} />
+            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              Usar como ingrediente (Sub-receta)
+            </span>
+          </label>
+
           {/* Producto vinculado + porciones */}
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2 space-y-1.5">
@@ -160,7 +176,7 @@ export default function RecetaModal({
               </select>
             </div>
             <div className="space-y-1.5">
-              <label style={labelStyle}>Porciones</label>
+              <label style={labelStyle}>Porciones / Rendimiento</label>
               <input type="number" min="1" value={porciones}
                 onChange={e => setPorciones(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
@@ -186,25 +202,53 @@ export default function RecetaModal({
             )}
 
             {ingredientes.map((ing, idx) => {
-              const stock = stockItems.find(s => s.id === ing.stock_id)
-              const ingCosto = stock ? costoIngrediente({
-                cantidad: parseFloat(ing.cantidad) || 0,
-                stock,
-              }) : 0
+              let ingCosto = 0
+              let stock = null
+              let subr = null
+              const isSub = ing.tipo === 'subreceta'
+
+              if (!isSub) {
+                stock = stockItems.find(s => s.id === ing.id)
+                if (stock) ingCosto = costoIngrediente({ stock, cantidad: parseFloat(ing.cantidad) || 0 })
+              } else {
+                subr = recetas.find(r => r.id === ing.id)
+                if (subr) ingCosto = costoIngrediente({ subreceta_id: ing.id, cantidad: parseFloat(ing.cantidad) || 0 })
+              }
+
+              const valSelect = ing.id ? `${ing.tipo}:${ing.id}` : ''
+              const usedIds = ingredientes.map(i => i.id ? `${i.tipo}:${i.id}` : '').filter(Boolean)
+              const subRecetasDisponibles = recetas.filter(r => r.es_subreceta && r.id !== receta?.id)
 
               return (
                 <div key={idx} className="flex items-center gap-2 p-2 rounded-lg"
                   style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
                   {/* Selector de ingrediente */}
-                  <select value={ing.stock_id} onChange={e => updateIng(idx, 'stock_id', e.target.value)}
+                  <select value={valSelect} onChange={e => {
+                      const v = e.target.value
+                      if (!v) { updateIng(idx, 'id', ''); updateIng(idx, 'tipo', 'stock'); return }
+                      const [t, id] = v.split(':')
+                      updateIng(idx, 'id', id)
+                      updateIng(idx, 'tipo', t)
+                    }}
                     className="flex-1 px-2 py-1.5 rounded text-xs outline-none min-w-0"
                     style={{ background: 'transparent', color: 'var(--text-primary)', border: 'none' }}>
                     <option value="">Seleccionar…</option>
-                    {stockItems.map(s => (
-                      <option key={s.id} value={s.id} disabled={usedStockIds.includes(s.id) && s.id !== ing.stock_id}>
-                        {s.nombre} ({s.unidad})
-                      </option>
-                    ))}
+                    <optgroup label="Stock">
+                      {stockItems.map(s => (
+                        <option key={`stock:${s.id}`} value={`stock:${s.id}`} disabled={usedIds.includes(`stock:${s.id}`) && valSelect !== `stock:${s.id}`}>
+                          {s.nombre} ({s.unidad})
+                        </option>
+                      ))}
+                    </optgroup>
+                    {subRecetasDisponibles.length > 0 && (
+                      <optgroup label="Sub-recetas">
+                        {subRecetasDisponibles.map(r => (
+                          <option key={`subreceta:${r.id}`} value={`subreceta:${r.id}`} disabled={usedIds.includes(`subreceta:${r.id}`) && valSelect !== `subreceta:${r.id}`}>
+                            {r.nombre} (por {r.porciones})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
 
                   {/* Cantidad */}
@@ -215,7 +259,7 @@ export default function RecetaModal({
                     style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   />
                   <span className="text-[10px] w-6 flex-shrink-0" style={{ color: 'var(--text-xmuted)' }}>
-                    {stock?.unidad || ''}
+                    {isSub ? 'porc.' : (stock?.unidad || '')}
                   </span>
 
                   {/* Costo parcial */}

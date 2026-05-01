@@ -31,7 +31,7 @@ function MargenBadge({ margen }) {
 }
 
 // ── Fila expandible con detalle de ingredientes (Receta) ─────────────────────
-function RecetaRow({ receta, onEdit, onDelete }) {
+function RecetaRow({ receta, recetas, onEdit, onDelete }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -55,10 +55,16 @@ function RecetaRow({ receta, onEdit, onDelete }) {
         {/* Nombre */}
         <td className="px-4 py-3">
           <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{receta.nombre}</span>
+          {receta.es_subreceta && (
+            <span className="text-[10px] ml-2 px-1.5 py-0.5 rounded font-medium"
+              style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.2)' }}>
+              Sub-receta
+            </span>
+          )}
           {receta.porciones > 1 && (
             <span className="text-[10px] ml-2 px-1.5 py-0.5 rounded"
               style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
-              ×{receta.porciones} porciones
+              rendimiento: {receta.porciones}
             </span>
           )}
         </td>
@@ -146,25 +152,40 @@ function RecetaRow({ receta, onEdit, onDelete }) {
                 </thead>
                 <tbody>
                   {receta.receta_ingredientes.map(ri => {
-                    const precio = ri.stock ? (parseFloat(ri.stock.precio_unitario) || 0) : 0
-                    const rend   = ri.stock ? (parseFloat(ri.stock.rendimiento) || 1) : 1
-                    const cant   = parseFloat(ri.cantidad) || 0
-                    const costo  = cant * (precio / (rend > 0 ? rend : 1))
+                    let nombre = 'Desconocido'
+                    let unidad = ''
+                    let infoPrecio = ''
+                    let costo = 0
+                    const cant = parseFloat(ri.cantidad) || 0
+
+                    if (ri.stock) {
+                      const precio = parseFloat(ri.stock.precio_unitario) || 0
+                      const rend = parseFloat(ri.stock.rendimiento) || 1
+                      nombre = ri.stock.nombre
+                      unidad = ri.stock.unidad
+                      infoPrecio = `$${precio.toLocaleString('es-AR')}/${unidad}`
+                      costo = cant * (precio / (rend > 0 ? rend : 1))
+                      if (rend < 1) nombre += ` (rend. ${Math.round(rend * 100)}%)`
+                    } else if (ri.subreceta_id) {
+                      const sub = recetas.find(r => r.id === ri.subreceta_id)
+                      if (sub) {
+                        nombre = `[Sub-receta] ${sub.nombre}`
+                        unidad = 'porc.'
+                        infoPrecio = `$${sub._costoPorcion.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}/porc`
+                        costo = cant * sub._costoPorcion
+                      }
+                    }
+
                     return (
-                      <tr key={ri.id || ri.stock_id} style={{ borderTop: '1px solid var(--border)' }}>
-                        <td className="py-1.5" style={{ color: 'var(--text-primary)' }}>
-                          {ri.stock?.nombre || 'Desconocido'}
-                          {rend < 1 && (
-                            <span className="text-[10px] ml-1" style={{ color: 'var(--text-xmuted)' }}>
-                              (rend. {Math.round(rend * 100)}%)
-                            </span>
-                          )}
+                      <tr key={ri.id || (ri.stock_id || ri.subreceta_id)} style={{ borderTop: '1px solid var(--border)' }}>
+                        <td className="py-1.5" style={{ color: ri.subreceta_id ? '#7c3aed' : 'var(--text-primary)' }}>
+                          {nombre}
                         </td>
                         <td className="py-1.5 text-right tabular-nums" style={{ color: 'var(--text-secondary)' }}>
-                          {cant} {ri.stock?.unidad || ''}
+                          {cant} {unidad}
                         </td>
                         <td className="py-1.5 text-right tabular-nums hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>
-                          ${precio.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}/{ri.stock?.unidad || ''}
+                          {infoPrecio}
                         </td>
                         <td className="py-1.5 text-right tabular-nums font-semibold" style={{ color: 'var(--accent)' }}>
                           ${costo.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
@@ -642,7 +663,7 @@ export default function RecetasPage() {
                     <tbody>
                       {activeTab === 'recetas' ? (
                         filteredRecetas.map(r => (
-                          <RecetaRow key={r.id} receta={r} onEdit={openEdit} onDelete={handleDeleteTarget} />
+                          <RecetaRow key={r.id} receta={r} recetas={recetas} onEdit={openEdit} onDelete={handleDeleteTarget} />
                         ))
                       ) : (
                         filteredCombos.map(c => (
@@ -664,6 +685,7 @@ export default function RecetasPage() {
           open={modalOpen}
           onClose={() => { setModalOpen(false); setEditItem(null) }}
           receta={editItem}
+          recetas={recetas}
           stockItems={stockItems}
           menuItems={menuItems}
           onSave={handleSaveReceta}
