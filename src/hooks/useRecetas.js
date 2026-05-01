@@ -22,7 +22,7 @@ export function useRecetas() {
     const [resRecetas, resStock, resMenu] = await Promise.all([
       supabase
         .from('recetas')
-        .select('*, receta_ingredientes(*, stock(id, nombre, unidad, precio_unitario, rendimiento))')
+        .select('*, receta_ingredientes!receta_id(*, stock(id, nombre, unidad, precio_unitario, rendimiento))')
         .order('nombre'),
       supabase
         .from('stock')

@@ -19,7 +19,7 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
 
     const { data, error: e } = await supabase
       .from('combos')
-      .select('*, combo_items(*, recetas(id, nombre, porciones, receta_ingredientes(*, stock(id, nombre, unidad, precio_unitario, rendimiento))))')
+      .select('*, combo_items(*, recetas(id, nombre, porciones, receta_ingredientes!receta_id(*, stock(id, nombre, unidad, precio_unitario, rendimiento))))')
       .order('nombre')
 
     if (e) { setError(e.message); setLoading(false); return }
