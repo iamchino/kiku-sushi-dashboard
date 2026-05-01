@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 
+export const CATEGORIAS_STOCK = [
+  { id: 'Almacen',        label: 'Almacén',          emoji: '📦' },
+  { id: 'Verduleria',     label: 'Verdulería',       emoji: '🥬' },
+  { id: 'Pescaderia',     label: 'Pescadería',       emoji: '🐟' },
+  { id: 'Anexo Delivery', label: 'Anexo Delivery',   emoji: '🛵' },
+]
+
 export const ESTADO_STOCK = (item) => {
   const actual  = parseFloat(item.stock_actual)
   const minimo  = parseFloat(item.stock_minimo)
@@ -38,10 +45,18 @@ export function useStock() {
     setError(null)
     const { data, error } = await supabase
       .from('stock')
-      .select('*, stock_movimientos(id, tipo, cantidad, stock_despues, notas, created_at)')
+      .select('*, stock_movimientos(id, tipo, cantidad, stock_antes, stock_despues, notas, created_at)')
       .order('nombre')
     if (error) setError(error.message)
-    else setItems(data || [])
+    else {
+      // Ordenar movimientos por fecha descendente en cada item
+      const sorted = (data || []).map(item => ({
+        ...item,
+        stock_movimientos: (item.stock_movimientos || [])
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
+      }))
+      setItems(sorted)
+    }
     setLoading(false)
   }, [])
 
@@ -60,6 +75,18 @@ export function useStock() {
     ok:       items.filter(i => ['ok','medio'].includes(ESTADO_STOCK(i))).length,
     total:    items.length,
   }), [items])
+
+  // Items agrupados por categoría
+  const grouped = useMemo(() => {
+    const map = {}
+    CATEGORIAS_STOCK.forEach(cat => { map[cat.id] = [] })
+    items.forEach(item => {
+      const cat = item.categoria || 'Almacen'
+      if (!map[cat]) map[cat] = []
+      map[cat].push(item)
+    })
+    return map
+  }, [items])
 
   // Registrar cualquier movimiento y actualizar stock_actual
   const registrarMovimiento = async ({ stockId, tipo, cantidad, notas, stockActual }) => {
@@ -123,7 +150,7 @@ export function useStock() {
   }
 
   return {
-    items, stats, loading, error,
+    items, grouped, stats, loading, error,
     fetchStock, registrarMovimiento, quickAdjust,
     updatePrecio, createItem, updateItem, deleteItem,
   }

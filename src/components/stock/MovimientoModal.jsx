@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X, Loader2, Minus, RotateCcw, Truck } from 'lucide-react'
+import { CATEGORIAS_STOCK } from '../../hooks/useStock'
 
 const TIPOS = [
   { id: 'entrada', label: 'Entrada',  icon: Truck,     color: '#22c55e', desc: 'Llegó mercadería del proveedor' },
@@ -13,7 +14,7 @@ export default function MovimientoModal({ open, onClose, item, onSave, modoEdici
   const [notas,   setNotas]   = useState('')
   const [form,    setForm]    = useState({
     nombre: '', stock_actual: '', stock_minimo: '', unidad: 'kg',
-    proveedor: '', precio_unitario: '', rendimiento: '1',
+    proveedor: '', precio_unitario: '', rendimiento: '1', categoria: 'Almacen',
   })
   const [saving,  setSaving]  = useState(false)
   const [error,   setError]   = useState(null)
@@ -30,9 +31,10 @@ export default function MovimientoModal({ open, onClose, item, onSave, modoEdici
         proveedor:       item.proveedor        || '',
         precio_unitario: item.precio_unitario  ?? '',
         rendimiento:     item.rendimiento      ?? '1',
+        categoria:       item.categoria         || 'Almacen',
       } : {
         nombre: '', stock_actual: '', stock_minimo: '', unidad: 'kg',
-        proveedor: '', precio_unitario: '', rendimiento: '1',
+        proveedor: '', precio_unitario: '', rendimiento: '1', categoria: 'Almacen',
       })
     }
   }, [open, item, modoEdicion])
@@ -188,11 +190,21 @@ export default function MovimientoModal({ open, onClose, item, onSave, modoEdici
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                <label style={labelStyle}>Proveedor</label>
-                <input value={form.proveedor} onChange={e => setForm(f => ({ ...f, proveedor: e.target.value }))}
-                  className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
-                  style={inputStyle} placeholder="Nombre del proveedor" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label style={labelStyle}>Categoría</label>
+                  <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+                    style={inputStyle}>
+                    {CATEGORIAS_STOCK.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label style={labelStyle}>Proveedor</label>
+                  <input value={form.proveedor} onChange={e => setForm(f => ({ ...f, proveedor: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+                    style={inputStyle} placeholder="Nombre del proveedor" />
+                </div>
               </div>
             </>
           )}

@@ -99,8 +99,10 @@ export function NotificationBell() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-white">{n.label}</p>
                     <p className="text-[11px] mt-0.5" style={{ color: '#52525b' }}>
-                      #{n.shortId}
-                      {n.mesa ? ` · Mesa ${n.mesa}` : ` · ${n.canal}`}
+                      {n.estado?.startsWith('stock_')
+                        ? n.canal
+                        : `#${n.shortId}${n.mesa ? ` · Mesa ${n.mesa}` : n.canal ? ` · ${n.canal}` : ''}`
+                      }
                     </p>
                     <p className="text-[10px] mt-1" style={{ color: '#3f3f46' }}>
                       {formatDistanceToNow(n.ts, { locale: es, addSuffix: true })}

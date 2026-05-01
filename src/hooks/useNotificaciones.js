@@ -71,9 +71,44 @@ export function useNotificaciones() {
       }
     }
 
+    const addStockAlert = (item) => {
+      const { setNotifs, setUnread, playBeep } = handlersRef.current
+      const actual = parseFloat(item.stock_actual)
+      const minimo = parseFloat(item.stock_minimo)
+      if (actual > minimo) return // No alertar si está OK
+
+      const critico = actual <= 0
+      const n = {
+        id:       crypto.randomUUID(),
+        pedidoId: item.id,
+        shortId:  (item.nombre || '').slice(0, 8),
+        canal:    item.categoria || 'Inventario',
+        mesa:     null,
+        estado:   critico ? 'stock_critico' : 'stock_bajo',
+        label:    critico ? `¡${item.nombre} agotado!` : `${item.nombre} stock bajo`,
+        emoji:    critico ? '🚨' : '⚠️',
+        color:    critico ? '#ef4444' : '#f59e0b',
+        ts:       new Date(),
+        read:     false,
+      }
+      setNotifs(prev => [n, ...prev].slice(0, 30))
+      setUnread(u => u + 1)
+      playBeep()
+
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+          new Notification(`${n.emoji} ${n.label}`, {
+            body: `${actual} ${item.unidad} restante — mínimo: ${minimo} ${item.unidad}`,
+            icon: '/favicon.ico',
+            tag: 'kiku-stock-' + item.id,
+          })
+        } catch { /* ignorar */ }
+      }
+    }
+
     // Canal único — se crea UNA SOLA VEZ (deps: [])
     const channel = supabase
-      .channel('notif-pedidos')
+      .channel('notif-pedidos-stock')
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'pedidos' },
         ({ new: p }) => addNotif(p, p.estado || 'pendiente')
@@ -81,6 +116,16 @@ export function useNotificaciones() {
       .on('postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'pedidos' },
         ({ new: p, old: o }) => { if (p.estado !== o.estado) addNotif(p, p.estado) }
+      )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'stock' },
+        ({ new: s, old: o }) => {
+          // Solo alertar si el stock bajó y ahora está por debajo del mínimo
+          if (parseFloat(s.stock_actual) < parseFloat(o.stock_actual) &&
+              parseFloat(s.stock_actual) <= parseFloat(s.stock_minimo)) {
+            addStockAlert(s)
+          }
+        }
       )
       .subscribe()
 
