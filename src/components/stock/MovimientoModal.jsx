@@ -14,7 +14,7 @@ export default function MovimientoModal({ open, onClose, item, onSave, modoEdici
   const [notas,   setNotas]   = useState('')
   const [form,    setForm]    = useState({
     nombre: '', stock_actual: '', stock_minimo: '', unidad: 'kg',
-    proveedor: '', precio_unitario: '', rendimiento: '1', categoria: 'Almacen',
+    proveedor: '', precio_unitario: '', rendimiento: '1', categoria: 'Almacen', notas: ''
   })
   const [saving,  setSaving]  = useState(false)
   const [error,   setError]   = useState(null)
@@ -31,10 +31,11 @@ export default function MovimientoModal({ open, onClose, item, onSave, modoEdici
         proveedor:       item.proveedor        || '',
         precio_unitario: item.precio_unitario  ?? '',
         rendimiento:     item.rendimiento      ?? '1',
-        categoria:       item.categoria         || 'Almacen',
+        categoria:       item.categoria        || 'Almacen',
+        notas:           item.notas            || '',
       } : {
         nombre: '', stock_actual: '', stock_minimo: '', unidad: 'kg',
-        proveedor: '', precio_unitario: '', rendimiento: '1', categoria: 'Almacen',
+        proveedor: '', precio_unitario: '', rendimiento: '1', categoria: 'Almacen', notas: ''
       })
     }
   }, [open, item, modoEdicion])
@@ -205,6 +206,14 @@ export default function MovimientoModal({ open, onClose, item, onSave, modoEdici
                     className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
                     style={inputStyle} placeholder="Nombre del proveedor" />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label style={labelStyle}>Notas del ingrediente (Opcional)</label>
+                <textarea value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
+                  rows={2}
+                  className="w-full px-3 py-2.5 rounded-lg text-sm outline-none resize-none"
+                  style={inputStyle} placeholder="Ej: Marca preferida, ubicación en heladera..." />
               </div>
             </>
           )}

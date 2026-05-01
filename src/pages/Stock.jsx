@@ -62,10 +62,10 @@ function ItemRow({ item, updatePrecio, openMovimiento, openEdit, setDeleteTarget
         onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
         <td className="pl-3 pr-1 py-3">
-          <button onClick={() => setShowHistory(h => !h)} disabled={movs.length === 0}
+          <button onClick={() => setShowHistory(h => !h)} disabled={movs.length === 0 && !item.notas}
             className="w-6 h-6 rounded flex items-center justify-center transition-colors disabled:opacity-20"
             style={{ color: 'var(--text-xmuted)' }}
-            title={movs.length > 0 ? 'Ver historial' : 'Sin historial'}>
+            title={movs.length > 0 || item.notas ? 'Ver detalles' : 'Sin detalles'}>
             {showHistory ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </button>
         </td>
@@ -126,38 +126,57 @@ function ItemRow({ item, updatePrecio, openMovimiento, openEdit, setDeleteTarget
         </td>
       </tr>
 
-      {showHistory && movs.length > 0 && (
+      {showHistory && (movs.length > 0 || item.notas) && (
         <tr><td colSpan={9} style={{ padding: 0, background: 'var(--bg-input)' }}>
-          <div className="px-5 py-3 mx-3 my-1 rounded-lg" style={{ border: '1px solid var(--border)' }}>
-            <div className="flex items-center gap-1.5 mb-2">
-              <Clock size={11} style={{ color: 'var(--accent)' }} />
-              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-xmuted)' }}>
-                Historial — {item.nombre}
-              </span>
-            </div>
-            <div className="max-h-40 overflow-y-auto space-y-0">
-              {movs.slice(0, 20).map(m => {
-                const cfg = TIPO_MOV[m.tipo] || { label: m.tipo, color: '#a1a1aa', icon: '📋' }
-                const fecha = new Date(m.created_at)
-                return (
-                  <div key={m.id} className="flex items-center gap-3 py-1.5 text-xs"
-                    style={{ borderBottom: '1px solid var(--border)' }}>
-                    <span>{cfg.icon}</span>
-                    <span className="font-medium w-12 flex-shrink-0" style={{ color: cfg.color }}>{cfg.label}</span>
-                    <span className="tabular-nums w-16 flex-shrink-0" style={{ color: 'var(--text-primary)' }}>
-                      {m.tipo === 'merma' ? '-' : '+'}{parseFloat(m.cantidad).toFixed(1)} {item.unidad}
-                    </span>
-                    <span className="text-[10px] tabular-nums flex-shrink-0" style={{ color: 'var(--text-xmuted)' }}>
-                      {parseFloat(m.stock_antes ?? 0).toFixed(1)} → {parseFloat(m.stock_despues ?? 0).toFixed(1)}
-                    </span>
-                    {m.notas && <span className="flex-1 truncate text-[10px]" style={{ color: 'var(--text-xmuted)' }}>{m.notas}</span>}
-                    <span className="text-[10px] tabular-nums flex-shrink-0 ml-auto" style={{ color: 'var(--text-xmuted)' }}>
-                      {fecha.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })} {fecha.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
+          <div className="px-5 py-3 mx-3 my-1 rounded-lg space-y-4" style={{ border: '1px solid var(--border)' }}>
+            
+            {item.notas && (
+              <div>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>
+                    Notas del ingrediente
+                  </span>
+                </div>
+                <p className="text-xs whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>
+                  {item.notas}
+                </p>
+              </div>
+            )}
+
+            {movs.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Clock size={11} style={{ color: 'var(--text-xmuted)' }} />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-xmuted)' }}>
+                    Historial de movimientos
+                  </span>
+                </div>
+                <div className="max-h-40 overflow-y-auto space-y-0">
+                  {movs.slice(0, 20).map(m => {
+                    const cfg = TIPO_MOV[m.tipo] || { label: m.tipo, color: '#a1a1aa', icon: '📋' }
+                    const fecha = new Date(m.created_at)
+                    return (
+                      <div key={m.id} className="flex items-center gap-3 py-1.5 text-xs"
+                        style={{ borderBottom: '1px solid var(--border)' }}>
+                        <span>{cfg.icon}</span>
+                        <span className="font-medium w-12 flex-shrink-0" style={{ color: cfg.color }}>{cfg.label}</span>
+                        <span className="tabular-nums w-16 flex-shrink-0" style={{ color: 'var(--text-primary)' }}>
+                          {m.tipo === 'merma' ? '-' : '+'}{parseFloat(m.cantidad).toFixed(1)} {item.unidad}
+                        </span>
+                        <span className="text-[10px] tabular-nums flex-shrink-0" style={{ color: 'var(--text-xmuted)' }}>
+                          {parseFloat(m.stock_antes ?? 0).toFixed(1)} → {parseFloat(m.stock_despues ?? 0).toFixed(1)}
+                        </span>
+                        {m.notas && <span className="flex-1 truncate text-[10px]" style={{ color: 'var(--text-xmuted)' }}>{m.notas}</span>}
+                        <span className="text-[10px] tabular-nums flex-shrink-0 ml-auto" style={{ color: 'var(--text-xmuted)' }}>
+                          {fecha.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })} {fecha.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+            
           </div>
         </td></tr>
       )}
@@ -205,6 +224,7 @@ export default function StockPage() {
       stock_minimo: parseFloat(form.stock_minimo) || 0, unidad: form.unidad || 'kg',
       proveedor: form.proveedor || null, precio_unitario: parseFloat(form.precio_unitario) || 0,
       rendimiento: parseFloat(form.rendimiento) || 1, categoria: form.categoria || 'Almacen',
+      notas: form.notas || null,
     }
     return modalEdit ? updateItem(modalEdit.id, payload) : createItem(payload)
   }
