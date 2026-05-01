@@ -193,6 +193,7 @@ export default function StockPage() {
   const [modoEdicion, setModoEdicion] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [ordenFilas, setOrdenFilas] = useState('estado') // 'estado' | 'az' | 'reciente'
 
   const { items, stats, loading, error, fetchStock, registrarMovimiento, updatePrecio, createItem, updateItem, deleteItem } = useStock()
 
@@ -210,9 +211,26 @@ export default function StockPage() {
       const q = search.toLowerCase()
       list = list.filter(i => i.nombre.toLowerCase().includes(q) || (i.proveedor || '').toLowerCase().includes(q))
     }
-    const orden = { critico: 0, bajo: 1, medio: 2, ok: 3 }
-    return [...list].sort((a, b) => orden[ESTADO_STOCK(a)] - orden[ESTADO_STOCK(b)])
-  }, [items, categoria, estadoFiltro, search])
+
+    return [...list].sort((a, b) => {
+      if (ordenFilas === 'az') {
+        return a.nombre.localeCompare(b.nombre)
+      }
+      if (ordenFilas === 'reciente') {
+        const dateA = new Date(a.created_at || 0).getTime()
+        const dateB = new Date(b.created_at || 0).getTime()
+        // Buscar el último movimiento si lo hay
+        const lastMovA = a.stock_movimientos?.[0]?.created_at
+        const lastMovB = b.stock_movimientos?.[0]?.created_at
+        const finalDateA = lastMovA ? new Date(lastMovA).getTime() : dateA
+        const finalDateB = lastMovB ? new Date(lastMovB).getTime() : dateB
+        return finalDateB - finalDateA // más reciente primero
+      }
+      // por defecto 'estado'
+      const ordenEst = { critico: 0, bajo: 1, medio: 2, ok: 3 }
+      return ordenEst[ESTADO_STOCK(a)] - ordenEst[ESTADO_STOCK(b)]
+    })
+  }, [items, categoria, estadoFiltro, search, ordenFilas])
 
   const openMovimiento = (item) => { setModalItem(item); setModoEdicion(false) }
   const openEdit = (item) => { setModalEdit(item); setModoEdicion(true) }
@@ -284,8 +302,8 @@ export default function StockPage() {
         ))}
       </div>
 
-      {/* ── CONTROLES: Categoría + Estado + Búsqueda ── */}
-      <div className="flex flex-wrap gap-2 items-center">
+      {/* ── CONTROLES: Categoría + Estado + Orden + Búsqueda ── */}
+      <div className="flex flex-wrap gap-3 items-center">
 
         {/* Selector de categoría */}
         <div className="relative">
@@ -322,6 +340,25 @@ export default function StockPage() {
               {f.label}
             </button>
           ))}
+        </div>
+
+        {/* Selector de Orden */}
+        <div className="relative">
+          <select
+            value={ordenFilas}
+            onChange={e => setOrdenFilas(e.target.value)}
+            className="pl-3 pr-8 py-2 rounded-lg text-sm font-medium outline-none appearance-none cursor-pointer transition-all"
+            style={{
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}>
+            <option value="estado">Orden: Por Alertas</option>
+            <option value="az">Orden: Alfabético (A-Z)</option>
+            <option value="reciente">Orden: Más Recientes</option>
+          </select>
+          <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            style={{ color: 'var(--text-xmuted)' }} />
         </div>
 
         {/* Buscador */}
