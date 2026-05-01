@@ -179,7 +179,12 @@ export default function StockPage() {
 
   const filtered = useMemo(() => {
     let list = items
-    if (categoria !== 'todos') list = list.filter(i => (i.categoria || 'Almacen') === categoria)
+    if (categoria !== 'todos') {
+      list = list.filter(i => {
+        const catId = (i.categoria || 'Almacen').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
+        return catId === categoria
+      })
+    }
     if (estadoFiltro === 'alertas') list = list.filter(i => ['critico', 'bajo'].includes(ESTADO_STOCK(i)))
     if (estadoFiltro === 'ok') list = list.filter(i => ['ok', 'medio'].includes(ESTADO_STOCK(i)))
     if (search.trim()) {

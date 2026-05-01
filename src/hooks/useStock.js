@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 
 export const CATEGORIAS_STOCK = [
-  { id: 'Almacen',        label: 'Almacén',          emoji: '📦' },
-  { id: 'Verduleria',     label: 'Verdulería',       emoji: '🥬' },
-  { id: 'Pescaderia',     label: 'Pescadería',       emoji: '🐟' },
-  { id: 'Anexo Delivery', label: 'Anexo Delivery',   emoji: '🛵' },
+  { id: 'almacen',        label: 'Almacén',          emoji: '📦' },
+  { id: 'verduleria',     label: 'Verdulería',       emoji: '🥬' },
+  { id: 'pescaderia',     label: 'Pescadería',       emoji: '🐟' },
+  { id: 'carniceria',     label: 'Carnicería',       emoji: '🥩' },
+  { id: 'bebidas',        label: 'Bebidas',          emoji: '🥤' },
+  { id: 'anexo delivery', label: 'Anexo Delivery',   emoji: '🛵' },
 ]
 
 export const ESTADO_STOCK = (item) => {
@@ -76,14 +78,20 @@ export function useStock() {
     total:    items.length,
   }), [items])
 
+  // Helper para normalizar categoría (quitar acentos y minúsculas)
+  const normalizeCat = (cat) => {
+    if (!cat) return 'almacen'
+    return cat.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
+  }
+
   // Items agrupados por categoría
   const grouped = useMemo(() => {
     const map = {}
     CATEGORIAS_STOCK.forEach(cat => { map[cat.id] = [] })
     items.forEach(item => {
-      const cat = item.categoria || 'Almacen'
-      if (!map[cat]) map[cat] = []
-      map[cat].push(item)
+      let catId = normalizeCat(item.categoria)
+      if (!map[catId]) catId = 'almacen' // fallback
+      map[catId].push(item)
     })
     return map
   }, [items])
