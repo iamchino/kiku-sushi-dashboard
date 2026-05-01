@@ -7,7 +7,8 @@ export const CATEGORIAS_STOCK = [
   { id: 'pescaderia',     label: 'Pescadería',       emoji: '🐟' },
   { id: 'carniceria',     label: 'Carnicería',       emoji: '🥩' },
   { id: 'bebidas',        label: 'Bebidas',          emoji: '🥤' },
-  { id: 'anexo delivery', label: 'Anexo Delivery',   emoji: '🛵' },
+  { id: 'delivery',       label: 'Delivery',         emoji: '🛵' },
+  { id: 'varios',         label: 'Varios',           emoji: '🏷️' },
 ]
 
 export const ESTADO_STOCK = (item) => {
