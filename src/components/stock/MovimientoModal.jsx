@@ -167,7 +167,7 @@ export default function MovimientoModal({ open, onClose, item, onSave, modoEdici
                 <div className="space-y-1.5">
                   <label style={labelStyle}>Rendimiento (%)</label>
                   <div className="flex items-center gap-2">
-                    <input type="number" step="1" min="1" max="100"
+                    <input type="number" step="1" min="1"
                       value={Math.round((parseFloat(form.rendimiento) || 1) * 100)}
                       onChange={e => setForm(f => ({ ...f, rendimiento: String((parseInt(e.target.value) || 100) / 100) }))}
                       className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
@@ -175,7 +175,12 @@ export default function MovimientoModal({ open, onClose, item, onSave, modoEdici
                     <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>%</span>
                   </div>
                   <p className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
-                    100% = sin merma
+                    {(parseFloat(form.rendimiento) || 1) > 1
+                      ? `Rinde más: 1${form.unidad || 'u'} → ${(parseFloat(form.rendimiento) || 1).toFixed(2)}${form.unidad || 'u'}`
+                      : (parseFloat(form.rendimiento) || 1) < 1
+                        ? `Merma: 1${form.unidad || 'u'} → ${(parseFloat(form.rendimiento) || 1).toFixed(2)}${form.unidad || 'u'}`
+                        : '100% = sin merma ni ganancia'
+                    }
                   </p>
                 </div>
               </div>

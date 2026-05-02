@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Plus, RefreshCw, Package, AlertTriangle, CheckCircle2, Truck, Edit2, Trash2, Search, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import { useStock, ESTADO_STOCK, ESTADO_CONFIG, costoReal, CATEGORIAS_STOCK } from '../hooks/useStock'
+import { normalizeSearch } from '../utils/normalize'
 import MovimientoModal from '../components/stock/MovimientoModal'
 
 function PrecioCell({ item, onSave }) {
@@ -208,8 +209,8 @@ export default function StockPage() {
     if (estadoFiltro === 'alertas') list = list.filter(i => ['critico', 'bajo'].includes(ESTADO_STOCK(i)))
     if (estadoFiltro === 'ok') list = list.filter(i => ['ok', 'medio'].includes(ESTADO_STOCK(i)))
     if (search.trim()) {
-      const q = search.toLowerCase()
-      list = list.filter(i => i.nombre.toLowerCase().includes(q) || (i.proveedor || '').toLowerCase().includes(q))
+      const q = normalizeSearch(search)
+      list = list.filter(i => normalizeSearch(i.nombre).includes(q) || normalizeSearch(i.proveedor).includes(q))
     }
 
     return [...list].sort((a, b) => {

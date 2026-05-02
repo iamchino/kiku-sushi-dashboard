@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { X, Plus, Minus, Trash2, Search, Loader2, ShoppingBag } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { normalizeSearch } from '../../utils/normalize'
 
 const CANALES = [
   { id: 'salon',     label: '🍽️  Salón'      },
@@ -44,8 +45,8 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
 
   const filtered = useMemo(() => {
     if (!search.trim()) return menuItems
-    const q = search.toLowerCase()
-    return menuItems.filter(m => m.nombre.toLowerCase().includes(q))
+    const q = normalizeSearch(search)
+    return menuItems.filter(m => normalizeSearch(m.nombre).includes(q))
   }, [search, menuItems])
 
   const addItem = (menuItem) => {

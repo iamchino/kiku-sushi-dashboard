@@ -4,6 +4,7 @@ import {
   UtensilsCrossed, Truck, RefreshCw, AlertCircle, Package
 } from 'lucide-react'
 import { useMenu } from '../hooks/useMenu'
+import { normalizeSearch } from '../utils/normalize'
 import ProductModal from '../components/menu/ProductModal'
 
 const TABS = [
@@ -37,12 +38,12 @@ export default function MenuPage() {
   // ── Filtered view ──────────────────────────────────────────────────────
   const filteredGrouped = useMemo(() => {
     if (!search.trim()) return grouped
-    const q = search.toLowerCase()
+    const q = normalizeSearch(search)
     const result = {}
     Object.entries(grouped).forEach(([cat, { subtitle, items }]) => {
       const filtered = items.filter(i =>
-        i.nombre.toLowerCase().includes(q) ||
-        i.descripcion.toLowerCase().includes(q)
+        normalizeSearch(i.nombre).includes(q) ||
+        normalizeSearch(i.descripcion).includes(q)
       )
       if (filtered.length) result[cat] = { subtitle, items: filtered }
     })

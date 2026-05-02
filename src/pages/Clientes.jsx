@@ -4,6 +4,7 @@ import {
   Edit2, Trash2, Phone, Mail, Calendar, AlertCircle
 } from 'lucide-react'
 import { useClientes, TAGS_CONFIG, ALL_TAGS } from '../hooks/useClientes'
+import { normalizeSearch } from '../utils/normalize'
 import ClienteModal from '../components/clientes/ClienteModal'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -59,11 +60,11 @@ export default function ClientesPage() {
   const filtered = useMemo(() => {
     let list = clientes
     if (search.trim()) {
-      const q = search.toLowerCase()
+      const q = normalizeSearch(search)
       list = list.filter(c =>
-        (c.nombre   || '').toLowerCase().includes(q) ||
-        (c.telefono || '').toLowerCase().includes(q) ||
-        (c.email    || '').toLowerCase().includes(q)
+        normalizeSearch(c.nombre).includes(q) ||
+        normalizeSearch(c.telefono).includes(q) ||
+        normalizeSearch(c.email).includes(q)
       )
     }
     if (tagFilter) {

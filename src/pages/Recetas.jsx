@@ -4,6 +4,7 @@ import {
   AlertTriangle, ChevronDown, ChevronUp, Package, ChefHat
 } from 'lucide-react'
 import { useRecetas } from '../hooks/useRecetas'
+import { normalizeSearch } from '../utils/normalize'
 import { useCombos } from '../hooks/useCombos'
 import RecetaModal from '../components/recetas/RecetaModal'
 import ComboModal from '../components/recetas/ComboModal'
@@ -413,19 +414,19 @@ export default function RecetasPage() {
   // Buscar
   const filteredRecetas = useMemo(() => {
     if (!search.trim()) return recetas
-    const q = search.toLowerCase()
+    const q = normalizeSearch(search)
     return recetas.filter(r =>
-      r.nombre.toLowerCase().includes(q) ||
-      (r._menuItem?.nombre || '').toLowerCase().includes(q)
+      normalizeSearch(r.nombre).includes(q) ||
+      normalizeSearch(r._menuItem?.nombre).includes(q)
     )
   }, [recetas, search])
 
   const filteredCombos = useMemo(() => {
     if (!search.trim()) return combos
-    const q = search.toLowerCase()
+    const q = normalizeSearch(search)
     return combos.filter(c =>
-      c.nombre.toLowerCase().includes(q) ||
-      (c._menuItem?.nombre || '').toLowerCase().includes(q)
+      normalizeSearch(c.nombre).includes(q) ||
+      normalizeSearch(c._menuItem?.nombre).includes(q)
     )
   }, [combos, search])
 
