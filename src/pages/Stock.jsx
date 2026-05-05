@@ -103,12 +103,7 @@ function ItemRow({ item, updatePrecio, openMovimiento, openEdit, setDeleteTarget
           )}
         </td>
         <td className="px-2 py-3">
-          <div className="flex items-center gap-0.5 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={() => openMovimiento(item)}
-              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-80"
-              style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
-              <Truck size={11} /><span className="hidden sm:inline">Entrada</span>
-            </button>
+          <div className="flex items-center gap-0.5 justify-end opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
             <button onClick={() => openEdit(item)}
               className="w-7 h-7 rounded-lg flex items-center justify-center"
               style={{ color: 'var(--text-xmuted)' }}
@@ -189,7 +184,6 @@ export default function StockPage() {
   const [categoria, setCategoria] = useState('todos')
   const [estadoFiltro, setEstadoFiltro] = useState('todos')
   const [search, setSearch] = useState('')
-  const [modalItem, setModalItem] = useState(null)
   const [modalEdit, setModalEdit] = useState(null)
   const [modoEdicion, setModoEdicion] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -233,7 +227,6 @@ export default function StockPage() {
     })
   }, [items, categoria, estadoFiltro, search, ordenFilas])
 
-  const openMovimiento = (item) => { setModalItem(item); setModoEdicion(false) }
   const openEdit = (item) => { setModalEdit(item); setModoEdicion(true) }
   const openNew = () => { setModalEdit(null); setModoEdicion(true) }
 
@@ -439,7 +432,7 @@ export default function StockPage() {
                 <tbody>
                   {filtered.map(item => (
                     <ItemRow key={item.id} item={item} updatePrecio={updatePrecio}
-                      openMovimiento={openMovimiento} openEdit={openEdit} setDeleteTarget={setDeleteTarget} />
+                      openEdit={openEdit} setDeleteTarget={setDeleteTarget} />
                   ))}
                 </tbody>
               </table>
@@ -448,10 +441,8 @@ export default function StockPage() {
         </div>
       )}
 
-      <MovimientoModal open={!!modalItem && !modoEdicion} onClose={() => setModalItem(null)}
-        item={modalItem} onSave={async p => registrarMovimiento(p)} modoEdicion={false} onSaveItem={handleSaveItem} />
       <MovimientoModal open={modoEdicion} onClose={() => { setModoEdicion(false); setModalEdit(null) }}
-        item={modalEdit} onSave={async p => registrarMovimiento(p)} modoEdicion={true} onSaveItem={handleSaveItem} />
+        item={modalEdit} onSaveItem={handleSaveItem} onSaveMovimiento={async p => registrarMovimiento(p)} />
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

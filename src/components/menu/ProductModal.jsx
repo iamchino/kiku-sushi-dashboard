@@ -96,7 +96,6 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
       {/* Overlay */}
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
       />
 
       {/* Card */}
