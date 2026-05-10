@@ -11,28 +11,78 @@ export function useMenu(tipo) {
     setError(null)
     const { data, error } = await supabase
       .from('menu_items')
-      .select('*')
+      .select('*, menu_item_variantes(*)')
       .eq('tipo', tipo)
       .order('orden', { ascending: true })
 
     if (error) setError(error.message)
-    else setItems(data || [])
+    else {
+      // Ordenar variantes por orden dentro de cada item
+      const sorted = (data || []).map(item => ({
+        ...item,
+        menu_item_variantes: (item.menu_item_variantes || [])
+          .sort((a, b) => (a.orden || 0) - (b.orden || 0)),
+      }))
+      setItems(sorted)
+    }
     setLoading(false)
   }, [tipo])
 
   useEffect(() => { fetchItems() }, [fetchItems])
 
-  // CRUD
+  // CRUD items
   const createItem = async (payload) => {
-    const { error } = await supabase.from('menu_items').insert({ ...payload, tipo })
-    if (!error) fetchItems()
-    return error
+    const { variantes, ...itemPayload } = payload
+    const { data: created, error: e1 } = await supabase
+      .from('menu_items')
+      .insert({ ...itemPayload, tipo })
+      .select()
+      .single()
+    if (e1) return e1
+
+    // Crear variantes si las hay
+    if (variantes?.length > 0) {
+      const rows = variantes.map((v, i) => ({
+        menu_item_id: created.id,
+        nombre: v.nombre,
+        piezas: parseFloat(v.piezas) || 1,
+        precio: parseFloat(v.precio) || 0,
+        orden: i,
+      }))
+      const { error: e2 } = await supabase.from('menu_item_variantes').insert(rows)
+      if (e2) return e2
+    }
+
+    fetchItems()
+    return null
   }
 
   const updateItem = async (id, payload) => {
-    const { error } = await supabase.from('menu_items').update(payload).eq('id', id)
-    if (!error) fetchItems()
-    return error
+    const { variantes, ...itemPayload } = payload
+    const { error: e1 } = await supabase.from('menu_items').update(itemPayload).eq('id', id)
+    if (e1) return e1
+
+    // Si se enviaron variantes, reemplazar todas
+    if (variantes !== undefined) {
+      // Borrar las anteriores
+      await supabase.from('menu_item_variantes').delete().eq('menu_item_id', id)
+
+      // Insertar las nuevas
+      if (variantes?.length > 0) {
+        const rows = variantes.map((v, i) => ({
+          menu_item_id: id,
+          nombre: v.nombre,
+          piezas: parseFloat(v.piezas) || 1,
+          precio: parseFloat(v.precio) || 0,
+          orden: i,
+        }))
+        const { error: e2 } = await supabase.from('menu_item_variantes').insert(rows)
+        if (e2) return e2
+      }
+    }
+
+    fetchItems()
+    return null
   }
 
   const deleteItem = async (id) => {

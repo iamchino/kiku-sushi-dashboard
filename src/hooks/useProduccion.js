@@ -166,51 +166,21 @@ export function useProduccion() {
     return { error: e }
   }
 
-  // ── Completar tarea + descontar stock ───────────────────────────────────
+  // ── Completar tarea (solo registro, sin descuento de stock) ──────────────
+  // NOTA: El stock se descuenta automáticamente cuando un PEDIDO se entrega,
+  //       no cuando se completa una tarea de producción.
   const completarTarea = async (tareaId, nombre, cantidadReal, notasEquipo) => {
     const tarea = tareas.find(t => t.id === tareaId)
     if (!tarea) return { error: { message: 'Tarea no encontrada' } }
 
-    let descuentoDetalle = []
-
-    // Si tiene receta vinculada → descontar stock
-    if (tarea.receta_id) {
-      const receta = recetas.find(r => r.id === tarea.receta_id)
-      if (receta) {
-        const ingredientes = mergeIngredientes(
-          calcularIngredientesCrudos(receta, cantidadReal, recetas)
-        )
-
-        // Descontar cada ingrediente atómicamente
-        for (const ing of ingredientes) {
-          if (ing.cantidad <= 0) continue
-          const { error: rpcErr } = await supabase.rpc('descontar_stock_produccion', {
-            p_stock_id: ing.stock_id,
-            p_cantidad: ing.cantidad,
-            p_notas: `Producción: ${tarea.descripcion} (×${cantidadReal}) — ${nombre}`,
-          })
-          if (rpcErr) {
-            console.error('Error descontando stock:', rpcErr)
-            // Continuamos con los demás ingredientes
-          }
-          descuentoDetalle.push({
-            stock_id: ing.stock_id,
-            nombre: ing.nombre,
-            unidad: ing.unidad,
-            cantidad: ing.cantidad,
-          })
-        }
-      }
-    }
-
-    // Marcar tarea como completada
+    // Marcar tarea como completada (solo registro)
     const { error: e } = await supabase.from('produccion_tareas').update({
       estado: 'completada',
       completada_por: nombre,
       completada_at: new Date().toISOString(),
       cantidad_real: cantidadReal,
-      stock_descontado: descuentoDetalle.length > 0,
-      descuento_detalle: descuentoDetalle.length > 0 ? descuentoDetalle : null,
+      stock_descontado: false,
+      descuento_detalle: null,
       notas_equipo: notasEquipo || null,
     }).eq('id', tareaId)
 

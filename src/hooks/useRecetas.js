@@ -30,7 +30,7 @@ export function useRecetas() {
         .order('nombre'),
       supabase
         .from('menu_items')
-        .select('id, nombre, precio, tipo, categoria')
+        .select('id, nombre, precio, tipo, categoria, menu_item_variantes(*)')
         .order('nombre'),
     ])
 
@@ -101,16 +101,39 @@ export function useRecetas() {
       const cost = costoReceta(r, recetas)
       const porciones = parseInt(r.porciones) || 1
       const costoPorc = cost / porciones
+
+      // Precio de venta del campo texto (backwards compatible)
       const pv = precioVenta(r, menuItems)
       const margen = (pv && pv > 0) ? ((pv - costoPorc) / pv) * 100 : null
+
+      // Buscar menu_item vinculado y sus variantes
+      const mi = menuItems.find(m => m.id === r.menu_item_id) || null
+      const variantes = mi?.menu_item_variantes || []
+
+      // Calcular margen por variante
+      const margenVariantes = variantes.map(v => {
+        const precioVar = parseFloat(v.precio) || 0
+        const piezasVar = parseFloat(v.piezas) || 1
+        const costoVar = costoPorc * piezasVar
+        const margenVar = precioVar > 0 ? ((precioVar - costoVar) / precioVar) * 100 : null
+        return {
+          id: v.id,
+          nombre: v.nombre,
+          piezas: piezasVar,
+          precio: precioVar,
+          costo: costoVar,
+          margen: margenVar,
+        }
+      })
 
       return {
         ...r,
         _costo: cost,
         _costoPorcion: costoPorc,
         _precioVenta: pv,
-        _margen: margen,
-        _menuItem: menuItems.find(m => m.id === r.menu_item_id) || null,
+        _margen: margenVariantes.length > 0 ? (margenVariantes[0]?.margen ?? margen) : margen,
+        _margenVariantes: margenVariantes,
+        _menuItem: mi,
       }
     })
   }, [recetas, menuItems, costoReceta, precioVenta])

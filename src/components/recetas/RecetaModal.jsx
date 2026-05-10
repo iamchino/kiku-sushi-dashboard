@@ -282,7 +282,11 @@ export default function RecetaModal({
           </div>
 
           {/* ═══════ RESUMEN DE COSTOS ═══════ */}
-          {ingredientes.length > 0 && costoTotal > 0 && (
+          {ingredientes.length > 0 && costoTotal > 0 && (() => {
+            // Buscar variantes del menu_item vinculado
+            const variantes = menuItem?.menu_item_variantes || []
+
+            return (
             <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
               <div className="px-4 py-3 space-y-2">
                 <div className="flex items-center justify-between text-xs">
@@ -299,7 +303,47 @@ export default function RecetaModal({
                     </span>
                   </div>
                 )}
-                {precioVenta && (
+
+                {/* ── Márgenes por VARIANTE ── */}
+                {variantes.length > 0 ? (
+                  <div className="space-y-1.5 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
+                    <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-xmuted)' }}>
+                      Margen por tamaño
+                    </p>
+                    {variantes.map(v => {
+                      const piezasVar = parseFloat(v.piezas) || 1
+                      const precioVar = parseFloat(v.precio) || 0
+                      const costoVar = costoPorPorcion * piezasVar
+                      const margenVar = precioVar > 0 ? ((precioVar - costoVar) / precioVar) * 100 : null
+                      const bajo = margenVar !== null && margenVar < 30
+
+                      return (
+                        <div
+                          key={v.id}
+                          className="flex items-center justify-between text-xs px-3 py-2 rounded-lg"
+                          style={{
+                            background: bajo ? 'rgba(239,68,68,0.06)' : 'rgba(34,197,94,0.04)',
+                            border: `1px solid ${bajo ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.1)'}`,
+                          }}
+                        >
+                          <div>
+                            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                              {v.nombre}
+                            </span>
+                            <span className="ml-2" style={{ color: 'var(--text-xmuted)' }}>
+                              Costo: ${costoVar.toFixed(0)} · Venta: ${precioVar.toLocaleString('es-AR')}
+                            </span>
+                          </div>
+                          <span className="font-bold" style={{ color: bajo ? '#ef4444' : '#22c55e' }}>
+                            {margenVar !== null ? `${margenVar.toFixed(1)}%` : '—'}
+                            {bajo && ' ⚠️'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : precioVenta ? (
+                  /* ── Margen único (sin variantes, backwards compatible) ── */
                   <>
                     <div className="flex items-center justify-between text-xs">
                       <span style={{ color: 'var(--text-muted)' }}>Precio de venta</span>
@@ -328,10 +372,11 @@ export default function RecetaModal({
                       )}
                     </div>
                   </>
-                )}
+                ) : null}
               </div>
             </div>
-          )}
+            )
+          })()}
 
           {/* Notas */}
           <div className="space-y-1.5">
