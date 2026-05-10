@@ -27,14 +27,14 @@ function Avatar({ nombre }) {
 // ── Stat card ─────────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, color }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: '#1c1c1f', border: '1px solid #2a2a2e' }}>
+    <div className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}>
       <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
         style={{ background: `${color}15` }}>
         <Icon size={16} style={{ color }} />
       </div>
       <div>
-        <p className="text-xl font-bold text-white leading-none">{value}</p>
-        <p className="text-xs mt-0.5" style={{ color: '#52525b' }}>{label}</p>
+        <p className="text-xl font-bold leading-none" style={{ color: 'var(--text-primary)' }}>{value}</p>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{label}</p>
       </div>
     </div>
   )
@@ -97,18 +97,22 @@ export default function ClientesPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white tracking-tight">Clientes & CRM</h1>
-          <p className="text-sm mt-0.5" style={{ color: '#52525b' }}>Base de datos de clientes</p>
+          <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Clientes & CRM</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Base de datos de clientes</p>
         </div>
         <div className="flex items-center gap-2 md:gap-3">
           <button onClick={refetch} disabled={loading}
-            className="p-2 rounded-lg hover:bg-white/5 disabled:opacity-50 transition-all"
-            style={{ border: '1px solid #2a2a2e' }}>
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} style={{ color: '#52525b' }} />
+            className="p-2 rounded-lg disabled:opacity-50 transition-all"
+            style={{ border: '1px solid var(--border)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} style={{ color: 'var(--text-muted)' }} />
           </button>
           <button onClick={exportCSV}
-            className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all hover:bg-white/5"
-            style={{ color: '#a1a1aa', border: '1px solid #2a2a2e' }}>
+            className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
             <Download size={14} /> Exportar CSV
           </button>
           <button onClick={openNew}
@@ -133,13 +137,13 @@ export default function ClientesPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         {/* Search */}
         <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#3f3f46' }} />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-xmuted)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Buscar por nombre, teléfono o email…"
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-white placeholder:text-zinc-600 outline-none"
-            style={{ background: '#111113', border: '1px solid #2a2a2e' }}
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
+            style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
             onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.4)'}
-            onBlur={e => e.target.style.border = '1px solid #2a2a2e'} />
+            onBlur={e => e.target.style.border = '1px solid var(--border)'} />
         </div>
 
         {/* Tag filters */}
@@ -147,8 +151,8 @@ export default function ClientesPage() {
           <button onClick={() => setTagFilter('')}
             className="px-3 py-2 rounded-lg text-xs font-medium transition-all"
             style={!tagFilter
-              ? { background: 'rgba(124,58,237,0.12)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.3)' }
-              : { color: '#52525b', border: '1px solid #2a2a2e' }
+              ? { background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }
+              : { color: 'var(--text-muted)', border: '1px solid var(--border)' }
             }>
             Todos
           </button>
@@ -159,9 +163,9 @@ export default function ClientesPage() {
               <button key={tag} onClick={() => setTagFilter(active ? '' : tag)}
                 className="px-3 py-2 rounded-lg text-xs font-semibold transition-all"
                 style={{
-                  background: active ? cfg.bg : '#111113',
-                  color:      active ? cfg.color : '#52525b',
-                  border:     `1px solid ${active ? cfg.border : '#2a2a2e'}`,
+                  background: active ? cfg.bg : 'var(--bg-input)',
+                  color:      active ? cfg.color : 'var(--text-muted)',
+                  border:     `1px solid ${active ? cfg.border : 'var(--border)'}`,
                 }}>
                 {tag}
               </button>
@@ -183,7 +187,7 @@ export default function ClientesPage() {
         <div className="space-y-2">
           {[1,2,3,4,5].map(i => (
             <div key={i} className="flex items-center gap-4 px-5 py-4 rounded-xl"
-              style={{ background: '#1c1c1f', border: '1px solid #2a2a2e' }}>
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
               <div className="skeleton w-9 h-9 rounded-full" />
               <div className="flex-1 space-y-2">
                 <div className="skeleton h-3 w-40 rounded" />
@@ -199,14 +203,14 @@ export default function ClientesPage() {
       {!loading && (
         <>
           {/* Count */}
-          <p className="text-xs" style={{ color: '#3f3f46' }}>
+          <p className="text-xs" style={{ color: 'var(--text-xmuted)' }}>
             {filtered.length} de {clientes.length} clientes
           </p>
 
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <Users size={36} style={{ color: '#2a2a2e' }} />
-              <p className="text-sm font-medium" style={{ color: '#52525b' }}>
+              <Users size={36} style={{ color: 'var(--text-xmuted)' }} />
+              <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
                 {search || tagFilter ? 'Sin resultados para este filtro' : 'No hay clientes todavía'}
               </p>
               {!search && !tagFilter && (
@@ -216,7 +220,7 @@ export default function ClientesPage() {
               )}
             </div>
           ) : (
-            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #2a2a2e' }}>
+            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-card)' }}>
               {filtered.map((c, idx) => {
                 const tags = c.tags ? c.tags.split(',').map(t => t.trim()).filter(Boolean) : []
                 const cumple = c.cumpleanos
@@ -229,11 +233,13 @@ export default function ClientesPage() {
                 return (
                   <div
                     key={c.id}
-                    className="flex items-center gap-3 md:gap-4 px-4 md:px-5 py-3.5 transition-colors hover:bg-white/[0.02] cursor-pointer"
+                    className="flex items-center gap-3 md:gap-4 px-4 md:px-5 py-3.5 transition-colors cursor-pointer"
                     style={{
-                      background: '#1c1c1f',
-                      borderBottom: idx < filtered.length - 1 ? '1px solid #2a2a2e' : 'none',
+                      background: 'var(--bg-card)',
+                      borderBottom: idx < filtered.length - 1 ? '1px solid var(--border)' : 'none',
                     }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-card)'}
                     onClick={() => openEdit(c)}
                   >
                     <Avatar nombre={c.nombre} />
@@ -241,7 +247,7 @@ export default function ClientesPage() {
                     {/* Name + contact */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold text-white">{c.nombre}</p>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{c.nombre}</p>
                         {/* Puntos badge */}
                         {(c.puntos || 0) > 0 && (
                           <span
@@ -264,17 +270,17 @@ export default function ClientesPage() {
                       </div>
                       <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                         {c.telefono && (
-                          <span className="flex items-center gap-1 text-[11px]" style={{ color: '#52525b' }}>
+                          <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
                             <Phone size={10} /> {c.telefono}
                           </span>
                         )}
                         {c.email && (
-                          <span className="flex items-center gap-1 text-[11px] truncate" style={{ color: '#52525b' }}>
+                          <span className="flex items-center gap-1 text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>
                             <Mail size={10} /> {c.email}
                           </span>
                         )}
                         {cumple && (
-                          <span className="flex items-center gap-1 text-[11px]" style={{ color: '#52525b' }}>
+                          <span className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
                             <Calendar size={10} /> {cumple}
                           </span>
                         )}
@@ -283,11 +289,11 @@ export default function ClientesPage() {
 
                     {/* Visit stats — ocultas en mobile */}
                     <div className="hidden md:flex flex-col items-end gap-1 flex-shrink-0 text-right">
-                      <p className="text-xs font-semibold text-white/80">
+                      <p className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
                         {c._visitas} {c._visitas === 1 ? 'visita' : 'visitas'}
                       </p>
                       {ultimaVisita && (
-                        <p className="text-[10px]" style={{ color: '#3f3f46' }}>
+                        <p className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
                           Última: {ultimaVisita}
                         </p>
                       )}
@@ -301,17 +307,17 @@ export default function ClientesPage() {
                     {/* Actions */}
                     <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
                       <button onClick={() => openEdit(c)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-white/5"
-                        style={{ color: '#71717a' }}
-                        onMouseEnter={e => e.currentTarget.style.color = '#a1a1aa'}
-                        onMouseLeave={e => e.currentTarget.style.color = '#71717a'}>
+                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                        style={{ color: 'var(--text-xmuted)' }}
+                        onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+                        onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-xmuted)'; e.currentTarget.style.background = 'transparent' }}>
                         <Edit2 size={13} />
                       </button>
                       <button onClick={() => setDeleteTarget(c)}
                         className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-red-500/10"
-                        style={{ color: '#71717a' }}
+                        style={{ color: 'var(--text-xmuted)' }}
                         onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
-                        onMouseLeave={e => e.currentTarget.style.color = '#71717a'}>
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}>
                         <Trash2 size={13} />
                       </button>
                     </div>
@@ -336,21 +342,21 @@ export default function ClientesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeleteTarget(null)} />
           <div className="relative w-full max-w-sm rounded-2xl p-6 space-y-4"
-            style={{ background: '#1c1c1f', border: '1px solid #2a2a2e', boxShadow: '0 32px 64px rgba(0,0,0,0.5)' }}>
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 32px 64px rgba(0,0,0,0.3)' }}>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto"
               style={{ background: 'rgba(239,68,68,0.1)' }}>
               <Trash2 size={18} style={{ color: '#f87171' }} />
             </div>
             <div className="text-center">
-              <p className="font-semibold text-white text-base">¿Eliminar cliente?</p>
-              <p className="text-sm mt-1" style={{ color: '#52525b' }}>
-                "<span className="text-white/70">{deleteTarget.nombre}</span>" se eliminará permanentemente.
+              <p className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>¿Eliminar cliente?</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                "<span style={{ color: 'var(--text-primary)' }}>{deleteTarget.nombre}</span>" se eliminará permanentemente.
               </p>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setDeleteTarget(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium hover:bg-white/5"
-                style={{ color: '#71717a', border: '1px solid #2a2a2e' }}>Cancelar</button>
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium"
+                style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
               <button onClick={handleDelete} disabled={!!deletingId}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
                 style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)' }}>

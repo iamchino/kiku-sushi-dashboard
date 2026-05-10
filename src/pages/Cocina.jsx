@@ -20,7 +20,7 @@ function LiveClock() {
     return () => clearInterval(id)
   }, [])
   return (
-    <span className="font-mono text-sm font-semibold" style={{ color: '#a1a1aa' }}>
+    <span className="font-mono text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
       {time.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
     </span>
   )
@@ -32,7 +32,7 @@ function Elapsed({ createdAt }) {
   const urgencia = mins >= 20 ? 'critica' : mins >= 10 ? 'alta' : 'normal'
 
   const colors = {
-    normal:  { color: '#52525b',  bg: 'transparent' },
+    normal:  { color: 'var(--text-xmuted)',  bg: 'transparent' },
     alta:    { color: '#fbbf24',  bg: 'rgba(251,191,36,0.1)' },
     critica: { color: '#f87171',  bg: 'rgba(239,68,68,0.12)' },
   }[urgencia]
@@ -85,9 +85,9 @@ function KdsCard({ pedido, estado, onAction }) {
       {/* Card header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-base font-bold text-white/50">#{shortId}</span>
+          <span className="font-mono text-base font-bold" style={{ color: 'var(--text-xmuted)' }}>#{shortId}</span>
           {pedido.mesa
-            ? <span className="text-sm font-bold text-white">Mesa {pedido.mesa}</span>
+            ? <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Mesa {pedido.mesa}</span>
             : <span className="text-sm font-semibold capitalize" style={{ color: '#4f8ef7' }}>{pedido.canal}</span>
           }
         </div>
@@ -97,7 +97,7 @@ function KdsCard({ pedido, estado, onAction }) {
       {/* Items — grandes y legibles */}
       <div className="space-y-2 flex-1">
         {items.length === 0 ? (
-          <p className="text-base italic" style={{ color: '#3f3f46' }}>Sin ítems</p>
+          <p className="text-base italic" style={{ color: 'var(--text-xmuted)' }}>Sin ítems</p>
         ) : (
           items.map(item => (
             <div key={item.id} className="flex items-baseline gap-3">
@@ -107,7 +107,7 @@ function KdsCard({ pedido, estado, onAction }) {
               >
                 {item.cantidad}×
               </span>
-              <span className="text-base font-medium text-white leading-snug">
+              <span className="text-base font-medium leading-snug" style={{ color: 'var(--text-primary)' }}>
                 {item.nombre}
               </span>
             </div>
@@ -210,12 +210,12 @@ export default function CocinaKDS() {
   return (
     <div
       className="flex flex-col h-screen select-none"
-      style={{ background: '#0a0a0c' }}
+      style={{ background: 'var(--bg-app)' }}
     >
       {/* ── Top bar ── */}
       <div
         className="flex items-center justify-between px-5 py-3 flex-shrink-0"
-        style={{ background: '#111113', borderBottom: '1px solid #1e1e22' }}
+        style={{ background: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border)' }}
       >
         {/* Logo */}
         <div className="flex items-center gap-3">
@@ -226,10 +226,10 @@ export default function CocinaKDS() {
             K
           </div>
           <div className="hidden sm:block">
-            <p className="text-sm font-bold text-white leading-none">
+            <p className="text-sm font-bold leading-none" style={{ color: 'var(--text-primary)' }}>
               KIKU <span style={{ color: '#7c3aed' }}>SUSHI</span>
             </p>
-            <p className="text-[10px] uppercase tracking-widest mt-0.5" style={{ color: '#3f3f46' }}>
+            <p className="text-[10px] uppercase tracking-widest mt-0.5" style={{ color: 'var(--text-xmuted)' }}>
               Cocina
             </p>
           </div>
@@ -257,7 +257,7 @@ export default function CocinaKDS() {
           <button
             onClick={() => navigate('/')}
             className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg transition-colors hover:bg-white/5"
-            style={{ color: '#52525b', border: '1px solid #1e1e22' }}
+            style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
           >
             <ArrowLeft size={13} />
             <span className="hidden sm:inline">Dashboard</span>
@@ -284,7 +284,7 @@ export default function CocinaKDS() {
             <Column estado="pendiente"  cards={pendientes} onAction={avanzarEstado} />
 
             {/* Divider */}
-            <div className="flex-shrink-0 w-px self-stretch" style={{ background: '#1e1e22' }} />
+            <div className="flex-shrink-0 w-px self-stretch" style={{ background: 'var(--border)' }} />
 
             <Column estado="preparando" cards={preparando} onAction={avanzarEstado} />
           </div>
@@ -294,7 +294,7 @@ export default function CocinaKDS() {
       {/* ── Footer ── */}
       <div
         className="flex items-center justify-center py-2 flex-shrink-0 text-[10px] uppercase tracking-widest"
-        style={{ color: '#1e1e22', borderTop: '1px solid #1e1e22' }}
+        style={{ color: 'var(--text-xmuted)', borderTop: '1px solid var(--border)' }}
       >
         Kiku Sushi · Sistema de Cocina
       </div>

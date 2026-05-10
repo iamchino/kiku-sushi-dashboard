@@ -88,23 +88,25 @@ export default function MenuPage() {
   const isEmpty = Object.keys(filteredGrouped).length === 0
 
   return (
-    <div className="p-6 space-y-5 max-w-7xl mx-auto">
+    <div className="p-4 md:p-6 space-y-5 max-w-7xl mx-auto">
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white tracking-tight">Menú & Carta</h1>
-          <p className="text-sm mt-0.5" style={{ color: '#52525b' }}>
+          <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Menú & Carta</h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
             Gestioná los productos de cada sección
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={refetch} disabled={loading}
-            className="p-2 rounded-lg transition-all hover:bg-white/5 disabled:opacity-50"
-            style={{ border: '1px solid #2a2a2e' }}
+            className="p-2 rounded-lg transition-all disabled:opacity-50"
+            style={{ border: '1px solid var(--border)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} style={{ color: '#52525b' }} />
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} style={{ color: 'var(--text-muted)' }} />
           </button>
           <button
             onClick={openNew}
@@ -118,15 +120,15 @@ export default function MenuPage() {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#111113', border: '1px solid #2a2a2e' }}>
+      <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => { setActiveTab(id); setSearch('') }}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
             style={activeTab === id
-              ? { background: '#1c1c1f', color: '#7c3aed', border: '1px solid #2a2a2e' }
-              : { color: '#52525b' }
+              ? { background: 'var(--bg-card)', color: 'var(--accent)', border: '1px solid var(--border)' }
+              : { color: 'var(--text-muted)' }
             }
           >
             <Icon size={14} />
@@ -137,17 +139,17 @@ export default function MenuPage() {
 
       {/* ── Stats bar ── */}
       {!loading && (
-        <div className="flex items-center gap-4 text-xs" style={{ color: '#52525b' }}>
+        <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
           <span className="flex items-center gap-1.5">
             <Package size={12} />
-            <span className="text-white font-semibold">{stats.total}</span> productos
+            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{stats.total}</span> productos
           </span>
-          <span className="w-1 h-1 rounded-full" style={{ background: '#2a2a2e' }} />
+          <span className="w-1 h-1 rounded-full" style={{ background: 'var(--border)' }} />
           <span className="flex items-center gap-1.5">
             <Eye size={12} style={{ color: '#34d399' }} />
             <span style={{ color: '#34d399' }}>{stats.activos}</span> visibles
           </span>
-          <span className="w-1 h-1 rounded-full" style={{ background: '#2a2a2e' }} />
+          <span className="w-1 h-1 rounded-full" style={{ background: 'var(--border)' }} />
           <span className="flex items-center gap-1.5">
             <EyeOff size={12} />
             {stats.inactivos} ocultos
@@ -157,14 +159,14 @@ export default function MenuPage() {
 
       {/* ── Search ── */}
       <div className="relative max-w-sm">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#3f3f46' }} />
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-xmuted)' }} />
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Buscar producto…"
-          className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-white placeholder:text-zinc-600 outline-none transition-all"
-          style={{ background: '#111113', border: '1px solid #2a2a2e' }}
+          className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none transition-all"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
           onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.4)'}
-          onBlur={e => e.target.style.border = '1px solid #2a2a2e'}
+          onBlur={e => e.target.style.border = '1px solid var(--border)'}
         />
       </div>
 
@@ -182,7 +184,7 @@ export default function MenuPage() {
       {loading && (
         <div className="space-y-3">
           {[1, 2, 3].map(i => (
-            <div key={i} className="rounded-xl p-4 space-y-3" style={{ background: '#1c1c1f', border: '1px solid #2a2a2e' }}>
+            <div key={i} className="rounded-xl p-4 space-y-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
               <div className="skeleton h-4 w-32 rounded" />
               {[1, 2].map(j => (
                 <div key={j} className="flex items-center gap-3">
@@ -202,11 +204,11 @@ export default function MenuPage() {
       {/* ── Empty state ── */}
       {!loading && isEmpty && (
         <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: '#1c1c1f', border: '1px solid #2a2a2e' }}>
-            <UtensilsCrossed size={24} style={{ color: '#3f3f46' }} />
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+            <UtensilsCrossed size={24} style={{ color: 'var(--text-xmuted)' }} />
           </div>
           <div>
-            <p className="text-sm font-medium" style={{ color: '#a1a1aa' }}>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
               {search ? `Sin resultados para "${search}"` : 'No hay productos todavía'}
             </p>
             {!search && (
@@ -222,43 +224,48 @@ export default function MenuPage() {
       {!loading && !isEmpty && (
         <div className="space-y-4">
           {Object.entries(filteredGrouped).map(([cat, { subtitle, items }]) => (
-            <div key={cat} className="rounded-xl overflow-hidden" style={{ border: '1px solid #2a2a2e' }}>
+            <div key={cat} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}>
 
               {/* Category header */}
-              <div className="flex items-center justify-between px-5 py-3" style={{ background: '#161618', borderBottom: '1px solid #2a2a2e' }}>
+              <div className="flex items-center justify-between px-5 py-3" style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border)' }}>
                 <div>
-                  <span className="text-sm font-semibold text-white">{cat}</span>
+                  <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{cat}</span>
                   {subtitle && (
-                    <span className="text-xs ml-2" style={{ color: '#52525b' }}>{subtitle}</span>
+                    <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>{subtitle}</span>
                   )}
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#1c1c1f', color: '#52525b', border: '1px solid #2a2a2e' }}>
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                   {items.length} productos
                 </span>
               </div>
 
               {/* Product rows */}
-              <div className="divide-y" style={{ background: '#1c1c1f', borderColor: '#2a2a2e' }}>
-                {items.map(item => {
+              <div style={{ background: 'var(--bg-card)' }}>
+                {items.map((item, idx) => {
                   const badge = BADGE_COLORS[item.etiqueta]
                   return (
                     <div
                       key={item.id}
-                      className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.02]"
-                      style={{ opacity: item.activo ? 1 : 0.5 }}
+                      className="flex items-center gap-4 px-5 py-3.5 transition-colors"
+                      style={{
+                        opacity: item.activo ? 1 : 0.5,
+                        borderBottom: idx < items.length - 1 ? '1px solid var(--border)' : 'none',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
                       {/* Thumbnail */}
-                      <div className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid #2a2a2e' }}>
+                      <div className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid var(--border)' }}>
                         {item.imagen_url
                           ? <img src={item.imagen_url} alt={item.nombre} className="w-full h-full object-cover" />
-                          : <div className="w-full h-full flex items-center justify-center text-lg" style={{ background: '#111113' }}>🍣</div>
+                          : <div className="w-full h-full flex items-center justify-center text-lg" style={{ background: 'var(--bg-input)' }}>🍣</div>
                         }
                       </div>
 
                       {/* Name + desc */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-white truncate">{item.nombre}</p>
+                          <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{item.nombre}</p>
                           {badge && (
                             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
                               style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}
@@ -267,7 +274,7 @@ export default function MenuPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs mt-0.5 truncate" style={{ color: '#52525b' }}>
+                        <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
                           {item.descripcion || '—'}
                         </p>
                       </div>
@@ -284,9 +291,11 @@ export default function MenuPage() {
                         {/* Toggle active */}
                         <button
                           onClick={() => handleToggle(item)}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-white/5"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
                           title={item.activo ? 'Ocultar' : 'Mostrar'}
-                          style={{ color: item.activo ? '#34d399' : '#3f3f46' }}
+                          style={{ color: item.activo ? '#34d399' : 'var(--text-xmuted)' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
                           {item.activo ? <Eye size={14} /> : <EyeOff size={14} />}
                         </button>
@@ -294,10 +303,10 @@ export default function MenuPage() {
                         {/* Edit */}
                         <button
                           onClick={() => openEdit(item)}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-white/5"
-                          style={{ color: '#71717a' }}
-                          onMouseEnter={e => e.currentTarget.style.color = '#a1a1aa'}
-                          onMouseLeave={e => e.currentTarget.style.color = '#71717a'}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                          style={{ color: 'var(--text-xmuted)' }}
+                          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+                          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-xmuted)'; e.currentTarget.style.background = 'transparent' }}
                         >
                           <Edit2 size={14} />
                         </button>
@@ -306,9 +315,9 @@ export default function MenuPage() {
                         <button
                           onClick={() => setDeleteTarget(item)}
                           className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-red-500/10"
-                          style={{ color: '#71717a' }}
+                          style={{ color: 'var(--text-xmuted)' }}
                           onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
-                          onMouseLeave={e => e.currentTarget.style.color = '#71717a'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -338,22 +347,22 @@ export default function MenuPage() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeleteTarget(null)} />
           <div
             className="relative w-full max-w-sm rounded-2xl p-6 space-y-4"
-            style={{ background: '#1c1c1f', border: '1px solid #2a2a2e', boxShadow: '0 32px 64px rgba(0,0,0,0.5)' }}
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 32px 64px rgba(0,0,0,0.3)' }}
           >
             <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto" style={{ background: 'rgba(239,68,68,0.1)' }}>
               <Trash2 size={18} style={{ color: '#f87171' }} />
             </div>
             <div className="text-center">
-              <p className="font-semibold text-white text-base">¿Eliminar producto?</p>
-              <p className="text-sm mt-1" style={{ color: '#52525b' }}>
-                "<span className="text-white/70">{deleteTarget.nombre}</span>" se eliminará permanentemente.
+              <p className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>¿Eliminar producto?</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                "<span style={{ color: 'var(--text-primary)' }}>{deleteTarget.nombre}</span>" se eliminará permanentemente.
               </p>
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteTarget(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-white/5"
-                style={{ color: '#71717a', border: '1px solid #2a2a2e' }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors"
+                style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
               >
                 Cancelar
               </button>

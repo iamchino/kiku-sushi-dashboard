@@ -6,7 +6,7 @@ import { es } from 'date-fns/locale'
 
 const CANAL_LABEL = {
   salon: 'Salón', delivery: 'Delivery', whatsapp: 'WhatsApp',
-  pedidosya: 'PedidosYa', rappi: 'Rappi',
+  pedidosya: 'PedidosYa',
 }
 
 const EMPTY = { nombre: '', telefono: '', email: '', cumpleanos: '', notas: '', tags: '' }

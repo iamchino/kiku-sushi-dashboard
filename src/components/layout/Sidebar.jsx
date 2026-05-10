@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-  LayoutDashboard, ClipboardList, Package, Receipt,
+  LayoutDashboard, ClipboardList, Package, Receipt, ListChecks,
   Users, ChefHat, LogOut, UtensilsCrossed, X, Menu, BarChart2,
   Sun, Moon, BookOpen
 } from 'lucide-react'
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { to: '/menu',       icon: UtensilsCrossed, label: 'Menú & Carta' },
   { to: '/pedidos',    icon: ClipboardList,   label: 'Pedidos'      },
   { to: '/cocina',     icon: ChefHat,         label: 'Cocina (KDS)' },
+  { to: '/produccion', icon: ListChecks,      label: 'Producción'   },
   { to: '/stock',      icon: Package,         label: 'Inventario'   },
   { to: '/recetas',    icon: BookOpen,        label: 'Recetas'      },
   { to: '/caja',       icon: Receipt,         label: 'Caja y AFIP'  },

@@ -5,7 +5,6 @@ const COLORES = {
   delivery: '#4f8ef7',
   whatsapp: '#34d399',
   pedidosya: '#fbbf24',
-  rappi: '#f472b6',
 }
 
 const ETIQUETAS = {
@@ -13,7 +12,6 @@ const ETIQUETAS = {
   delivery: 'Delivery',
   whatsapp: 'WhatsApp',
   pedidosya: 'PedidosYa',
-  rappi: 'Rappi',
 }
 
 const CustomTooltip = ({ active, payload }) => {

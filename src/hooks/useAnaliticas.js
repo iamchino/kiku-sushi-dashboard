@@ -23,7 +23,6 @@ export const CANAL_CFG = {
   delivery:  { label: 'Delivery',  color: '#4f8ef7' },
   whatsapp:  { label: 'WhatsApp',  color: '#34d399' },
   pedidosya: { label: 'PedidosYa', color: '#fbbf24' },
-  rappi:     { label: 'Rappi',     color: '#f472b6' },
   otro:      { label: 'Otro',      color: '#71717a' },
 }
 

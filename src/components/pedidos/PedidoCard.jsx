@@ -8,7 +8,6 @@ const CANAL_CONFIG = {
   delivery:  { label: 'Delivery',   color: '#4f8ef7', bg: 'rgba(79,142,247,0.12)'  },
   whatsapp:  { label: 'WhatsApp',   color: '#34d399', bg: 'rgba(52,211,153,0.12)'  },
   pedidosya: { label: 'PedidosYa',  color: '#fbbf24', bg: 'rgba(251,191,36,0.12)'  },
-  rappi:     { label: 'Rappi',      color: '#f472b6', bg: 'rgba(244,114,182,0.12)' },
 }
 
 const BTN_LABEL = {

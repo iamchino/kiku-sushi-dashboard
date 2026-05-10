@@ -8,7 +8,6 @@ const CANALES = [
   { id: 'delivery',  label: '🚗  Delivery'    },
   { id: 'whatsapp',  label: '💬  WhatsApp'   },
   { id: 'pedidosya', label: '🟡  PedidosYa'  },
-  { id: 'rappi',     label: '🟠  Rappi'      },
 ]
 
 export default function NuevoPedidoModal({ open, onClose, onSave }) {

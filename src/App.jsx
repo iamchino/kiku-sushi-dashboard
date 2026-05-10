@@ -3,10 +3,12 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { supabase } from './lib/supabase'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Sidebar } from './components/layout/Sidebar'
+import { BottomNav } from './components/layout/BottomNav'
 import Dashboard from './pages/Dashboard'
 import MenuPage from './pages/Menu'
 import PedidosPage from './pages/Pedidos'
 import CocinaKDS from './pages/Cocina'
+import ProduccionPage from './pages/Produccion'
 import ClientesPage from './pages/Clientes'
 import StockPage from './pages/Stock'
 import AnaliticasPage from './pages/Analiticas'
@@ -75,13 +77,19 @@ function RoleGuard({ children }) {
 function AppRoutes() {
   const role = useRole()
 
-  // Rol cocina: solo el KDS, sin sidebar
+  // Rol cocina: KDS + Producción con bottom nav
   if (role === 'cocina') {
     return (
-      <Routes>
-        <Route path="/cocina" element={<CocinaKDS />} />
-        <Route path="*"       element={<Navigate to="/cocina" replace />} />
-      </Routes>
+      <>
+        <div style={{ paddingBottom: '56px' }}>
+          <Routes>
+            <Route path="/cocina"     element={<CocinaKDS />} />
+            <Route path="/produccion" element={<ProduccionPage />} />
+            <Route path="*"           element={<Navigate to="/cocina" replace />} />
+          </Routes>
+        </div>
+        <BottomNav />
+      </>
     )
   }
 
@@ -95,6 +103,7 @@ function AppRoutes() {
           <Route path="/pedidos" element={<PedidosPage />} />
           <Route path="/menu"    element={<MenuPage />} />
           <Route path="/cocina"  element={<CocinaKDS />} />
+          <Route path="/produccion" element={<ProduccionPage />} />
           <Route path="/stock"   element={<StockPage />} />
           <Route path="/recetas" element={<RecetasPage />} />
           <Route path="/caja"    element={<Pendiente nombre="Caja y Facturación AFIP" />} />
