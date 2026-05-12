@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, RotateCcw, ChefHat, AlertTriangle, Trash2 } from 'lucide-react'
+import { CheckCircle2, RotateCcw, AlertTriangle, Trash2 } from 'lucide-react'
 
 const ESTADO_CONFIG = {
   pendiente:   { color: '#7c3aed', border: 'rgba(124,58,237,0.3)',  bg: 'rgba(124,58,237,0.05)', label: 'Pendiente' },

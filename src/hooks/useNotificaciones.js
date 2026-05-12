@@ -32,7 +32,7 @@ export function useNotificaciones() {
   // Ref para acceder a las últimas funciones dentro del callback de realtime
   // sin que el effect se re-ejecute (evita el bug "cannot add callbacks after subscribe")
   const handlersRef = useRef({ setNotifs, setUnread, playBeep })
-  useEffect(() => { handlersRef.current = { setNotifs, setUnread, playBeep } })
+  useEffect(() => { handlersRef.current = { setNotifs, setUnread, playBeep } }, [playBeep])
 
   useEffect(() => {
     // Permiso notificaciones nativas

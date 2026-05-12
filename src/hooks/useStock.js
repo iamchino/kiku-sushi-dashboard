@@ -98,26 +98,15 @@ export function useStock() {
   }, [items])
 
   // Registrar cualquier movimiento y actualizar stock_actual
-  const registrarMovimiento = async ({ stockId, tipo, cantidad, notas, stockActual }) => {
-    const actual = parseFloat(stockActual)
-    const cant   = parseFloat(cantidad)
-    const nuevo  = tipo === 'ajuste'
-      ? cant
-      : tipo === 'entrada'
-        ? actual + cant
-        : Math.max(0, actual - cant)
-
-    const { error: e1 } = await supabase
-      .from('stock').update({ stock_actual: nuevo }).eq('id', stockId)
-    if (e1) return e1
-
-    const { error: e2 } = await supabase.from('stock_movimientos').insert({
-      stock_id: stockId, tipo,
-      cantidad: Math.abs(cant),
-      stock_antes: actual, stock_despues: nuevo,
-      notas: notas || null,
+  const registrarMovimiento = async ({ stockId, tipo, cantidad, notas }) => {
+    const { error } = await supabase.rpc('registrar_movimiento_stock', {
+      p_stock_id: stockId,
+      p_tipo: tipo,
+      p_cantidad: parseFloat(cantidad),
+      p_notas: notas || null,
     })
-    if (e2) return e2
+    if (error) return error
+
     fetchStock()
     return null
   }

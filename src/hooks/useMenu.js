@@ -65,7 +65,11 @@ export function useMenu(tipo) {
     // Si se enviaron variantes, reemplazar todas
     if (variantes !== undefined) {
       // Borrar las anteriores
-      await supabase.from('menu_item_variantes').delete().eq('menu_item_id', id)
+      const { error: deleteError } = await supabase
+        .from('menu_item_variantes')
+        .delete()
+        .eq('menu_item_id', id)
+      if (deleteError) return deleteError
 
       // Insertar las nuevas
       if (variantes?.length > 0) {

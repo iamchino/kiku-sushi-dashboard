@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, RefreshCw, Package, AlertTriangle, CheckCircle2, Truck, Edit2, Trash2, Search, Clock, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, RefreshCw, Package, AlertTriangle, CheckCircle2, Edit2, Trash2, Search, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import { useStock, ESTADO_STOCK, ESTADO_CONFIG, costoReal, CATEGORIAS_STOCK } from '../hooks/useStock'
 import { normalizeSearch } from '../utils/normalize'
 import MovimientoModal from '../components/stock/MovimientoModal'
@@ -50,7 +50,7 @@ const TIPO_MOV = {
   ajuste:  { label: 'Ajuste',  color: '#3b82f6', icon: '🔄' },
 }
 
-function ItemRow({ item, updatePrecio, openMovimiento, openEdit, setDeleteTarget }) {
+function ItemRow({ item, updatePrecio, openEdit, setDeleteTarget }) {
   const [showHistory, setShowHistory] = useState(false)
   const costo = costoReal(item)
   const rend = parseFloat(item.rendimiento) || 1

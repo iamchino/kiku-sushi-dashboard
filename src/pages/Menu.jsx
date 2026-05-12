@@ -26,7 +26,6 @@ export default function MenuPage() {
   const [editItem,    setEditItem]    = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deletingId,  setDeletingId]  = useState(null)
-  const [saving,      setSaving]      = useState(false)
 
   const {
     grouped, categories, stats,
@@ -55,12 +54,11 @@ export default function MenuPage() {
   const openEdit = (item) => { setEditItem(item); setModalOpen(true) }
 
   const handleSave = async (formData, imageFile) => {
-    setSaving(true)
     let imagen_url = formData.imagen_url || null
 
     if (imageFile) {
       const { url, error } = await uploadImage(imageFile)
-      if (error) { setSaving(false); return error }
+      if (error) return error
       imagen_url = url
     }
 
@@ -69,7 +67,6 @@ export default function MenuPage() {
       ? await updateItem(editItem.id, payload)
       : await createItem(payload)
 
-    setSaving(false)
     return err
   }
 

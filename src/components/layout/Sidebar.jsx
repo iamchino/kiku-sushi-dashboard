@@ -8,10 +8,13 @@ import {
 import clsx from 'clsx'
 import { auth } from '../../lib/supabase'
 import { NotificationBell } from './NotificationBell'
-import { useTheme } from '../../context/ThemeContext'
+import { useTheme } from '../../context/useTheme'
+import { useRole } from '../../context/useRole'
+import { canAccessRoute } from '../../context/role'
 
 const NAV_ITEMS = [
   { to: '/',           icon: LayoutDashboard, label: 'Dashboard'    },
+  { to: '/operaciones', icon: ChefHat,        label: 'Operaciones'  },
   { to: '/analiticas', icon: BarChart2,       label: 'Analíticas'   },
   { to: '/menu',       icon: UtensilsCrossed, label: 'Menú & Carta' },
   { to: '/pedidos',    icon: ClipboardList,   label: 'Pedidos'      },
@@ -74,6 +77,8 @@ function ThemeToggle() {
 // ── Sidebar content (reutilizado en desktop y drawer) ────────────────────────
 function SidebarContent({ onClose, showBell = false }) {
   useAutoClose(onClose ?? (() => {}))
+  const role = useRole()
+  const navItems = NAV_ITEMS.filter(({ to }) => canAccessRoute(role, to))
 
   return (
     <div
@@ -120,7 +125,7 @@ function SidebarContent({ onClose, showBell = false }) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+        {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}

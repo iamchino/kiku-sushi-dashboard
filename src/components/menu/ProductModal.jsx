@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Upload, Trash2, Loader2, ImageIcon, Plus, GripVertical } from 'lucide-react'
+import { X, Trash2, Loader2, ImageIcon, Plus } from 'lucide-react'
 
 const ETIQUETAS = ['', 'Popular', 'Premium', 'Nuevo', 'Limitado']
 

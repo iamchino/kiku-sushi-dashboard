@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, RefreshCw, ClipboardList, Flame, ChefHat, CheckCircle2, Truck } from 'lucide-react'
-import { usePedidos, ESTADOS } from '../hooks/usePedidos'
+import { usePedidos } from '../hooks/usePedidos'
 import PedidoCard from '../components/pedidos/PedidoCard'
 import NuevoPedidoModal from '../components/pedidos/NuevoPedidoModal'
 

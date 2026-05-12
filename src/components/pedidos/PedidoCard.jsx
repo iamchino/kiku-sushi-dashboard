@@ -1,6 +1,7 @@
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronRight, X, UtensilsCrossed, Truck, MessageCircle, Clock } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ChevronRight, X, Clock } from 'lucide-react'
 import { ESTADO_SIGUIENTE } from '../../hooks/usePedidos'
 
 const CANAL_CONFIG = {
@@ -17,13 +18,22 @@ const BTN_LABEL = {
 }
 
 export default function PedidoCard({ pedido, onAvanzar, onCancelar }) {
+  const [now, setNow] = useState(0)
   const canal    = CANAL_CONFIG[pedido.canal] || CANAL_CONFIG.salon
   const siguiente = ESTADO_SIGUIENTE[pedido.estado]
   const shortId  = pedido.id.slice(-4).toUpperCase()
   const elapsed  = formatDistanceToNow(new Date(pedido.created_at), { locale: es, addSuffix: false })
   const items    = pedido.pedido_items || []
   const urgente  = pedido.estado === 'pendiente' &&
-    (Date.now() - new Date(pedido.created_at).getTime()) > 10 * 60 * 1000 // > 10 min
+    now > 0 &&
+    (now - new Date(pedido.created_at).getTime()) > 10 * 60 * 1000 // > 10 min
+
+  useEffect(() => {
+    const update = () => setNow(Date.now())
+    update()
+    const id = setInterval(update, 30000)
+    return () => clearInterval(id)
+  }, [])
 
   return (
     <div

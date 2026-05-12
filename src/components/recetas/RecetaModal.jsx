@@ -115,9 +115,6 @@ export default function RecetaModal({
 
   const labelStyle = { color: 'var(--text-secondary)', fontSize: 12, fontWeight: 500 }
 
-  // Ingredientes ya usados (para no duplicar)
-  const usedStockIds = ingredientes.map(i => i.stock_id).filter(Boolean)
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
@@ -204,14 +201,13 @@ export default function RecetaModal({
             {ingredientes.map((ing, idx) => {
               let ingCosto = 0
               let stock = null
-              let subr = null
               const isSub = ing.tipo === 'subreceta'
 
               if (!isSub) {
                 stock = stockItems.find(s => s.id === ing.id)
                 if (stock) ingCosto = costoIngrediente({ stock, cantidad: parseFloat(ing.cantidad) || 0 })
               } else {
-                subr = recetas.find(r => r.id === ing.id)
+                const subr = recetas.find(r => r.id === ing.id)
                 if (subr) ingCosto = costoIngrediente({ subreceta_id: ing.id, cantidad: parseFloat(ing.cantidad) || 0 })
               }
 

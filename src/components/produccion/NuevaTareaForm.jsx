@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Plus, Search, AlertTriangle } from 'lucide-react'
 import { normalizeSearch } from '../../utils/normalize'
 
-export default function NuevaTareaForm({ subRecetas, allRecetas, onAdd }) {
+export default function NuevaTareaForm({ subRecetas, onAdd }) {
   const [open, setOpen] = useState(false)
   const [modo, setModo] = useState('receta') // 'receta' | 'libre'
   const [recetaId, setRecetaId] = useState('')

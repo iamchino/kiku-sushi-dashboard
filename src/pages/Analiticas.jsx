@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
 import {
@@ -255,8 +255,6 @@ export default function AnaliticasPage() {
 
   const mejorCanal = data?.porCanal?.filter(c => c.pedidos > 0).sort((a, b) => b.ticket - a.ticket)[0]
   const peorCanal  = data?.porCanal?.filter(c => c.pedidos > 0).sort((a, b) => a.ticket - b.ticket)[0]
-  const masCancelaciones = data?.porCanal?.sort((a, b) => b.cancelados - a.cancelados)[0]
-
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-7xl mx-auto">
 

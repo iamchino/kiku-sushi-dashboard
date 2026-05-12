@@ -11,6 +11,8 @@ export class ErrorBoundary extends Component {
   }
   render() {
     if (this.state.error) {
+      const showDetails = import.meta.env.DEV
+
       return (
         <div style={{
           minHeight: '100vh', background: '#0f0f11', display: 'flex',
@@ -27,13 +29,15 @@ export class ErrorBoundary extends Component {
             <p style={{ color: '#e4e4e7', fontSize: '13px', marginBottom: '1rem' }}>
               {this.state.error?.message}
             </p>
-            <pre style={{
-              background: '#111113', borderRadius: '8px', padding: '1rem',
-              color: '#a1a1aa', fontSize: '11px', overflowX: 'auto',
-              whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-            }}>
-              {this.state.error?.stack}
-            </pre>
+            {showDetails && (
+              <pre style={{
+                background: '#111113', borderRadius: '8px', padding: '1rem',
+                color: '#a1a1aa', fontSize: '11px', overflowX: 'auto',
+                whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+              }}>
+                {this.state.error?.stack}
+              </pre>
+            )}
             <button
               onClick={() => window.location.reload()}
               style={{

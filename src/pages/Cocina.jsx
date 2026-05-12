@@ -1,15 +1,18 @@
-import { useState, useEffect, useMemo } from 'react'
-import { ChefHat, CheckCircle2, Flame, ArrowLeft, Clock, Wifi, WifiOff } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ChefHat, CheckCircle2, Flame, ArrowLeft, Clock, WifiOff } from 'lucide-react'
 import { usePedidos } from '../hooks/usePedidos'
 import { useNavigate } from 'react-router-dom'
 
 // ── Timer hook: fuerza re-render cada 10s para actualizar tiempos ─────────────
 function useTick() {
-  const [, setTick] = useState(0)
+  const [now, setNow] = useState(0)
   useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 10000)
+    const update = () => setNow(Date.now())
+    update()
+    const id = setInterval(update, 10000)
     return () => clearInterval(id)
   }, [])
+  return now
 }
 
 // ── Clock en el header ────────────────────────────────────────────────────────
@@ -27,8 +30,10 @@ function LiveClock() {
 }
 
 // ── Elapsed time con urgencia ─────────────────────────────────────────────────
-function Elapsed({ createdAt }) {
-  const mins = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000)
+function Elapsed({ createdAt, now }) {
+  const mins = now > 0
+    ? Math.floor((now - new Date(createdAt).getTime()) / 60000)
+    : 0
   const urgencia = mins >= 20 ? 'critica' : mins >= 10 ? 'alta' : 'normal'
 
   const colors = {
@@ -50,7 +55,7 @@ function Elapsed({ createdAt }) {
 
 // ── Tarjeta grande de cocina ──────────────────────────────────────────────────
 function KdsCard({ pedido, estado, onAction }) {
-  useTick()
+  const now = useTick()
   const shortId = pedido.id.slice(-4).toUpperCase()
   const items   = pedido.pedido_items || []
 
@@ -91,7 +96,7 @@ function KdsCard({ pedido, estado, onAction }) {
             : <span className="text-sm font-semibold capitalize" style={{ color: '#4f8ef7' }}>{pedido.canal}</span>
           }
         </div>
-        <Elapsed createdAt={pedido.created_at} />
+        <Elapsed createdAt={pedido.created_at} now={now} />
       </div>
 
       {/* Items — grandes y legibles */}

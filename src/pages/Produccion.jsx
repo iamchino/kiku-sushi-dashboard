@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { RefreshCw, CalendarDays, ChevronLeft, ChevronRight, ListChecks, ClipboardList } from 'lucide-react'
 import { useProduccion } from '../hooks/useProduccion'
-import { useRole } from '../App'
+import { useRole } from '../context/useRole'
 import ProgresoBar from '../components/produccion/ProgresoBar'
 import TareaCard from '../components/produccion/TareaCard'
 import CompletarModal from '../components/produccion/CompletarModal'
@@ -31,7 +31,7 @@ export default function ProduccionPage() {
   const {
     lista, tareas, recetas, subRecetas, stats,
     loading, error, fecha, setFecha,
-    createLista, addTarea, updateTarea, deleteTarea,
+    createLista, addTarea, deleteTarea,
     completarTarea, revertirTarea, fetchData,
   } = useProduccion()
 
@@ -187,7 +187,6 @@ export default function ProduccionPage() {
           {isAdmin && (
             <NuevaTareaForm
               subRecetas={subRecetas}
-              allRecetas={recetas}
               onAdd={addTarea}
             />
           )}

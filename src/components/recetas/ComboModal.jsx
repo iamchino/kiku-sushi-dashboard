@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { X, Loader2, Plus, Trash2, Package } from 'lucide-react'
 
 export default function ComboModal({
-  open, onClose, combo, recetasDisponibles, menuItems, onSave, costoPorcionReceta,
+  open, onClose, combo, recetasDisponibles, menuItems, onSave,
 }) {
   const [nombre,     setNombre]     = useState('')
   const [menuItemId, setMenuItemId] = useState('')

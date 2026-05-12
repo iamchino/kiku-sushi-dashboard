@@ -30,7 +30,7 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
   useEffect(() => { fetchCombos() }, [fetchCombos])
 
   // ── Cálculos de costo por receta (reutiliza la lógica de useRecetas) ─────
-  const costoReceta = (receta) => {
+  const costoReceta = useCallback((receta) => {
     if (!receta?.receta_ingredientes) return 0
     return receta.receta_ingredientes.reduce((sum, ri) => {
       if (!ri.stock) return sum
@@ -39,13 +39,16 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
       const cant   = parseFloat(ri.cantidad) || 0
       return sum + cant * (precio / (rend > 0 ? rend : 1))
     }, 0)
-  }
+  }, [])
 
-  const costoPorcionReceta = (receta) => {
+  const costoPorcionReceta = useCallback((receta) => {
+    const recetaConCostos = recetasConCostos.find(r => r.id === receta?.id)
+    if (recetaConCostos?._costoPorcion !== undefined) return recetaConCostos._costoPorcion
+
     const total = costoReceta(receta)
     const porciones = parseInt(receta?.porciones) || 1
     return total / porciones
-  }
+  }, [costoReceta, recetasConCostos])
 
   // ── Combos enriquecidos con cálculos ──────────────────────────────────────
   const combosConCostos = useMemo(() => {
@@ -95,7 +98,7 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
         _totalItems: (combo.combo_items || []).reduce((s, i) => s + (i.cantidad || 1), 0),
       }
     })
-  }, [combos, menuItems])
+  }, [combos, menuItems, costoPorcionReceta])
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
   const createCombo = async ({ nombre, menu_item_id, precio, notas, items }) => {

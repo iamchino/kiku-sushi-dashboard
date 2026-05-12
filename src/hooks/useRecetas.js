@@ -50,7 +50,7 @@ export function useRecetas() {
   /**
    * Calcula el costo total de una receta (recursivo para sub-recetas).
    */
-  const costoReceta = useCallback((receta, allRecetas, visited = new Set()) => {
+  const costoReceta = useCallback(function costoReceta(receta, allRecetas, visited = new Set()) {
     if (!receta || !receta.receta_ingredientes) return 0
     if (visited.has(receta.id)) return 0 // evitar recursión infinita
     

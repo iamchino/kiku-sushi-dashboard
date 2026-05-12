@@ -1,10 +1,11 @@
-import { useState, useEffect, createContext, useContext } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Sidebar } from './components/layout/Sidebar'
 import { BottomNav } from './components/layout/BottomNav'
 import Dashboard from './pages/Dashboard'
+import OperacionesPage from './pages/Operaciones'
 import MenuPage from './pages/Menu'
 import PedidosPage from './pages/Pedidos'
 import CocinaKDS from './pages/Cocina'
@@ -16,24 +17,9 @@ import RecetasPage from './pages/Recetas'
 import Login from './pages/Login'
 import { Clock } from 'lucide-react'
 import { ThemeProvider } from './context/ThemeContext'
+import { RoleContext, DEFAULT_ROLE, getRoleFromUser, canAccessRoute, getDefaultRoute } from './context/role'
+import { useRole } from './context/useRole'
 
-// ══════════════════════════════════════════════════════════════════════════════
-// SISTEMA DE ROLES
-// ─────────────────────────────────────────────────────────────────────────────
-// Roles disponibles:
-//   'admin'  → acceso completo al dashboard
-//   'cocina' → solo ve el KDS (/cocina), redirigido automáticamente
-//
-// Para asignar un rol a un usuario, ejecutar en Supabase SQL Editor:
-//   UPDATE auth.users
-//   SET raw_user_meta_data = jsonb_set(raw_user_meta_data, '{role}', '"cocina"')
-//   WHERE email = 'chef@kikusushi.com';
-// ══════════════════════════════════════════════════════════════════════════════
-
-const RoleContext = createContext('admin')
-export const useRole = () => useContext(RoleContext)
-
-// ── Placeholder para módulos aún no implementados ────────────────────────────
 const Pendiente = ({ nombre }) => (
   <div className="flex items-center justify-center h-full">
     <div className="text-center space-y-3">
@@ -44,95 +30,77 @@ const Pendiente = ({ nombre }) => (
         <Clock size={22} style={{ color: 'rgba(124,58,237,0.7)' }} />
       </div>
       <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{nombre}</p>
-      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Próximamente — en construcción</p>
+      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Proximamente, en construccion</p>
     </div>
   </div>
 )
 
-// ── Layout con sidebar (para admin) ──────────────────────────────────────────
 function AdminLayout({ children }) {
+  const role = useRole()
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-app)' }}>
       <Sidebar />
-      {/* padding-top en mobile para que el hamburger no tape el contenido */}
-      <main className="flex-1 overflow-y-auto pt-14 lg:pt-0">
+      <main className={`flex-1 overflow-y-auto pt-14 lg:pt-0 ${role === 'cocina' ? 'pb-20 lg:pb-0' : ''}`}>
         {children}
       </main>
     </div>
   )
 }
 
-// ── Guard: redirige a /cocina si el rol es 'cocina' ───────────────────────────
 function RoleGuard({ children }) {
   const role = useRole()
   const location = useLocation()
 
-  if (role === 'cocina' && location.pathname !== '/cocina') {
-    return <Navigate to="/cocina" replace />
+  if (!canAccessRoute(role, location.pathname)) {
+    return <Navigate to={getDefaultRoute(role)} replace />
   }
   return children
 }
 
-// ── Rutas según el rol ────────────────────────────────────────────────────────
 function AppRoutes() {
   const role = useRole()
+  const defaultRoute = getDefaultRoute(role)
 
-  // Rol cocina: KDS + Producción con bottom nav
-  if (role === 'cocina') {
-    return (
-      <>
-        <div style={{ paddingBottom: '56px' }}>
-          <Routes>
-            <Route path="/cocina"     element={<CocinaKDS />} />
-            <Route path="/produccion" element={<ProduccionPage />} />
-            <Route path="*"           element={<Navigate to="/cocina" replace />} />
-          </Routes>
-        </div>
-        <BottomNav />
-      </>
-    )
-  }
-
-  // Rol admin: dashboard completo con sidebar
   return (
     <AdminLayout>
       <RoleGuard>
         <Routes>
-          <Route path="/"        element={<Dashboard />} />
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/operaciones" element={<OperacionesPage />} />
           <Route path="/analiticas" element={<AnaliticasPage />} />
           <Route path="/pedidos" element={<PedidosPage />} />
-          <Route path="/menu"    element={<MenuPage />} />
-          <Route path="/cocina"  element={<CocinaKDS />} />
+          <Route path="/menu" element={<MenuPage />} />
+          <Route path="/cocina" element={<CocinaKDS />} />
           <Route path="/produccion" element={<ProduccionPage />} />
-          <Route path="/stock"   element={<StockPage />} />
+          <Route path="/stock" element={<StockPage />} />
           <Route path="/recetas" element={<RecetasPage />} />
-          <Route path="/caja"    element={<Pendiente nombre="Caja y Facturación AFIP" />} />
-          <Route path="/clientes"element={<ClientesPage />} />
-          <Route path="*"        element={<Navigate to="/" replace />} />
+          <Route path="/caja" element={<Pendiente nombre="Caja y Facturacion AFIP" />} />
+          <Route path="/clientes" element={<ClientesPage />} />
+          <Route path="*" element={<Navigate to={defaultRoute} replace />} />
         </Routes>
       </RoleGuard>
+      {role === 'cocina' && <BottomNav />}
     </AdminLayout>
   )
 }
 
-// ── App root ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [session, setSession] = useState(undefined)
-  const [role,    setRole]    = useState('admin')
+  const [role, setRole] = useState(DEFAULT_ROLE)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
-      setRole(data.session?.user?.user_metadata?.role || 'admin')
+      setRole(getRoleFromUser(data.session?.user))
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s)
-      setRole(s?.user?.user_metadata?.role || 'admin')
+      setRole(getRoleFromUser(s?.user))
     })
     return () => subscription.unsubscribe()
   }, [])
 
-  // Cargando
   if (session === undefined) {
     return (
       <div className="flex items-center justify-center h-screen" style={{ background: 'var(--bg-app)' }}>

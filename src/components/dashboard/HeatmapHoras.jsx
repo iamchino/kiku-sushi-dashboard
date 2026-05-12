@@ -1,5 +1,3 @@
-import clsx from 'clsx'
-
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 const HORAS = Array.from({ length: 13 }, (_, i) => `${i + 11}h`)
 const DIAS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']

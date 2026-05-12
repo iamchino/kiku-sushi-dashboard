@@ -117,30 +117,21 @@ export function usePedidos() {
 
   // CRUD
   const createPedido = async ({ canal, mesa, notas, items }) => {
-    const total = items.reduce((acc, i) => acc + parseFloat(i.precio_unitario || 0) * i.cantidad, 0)
+    const { error } = await supabase.rpc('crear_pedido_con_items', {
+      p_canal: canal,
+      p_mesa: mesa ? String(mesa) : null,
+      p_notas: notas || null,
+      p_items: items.map(i => ({
+        nombre:          i.nombre,
+        precio_unitario: parseFloat(i.precio_unitario || 0),
+        cantidad:        i.cantidad,
+        notas:           i.notas || null,
+        menu_item_id:    i.menu_item_id || null,
+        variante_id:     i.variante_id || null,
+      })),
+    })
 
-    const { data: pedido, error: e1 } = await supabase
-      .from('pedidos')
-      // mesa es TEXT en la BD → convertir a string
-      .insert({ canal, mesa: mesa ? String(mesa) : null, notas: notas || null, total })
-      .select().single()
-
-    if (e1) return e1
-
-    if (items.length > 0) {
-      const { error: e2 } = await supabase.from('pedido_items').insert(
-        items.map(i => ({
-          pedido_id:       pedido.id,
-          nombre:          i.nombre,
-          precio_unitario: parseFloat(i.precio_unitario || 0),
-          cantidad:        i.cantidad,
-          notas:           i.notas || null,
-          menu_item_id:    i.menu_item_id || null,
-          variante_id:     i.variante_id || null,
-        }))
-      )
-      if (e2) return e2
-    }
+    if (error) return error
 
     fetchPedidos()
     return null
@@ -200,9 +191,7 @@ export function usePedidos() {
           p_cantidad: ing.cantidad,
           p_notas: `Pedido #${pedidoId.slice(-4).toUpperCase()}: ${item.cantidad}× ${item.nombre}`,
         })
-        if (rpcErr) {
-          console.error('Error descontando stock por pedido:', rpcErr)
-        }
+        if (rpcErr) return rpcErr
         descuentoTotal.push({
           stock_id: ing.stock_id,
           nombre: ing.nombre,
@@ -215,11 +204,14 @@ export function usePedidos() {
 
     // Marcar pedido como stock descontado
     if (descuentoTotal.length > 0) {
-      await supabase.from('pedidos').update({
+      const { error } = await supabase.from('pedidos').update({
         stock_descontado: true,
         descuento_detalle: descuentoTotal,
       }).eq('id', pedidoId)
+      if (error) return error
     }
+
+    return null
   }
 
   /**
@@ -230,30 +222,36 @@ export function usePedidos() {
     if (!pedido?.stock_descontado || !pedido.descuento_detalle) return
 
     for (const det of pedido.descuento_detalle) {
-      await supabase.rpc('revertir_stock_produccion', {
+      const { error } = await supabase.rpc('revertir_stock_produccion', {
         p_stock_id: det.stock_id,
         p_cantidad: det.cantidad,
         p_notas: `Revertido pedido #${pedidoId.slice(-4).toUpperCase()}: ${det.item || det.nombre}`,
       })
+      if (error) return error
     }
 
-    await supabase.from('pedidos').update({
+    const { error } = await supabase.from('pedidos').update({
       stock_descontado: false,
       descuento_detalle: null,
     }).eq('id', pedidoId)
+    return error
   }
 
   const avanzarEstado = async (id, estadoActual) => {
     const siguiente = ESTADO_SIGUIENTE[estadoActual]
     if (!siguiente) return
 
-    const { error } = await supabase.from('pedidos').update({ estado: siguiente }).eq('id', id)
-    if (error) return error
-
     // Si el pedido acaba de pasar a "entregado", descontar stock
     if (siguiente === 'entregado') {
-      await descontarStockPedido(id)
+      const stockError = await descontarStockPedido(id)
+      if (stockError) return stockError
     }
+
+    const { error } = await supabase.rpc('avanzar_estado_pedido', {
+      p_pedido_id: id,
+      p_estado_actual: estadoActual,
+    })
+    if (error) return error
 
     fetchPedidos()
     return null
@@ -264,7 +262,8 @@ export function usePedidos() {
 
     // Si ya estaba entregado y tenía stock descontado, revertir
     if (pedido?.stock_descontado) {
-      await revertirStockPedido(id)
+      const stockError = await revertirStockPedido(id)
+      if (stockError) return stockError
     }
 
     const { error } = await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', id)

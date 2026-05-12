@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { ChefHat, ClipboardList } from 'lucide-react'
+import { ChefHat, ClipboardList, LayoutGrid } from 'lucide-react'
 
 const TABS = [
-  { to: '/cocina',     icon: ChefHat,       label: 'Cocina' },
-  { to: '/produccion', icon: ClipboardList,  label: 'Producción' },
+  { to: '/operaciones', icon: LayoutGrid, label: 'Inicio' },
+  { to: '/cocina', icon: ChefHat, label: 'Cocina' },
+  { to: '/produccion', icon: ClipboardList, label: 'Produccion' },
 ]
 
 export function BottomNav() {
@@ -13,7 +14,7 @@ export function BottomNav() {
       style={{
         background: '#111113',
         borderTop: '1px solid #1e1e22',
-        height: '56px',
+        height: 'calc(58px + env(safe-area-inset-bottom, 0px))',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
@@ -23,7 +24,7 @@ export function BottomNav() {
           to={to}
           className="flex-1 flex flex-col items-center justify-center gap-1 transition-colors"
           style={({ isActive }) => ({
-            color: isActive ? '#7c3aed' : '#52525b',
+            color: isActive ? '#7c3aed' : '#71717a',
             background: isActive ? 'rgba(124,58,237,0.08)' : 'transparent',
           })}
         >

@@ -1,0 +1,19 @@
+{
+  "name": "Kiku Sushi Operaciones",
+  "short_name": "Kiku Ops",
+  "description": "Operacion diaria de cocina, produccion y pedidos de Kiku Sushi.",
+  "start_url": "/operaciones",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0f11",
+  "theme_color": "#111113",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
