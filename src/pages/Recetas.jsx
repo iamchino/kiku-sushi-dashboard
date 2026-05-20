@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import {
-  Plus, RefreshCw, BookOpen, Search, Edit2, Trash2,
+  Plus, RefreshCw, BookOpen, Search, Edit2, Trash2, Copy,
   AlertTriangle, ChevronDown, ChevronUp, Package, ChefHat
 } from 'lucide-react'
 import { useRecetas } from '../hooks/useRecetas'
@@ -32,7 +32,7 @@ function MargenBadge({ margen }) {
 }
 
 // ── Fila expandible con detalle de ingredientes (Receta) ─────────────────────
-function RecetaRow({ receta, recetas, onEdit, onDelete }) {
+function RecetaRow({ receta, recetas, onEdit, onDuplicate, onDelete }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -115,13 +115,26 @@ function RecetaRow({ receta, recetas, onEdit, onDelete }) {
         <td className="px-3 py-3">
           <div className="flex items-center gap-0.5 justify-end opacity-60 group-hover:opacity-100 transition-opacity">
             <button onClick={() => onEdit(receta)}
+              title="Editar receta"
+              aria-label={`Editar ${receta.nombre}`}
               className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
               style={{ color: 'var(--text-xmuted)' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}>
               <Edit2 size={13} />
             </button>
+            <button onClick={() => onDuplicate(receta)}
+              title="Duplicar receta"
+              aria-label={`Duplicar ${receta.nombre}`}
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+              style={{ color: 'var(--text-xmuted)' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}>
+              <Copy size={13} />
+            </button>
             <button onClick={() => onDelete(receta, 'receta')}
+              title="Eliminar receta"
+              aria-label={`Eliminar ${receta.nombre}`}
               className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-red-500/10"
               style={{ color: 'var(--text-xmuted)' }}
               onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
@@ -388,6 +401,7 @@ export default function RecetasPage() {
   const [search,       setSearch]       = useState('')
   const [modalOpen,    setModalOpen]    = useState(false)
   const [editItem,     setEditItem]     = useState(null)
+  const [modalMode,    setModalMode]    = useState('create')
   
   // deleteTarget puede ser { type: 'receta', data: {...} } o { type: 'combo', data: {...} }
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -457,8 +471,9 @@ export default function RecetasPage() {
   const stats = activeTab === 'recetas' ? statsRecetas : statsCombos
 
   // Handlers Modal
-  const openNew = () => { setEditItem(null); setModalOpen(true) }
-  const openEdit = (item) => { setEditItem(item); setModalOpen(true) }
+  const openNew = () => { setEditItem(null); setModalMode('create'); setModalOpen(true) }
+  const openEdit = (item) => { setEditItem(item); setModalMode('edit'); setModalOpen(true) }
+  const openDuplicate = (item) => { setEditItem(item); setModalMode('duplicate'); setModalOpen(true) }
 
   const handleSaveReceta = async (id, data) => {
     return id ? updateReceta(id, data) : createReceta(data)
@@ -668,7 +683,14 @@ export default function RecetasPage() {
                     <tbody>
                       {activeTab === 'recetas' ? (
                         filteredRecetas.map(r => (
-                          <RecetaRow key={r.id} receta={r} recetas={recetas} onEdit={openEdit} onDelete={handleDeleteTarget} />
+                          <RecetaRow
+                            key={r.id}
+                            receta={r}
+                            recetas={recetas}
+                            onEdit={openEdit}
+                            onDuplicate={openDuplicate}
+                            onDelete={handleDeleteTarget}
+                          />
                         ))
                       ) : (
                         filteredCombos.map(c => (
@@ -688,8 +710,9 @@ export default function RecetasPage() {
       {activeTab === 'recetas' && (
         <RecetaModal
           open={modalOpen}
-          onClose={() => { setModalOpen(false); setEditItem(null) }}
+          onClose={() => { setModalOpen(false); setEditItem(null); setModalMode('create') }}
           receta={editItem}
+          mode={modalMode}
           recetas={recetas}
           stockItems={stockItems}
           menuItems={menuItems}

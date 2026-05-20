@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from 'react'
 import { X, Loader2, Plus, Trash2 } from 'lucide-react'
 
 export default function RecetaModal({
-  open, onClose, receta, recetas = [], stockItems, menuItems, onSave, costoIngrediente,
+  open, onClose, receta, mode = receta ? 'edit' : 'create', recetas = [], stockItems, menuItems, onSave, costoIngrediente,
 }) {
+  const isDuplicate = mode === 'duplicate'
   const [nombre,      setNombre]      = useState('')
   const [menuItemId,  setMenuItemId]  = useState('')
   const [porciones,   setPorciones]   = useState('1')
@@ -18,8 +19,8 @@ export default function RecetaModal({
     if (!open) return
     setError(null)
     if (receta) {
-      setNombre(receta.nombre || '')
-      setMenuItemId(receta.menu_item_id || '')
+      setNombre(isDuplicate ? `Copia de ${receta.nombre || ''}` : (receta.nombre || ''))
+      setMenuItemId(isDuplicate ? '' : (receta.menu_item_id || ''))
       setPorciones(String(receta.porciones || 1))
       setNotas(receta.notas || '')
       setEsSubreceta(!!receta.es_subreceta)
@@ -37,7 +38,7 @@ export default function RecetaModal({
       setEsSubreceta(false)
       setIngredientes([])
     }
-  }, [open, receta])
+  }, [open, receta, isDuplicate])
 
   // ── Cálculos en vivo ──────────────────────────────────────────────────────
   const costoTotal = useMemo(() => {
@@ -93,7 +94,7 @@ export default function RecetaModal({
 
     setSaving(true); setError(null)
 
-    const err = await onSave(receta?.id, {
+    const err = await onSave(isDuplicate ? null : receta?.id, {
       nombre: nombre.trim(),
       menu_item_id: menuItemId || null,
       porciones: parseInt(porciones) || 1,
@@ -132,7 +133,7 @@ export default function RecetaModal({
         <div className="flex items-center justify-between px-5 py-4 flex-shrink-0"
           style={{ borderBottom: '1px solid var(--border)' }}>
           <p className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
-            {receta ? 'Editar receta' : 'Nueva receta'}
+            {isDuplicate ? 'Duplicar receta' : receta ? 'Editar receta' : 'Nueva receta'}
           </p>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
             style={{ color: 'var(--text-muted)' }}
@@ -405,7 +406,7 @@ export default function RecetaModal({
             <button type="submit" disabled={saving}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
               style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.2)' }}>
-              {saving ? <Loader2 size={14} className="animate-spin mx-auto" /> : 'Guardar receta'}
+              {saving ? <Loader2 size={14} className="animate-spin mx-auto" /> : isDuplicate ? 'Crear copia' : 'Guardar receta'}
             </button>
           </div>
         </form>
