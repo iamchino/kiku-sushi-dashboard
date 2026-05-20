@@ -29,7 +29,7 @@ export default function ProduccionPage() {
   const isAdmin = role === 'admin'
 
   const {
-    lista, tareas, recetas, subRecetas, stats,
+    lista, tareas, recetas, stockItems, subRecetas, stats,
     loading, error, fecha, setFecha,
     createLista, addTarea, deleteTarea,
     completarTarea, revertirTarea, fetchData,
@@ -42,6 +42,8 @@ export default function ProduccionPage() {
 
   // Receta asociada a cada tarea
   const getReceta = (tarea) => recetas.find(r => r.id === tarea.receta_id) || null
+  const getStockProduccion = (tarea) =>
+    stockItems.find(s => s.tipo_stock === 'produccion' && s.receta_id === tarea.receta_id) || null
 
   // Separar pendientes y completadas
   const pendientes = useMemo(() => tareas.filter(t => t.estado !== 'completada'), [tareas])
@@ -207,6 +209,7 @@ export default function ProduccionPage() {
                   key={t.id}
                   tarea={t}
                   receta={getReceta(t)}
+                  stockProduccion={getStockProduccion(t)}
                   isAdmin={isAdmin}
                   onCompletar={setCompletarTarget}
                   onRevertir={revertirTarea}
@@ -232,6 +235,7 @@ export default function ProduccionPage() {
                   key={t.id}
                   tarea={t}
                   receta={getReceta(t)}
+                  stockProduccion={getStockProduccion(t)}
                   isAdmin={isAdmin}
                   onCompletar={setCompletarTarget}
                   onRevertir={(tarea) => revertirTarea(tarea.id)}
@@ -263,6 +267,7 @@ export default function ProduccionPage() {
         onClose={() => setCompletarTarget(null)}
         tarea={completarTarget}
         receta={completarTarget ? getReceta(completarTarget) : null}
+        stockProduccion={completarTarget ? getStockProduccion(completarTarget) : null}
         recetas={recetas}
         onConfirm={completarTarea}
       />

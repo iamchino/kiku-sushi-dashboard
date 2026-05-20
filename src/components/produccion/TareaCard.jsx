@@ -6,7 +6,7 @@ const ESTADO_CONFIG = {
   completada:  { color: '#22c55e', border: 'rgba(34,197,94,0.25)',  bg: 'rgba(34,197,94,0.04)',  label: 'Completada' },
 }
 
-export default function TareaCard({ tarea, receta, isAdmin, onCompletar, onRevertir, onDelete }) {
+export default function TareaCard({ tarea, receta, stockProduccion, isAdmin, onCompletar, onRevertir, onDelete }) {
   const cfg = ESTADO_CONFIG[tarea.estado] || ESTADO_CONFIG.pendiente
   const completada = tarea.estado === 'completada'
 
@@ -16,6 +16,13 @@ export default function TareaCard({ tarea, receta, isAdmin, onCompletar, onRever
 
   const tieneReceta = !!tarea.receta_id
   const sinIngredientes = tieneReceta && receta && (!receta.receta_ingredientes || receta.receta_ingredientes.length === 0)
+  const detalleConsumos = Array.isArray(tarea.descuento_detalle)
+    ? tarea.descuento_detalle
+    : tarea.descuento_detalle?.consumos || []
+  const detalleProduccion = Array.isArray(tarea.descuento_detalle)
+    ? null
+    : tarea.descuento_detalle?.produccion || null
+  const unidadObjetivo = stockProduccion?.unidad || 'porc.'
 
   return (
     <div
@@ -42,7 +49,7 @@ export default function TareaCard({ tarea, receta, isAdmin, onCompletar, onRever
             {/* Cantidad objetivo */}
             <span className="text-xs font-medium px-2 py-0.5 rounded-full"
               style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
-              Objetivo: {parseFloat(tarea.cantidad)} porc.
+              Objetivo: {parseFloat(tarea.cantidad)} {unidadObjetivo}
             </span>
             {/* Vinculada o no */}
             {tieneReceta ? (
@@ -89,13 +96,19 @@ export default function TareaCard({ tarea, receta, isAdmin, onCompletar, onRever
               {fechaCompletada}
             </span>
             <span className="text-xs font-medium ml-auto tabular-nums" style={{ color: 'var(--text-muted)' }}>
-              Hizo: {parseFloat(tarea.cantidad_real)} porc.
+              Hizo: {parseFloat(tarea.cantidad_real)} {unidadObjetivo}
             </span>
           </div>
           {/* Detalles de descuento */}
-          {tarea.descuento_detalle && tarea.descuento_detalle.length > 0 && (
+          {(detalleProduccion || detalleConsumos.length > 0) && (
             <div className="flex flex-wrap gap-1.5 mt-1">
-              {tarea.descuento_detalle.map((d, i) => (
+              {detalleProduccion && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded"
+                  style={{ background: 'rgba(34,197,94,0.06)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.12)' }}>
+                  +{parseFloat(detalleProduccion.cantidad).toFixed(2)} {detalleProduccion.unidad} {detalleProduccion.nombre}
+                </span>
+              )}
+              {detalleConsumos.map((d, i) => (
                 <span key={i} className="text-[10px] px-1.5 py-0.5 rounded"
                   style={{ background: 'rgba(239,68,68,0.06)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.12)' }}>
                   -{parseFloat(d.cantidad).toFixed(2)} {d.unidad} {d.nombre}

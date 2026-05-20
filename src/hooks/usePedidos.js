@@ -75,7 +75,7 @@ export function usePedidos() {
         .order('created_at', { ascending: false }),
       supabase
         .from('recetas')
-        .select('*, receta_ingredientes!receta_id(*, stock(id, nombre, unidad, stock_actual, precio_unitario, rendimiento))')
+        .select('*, receta_ingredientes!receta_id(*, stock(id, nombre, unidad, stock_actual, precio_unitario, rendimiento, tipo_stock, receta_id))')
         .order('nombre'),
     ])
 

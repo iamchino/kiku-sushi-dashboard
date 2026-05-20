@@ -24,7 +24,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
     e.preventDefault()
 
     if (modo === 'receta') {
-      if (!recetaId) { setError('Seleccioná una sub-receta'); return }
+      if (!recetaId) { setError('Selecciona una receta de produccion'); return }
       const cant = parseFloat(cantidad)
       if (!cant || cant <= 0) { setError('Ingresá una cantidad válida'); return }
 
@@ -114,7 +114,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
           {/* Buscador de recetas */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-              Sub-receta *
+              Receta de produccion *
             </label>
             <div className="relative">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-xmuted)' }} />
@@ -123,7 +123,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
                 onChange={e => { setBusqueda(e.target.value); setRecetaId('') }}
                 className="w-full pl-9 pr-3 py-2.5 rounded-lg text-sm outline-none"
                 style={inputStyle}
-                placeholder="Buscar sub-receta..."
+                placeholder="Buscar receta de produccion..."
               />
             </div>
 
@@ -132,7 +132,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
               <div className="max-h-36 overflow-y-auto rounded-lg" style={{ border: '1px solid var(--border)' }}>
                 {recetasFiltradas.length === 0 ? (
                   <p className="text-xs text-center py-3" style={{ color: 'var(--text-muted)' }}>
-                    No hay sub-recetas{busqueda ? ` para "${busqueda}"` : ''}
+                    No hay recetas de produccion{busqueda ? ` para "${busqueda}"` : ''}
                   </p>
                 ) : (
                   recetasFiltradas.map(r => {
@@ -154,7 +154,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
                           {r.nombre}
                           {r.porciones > 1 && (
                             <span className="text-[10px] px-1 py-0.5 rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-xmuted)' }}>
-                              rinde {r.porciones}
+                              rinde {r.porciones} {r._stockProduccion?.unidad || 'porc.'}
                             </span>
                           )}
                         </span>
@@ -191,7 +191,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
           {/* Cantidad */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-              Cantidad <span style={{ color: 'var(--text-xmuted)' }}>(porciones de la receta)</span>
+              Cantidad <span style={{ color: 'var(--text-xmuted)' }}>({recetaSeleccionada?._stockProduccion?.unidad || 'porciones de la receta'})</span>
             </label>
             <input
               type="number"

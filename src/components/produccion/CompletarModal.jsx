@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Loader2, AlertTriangle } from 'lucide-react'
 import { calcularIngredientesCrudos, mergeIngredientes } from '../../hooks/useProduccion'
 
-export default function CompletarModal({ open, onClose, tarea, receta, recetas, onConfirm }) {
+export default function CompletarModal({ open, onClose, tarea, receta, stockProduccion, recetas, onConfirm }) {
   const [nombre, setNombre] = useState('')
   const [cantidad, setCantidad] = useState('')
   const [notas, setNotas] = useState('')
@@ -108,7 +108,7 @@ export default function CompletarModal({ open, onClose, tarea, receta, recetas, 
           {/* Cantidad */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-              Cantidad producida <span style={{ color: 'var(--text-xmuted)' }}>(porciones)</span>
+              Cantidad producida <span style={{ color: 'var(--text-xmuted)' }}>({stockProduccion?.unidad || 'porciones'})</span>
             </label>
             <input
               type="number"
@@ -123,7 +123,7 @@ export default function CompletarModal({ open, onClose, tarea, receta, recetas, 
             />
             {tarea.cantidad && cantNum !== parseFloat(tarea.cantidad) && (
               <p className="text-[11px]" style={{ color: '#f59e0b' }}>
-                Objetivo era {parseFloat(tarea.cantidad)} porc. — estás cargando {cantNum}
+                Objetivo era {parseFloat(tarea.cantidad)} {stockProduccion?.unidad || 'porc.'} - estas cargando {cantNum}
               </p>
             )}
           </div>
@@ -131,6 +131,14 @@ export default function CompletarModal({ open, onClose, tarea, receta, recetas, 
           {/* Preview de descuento de stock */}
           {ingredientesPreview.length > 0 && (
             <div className="rounded-xl p-3 space-y-2" style={{ background: 'rgba(0,0,0,0.08)', border: '1px solid var(--border)' }}>
+              {stockProduccion && (
+                <div className="flex items-center justify-between text-xs pb-2" style={{ borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ color: 'var(--text-primary)' }}>Se sumara a stock</span>
+                  <span className="font-semibold tabular-nums" style={{ color: '#22c55e' }}>
+                    +{cantNum.toFixed(2)} {stockProduccion.unidad} {stockProduccion.nombre}
+                  </span>
+                </div>
+              )}
               <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-xmuted)' }}>
                 Se descontará del inventario:
               </p>

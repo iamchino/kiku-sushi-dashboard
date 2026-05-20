@@ -11,6 +11,14 @@ export const CATEGORIAS_STOCK = [
   { id: 'varios',         label: 'Varios',           emoji: '🏷️' },
 ]
 
+export const TIPOS_STOCK = [
+  { id: 'materia_prima', label: 'Materia prima', emoji: 'MP' },
+  { id: 'produccion',    label: 'Produccion',    emoji: 'PR' },
+]
+
+export const getTipoStock = (item) =>
+  item?.tipo_stock === 'produccion' ? 'produccion' : 'materia_prima'
+
 export const ESTADO_STOCK = (item) => {
   const actual  = parseFloat(item.stock_actual)
   const minimo  = parseFloat(item.stock_minimo)
@@ -40,24 +48,39 @@ export function costoReal(item) {
 
 export function useStock() {
   const [items,   setItems]   = useState([])
+  const [recetas, setRecetas] = useState([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
 
   const fetchStock = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const { data, error } = await supabase
-      .from('stock')
-      .select('*, stock_movimientos(id, tipo, cantidad, stock_antes, stock_despues, notas, created_at)')
-      .order('nombre')
-    if (error) setError(error.message)
+    const [resStock, resRecetas] = await Promise.all([
+      supabase
+        .from('stock')
+        .select('*, stock_movimientos(id, tipo, cantidad, stock_antes, stock_despues, notas, created_at)')
+        .order('nombre'),
+      supabase
+        .from('recetas')
+        .select('id, nombre, porciones, es_subreceta')
+        .order('nombre'),
+    ])
+
+    if (resStock.error) setError(resStock.error.message)
+    else if (resRecetas.error) setError(resRecetas.error.message)
     else {
+      const recetasData = resRecetas.data || []
       // Ordenar movimientos por fecha descendente en cada item
-      const sorted = (data || []).map(item => ({
+      const sorted = (resStock.data || []).map(item => ({
         ...item,
+        tipo_stock: getTipoStock(item),
+        _receta: item.receta_id
+          ? recetasData.find(r => r.id === item.receta_id) || null
+          : null,
         stock_movimientos: (item.stock_movimientos || [])
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
       }))
+      setRecetas(recetasData)
       setItems(sorted)
     }
     setLoading(false)
@@ -77,6 +100,8 @@ export function useStock() {
     bajos:    items.filter(i => ESTADO_STOCK(i) === 'bajo').length,
     ok:       items.filter(i => ['ok','medio'].includes(ESTADO_STOCK(i))).length,
     total:    items.length,
+    materiaPrima: items.filter(i => getTipoStock(i) === 'materia_prima').length,
+    produccion: items.filter(i => getTipoStock(i) === 'produccion').length,
   }), [items])
 
   // Helper para normalizar categoría (quitar acentos y minúsculas)
@@ -148,7 +173,7 @@ export function useStock() {
   }
 
   return {
-    items, grouped, stats, loading, error,
+    items, recetas, grouped, stats, loading, error,
     fetchStock, registrarMovimiento, quickAdjust,
     updatePrecio, createItem, updateItem, deleteItem,
   }

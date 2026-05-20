@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { costoStockUnitario } from './useRecetas'
 
 /**
  * Hook para gestionar combos (agrupación de recetas con cantidades).
@@ -19,7 +20,7 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
 
     const { data, error: e } = await supabase
       .from('combos')
-      .select('*, combo_items(*, recetas(id, nombre, porciones, receta_ingredientes!receta_id(*, stock(id, nombre, unidad, precio_unitario, rendimiento))))')
+      .select('*, combo_items(*, recetas(id, nombre, porciones, receta_ingredientes!receta_id(*, stock(id, nombre, unidad, precio_unitario, rendimiento, tipo_stock, receta_id))))')
       .order('nombre')
 
     if (e) { setError(e.message); setLoading(false); return }
@@ -34,12 +35,10 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
     if (!receta?.receta_ingredientes) return 0
     return receta.receta_ingredientes.reduce((sum, ri) => {
       if (!ri.stock) return sum
-      const precio = parseFloat(ri.stock.precio_unitario) || 0
-      const rend   = parseFloat(ri.stock.rendimiento) || 1
       const cant   = parseFloat(ri.cantidad) || 0
-      return sum + cant * (precio / (rend > 0 ? rend : 1))
+      return sum + cant * costoStockUnitario(ri.stock, recetasConCostos)
     }, 0)
-  }, [])
+  }, [recetasConCostos])
 
   const costoPorcionReceta = useCallback((receta) => {
     const recetaConCostos = recetasConCostos.find(r => r.id === receta?.id)
@@ -53,13 +52,17 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
   // ── Combos enriquecidos con cálculos ──────────────────────────────────────
   const combosConCostos = useMemo(() => {
     return combos.map(combo => {
-      // Calcular costo total del combo
-      const costoTotal = (combo.combo_items || []).reduce((sum, item) => {
+      const comboItemsConCostos = (combo.combo_items || []).map(item => {
         const receta = item.recetas
-        if (!receta) return sum
-        const costoPorcion = costoPorcionReceta(receta)
-        return sum + costoPorcion * (item.cantidad || 1)
-      }, 0)
+        const costoPorcion = receta ? costoPorcionReceta(receta) : 0
+        const costoTotalLinea = costoPorcion * (item.cantidad || 1)
+        return { ...item, _costoUnitario: costoPorcion, _costoTotalLinea: costoTotalLinea }
+      })
+
+      // Calcular costo total del combo
+      const costoTotal = comboItemsConCostos.reduce((sum, item) =>
+        sum + (item._costoTotalLinea || 0),
+      0)
 
       // Buscar menu_item vinculado
       const menuItem = combo.menu_item_id
@@ -90,6 +93,7 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
 
       return {
         ...combo,
+        combo_items: comboItemsConCostos,
         _costoTotal: costoTotal,
         _precioVenta: precioVenta,
         _margen: margen,

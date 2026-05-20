@@ -1,20 +1,61 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 
-/**
- * Hook para gestionar recetas (BOM) y calcular costos automáticamente.
- *
- * Cada receta tiene ingredientes vinculados al stock.
- * El costo se calcula: Σ(cantidad × precio_unitario / rendimiento)
- */
-export function useRecetas() {
-  const [recetas,      setRecetas]      = useState([])
-  const [stockItems,   setStockItems]   = useState([])
-  const [menuItems,    setMenuItems]    = useState([])
-  const [loading,      setLoading]      = useState(true)
-  const [error,        setError]        = useState(null)
+export function costoStockUnitario(stock, allRecetas = [], visited = new Set()) {
+  if (stock?.tipo_stock === 'produccion' && stock.receta_id && !visited.has(stock.receta_id)) {
+    const recetaProduccion = allRecetas.find(r => r.id === stock.receta_id)
+    if (recetaProduccion) {
+      const total = costoRecetaTotal(recetaProduccion, allRecetas, visited)
+      const porciones = parseFloat(recetaProduccion.porciones) || 1
+      if (total > 0) return total / porciones
+    }
+  }
 
-  // ── Fetch all data ────────────────────────────────────────────────────────
+  const precio = parseFloat(stock?.precio_unitario) || 0
+  const rend = parseFloat(stock?.rendimiento) || 1
+  return rend > 0 ? precio / rend : precio
+}
+
+export function costoRecetaTotal(receta, allRecetas = [], visited = new Set()) {
+  if (!receta || !receta.receta_ingredientes) return 0
+  if (visited.has(receta.id)) return 0
+
+  const currentVisited = new Set(visited)
+  currentVisited.add(receta.id)
+
+  return receta.receta_ingredientes.reduce((sum, ri) => {
+    const cant = parseFloat(ri.cantidad) || 0
+
+    if (ri.stock) {
+      return sum + cant * costoStockUnitario(ri.stock, allRecetas, currentVisited)
+    }
+
+    if (ri.subreceta_id) {
+      const sub = allRecetas.find(r => r.id === ri.subreceta_id)
+      if (!sub) return sum
+
+      const costTotalSub = costoRecetaTotal(sub, allRecetas, currentVisited)
+      const porcionesSub = parseFloat(sub.porciones) || 1
+      return sum + cant * (costTotalSub / porcionesSub)
+    }
+
+    return sum
+  }, 0)
+}
+
+function parsePrecioVenta(menuItem) {
+  if (!menuItem?.precio) return null
+  const num = parseFloat(String(menuItem.precio).replace(/[^0-9.,]/g, '').replace(',', '.'))
+  return isNaN(num) ? null : num
+}
+
+export function useRecetas() {
+  const [recetas, setRecetas] = useState([])
+  const [stockItems, setStockItems] = useState([])
+  const [menuItems, setMenuItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
   const fetchAll = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -22,11 +63,11 @@ export function useRecetas() {
     const [resRecetas, resStock, resMenu] = await Promise.all([
       supabase
         .from('recetas')
-        .select('*, receta_ingredientes!receta_id(*, stock(id, nombre, unidad, precio_unitario, rendimiento))')
+        .select('*, receta_ingredientes!receta_id(*, stock(id, nombre, unidad, precio_unitario, rendimiento, tipo_stock, receta_id, stock_actual, stock_minimo))')
         .order('nombre'),
       supabase
         .from('stock')
-        .select('id, nombre, unidad, precio_unitario, rendimiento')
+        .select('id, nombre, unidad, precio_unitario, rendimiento, tipo_stock, receta_id, stock_actual, stock_minimo')
         .order('nombre'),
       supabase
         .from('menu_items')
@@ -35,82 +76,54 @@ export function useRecetas() {
     ])
 
     if (resRecetas.error) { setError(resRecetas.error.message); setLoading(false); return }
-    if (resStock.error)   { setError(resStock.error.message);   setLoading(false); return }
+    if (resStock.error) { setError(resStock.error.message); setLoading(false); return }
 
     setRecetas(resRecetas.data || [])
-    setStockItems(resStock.data || [])
+    setStockItems((resStock.data || []).map(item => ({
+      ...item,
+      tipo_stock: item.tipo_stock === 'produccion' ? 'produccion' : 'materia_prima',
+    })))
     setMenuItems(resMenu.data || [])
     setLoading(false)
   }, [])
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  // ── Cálculos derivados ────────────────────────────────────────────────────
+  const costoReceta = useCallback((receta, allRecetas) =>
+    costoRecetaTotal(receta, allRecetas),
+  [])
 
-  /**
-   * Calcula el costo total de una receta (recursivo para sub-recetas).
-   */
-  const costoReceta = useCallback(function costoReceta(receta, allRecetas, visited = new Set()) {
-    if (!receta || !receta.receta_ingredientes) return 0
-    if (visited.has(receta.id)) return 0 // evitar recursión infinita
-    
-    // Clonar visited para la rama actual
-    const currentVisited = new Set(visited)
-    currentVisited.add(receta.id)
-
-    return receta.receta_ingredientes.reduce((sum, ri) => {
-      // 1. Es un ingrediente de stock
-      if (ri.stock) {
-        const precio = parseFloat(ri.stock.precio_unitario) || 0
-        const rend   = parseFloat(ri.stock.rendimiento) || 1
-        const cant   = parseFloat(ri.cantidad) || 0
-        return sum + cant * (precio / (rend > 0 ? rend : 1))
-      }
-      
-      // 2. Es una sub-receta
-      if (ri.subreceta_id) {
-        const sub = allRecetas.find(r => r.id === ri.subreceta_id)
-        if (!sub) return sum
-
-        const costTotalSub = costoReceta(sub, allRecetas, currentVisited)
-        const porcionesSub = parseInt(sub.porciones) || 1
-        const costPorcionSub = costTotalSub / porcionesSub
-        const cantUsada = parseFloat(ri.cantidad) || 0
-
-        return sum + (cantUsada * costPorcionSub)
-      }
-
-      return sum
-    }, 0)
-  }, [])
-
-  /**
-   * Extrae el precio de venta numérico del menu_item vinculado.
-   */
   const precioVenta = useCallback((receta, allMenuItems) => {
     if (!receta.menu_item_id) return null
     const mi = allMenuItems.find(m => m.id === receta.menu_item_id)
-    if (!mi || !mi.precio) return null
-    const num = parseFloat(String(mi.precio).replace(/[^0-9.,]/g, '').replace(',', '.'))
-    return isNaN(num) ? null : num
+    return parsePrecioVenta(mi)
   }, [])
 
-  // Recetas enriquecidas con cálculos
   const recetasConCostos = useMemo(() => {
     return recetas.map(r => {
       const cost = costoReceta(r, recetas)
-      const porciones = parseInt(r.porciones) || 1
+      const porciones = parseFloat(r.porciones) || 1
       const costoPorc = cost / porciones
-
-      // Precio de venta del campo texto (backwards compatible)
       const pv = precioVenta(r, menuItems)
       const margen = (pv && pv > 0) ? ((pv - costoPorc) / pv) * 100 : null
-
-      // Buscar menu_item vinculado y sus variantes
       const mi = menuItems.find(m => m.id === r.menu_item_id) || null
       const variantes = mi?.menu_item_variantes || []
 
-      // Calcular margen por variante
+      const ingredientesConCostos = (r.receta_ingredientes || []).map(ri => {
+        let costo = 0
+        if (ri.stock) {
+          costo = (parseFloat(ri.cantidad) || 0) * costoStockUnitario(ri.stock, recetas)
+        } else if (ri.subreceta_id) {
+          const sub = recetas.find(rec => rec.id === ri.subreceta_id)
+          if (sub) {
+            const totalSub = costoReceta(sub, recetas)
+            const porcionesSub = parseFloat(sub.porciones) || 1
+            costo = (parseFloat(ri.cantidad) || 0) * (totalSub / porcionesSub)
+          }
+        }
+        return { ...ri, _costo: costo }
+      })
+
       const margenVariantes = variantes.map(v => {
         const precioVar = parseFloat(v.precio) || 0
         const piezasVar = parseFloat(v.piezas) || 1
@@ -128,6 +141,7 @@ export function useRecetas() {
 
       return {
         ...r,
+        receta_ingredientes: ingredientesConCostos,
         _costo: cost,
         _costoPorcion: costoPorc,
         _precioVenta: pv,
@@ -138,15 +152,10 @@ export function useRecetas() {
     })
   }, [recetas, menuItems, costoReceta, precioVenta])
 
-  /**
-   * Expone costoIngrediente para la UI (Muestra el costo de una línea)
-   */
   const costoIngrediente = useCallback((ri) => {
     if (ri.stock) {
-      const precio = parseFloat(ri.stock.precio_unitario) || 0
-      const rend   = parseFloat(ri.stock.rendimiento) || 1
-      const cant   = parseFloat(ri.cantidad) || 0
-      return cant * (precio / (rend > 0 ? rend : 1))
+      const cant = parseFloat(ri.cantidad) || 0
+      return cant * costoStockUnitario(ri.stock, recetas)
     }
     if (ri.subreceta_id) {
       const sub = recetasConCostos.find(r => r.id === ri.subreceta_id)
@@ -155,9 +164,8 @@ export function useRecetas() {
       return cant * sub._costoPorcion
     }
     return 0
-  }, [recetasConCostos])
+  }, [recetas, recetasConCostos])
 
-  // ── CRUD Recetas ──────────────────────────────────────────────────────────
   const createReceta = async ({ nombre, menu_item_id, porciones, notas, es_subreceta, ingredientes }) => {
     const { data: receta, error: e1 } = await supabase
       .from('recetas')
@@ -166,7 +174,7 @@ export function useRecetas() {
         menu_item_id: menu_item_id || null,
         porciones: porciones || 1,
         notas: notas || null,
-        es_subreceta: !!es_subreceta
+        es_subreceta: !!es_subreceta,
       })
       .select()
       .single()
@@ -176,9 +184,9 @@ export function useRecetas() {
     if (ingredientes?.length) {
       const rows = ingredientes.map(ing => ({
         receta_id: receta.id,
-        stock_id:  ing.tipo === 'stock' ? ing.id : null,
+        stock_id: ing.tipo === 'stock' ? ing.id : null,
         subreceta_id: ing.tipo === 'subreceta' ? ing.id : null,
-        cantidad:  parseFloat(ing.cantidad) || 0,
+        cantidad: parseFloat(ing.cantidad) || 0,
       }))
       const { error: e2 } = await supabase.from('receta_ingredientes').insert(rows)
       if (e2) return e2
@@ -209,9 +217,9 @@ export function useRecetas() {
     if (ingredientes?.length) {
       const rows = ingredientes.map(ing => ({
         receta_id: id,
-        stock_id:  ing.tipo === 'stock' ? ing.id : null,
+        stock_id: ing.tipo === 'stock' ? ing.id : null,
         subreceta_id: ing.tipo === 'subreceta' ? ing.id : null,
-        cantidad:  parseFloat(ing.cantidad) || 0,
+        cantidad: parseFloat(ing.cantidad) || 0,
       }))
       const { error: e3 } = await supabase.from('receta_ingredientes').insert(rows)
       if (e3) return e3

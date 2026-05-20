@@ -1,20 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 
-/**
- * Aplana recursivamente una receta hasta obtener solo ingredientes crudos de stock.
- * @param {object} receta - La receta a resolver
- * @param {number} cantidadPorciones - Cuántas porciones producir
- * @param {array}  allRecetas - Todas las recetas (para resolver sub-recetas)
- * @param {Set}    visited - Control de recursión infinita
- * @returns {array} [{stock_id, nombre, unidad, cantidad, stock_actual}]
- */
 export function calcularIngredientesCrudos(receta, cantidadPorciones, allRecetas, visited = new Set()) {
   if (!receta || visited.has(receta.id)) return []
+
   const newVisited = new Set(visited)
   newVisited.add(receta.id)
 
-  const porciones = parseInt(receta.porciones) || 1
+  const porciones = parseFloat(receta.porciones) || 1
   const factor = cantidadPorciones / porciones
   const result = []
 
@@ -28,22 +21,17 @@ export function calcularIngredientesCrudos(receta, cantidadPorciones, allRecetas
         unidad: ri.stock.unidad,
         cantidad: cant * factor,
         stock_actual: parseFloat(ri.stock.stock_actual) || 0,
+        tipo_stock: ri.stock.tipo_stock === 'produccion' ? 'produccion' : 'materia_prima',
       })
     } else if (ri.subreceta_id) {
       const sub = allRecetas.find(r => r.id === ri.subreceta_id)
-      if (sub) {
-        const subResults = calcularIngredientesCrudos(sub, cant * factor, allRecetas, newVisited)
-        result.push(...subResults)
-      }
+      if (sub) result.push(...calcularIngredientesCrudos(sub, cant * factor, allRecetas, newVisited))
     }
   }
 
   return result
 }
 
-/**
- * Agrupa ingredientes duplicados (mismo stock_id) sumando cantidades.
- */
 export function mergeIngredientes(ingredientes) {
   const map = {}
   for (const ing of ingredientes) {
@@ -56,24 +44,20 @@ export function mergeIngredientes(ingredientes) {
   return Object.values(map)
 }
 
-// ── Hook principal ────────────────────────────────────────────────────────────
 export function useProduccion() {
-  const [lista, setLista]       = useState(null)
-  const [tareas, setTareas]     = useState([])
-  const [recetas, setRecetas]   = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState(null)
-  const [fecha, setFecha]       = useState(() => {
-    const hoy = new Date()
-    return hoy.toISOString().split('T')[0]
-  })
+  const [lista, setLista] = useState(null)
+  const [tareas, setTareas] = useState([])
+  const [recetas, setRecetas] = useState([])
+  const [stockItems, setStockItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [fecha, setFecha] = useState(() => new Date().toISOString().split('T')[0])
 
-  // ── Fetch lista + recetas ───────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
 
-    const [resLista, resRecetas] = await Promise.all([
+    const [resLista, resRecetas, resStock] = await Promise.all([
       supabase
         .from('produccion_listas')
         .select('*, produccion_tareas(*)')
@@ -81,34 +65,41 @@ export function useProduccion() {
         .maybeSingle(),
       supabase
         .from('recetas')
-        .select('*, receta_ingredientes!receta_id(*, stock(id, nombre, unidad, stock_actual, stock_minimo, precio_unitario, rendimiento))')
+        .select('*, receta_ingredientes!receta_id(*, stock(id, nombre, unidad, stock_actual, stock_minimo, precio_unitario, rendimiento, tipo_stock, receta_id))')
+        .order('nombre'),
+      supabase
+        .from('stock')
+        .select('id, nombre, unidad, stock_actual, stock_minimo, tipo_stock, receta_id')
         .order('nombre'),
     ])
 
     if (resLista.error) { setError(resLista.error.message); setLoading(false); return }
     if (resRecetas.error) { setError(resRecetas.error.message); setLoading(false); return }
+    if (resStock.error) { setError(resStock.error.message); setLoading(false); return }
 
     setLista(resLista.data || null)
-    const tareasOrdenadas = (resLista.data?.produccion_tareas || [])
-      .sort((a, b) => (a.prioridad || 0) - (b.prioridad || 0))
-    setTareas(tareasOrdenadas)
+    setTareas((resLista.data?.produccion_tareas || [])
+      .sort((a, b) => (a.prioridad || 0) - (b.prioridad || 0)))
     setRecetas(resRecetas.data || [])
+    setStockItems((resStock.data || []).map(item => ({
+      ...item,
+      tipo_stock: item.tipo_stock === 'produccion' ? 'produccion' : 'materia_prima',
+    })))
     setLoading(false)
   }, [fecha])
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // ── Realtime ────────────────────────────────────────────────────────────
   useEffect(() => {
     const channel = supabase
       .channel('produccion-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'produccion_listas' }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'produccion_tareas' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'stock' }, fetchData)
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [fetchData])
 
-  // ── Stats ───────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const total = tareas.length
     const completadas = tareas.filter(t => t.estado === 'completada').length
@@ -117,19 +108,22 @@ export function useProduccion() {
     return { total, completadas, pendientes, enProgreso, porcentaje: total ? Math.round((completadas / total) * 100) : 0 }
   }, [tareas])
 
-  // ── Sub-recetas para el dropdown ────────────────────────────────────────
   const subRecetas = useMemo(() =>
-    recetas.filter(r => r.es_subreceta),
-  [recetas])
+    recetas
+      .filter(r => r.es_subreceta || stockItems.some(s => s.tipo_stock === 'produccion' && s.receta_id === r.id))
+      .map(r => ({
+        ...r,
+        _stockProduccion: stockItems.find(s => s.tipo_stock === 'produccion' && s.receta_id === r.id) || null,
+      })),
+  [recetas, stockItems])
 
-  // ── CRUD Listas ─────────────────────────────────────────────────────────
   const createLista = async (fechaLista, titulo, notas) => {
     const { data: session } = await supabase.auth.getSession()
     const { data, error: e } = await supabase
       .from('produccion_listas')
       .insert({
         fecha: fechaLista || fecha,
-        titulo: titulo || `Producción ${new Date(fechaLista || fecha).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'short' })}`,
+        titulo: titulo || `Produccion ${new Date(fechaLista || fecha).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'short' })}`,
         notas: notas || null,
         creado_por: session?.session?.user?.id || null,
       })
@@ -140,9 +134,8 @@ export function useProduccion() {
     return { data }
   }
 
-  // ── CRUD Tareas ─────────────────────────────────────────────────────────
   const addTarea = async ({ receta_id, descripcion, cantidad, prioridad }) => {
-    if (!lista) return { error: { message: 'No hay lista creada para este día.' } }
+    if (!lista) return { error: { message: 'No hay lista creada para este dia.' } }
     const { error: e } = await supabase.from('produccion_tareas').insert({
       lista_id: lista.id,
       receta_id: receta_id || null,
@@ -166,60 +159,54 @@ export function useProduccion() {
     return { error: e }
   }
 
-  // ── Completar tarea (solo registro, sin descuento de stock) ──────────────
-  // NOTA: El stock se descuenta automáticamente cuando un PEDIDO se entrega,
-  //       no cuando se completa una tarea de producción.
   const completarTarea = async (tareaId, nombre, cantidadReal, notasEquipo) => {
     const tarea = tareas.find(t => t.id === tareaId)
     if (!tarea) return { error: { message: 'Tarea no encontrada' } }
 
-    // Marcar tarea como completada (solo registro)
-    const { error: e } = await supabase.from('produccion_tareas').update({
-      estado: 'completada',
-      completada_por: nombre,
-      completada_at: new Date().toISOString(),
-      cantidad_real: cantidadReal,
-      stock_descontado: false,
-      descuento_detalle: null,
-      notas_equipo: notasEquipo || null,
-    }).eq('id', tareaId)
+    const receta = recetas.find(r => r.id === tarea.receta_id) || null
+    const consumos = receta
+      ? mergeIngredientes(calcularIngredientesCrudos(receta, cantidadReal, recetas))
+          .filter(ing => ing.cantidad > 0)
+          .map(ing => ({
+            stock_id: ing.stock_id,
+            nombre: ing.nombre,
+            unidad: ing.unidad,
+            cantidad: ing.cantidad,
+          }))
+      : []
+
+    const stockProduccion = stockItems.find(s =>
+      s.tipo_stock === 'produccion' && s.receta_id === tarea.receta_id
+    )
+
+    const { error: e } = await supabase.rpc('completar_tarea_produccion', {
+      p_tarea_id: tareaId,
+      p_completada_por: nombre,
+      p_cantidad_real: parseFloat(cantidadReal) || 0,
+      p_notas_equipo: notasEquipo || null,
+      p_consumos: consumos,
+      p_produccion_stock_id: stockProduccion?.id || null,
+      p_produccion_cantidad: stockProduccion ? (parseFloat(cantidadReal) || 0) : null,
+    })
 
     if (!e) fetchData()
     return { error: e }
   }
 
-  // ── Revertir tarea (admin) ──────────────────────────────────────────────
   const revertirTarea = async (tareaId) => {
     const tarea = tareas.find(t => t.id === tareaId)
     if (!tarea) return { error: { message: 'Tarea no encontrada' } }
 
-    // Devolver stock si fue descontado
-    if (tarea.stock_descontado && tarea.descuento_detalle) {
-      for (const det of tarea.descuento_detalle) {
-        await supabase.rpc('revertir_stock_produccion', {
-          p_stock_id: det.stock_id,
-          p_cantidad: det.cantidad,
-          p_notas: `Revertido: ${tarea.descripcion} — ${tarea.completada_por}`,
-        })
-      }
-    }
-
-    const { error: e } = await supabase.from('produccion_tareas').update({
-      estado: 'pendiente',
-      completada_por: null,
-      completada_at: null,
-      cantidad_real: null,
-      stock_descontado: false,
-      descuento_detalle: null,
-      notas_equipo: null,
-    }).eq('id', tareaId)
+    const { error: e } = await supabase.rpc('revertir_tarea_produccion', {
+      p_tarea_id: tareaId,
+    })
 
     if (!e) fetchData()
     return { error: e }
   }
 
   return {
-    lista, tareas, recetas, subRecetas, stats,
+    lista, tareas, recetas, stockItems, subRecetas, stats,
     loading, error, fecha, setFecha,
     createLista, addTarea, updateTarea, deleteTarea,
     completarTarea, revertirTarea, fetchData,

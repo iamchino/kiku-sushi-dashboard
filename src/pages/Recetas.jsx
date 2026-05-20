@@ -164,8 +164,12 @@ function RecetaRow({ receta, recetas, onEdit, onDelete }) {
                       const rend = parseFloat(ri.stock.rendimiento) || 1
                       nombre = ri.stock.nombre
                       unidad = ri.stock.unidad
-                      infoPrecio = `$${precio.toLocaleString('es-AR')}/${unidad}`
-                      costo = cant * (precio / (rend > 0 ? rend : 1))
+                      infoPrecio = ri.stock.tipo_stock === 'produccion'
+                        ? 'Costo por receta'
+                        : `$${precio.toLocaleString('es-AR')}/${unidad}`
+                      costo = typeof ri._costo === 'number'
+                        ? ri._costo
+                        : cant * (precio / (rend > 0 ? rend : 1))
                       if (rend < 1) nombre += ` (rend. ${Math.round(rend * 100)}%)`
                     } else if (ri.subreceta_id) {
                       const sub = recetas.find(r => r.id === ri.subreceta_id)
@@ -332,14 +336,14 @@ function ComboRow({ combo, onEdit, onDelete }) {
                   {combo.combo_items.map(ci => {
                     const receta = ci.recetas
                     // Calculamos el costo unitario por porcion sumando sus ingredientes
-                    const costoUnitario = receta?.receta_ingredientes?.reduce((sum, ri) => {
+                    const costoUnitario = ci._costoUnitario ?? ((receta?.receta_ingredientes?.reduce((sum, ri) => {
                       const p = ri.stock ? (parseFloat(ri.stock.precio_unitario) || 0) : 0
                       const r = ri.stock ? (parseFloat(ri.stock.rendimiento) || 1) : 1
                       const c = parseFloat(ri.cantidad) || 0
                       return sum + c * (p / (r > 0 ? r : 1))
-                    }, 0) / (parseInt(receta?.porciones) || 1) || 0;
+                    }, 0) / (parseInt(receta?.porciones) || 1)) || 0);
 
-                    const costoTotalLinea = costoUnitario * ci.cantidad
+                    const costoTotalLinea = ci._costoTotalLinea ?? (costoUnitario * ci.cantidad)
 
                     return (
                       <tr key={ci.id} style={{ borderTop: '1px solid var(--border)' }}>

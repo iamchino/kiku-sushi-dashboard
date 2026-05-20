@@ -56,6 +56,8 @@ export default function RecetaModal({
   }, [ingredientes, stockItems, costoIngrediente])
 
   const costoPorPorcion = costoTotal / (parseInt(porciones) || 1)
+  const materiaPrimaItems = stockItems.filter(s => s.tipo_stock !== 'produccion')
+  const produccionItems = stockItems.filter(s => s.tipo_stock === 'produccion')
 
   const menuItem = menuItems.find(m => m.id === menuItemId)
   const precioVenta = menuItem
@@ -229,13 +231,22 @@ export default function RecetaModal({
                     className="flex-1 px-2 py-1.5 rounded text-xs outline-none min-w-0"
                     style={{ background: 'transparent', color: 'var(--text-primary)', border: 'none' }}>
                     <option value="">Seleccionar…</option>
-                    <optgroup label="Stock">
-                      {stockItems.map(s => (
+                    <optgroup label="Materia prima">
+                      {materiaPrimaItems.map(s => (
                         <option key={`stock:${s.id}`} value={`stock:${s.id}`} disabled={usedIds.includes(`stock:${s.id}`) && valSelect !== `stock:${s.id}`}>
                           {s.nombre} ({s.unidad})
                         </option>
                       ))}
                     </optgroup>
+                    {produccionItems.length > 0 && (
+                      <optgroup label="Produccion">
+                        {produccionItems.map(s => (
+                          <option key={`stock:${s.id}`} value={`stock:${s.id}`} disabled={(usedIds.includes(`stock:${s.id}`) && valSelect !== `stock:${s.id}`) || s.receta_id === receta?.id}>
+                            {s.nombre} ({s.unidad})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                     {subRecetasDisponibles.length > 0 && (
                       <optgroup label="Sub-recetas">
                         {subRecetasDisponibles.map(r => (
