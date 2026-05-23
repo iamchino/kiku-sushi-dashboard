@@ -14,26 +14,11 @@ import ClientesPage from './pages/Clientes'
 import StockPage from './pages/Stock'
 import AnaliticasPage from './pages/Analiticas'
 import RecetasPage from './pages/Recetas'
+import CajaPage from './pages/Caja'
 import Login from './pages/Login'
-import { Clock } from 'lucide-react'
 import { ThemeProvider } from './context/ThemeContext'
 import { RoleContext, DEFAULT_ROLE, getRoleFromUser, canAccessRoute, getDefaultRoute } from './context/role'
 import { useRole } from './context/useRole'
-
-const Pendiente = ({ nombre }) => (
-  <div className="flex items-center justify-center h-full">
-    <div className="text-center space-y-3">
-      <div
-        className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-      >
-        <Clock size={22} style={{ color: 'rgba(124,58,237,0.7)' }} />
-      </div>
-      <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{nombre}</p>
-      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Proximamente, en construccion</p>
-    </div>
-  </div>
-)
 
 function AdminLayout({ children }) {
   const role = useRole()
@@ -75,7 +60,7 @@ function AppRoutes() {
           <Route path="/produccion" element={<ProduccionPage />} />
           <Route path="/stock" element={<StockPage />} />
           <Route path="/recetas" element={<RecetasPage />} />
-          <Route path="/caja" element={<Pendiente nombre="Caja y Facturacion AFIP" />} />
+          <Route path="/caja" element={<CajaPage />} />
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="*" element={<Navigate to={defaultRoute} replace />} />
         </Routes>

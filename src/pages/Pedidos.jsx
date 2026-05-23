@@ -3,6 +3,7 @@ import { Plus, RefreshCw, ClipboardList, Flame, ChefHat, CheckCircle2, Truck } f
 import { usePedidos } from '../hooks/usePedidos'
 import PedidoCard from '../components/pedidos/PedidoCard'
 import NuevoPedidoModal from '../components/pedidos/NuevoPedidoModal'
+import { printComanda } from '../lib/printing'
 
 const COLUMNAS = [
   {
@@ -170,6 +171,7 @@ export default function PedidosPage() {
                         pedido={pedido}
                         onAvanzar={avanzarEstado}
                         onCancelar={cancelarPedido}
+                        onPrintComanda={printComanda}
                       />
                     ))
                   )}

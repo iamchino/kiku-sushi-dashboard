@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
-import { X, Plus, Minus, Trash2, Search, Loader2, ShoppingBag } from 'lucide-react'
+import { X, Plus, Minus, Trash2, Search, Loader2, ShoppingBag, Printer } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { normalizeSearch } from '../../utils/normalize'
+import { printComanda } from '../../lib/printing'
+import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../../lib/orders'
 
 const CANALES = [
   { id: 'salon',     label: '🍽️  Salón'      },
@@ -14,12 +16,14 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
   const [canal,   setCanal]   = useState('salon')
   const [mesa,    setMesa]    = useState('')
   const [notas,   setNotas]   = useState('')
+  const [descuentoPorcentaje, setDescuentoPorcentaje] = useState('')
   const [items,   setItems]   = useState([])
   const [search,  setSearch]  = useState('')
   const [menuItems, setMenuItems] = useState([])
   const [loadingMenu, setLoadingMenu] = useState(false)
   const [saving,  setSaving]  = useState(false)
   const [error,   setError]   = useState(null)
+  const [printOnSave, setPrintOnSave] = useState(true)
   const [variantePopup, setVariantePopup] = useState(null) // menu item que necesita elegir variante
 
   // Fetch menu items con variantes on open
@@ -46,8 +50,8 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
   // Reset on close
   useEffect(() => {
     if (!open) {
-      setCanal('salon'); setMesa(''); setNotas('')
-      setItems([]); setSearch(''); setError(null); setVariantePopup(null)
+      setCanal('salon'); setMesa(''); setNotas(''); setDescuentoPorcentaje('')
+      setItems([]); setSearch(''); setError(null); setPrintOnSave(true); setVariantePopup(null)
     }
   }, [open])
 
@@ -76,8 +80,8 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
 
   const addItem = (menuItem, variante) => {
     const precio = variante
-      ? parseFloat(variante.precio) || 0
-      : parseFloat(String(menuItem.precio || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0
+      ? parseCurrencyValue(variante.precio)
+      : parseCurrencyValue(menuItem.precio)
 
     const itemKey = variante
       ? `${menuItem.id}_${variante.id}`
@@ -117,17 +121,40 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
     setItems(prev => prev.filter(i => i._key !== key))
   }
 
-  const total = items.reduce((acc, i) => acc + (i.precio_unitario * i.cantidad), 0)
+  const descuento = clampDiscount(descuentoPorcentaje)
+  const subtotal = calculateOrderSubtotal(items)
+  const descuentoMonto = calculateDiscountAmount(subtotal, descuento)
+  const total = calculateOrderTotal(items, descuento)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (items.length === 0) { setError('Agregá al menos un ítem al pedido.'); return }
+    if (items.length === 0) { setError('Agrega al menos un item al pedido.'); return }
+
+    const payload = { canal, mesa: mesa ? parseInt(mesa) : null, notas, descuento_porcentaje: descuento, items }
     setSaving(true)
     setError(null)
-    const err = await onSave({ canal, mesa: mesa ? parseInt(mesa) : null, notas, items })
+    const result = await onSave(payload)
     setSaving(false)
-    if (err) setError(err.message || 'Error al guardar.')
-    else onClose()
+
+    const err = result?.error || (result instanceof Error ? result : null)
+    if (err) {
+      setError(err.message || 'Error al guardar.')
+      return
+    }
+
+    if (printOnSave) {
+      printComanda({
+        id: result?.pedidoId,
+        created_at: new Date().toISOString(),
+        canal: payload.canal,
+        mesa: payload.mesa,
+        notas: payload.notas,
+        descuento_porcentaje: payload.descuento_porcentaje,
+        pedido_items: payload.items,
+      })
+    }
+
+    onClose()
   }
 
   if (!open) return null
@@ -203,6 +230,21 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                     onBlur={e => e.target.style.border = '1px solid var(--border)'}
                   />
                 </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Descuento %</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    value={descuentoPorcentaje}
+                    onChange={e => setDescuentoPorcentaje(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                    placeholder="0"
+                  />
+                </div>
               </div>
 
               {/* RIGHT — Product search + cart */}
@@ -249,7 +291,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                             {hasVariantes ? (
                               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--accent-soft)', color: '#7c3aed' }}>
-                                desde ${Math.min(...m.menu_item_variantes.map(v => v.precio)).toLocaleString('es-AR')}
+                                desde ${Math.min(...m.menu_item_variantes.map(v => parseCurrencyValue(v.precio))).toLocaleString('es-AR')}
                               </span>
                             ) : (
                               m.precio && <span className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>{m.precio}</span>
@@ -280,7 +322,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                           onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
                         >
                           <span>{v.nombre}</span>
-                          <span className="font-bold" style={{ color: '#7c3aed' }}>${parseFloat(v.precio).toLocaleString('es-AR')}</span>
+                          <span className="font-bold" style={{ color: '#7c3aed' }}>${parseCurrencyValue(v.precio).toLocaleString('es-AR')}</span>
                         </button>
                       ))}
                     </div>
@@ -318,11 +360,27 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                         </button>
                       </div>
                     ))}
-                    <div className="flex justify-between pt-2" style={{ borderTop: '1px solid var(--border)' }}>
-                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Total estimado</span>
-                      <span className="text-xs font-bold" style={{ color: '#7c3aed' }}>
+                    <div className="space-y-1 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+                      <div className="flex justify-between">
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Subtotal</span>
+                        <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                          ${subtotal.toLocaleString('es-AR')}
+                        </span>
+                      </div>
+                      {descuento > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-xs" style={{ color: '#34d399' }}>Descuento {descuento.toLocaleString('es-AR')}%</span>
+                          <span className="text-xs" style={{ color: '#34d399' }}>
+                            -${descuentoMonto.toLocaleString('es-AR')}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Total estimado</span>
+                        <span className="text-xs font-bold" style={{ color: '#7c3aed' }}>
                         ${total.toLocaleString('es-AR')}
-                      </span>
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -331,10 +389,21 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between gap-3 px-6 py-4" style={{ borderTop: '1px solid var(--border)' }}>
+          <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderTop: '1px solid var(--border)' }}>
             {error
               ? <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>
-              : <span />
+              : (
+                <label className="flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  <input
+                    type="checkbox"
+                    checked={printOnSave}
+                    onChange={e => setPrintOnSave(e.target.checked)}
+                    className="h-4 w-4 accent-[#7c3aed]"
+                  />
+                  <Printer size={13} />
+                  Imprimir comanda al crear
+                </label>
+              )
             }
             <div className="flex gap-3">
               <button type="button" onClick={onClose}

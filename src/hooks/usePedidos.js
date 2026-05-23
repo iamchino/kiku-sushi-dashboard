@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { startOfDay } from 'date-fns'
+import { calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../lib/orders'
 
 export const ESTADOS = ['pendiente', 'preparando', 'listo', 'entregado']
 
@@ -57,6 +58,33 @@ function mergeIngredientes(ingredientes) {
     }
   }
   return Object.values(map)
+}
+
+function isMissingRpcFunction(error) {
+  return error?.code === 'PGRST202'
+    || /schema cache/i.test(error?.message || '')
+    || /Could not find the function/i.test(error?.message || '')
+}
+
+function normalizePedidoItems(items) {
+  return items.map(i => ({
+    nombre:          i.nombre,
+    precio_unitario: parseCurrencyValue(i.precio_unitario),
+    cantidad:        i.cantidad,
+    notas:           i.notas || null,
+    menu_item_id:    i.menu_item_id || null,
+    variante_id:     i.variante_id || null,
+  }))
+}
+
+function normalizePedidoItemsLegacy(items) {
+  return items.map(i => ({
+    nombre:          i.nombre,
+    precio_unitario: parseCurrencyValue(i.precio_unitario),
+    cantidad:        i.cantidad,
+    notas:           i.notas || null,
+    menu_item_id:    i.menu_item_id || null,
+  }))
 }
 
 export function usePedidos() {
@@ -116,25 +144,117 @@ export function usePedidos() {
   }), [pedidos, grouped])
 
   // CRUD
-  const createPedido = async ({ canal, mesa, notas, items }) => {
-    const { error } = await supabase.rpc('crear_pedido_con_items', {
+  const createPedido = async ({ canal, mesa, notas, items, descuento_porcentaje = 0 }) => {
+    const normalizedItems = normalizePedidoItems(items)
+    const descuento = clampDiscount(descuento_porcentaje)
+    const { data, error } = await supabase.rpc('crear_pedido_con_items', {
       p_canal: canal,
       p_mesa: mesa ? String(mesa) : null,
       p_notas: notas || null,
-      p_items: items.map(i => ({
-        nombre:          i.nombre,
-        precio_unitario: parseFloat(i.precio_unitario || 0),
-        cantidad:        i.cantidad,
-        notas:           i.notas || null,
-        menu_item_id:    i.menu_item_id || null,
-        variante_id:     i.variante_id || null,
-      })),
+      p_items: normalizedItems,
+      p_descuento_porcentaje: descuento,
     })
 
-    if (error) return error
+    if (error && !isMissingRpcFunction(error)) return { error }
+
+    if (error && isMissingRpcFunction(error)) {
+      const total = calculateOrderTotal(normalizedItems, descuento)
+
+      const legacy = await supabase.rpc('crear_pedido_con_items', {
+        p_canal: canal,
+        p_mesa: mesa ? String(mesa) : null,
+        p_notas: notas || null,
+        p_items: normalizedItems,
+      })
+
+      if (!legacy.error) {
+        if (descuento > 0) {
+          let { error: updateError } = await supabase
+            .from('pedidos')
+            .update({ total, descuento_porcentaje: descuento })
+            .eq('id', legacy.data)
+
+          if (updateError && /descuento_porcentaje/i.test(updateError.message || '')) {
+            const retry = await supabase
+              .from('pedidos')
+              .update({ total })
+              .eq('id', legacy.data)
+
+            updateError = retry.error
+          }
+
+          if (updateError) return { error: updateError }
+        }
+
+        fetchPedidos()
+        return { pedidoId: legacy.data }
+      }
+
+      if (legacy.error && !isMissingRpcFunction(legacy.error)) return { error: legacy.error }
+
+      let { data: pedido, error: pedidoError } = await supabase
+        .from('pedidos')
+        .insert({
+          canal,
+          mesa: mesa || null,
+          notas: notas || null,
+          total,
+          descuento_porcentaje: descuento,
+        })
+        .select('id')
+        .single()
+
+      if (pedidoError && /descuento_porcentaje/i.test(pedidoError.message || '')) {
+        const retry = await supabase
+          .from('pedidos')
+          .insert({
+            canal,
+            mesa: mesa || null,
+            notas: notas || null,
+            total,
+          })
+          .select('id')
+          .single()
+
+        pedido = retry.data
+        pedidoError = retry.error
+      }
+
+      if (pedidoError) return { error: pedidoError }
+
+      const rows = normalizedItems.map(item => ({
+        ...item,
+        pedido_id: pedido.id,
+      }))
+
+      let { error: itemsError } = await supabase
+        .from('pedido_items')
+        .insert(rows)
+
+      if (itemsError && /variante_id/i.test(itemsError.message || '')) {
+        const legacyRows = normalizePedidoItemsLegacy(items).map(item => ({
+          ...item,
+          pedido_id: pedido.id,
+        }))
+
+        const retry = await supabase
+          .from('pedido_items')
+          .insert(legacyRows)
+
+        itemsError = retry.error
+      }
+
+      if (itemsError) {
+        await supabase.from('pedidos').delete().eq('id', pedido.id)
+        return { error: itemsError }
+      }
+
+      fetchPedidos()
+      return { pedidoId: pedido.id }
+    }
 
     fetchPedidos()
-    return null
+    return { pedidoId: data }
   }
 
   /**

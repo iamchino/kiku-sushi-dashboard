@@ -7,14 +7,14 @@ const primarySections = [
     title: 'Cocina',
     description: 'Ver comandas activas y avanzar pedidos.',
     icon: ChefHat,
-    color: '#22c55e',
+    color: '#7c3aed',
   },
   {
     to: '/produccion',
     title: 'Produccion',
     description: 'Preparar tareas, recetas y mise en place.',
     icon: ClipboardList,
-    color: '#f59e0b',
+    color: '#7c3aed',
   },
 ]
 

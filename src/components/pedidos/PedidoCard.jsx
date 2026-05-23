@@ -1,7 +1,7 @@
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useEffect, useState } from 'react'
-import { ChevronRight, X, Clock } from 'lucide-react'
+import { ChevronRight, X, Clock, Printer } from 'lucide-react'
 import { ESTADO_SIGUIENTE } from '../../hooks/usePedidos'
 
 const CANAL_CONFIG = {
@@ -17,7 +17,7 @@ const BTN_LABEL = {
   listo:      'Entregar',
 }
 
-export default function PedidoCard({ pedido, onAvanzar, onCancelar }) {
+export default function PedidoCard({ pedido, onAvanzar, onCancelar, onPrintComanda }) {
   const [now, setNow] = useState(0)
   const canal    = CANAL_CONFIG[pedido.canal] || CANAL_CONFIG.salon
   const siguiente = ESTADO_SIGUIENTE[pedido.estado]
@@ -100,6 +100,15 @@ export default function PedidoCard({ pedido, onAvanzar, onCancelar }) {
         </span>
 
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => onPrintComanda?.(pedido)}
+            className="w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:bg-white/5"
+            style={{ color: '#52525b' }}
+            title="Imprimir comanda"
+          >
+            <Printer size={13} />
+          </button>
+
           {/* Cancel */}
           <button
             onClick={() => onCancelar(pedido.id)}

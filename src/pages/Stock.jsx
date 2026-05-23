@@ -429,7 +429,7 @@ export default function StockPage() {
           <button
             onClick={() => openNew('materia_prima')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white hover:scale-105 transition-all"
-            style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', boxShadow: '0 4px 16px rgba(34,197,94,0.2)' }}
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #2a1d3d)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}
           >
             <Plus size={15} />
             <span className="hidden sm:inline">Materia prima</span>
@@ -438,7 +438,7 @@ export default function StockPage() {
           <button
             onClick={() => openNew('produccion')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white hover:scale-105 transition-all"
-            style={{ background: 'linear-gradient(135deg, #f97316, #c2410c)', boxShadow: '0 4px 16px rgba(249,115,22,0.22)' }}
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #2a1d3d)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}
           >
             <Plus size={15} />
             <span className="hidden sm:inline">Produccion</span>

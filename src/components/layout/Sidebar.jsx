@@ -22,7 +22,7 @@ const NAV_ITEMS = [
   { to: '/produccion', icon: ListChecks,      label: 'Producción'   },
   { to: '/stock',      icon: Package,         label: 'Inventario'   },
   { to: '/recetas',    icon: BookOpen,        label: 'Recetas'      },
-  { to: '/caja',       icon: Receipt,         label: 'Caja y AFIP'  },
+  { to: '/caja',       icon: Receipt,         label: 'Caja y ARCA'  },
   { to: '/clientes',   icon: Users,           label: 'Clientes'     },
 ]
 

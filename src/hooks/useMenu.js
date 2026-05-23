@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { parseCurrencyValue } from '../lib/orders'
 
 export function useMenu(tipo) {
   const [items, setItems] = useState([])
@@ -33,9 +34,13 @@ export function useMenu(tipo) {
   // CRUD items
   const createItem = async (payload) => {
     const { variantes, ...itemPayload } = payload
+    const itemToInsert = {
+      ...itemPayload,
+      precio: itemPayload.precio ? parseCurrencyValue(itemPayload.precio) : null,
+    }
     const { data: created, error: e1 } = await supabase
       .from('menu_items')
-      .insert({ ...itemPayload, tipo })
+      .insert({ ...itemToInsert, tipo })
       .select()
       .single()
     if (e1) return e1
@@ -46,7 +51,7 @@ export function useMenu(tipo) {
         menu_item_id: created.id,
         nombre: v.nombre,
         piezas: parseFloat(v.piezas) || 1,
-        precio: parseFloat(v.precio) || 0,
+        precio: parseCurrencyValue(v.precio),
         orden: i,
       }))
       const { error: e2 } = await supabase.from('menu_item_variantes').insert(rows)
@@ -59,7 +64,11 @@ export function useMenu(tipo) {
 
   const updateItem = async (id, payload) => {
     const { variantes, ...itemPayload } = payload
-    const { error: e1 } = await supabase.from('menu_items').update(itemPayload).eq('id', id)
+    const itemToUpdate = {
+      ...itemPayload,
+      precio: itemPayload.precio ? parseCurrencyValue(itemPayload.precio) : null,
+    }
+    const { error: e1 } = await supabase.from('menu_items').update(itemToUpdate).eq('id', id)
     if (e1) return e1
 
     // Si se enviaron variantes, reemplazar todas
@@ -77,7 +86,7 @@ export function useMenu(tipo) {
           menu_item_id: id,
           nombre: v.nombre,
           piezas: parseFloat(v.piezas) || 1,
-          precio: parseFloat(v.precio) || 0,
+          precio: parseCurrencyValue(v.precio),
           orden: i,
         }))
         const { error: e2 } = await supabase.from('menu_item_variantes').insert(rows)
