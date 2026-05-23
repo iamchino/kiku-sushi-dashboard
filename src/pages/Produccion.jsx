@@ -81,7 +81,7 @@ export default function ProduccionPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2"
             style={{ color: 'var(--text-primary)' }}>
-            <ListChecks size={22} style={{ color: 'var(--accent)' }} />
+            <ListChecks size={22} style={{ color: 'var(--accent-lift)' }} />
             Producción
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
@@ -113,7 +113,7 @@ export default function ProduccionPage() {
               </p>
               {!isToday(fecha) && (
                 <button onClick={() => setFecha(new Date().toISOString().split('T')[0])}
-                  className="text-[10px] font-medium" style={{ color: 'var(--accent)' }}>
+                  className="text-[10px] font-medium" style={{ color: 'var(--accent-lift)' }}>
                   Ir a hoy
                 </button>
               )}
@@ -128,13 +128,13 @@ export default function ProduccionPage() {
           </>
         ) : (
           <div className="flex items-center gap-2 mx-auto py-1">
-            <CalendarDays size={14} style={{ color: 'var(--accent)' }} />
+            <CalendarDays size={14} style={{ color: 'var(--accent-lift)' }} />
             <p className="text-sm font-semibold capitalize" style={{ color: 'var(--text-primary)' }}>
               {formatFecha(fecha)}
             </p>
             {isToday(fecha) && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}>
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}>
                 HOY
               </span>
             )}
@@ -166,7 +166,7 @@ export default function ProduccionPage() {
           {isAdmin && (
             <button onClick={handleCrearLista} disabled={creando}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105 disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}>
+              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}>
               {creando ? 'Creando...' : '+ Crear lista'}
             </button>
           )}
@@ -181,7 +181,7 @@ export default function ProduccionPage() {
           {lista.notas && (
             <div className="px-4 py-3 rounded-xl text-xs"
               style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', color: 'var(--text-primary)' }}>
-              📝 <span className="font-medium" style={{ color: 'var(--accent)' }}>Nota:</span> {lista.notas}
+              📝 <span className="font-medium" style={{ color: 'var(--accent-lift)' }}>Nota:</span> {lista.notas}
             </div>
           )}
 
@@ -200,7 +200,7 @@ export default function ProduccionPage() {
                 style={{ color: 'var(--text-xmuted)' }}>
                 Pendientes
                 <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
-                  style={{ background: 'rgba(124,58,237,0.15)', color: 'var(--accent)' }}>
+                  style={{ background: 'rgba(var(--accent-rgb),0.15)', color: 'var(--accent-lift)' }}>
                   {pendientes.length}
                 </span>
               </p>

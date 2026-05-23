@@ -220,7 +220,7 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
                   <button
                     type="button" onClick={addVariante}
                     className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg transition-all"
-                    style={{ color: '#7c3aed', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)' }}
+                    style={{ color: 'var(--accent-lift)', background: 'var(--accent-soft)', border: '1px solid var(--accent-border)' }}
                   >
                     <Plus size={11} /> Agregar
                   </button>
@@ -309,7 +309,7 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
                   />
                   <div
                     className="w-9 h-5 rounded-full transition-colors"
-                    style={{ background: form.activo ? '#7c3aed' : 'var(--border)' }}
+                    style={{ background: form.activo ? 'var(--accent)' : 'var(--border)' }}
                   />
                   <div
                     className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
@@ -359,15 +359,15 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
                   onClick={() => fileInputRef.current?.click()}
                   className="flex flex-col items-center justify-center gap-3 rounded-xl cursor-pointer h-52 transition-all"
                   style={{
-                    border: `2px dashed ${dragOver ? '#7c3aed' : 'var(--border)'}`,
+                    border: `2px dashed ${dragOver ? 'var(--accent)' : 'var(--border)'}`,
                     background: dragOver ? 'var(--accent-soft)' : 'var(--bg-input)',
                   }}
                 >
                   <div
                     className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                    style={{ background: 'rgba(124,58,237,0.1)' }}
+                    style={{ background: 'rgba(var(--accent-rgb),0.1)' }}
                   >
-                    <ImageIcon size={22} style={{ color: '#7c3aed' }} />
+                    <ImageIcon size={22} style={{ color: 'var(--accent-lift)' }} />
                   </div>
                   <div className="text-center">
                     <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Arrastrá o hacé clic</p>
@@ -417,7 +417,7 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
               <button
                 type="submit" disabled={saving}
                 className="px-5 py-2 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-50 flex items-center gap-2"
-                style={{ background: saving ? '#5b21b6' : 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}
+                style={{ background: saving ? 'var(--accent-deep)' : 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}
               >
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 {saving ? 'Guardando…' : item ? 'Guardar cambios' : 'Crear producto'}
@@ -439,7 +439,7 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
           outline: none;
           transition: border-color 0.15s;
         }
-        .input-modal:focus { border-color: rgba(124,58,237,0.5); }
+        .input-modal:focus { border-color: rgba(var(--accent-rgb),0.5); }
         .input-modal::placeholder { color: var(--text-xmuted); }
       `}</style>
     </div>

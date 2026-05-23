@@ -112,7 +112,7 @@ function StatusPill({ ok, label, detail, icon: Icon }) {
   )
 }
 
-function Stat({ label, value, color = 'var(--accent)' }) {
+function Stat({ label, value, color = 'var(--accent-lift)' }) {
   return (
     <div className="rounded-lg px-3 py-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
       <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{label}</p>
@@ -274,7 +274,7 @@ function EditPedidoModal({ pedido, open, saving, onClose, onSave }) {
                     onClick={() => setCanal(option.id)}
                     className="rounded-lg px-3 py-2 text-xs font-semibold"
                     style={canal === option.id
-                      ? { background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }
+                      ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
                       : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
                   >
                     {option.label}
@@ -315,7 +315,7 @@ function EditPedidoModal({ pedido, open, saving, onClose, onSave }) {
                 type="button"
                 onClick={addItem}
                 className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold"
-                style={{ color: 'var(--accent)', border: '1px solid var(--accent-border)', background: 'var(--accent-soft)' }}
+                style={{ color: 'var(--accent-lift)', border: '1px solid var(--accent-border)', background: 'var(--accent-soft)' }}
               >
                 <Plus size={13} />
                 Agregar item
@@ -431,7 +431,7 @@ function EditPedidoModal({ pedido, open, saving, onClose, onSave }) {
               type="submit"
               disabled={saving}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)' }}
+              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
             >
               {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
               Guardar
@@ -460,7 +460,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-sm font-bold" style={{ color: 'var(--text-primary)' }}>#{shortId}</span>
-            <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+            <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)' }}>
               {canal}
             </span>
             {pedido.mesa && (
@@ -475,7 +475,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
           <div className="mt-3 space-y-1">
             {items.slice(0, 4).map(item => (
               <p key={item.id} className="truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
-                <span className="font-semibold" style={{ color: 'var(--accent)' }}>{item.cantidad}x</span> {item.nombre}
+                <span className="font-semibold" style={{ color: 'var(--accent-lift)' }}>{item.cantidad}x</span> {item.nombre}
               </p>
             ))}
             {items.length > 4 && (
@@ -536,7 +536,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
           onClick={() => onTicket(pedido)}
           disabled={busy || (!comprobante && !arcaReady)}
           className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-45"
-          style={{ background: comprobante ? '#2563eb' : 'linear-gradient(135deg, #7c3aed, #5b21b6)' }}
+          style={{ background: comprobante ? '#2563eb' : 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
         >
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Receipt size={14} />}
           {comprobante ? 'Reimprimir ticket' : 'Facturar + ticket'}
@@ -703,7 +703,7 @@ export default function CajaPage() {
                 onClick={() => setFilter(item.id)}
                 className="rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
                 style={filter === item.id
-                  ? { background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }
+                  ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
                   : { color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
               >
                 {item.label}
@@ -713,7 +713,7 @@ export default function CajaPage() {
 
           {loading ? (
             <div className="flex h-56 items-center justify-center">
-              <Loader2 size={28} className="animate-spin" style={{ color: 'var(--accent)' }} />
+              <Loader2 size={28} className="animate-spin" style={{ color: 'var(--accent-lift)' }} />
             </div>
           ) : filteredPedidos.length === 0 ? (
             <div className="rounded-lg py-16 text-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>

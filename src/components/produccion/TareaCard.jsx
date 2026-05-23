@@ -1,7 +1,7 @@
 import { CheckCircle2, RotateCcw, AlertTriangle, Trash2 } from 'lucide-react'
 
 const ESTADO_CONFIG = {
-  pendiente:   { color: '#7c3aed', border: 'rgba(124,58,237,0.3)',  bg: 'rgba(124,58,237,0.05)', label: 'Pendiente' },
+  pendiente:   { color: 'var(--accent-lift)', border: 'rgba(var(--accent-rgb),0.3)',  bg: 'rgba(var(--accent-rgb),0.05)', label: 'Pendiente' },
   en_progreso: { color: '#3b82f6', border: 'rgba(59,130,246,0.3)',  bg: 'rgba(59,130,246,0.05)', label: 'En progreso' },
   completada:  { color: '#22c55e', border: 'rgba(34,197,94,0.25)',  bg: 'rgba(34,197,94,0.04)',  label: 'Completada' },
 }
@@ -54,7 +54,7 @@ export default function TareaCard({ tarea, receta, stockProduccion, isAdmin, onC
             {/* Vinculada o no */}
             {tieneReceta ? (
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded"
-                style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.2)' }}>
+                style={{ background: 'rgba(var(--accent-rgb),0.1)', color: 'var(--accent-lift)', border: '1px solid rgba(var(--accent-rgb),0.2)' }}>
                 🔗 {receta?.nombre || 'Receta'}
               </span>
             ) : (

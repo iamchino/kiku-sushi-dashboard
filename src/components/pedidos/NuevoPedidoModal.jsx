@@ -193,7 +193,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                         onClick={() => setCanal(c.id)}
                         className="px-3 py-2 rounded-lg text-sm text-left transition-all"
                         style={canal === c.id
-                          ? { background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }
+                          ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
                           : { background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)' }
                         }
                       >
@@ -211,7 +211,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                       type="number" min={1} value={mesa} onChange={e => setMesa(e.target.value)}
                       className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
                       style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                      onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.5)'}
+                      onFocus={e => e.target.style.border = '1px solid rgba(var(--accent-rgb),0.5)'}
                       onBlur={e => e.target.style.border = '1px solid var(--border)'}
                       placeholder="Nº de mesa"
                     />
@@ -226,7 +226,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                     rows={3} placeholder="Alergias, indicaciones especiales…"
                     className="w-full px-3 py-2.5 rounded-lg text-sm outline-none resize-none"
                     style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                    onFocus={e => e.target.style.border = '1px solid rgba(124,58,237,0.5)'}
+                    onFocus={e => e.target.style.border = '1px solid rgba(var(--accent-rgb),0.5)'}
                     onBlur={e => e.target.style.border = '1px solid var(--border)'}
                   />
                 </div>
@@ -264,7 +264,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                 <div className="flex-1 overflow-y-auto space-y-1 max-h-48 pr-1">
                   {loadingMenu ? (
                     <div className="flex justify-center py-4">
-                      <Loader2 size={18} className="animate-spin" style={{ color: '#7c3aed' }} />
+                      <Loader2 size={18} className="animate-spin" style={{ color: 'var(--accent-lift)' }} />
                     </div>
                   ) : filtered.length === 0 ? (
                     <p className="text-xs text-center py-4" style={{ color: 'var(--text-xmuted)' }}>Sin resultados</p>
@@ -285,18 +285,18 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                             <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{m.nombre}</p>
                             <p className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
                               {m.categoria}
-                              {hasVariantes && <span className="ml-1" style={{ color: '#7c3aed' }}>· {m.menu_item_variantes.length} tamaños</span>}
+                              {hasVariantes && <span className="ml-1" style={{ color: 'var(--accent-lift)' }}>· {m.menu_item_variantes.length} tamaños</span>}
                             </p>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                             {hasVariantes ? (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--accent-soft)', color: '#7c3aed' }}>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)' }}>
                                 desde ${Math.min(...m.menu_item_variantes.map(v => parseCurrencyValue(v.precio))).toLocaleString('es-AR')}
                               </span>
                             ) : (
                               m.precio && <span className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>{m.precio}</span>
                             )}
-                            <Plus size={13} style={{ color: '#7c3aed' }} />
+                            <Plus size={13} style={{ color: 'var(--accent-lift)' }} />
                           </div>
                         </button>
                       )
@@ -307,7 +307,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                 {/* ── Popup de variantes ── */}
                 {variantePopup && (
                   <div className="rounded-xl p-3 space-y-2" style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)' }}>
-                    <p className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--accent-lift)' }}>
                       Elegí el tamaño de "{variantePopup.nombre}":
                     </p>
                     <div className="space-y-1.5">
@@ -318,11 +318,11 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                           onClick={() => addItem(variantePopup, v)}
                           className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all"
                           style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                          onMouseEnter={e => e.currentTarget.style.borderColor = '#7c3aed'}
+                          onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
                           onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
                         >
                           <span>{v.nombre}</span>
-                          <span className="font-bold" style={{ color: '#7c3aed' }}>${parseCurrencyValue(v.precio).toLocaleString('es-AR')}</span>
+                          <span className="font-bold" style={{ color: 'var(--accent-lift)' }}>${parseCurrencyValue(v.precio).toLocaleString('es-AR')}</span>
                         </button>
                       ))}
                     </div>
@@ -377,7 +377,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                       )}
                       <div className="flex justify-between">
                         <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Total estimado</span>
-                        <span className="text-xs font-bold" style={{ color: '#7c3aed' }}>
+                        <span className="text-xs font-bold" style={{ color: 'var(--accent-lift)' }}>
                         ${total.toLocaleString('es-AR')}
                         </span>
                       </div>
@@ -398,7 +398,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                     type="checkbox"
                     checked={printOnSave}
                     onChange={e => setPrintOnSave(e.target.checked)}
-                    className="h-4 w-4 accent-[#7c3aed]"
+                    className="h-4 w-4 accent-[var(--accent)]"
                   />
                   <Printer size={13} />
                   Imprimir comanda al crear
@@ -413,7 +413,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
               </button>
               <button type="submit" disabled={saving}
                 className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}>
+                style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}>
                 {saving
                   ? <><Loader2 size={14} className="animate-spin" /> Creando…</>
                   : <><ShoppingBag size={14} /> Crear pedido</>

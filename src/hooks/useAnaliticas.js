@@ -19,7 +19,7 @@ export const PRESETS = [
 ]
 
 export const CANAL_CFG = {
-  salon:     { label: 'Salón',     color: '#7c3aed' },
+  salon:     { label: 'Salón',     color: 'var(--accent-lift)' },
   delivery:  { label: 'Delivery',  color: '#4f8ef7' },
   whatsapp:  { label: 'WhatsApp',  color: '#34d399' },
   pedidosya: { label: 'PedidosYa', color: '#fbbf24' },

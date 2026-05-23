@@ -190,7 +190,7 @@ export default function RecetaModal({
               <label style={labelStyle}>Ingredientes</label>
               <button type="button" onClick={addIngrediente}
                 className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg transition-colors"
-                style={{ color: 'var(--accent)', background: 'var(--accent-soft)' }}>
+                style={{ color: 'var(--accent-lift)', background: 'var(--accent-soft)' }}>
                 <Plus size={12} /> Agregar
               </button>
             </div>
@@ -272,7 +272,7 @@ export default function RecetaModal({
 
                   {/* Costo parcial */}
                   <span className="text-[11px] font-semibold w-16 text-right tabular-nums flex-shrink-0"
-                    style={{ color: ingCosto > 0 ? 'var(--accent)' : 'var(--text-xmuted)' }}>
+                    style={{ color: ingCosto > 0 ? 'var(--accent-lift)' : 'var(--text-xmuted)' }}>
                     {ingCosto > 0 ? `$${ingCosto.toFixed(0)}` : '—'}
                   </span>
 
@@ -306,7 +306,7 @@ export default function RecetaModal({
                 {parseInt(porciones) > 1 && (
                   <div className="flex items-center justify-between text-xs">
                     <span style={{ color: 'var(--text-muted)' }}>Costo por porción ({porciones})</span>
-                    <span className="font-bold tabular-nums" style={{ color: 'var(--accent)' }}>
+                    <span className="font-bold tabular-nums" style={{ color: 'var(--accent-lift)' }}>
                       ${costoPorPorcion.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </span>
                   </div>
@@ -405,7 +405,7 @@ export default function RecetaModal({
             >Cancelar</button>
             <button type="submit" disabled={saving}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.2)' }}>
+              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.2)' }}>
               {saving ? <Loader2 size={14} className="animate-spin mx-auto" /> : isDuplicate ? 'Crear copia' : 'Guardar receta'}
             </button>
           </div>

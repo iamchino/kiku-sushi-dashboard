@@ -24,8 +24,8 @@ export function BottomNav() {
           to={to}
           className="flex-1 flex flex-col items-center justify-center gap-1 transition-colors"
           style={({ isActive }) => ({
-            color: isActive ? '#7c3aed' : '#71717a',
-            background: isActive ? 'rgba(124,58,237,0.08)' : 'transparent',
+            color: isActive ? 'var(--accent-lift)' : '#71717a',
+            background: isActive ? 'rgba(var(--accent-rgb),0.08)' : 'transparent',
           })}
         >
           <Icon size={20} />

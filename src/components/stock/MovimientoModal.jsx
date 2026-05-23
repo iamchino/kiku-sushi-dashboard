@@ -188,7 +188,7 @@ export default function MovimientoModal({
                     onClick={() => setForm(f => ({ ...f, tipo_stock: t.id, receta_id: t.id === 'produccion' ? f.receta_id : '' }))}
                     className="py-2 rounded-lg text-xs font-semibold transition-all"
                     style={active
-                      ? { background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }
+                      ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
                       : { background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
                   >
                     {t.label}
@@ -276,7 +276,7 @@ export default function MovimientoModal({
               {parseFloat(form.precio_unitario) > 0 && (
                 <div className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)' }}>
                   <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Costo real / {form.unidad}</span>
-                  <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>
+                  <span className="text-sm font-bold" style={{ color: 'var(--accent-lift)' }}>
                     ${((parseFloat(form.precio_unitario) || 0) / (parseFloat(form.rendimiento) || 1)).toFixed(2)}
                   </span>
                 </div>
@@ -345,7 +345,7 @@ export default function MovimientoModal({
                   checked={registrarMov}
                   onChange={e => setRegistrarMov(e.target.checked)}
                   className="rounded w-4 h-4 cursor-pointer"
-                  style={{ accentColor: '#7c3aed' }}
+                  style={{ accentColor: 'var(--accent)' }}
                 />
                 <span className="text-sm font-medium transition-colors" style={{ color: registrarMov ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                   Registrar entrada / movimiento en historial
@@ -445,7 +445,7 @@ export default function MovimientoModal({
               type="submit"
               disabled={saving}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}
+              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}
             >
               {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : (item ? 'Guardar cambios' : 'Crear item')}
             </button>

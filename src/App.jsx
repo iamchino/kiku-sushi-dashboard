@@ -89,7 +89,7 @@ export default function App() {
   if (session === undefined) {
     return (
       <div className="flex items-center justify-center h-screen" style={{ background: 'var(--bg-app)' }}>
-        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#7c3aed', borderTopColor: 'transparent' }} />
+        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent-lift)', borderTopColor: 'transparent' }} />
       </div>
     )
   }

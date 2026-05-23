@@ -72,7 +72,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all hover:scale-[1.01] active:scale-[0.99]"
         style={{
           border: '2px dashed var(--accent-border)',
-          color: 'var(--accent)',
+          color: 'var(--accent-lift)',
           background: 'var(--accent-soft)',
         }}
       >
@@ -94,7 +94,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
         <button type="button" onClick={() => { setModo('receta'); setError(null) }}
           className="flex-1 py-2 rounded-md text-xs font-semibold transition-all"
           style={modo === 'receta'
-            ? { background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }
+            ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
             : { color: 'var(--text-muted)', background: 'transparent', border: '1px solid transparent' }
           }>
           🔗 Con receta
@@ -146,7 +146,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
                         className="w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors"
                         style={{
                           background: sel ? 'var(--accent-soft)' : 'transparent',
-                          color: sel ? 'var(--accent)' : 'var(--text-primary)',
+                          color: sel ? 'var(--accent-lift)' : 'var(--text-primary)',
                           borderBottom: '1px solid var(--border)',
                         }}
                       >
@@ -170,7 +170,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
             {recetaId && recetaSeleccionada && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
                 style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)' }}>
-                <span className="text-xs font-medium" style={{ color: 'var(--accent)' }}>
+                <span className="text-xs font-medium" style={{ color: 'var(--accent-lift)' }}>
                   🔗 {recetaSeleccionada.nombre}
                 </span>
                 <button type="button" onClick={() => setRecetaId('')}
@@ -235,7 +235,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
         </button>
         <button type="submit" disabled={saving}
           className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)' }}>
+          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
           {saving ? '...' : '+ Agregar'}
         </button>
       </div>

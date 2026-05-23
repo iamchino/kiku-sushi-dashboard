@@ -14,7 +14,7 @@ import { es } from 'date-fns/locale'
 // ── Shared tooltip style ──────────────────────────────────────────────────────
 const TOOLTIP_STYLE = {
   contentStyle: { background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: 12 },
-  cursor: { fill: 'rgba(124,58,237,0.05)' },
+  cursor: { fill: 'rgba(var(--accent-rgb),0.05)' },
 }
 
 // ── Delta badge ───────────────────────────────────────────────────────────────
@@ -66,8 +66,8 @@ function VentasChart({ data, loading, dias }) {
         <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
           <defs>
             <linearGradient id="gVentas" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%"  stopColor="#7c3aed" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#7c3aed" stopOpacity={0}   />
+              <stop offset="5%"  stopColor="var(--accent-lift)" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="var(--accent-lift)" stopOpacity={0}   />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
@@ -79,8 +79,8 @@ function VentasChart({ data, loading, dias }) {
             formatter={(v) => [`$${v.toLocaleString('es-AR')}`, 'Ventas']}
             labelStyle={{ color: 'var(--text-muted)', marginBottom: 4 }}
           />
-          <Area type="monotone" dataKey="ventas" stroke="#7c3aed" strokeWidth={2}
-            fill="url(#gVentas)" dot={false} activeDot={{ r: 4, fill: '#7c3aed' }} />
+          <Area type="monotone" dataKey="ventas" stroke="var(--accent-lift)" strokeWidth={2}
+            fill="url(#gVentas)" dot={false} activeDot={{ r: 4, fill: 'var(--accent-lift)' }} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -160,13 +160,13 @@ function TopProductos({ topProductos, loading }) {
           {topProductos.map((p, i) => (
             <div key={p.nombre} className="flex items-center gap-3">
               <span className="w-5 text-right text-xs font-bold flex-shrink-0"
-                style={{ color: i < 3 ? '#7c3aed' : 'var(--text-xmuted)' }}>
+                style={{ color: i < 3 ? 'var(--accent-lift)' : 'var(--text-xmuted)' }}>
                 {i + 1}
               </span>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline mb-1">
                   <p className="text-xs font-medium truncate" style={{ color: 'var(--text-secondary)' }}>{p.nombre}</p>
-                  <p className="text-xs font-bold flex-shrink-0 ml-2" style={{ color: '#7c3aed' }}>
+                  <p className="text-xs font-bold flex-shrink-0 ml-2" style={{ color: 'var(--accent-lift)' }}>
                     {p.unidades} u
                   </p>
                 </div>
@@ -175,7 +175,7 @@ function TopProductos({ topProductos, loading }) {
                     style={{
                       width: `${(p.unidades / max) * 100}%`,
                       background: i < 3
-                        ? 'linear-gradient(90deg, #7c3aed, #5b21b6)'
+                        ? 'linear-gradient(90deg, var(--accent), var(--accent-deep))'
                         : 'var(--border)',
                     }} />
                 </div>
@@ -281,7 +281,7 @@ export default function AnaliticasPage() {
           <button key={p.label} onClick={() => { setCustomMode(false); applyPreset(p) }}
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
             style={preset === p.label && !customMode
-              ? { background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }
+              ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
               : { color: 'var(--text-muted)', border: '1px solid var(--border)' }
             }>
             {p.label}
@@ -319,7 +319,7 @@ export default function AnaliticasPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard label="Ventas totales"   icon={TrendingUp}   color="#7c3aed"
+        <KpiCard label="Ventas totales"   icon={TrendingUp}   color="var(--accent-lift)"
           value={loading ? '—' : `$${(data?.ventas || 0).toLocaleString('es-AR')}`}
           delta={data?.dVentas} />
         <KpiCard label="Ticket promedio"  icon={BarChart2}    color="#4f8ef7"

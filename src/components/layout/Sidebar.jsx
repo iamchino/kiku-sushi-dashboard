@@ -45,7 +45,7 @@ function ThemeToggle() {
       style={{
         background: 'var(--bg-active)',
         border: '1px solid var(--accent-border)',
-        color: 'var(--accent)',
+        color: 'var(--accent-lift)',
       }}
     >
       <span
@@ -93,13 +93,13 @@ function SidebarContent({ onClose, showBell = false }) {
         <div className="flex items-center gap-2.5">
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)' }}
+            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
           >
             K
           </div>
           <div>
             <p className="font-semibold text-sm tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>
-              KIKU <span style={{ color: '#7c3aed' }}>SUSHI</span>
+              KIKU <span style={{ color: 'var(--accent-lift)' }}>SUSHI</span>
             </p>
             <p className="text-[10px] mt-0.5 uppercase tracking-widest" style={{ color: 'var(--text-xmuted)' }}>
               Sistema de gestión
@@ -135,7 +135,7 @@ function SidebarContent({ onClose, showBell = false }) {
               !isActive && 'hover:bg-[var(--bg-hover)]'
             )}
             style={({ isActive }) => isActive
-              ? { background: 'var(--bg-active)', color: 'var(--accent)' }
+              ? { background: 'var(--bg-active)', color: 'var(--accent-lift)' }
               : { color: 'var(--text-secondary)' }
             }
           >

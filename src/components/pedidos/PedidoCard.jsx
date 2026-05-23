@@ -5,7 +5,7 @@ import { ChevronRight, X, Clock, Printer } from 'lucide-react'
 import { ESTADO_SIGUIENTE } from '../../hooks/usePedidos'
 
 const CANAL_CONFIG = {
-  salon:     { label: 'Salón',      color: '#7c3aed', bg: 'rgba(124,58,237,0.12)'  },
+  salon:     { label: 'Salón',      color: 'var(--accent-lift)', bg: 'rgba(var(--accent-rgb),0.12)'  },
   delivery:  { label: 'Delivery',   color: '#4f8ef7', bg: 'rgba(79,142,247,0.12)'  },
   whatsapp:  { label: 'WhatsApp',   color: '#34d399', bg: 'rgba(52,211,153,0.12)'  },
   pedidosya: { label: 'PedidosYa',  color: '#fbbf24', bg: 'rgba(251,191,36,0.12)'  },
@@ -75,7 +75,7 @@ export default function PedidoCard({ pedido, onAvanzar, onCancelar, onPrintComan
           items.map(item => (
             <div key={item.id} className="flex items-start justify-between gap-2">
               <span className="text-xs text-white/80 leading-snug">
-                <span className="font-semibold" style={{ color: '#7c3aed' }}>{item.cantidad}×</span> {item.nombre}
+                <span className="font-semibold" style={{ color: 'var(--accent-lift)' }}>{item.cantidad}×</span> {item.nombre}
               </span>
               {item.notas && (
                 <span className="text-[10px] italic flex-shrink-0" style={{ color: '#52525b' }}>
@@ -95,7 +95,7 @@ export default function PedidoCard({ pedido, onAvanzar, onCancelar, onPrintComan
 
       {/* Footer */}
       <div className="flex items-center justify-between px-4 py-2.5" style={{ borderTop: '1px solid #2a2a2e' }}>
-        <span className="text-sm font-bold" style={{ color: '#7c3aed' }}>
+        <span className="text-sm font-bold" style={{ color: 'var(--accent-lift)' }}>
           ${Number(pedido.total).toLocaleString('es-AR')}
         </span>
 
@@ -126,7 +126,7 @@ export default function PedidoCard({ pedido, onAvanzar, onCancelar, onPrintComan
             <button
               onClick={() => onAvanzar(pedido.id, pedido.estado)}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)' }}
+              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
             >
               {BTN_LABEL[pedido.estado]}
               <ChevronRight size={12} />

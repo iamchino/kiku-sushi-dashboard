@@ -31,7 +31,7 @@ export const ESTADO_STOCK = (item) => {
 export const ESTADO_CONFIG = {
   critico: { label: 'Crítico', color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.18)' },
   bajo:    { label: 'Bajo',    color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.18)' },
-  medio:   { label: 'Medio',   color: '#7c3aed', bg: 'rgba(124,58,237,0.06)', border: 'rgba(124,58,237,0.15)' },
+  medio:   { label: 'Medio',   color: 'var(--accent-lift)', bg: 'rgba(var(--accent-rgb),0.06)', border: 'rgba(var(--accent-rgb),0.15)' },
   ok:      { label: 'OK',      color: '#22c55e', bg: 'rgba(34,197,94,0.06)',  border: 'rgba(34,197,94,0.15)' },
 }
 

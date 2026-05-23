@@ -58,7 +58,7 @@ function RecetaRow({ receta, recetas, onEdit, onDuplicate, onDelete }) {
           <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{receta.nombre}</span>
           {receta.es_subreceta && (
             <span className="text-[10px] ml-2 px-1.5 py-0.5 rounded font-medium"
-              style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed', border: '1px solid rgba(124,58,237,0.2)' }}>
+              style={{ background: 'rgba(var(--accent-rgb),0.1)', color: 'var(--accent-lift)', border: '1px solid rgba(var(--accent-rgb),0.2)' }}>
               Sub-receta
             </span>
           )}
@@ -90,7 +90,7 @@ function RecetaRow({ receta, recetas, onEdit, onDuplicate, onDelete }) {
 
         {/* Costo */}
         <td className="px-4 py-3">
-          <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>
+          <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--accent-lift)' }}>
             ${receta._costoPorcion.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </span>
         </td>
@@ -128,7 +128,7 @@ function RecetaRow({ receta, recetas, onEdit, onDuplicate, onDelete }) {
               aria-label={`Duplicar ${receta.nombre}`}
               className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
               style={{ color: 'var(--text-xmuted)' }}
-              onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-lift)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}>
               <Copy size={13} />
             </button>
@@ -196,7 +196,7 @@ function RecetaRow({ receta, recetas, onEdit, onDuplicate, onDelete }) {
 
                     return (
                       <tr key={ri.id || (ri.stock_id || ri.subreceta_id)} style={{ borderTop: '1px solid var(--border)' }}>
-                        <td className="py-1.5" style={{ color: ri.subreceta_id ? '#7c3aed' : 'var(--text-primary)' }}>
+                        <td className="py-1.5" style={{ color: ri.subreceta_id ? 'var(--accent-lift)' : 'var(--text-primary)' }}>
                           {nombre}
                         </td>
                         <td className="py-1.5 text-right tabular-nums" style={{ color: 'var(--text-secondary)' }}>
@@ -205,7 +205,7 @@ function RecetaRow({ receta, recetas, onEdit, onDuplicate, onDelete }) {
                         <td className="py-1.5 text-right tabular-nums hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>
                           {infoPrecio}
                         </td>
-                        <td className="py-1.5 text-right tabular-nums font-semibold" style={{ color: 'var(--accent)' }}>
+                        <td className="py-1.5 text-right tabular-nums font-semibold" style={{ color: 'var(--accent-lift)' }}>
                           ${costo.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </td>
                       </tr>
@@ -217,7 +217,7 @@ function RecetaRow({ receta, recetas, onEdit, onDuplicate, onDelete }) {
                     <td colSpan={3} className="py-2 text-right font-semibold" style={{ color: 'var(--text-secondary)' }}>
                       Total:
                     </td>
-                    <td className="py-2 text-right font-bold tabular-nums" style={{ color: 'var(--accent)' }}>
+                    <td className="py-2 text-right font-bold tabular-nums" style={{ color: 'var(--accent-lift)' }}>
                       ${receta._costo.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </td>
                   </tr>
@@ -524,7 +524,7 @@ export default function RecetasPage() {
           {activeTab === 'recetas' ? (
             <button onClick={openNew}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, #7c3aed, #5b21b6)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}>
+              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}>
               <Plus size={15} />
               <span className="hidden sm:inline">Nueva receta</span>
               <span className="sm:hidden">Nueva</span>
@@ -548,7 +548,7 @@ export default function RecetasPage() {
           className={`pb-3 text-sm font-medium flex items-center gap-2 transition-colors relative`}
           style={{ color: activeTab === 'recetas' ? 'var(--text-primary)' : 'var(--text-muted)' }}
         >
-          <ChefHat size={16} style={{ color: activeTab === 'recetas' ? 'var(--accent)' : 'inherit' }} />
+          <ChefHat size={16} style={{ color: activeTab === 'recetas' ? 'var(--accent-lift)' : 'inherit' }} />
           Recetas Individuales
           {activeTab === 'recetas' && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full" style={{ background: 'var(--accent)' }} />
@@ -622,7 +622,7 @@ export default function RecetasPage() {
                   {search ? `Sin resultados para "${search}"` : 'No hay recetas todavía'}
                 </p>
                 {!search && (
-                  <button onClick={openNew} className="text-xs" style={{ color: 'var(--accent)' }}>
+                  <button onClick={openNew} className="text-xs" style={{ color: 'var(--accent-lift)' }}>
                     + Crear primera receta
                   </button>
                 )}

@@ -8,7 +8,7 @@ function getCellStyle(valor, max) {
   const alpha = 0.1 + ratio * 0.85
   return {
     background: `rgba(232, 103, 58, ${alpha.toFixed(2)})`,
-    boxShadow: ratio > 0.7 ? '0 0 6px rgba(124,58,237,0.3)' : 'none',
+    boxShadow: ratio > 0.7 ? '0 0 6px rgba(var(--accent-rgb),0.3)' : 'none',
   }
 }
 
@@ -72,7 +72,7 @@ export function HeatmapHoras({ data, loading }) {
               <div
                 key={i}
                 className="w-5 h-3 rounded"
-                style={{ background: alpha < 0.1 ? 'var(--bg-hover)' : `rgba(124,58,237,${alpha})` }}
+                style={{ background: alpha < 0.1 ? 'var(--bg-hover)' : `rgba(var(--accent-rgb),${alpha})` }}
               />
             ))}
             <span className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>Más pedidos</span>

@@ -155,7 +155,7 @@ function ItemRow({ item, showCostColumns = true, updatePrecio, openEdit, setDele
             <td className="px-3 py-3 hidden md:table-cell"><PrecioCell item={item} onSave={updatePrecio} /></td>
             <td className="px-3 py-3 hidden lg:table-cell">
               {costo > 0 ? (
-                <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>
+                <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--accent-lift)' }}>
                   ${costo.toFixed(2)}/{item.unidad}
                 </span>
               ) : <span className="text-xs" style={{ color: 'var(--text-xmuted)' }}>-</span>}
@@ -195,7 +195,7 @@ function ItemRow({ item, showCostColumns = true, updatePrecio, openEdit, setDele
             <div className="px-5 py-3 mx-3 my-1 rounded-lg space-y-4" style={{ border: '1px solid var(--border)' }}>
               {item.notas && (
                 <div>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--accent-lift)' }}>
                     Notas
                   </span>
                   <p className="text-xs whitespace-pre-wrap mt-1" style={{ color: 'var(--text-primary)' }}>{item.notas}</p>
@@ -252,7 +252,7 @@ function StockTable({ title, icon: Icon, items, emptyText, showCostColumns = tru
     >
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
         <div className="flex items-center gap-2">
-          <Icon size={16} style={{ color: 'var(--accent)' }} />
+          <Icon size={16} style={{ color: 'var(--accent-lift)' }} />
           <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</span>
           <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
             {items.length}
@@ -429,7 +429,7 @@ export default function StockPage() {
           <button
             onClick={() => openNew('materia_prima')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white hover:scale-105 transition-all"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #2a1d3d)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}
+            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}
           >
             <Plus size={15} />
             <span className="hidden sm:inline">Materia prima</span>
@@ -438,7 +438,7 @@ export default function StockPage() {
           <button
             onClick={() => openNew('produccion')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white hover:scale-105 transition-all"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #2a1d3d)', boxShadow: '0 4px 16px rgba(124,58,237,0.25)' }}
+            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}
           >
             <Plus size={15} />
             <span className="hidden sm:inline">Produccion</span>
@@ -481,7 +481,7 @@ export default function StockPage() {
             style={{
               background: categoria !== 'todos' ? 'var(--accent-soft)' : 'var(--bg-input)',
               border: `1px solid ${categoria !== 'todos' ? 'var(--accent-border)' : 'var(--border)'}`,
-              color: categoria !== 'todos' ? 'var(--accent)' : 'var(--text-primary)',
+              color: categoria !== 'todos' ? 'var(--accent-lift)' : 'var(--text-primary)',
             }}
           >
             <option value="todos">Categorias materia prima</option>

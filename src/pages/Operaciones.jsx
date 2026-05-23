@@ -7,14 +7,14 @@ const primarySections = [
     title: 'Cocina',
     description: 'Ver comandas activas y avanzar pedidos.',
     icon: ChefHat,
-    color: '#7c3aed',
+    color: 'var(--accent-lift)',
   },
   {
     to: '/produccion',
     title: 'Produccion',
     description: 'Preparar tareas, recetas y mise en place.',
     icon: ClipboardList,
-    color: '#7c3aed',
+    color: 'var(--accent-lift)',
   },
 ]
 
@@ -90,7 +90,7 @@ export default function Operaciones() {
               className="flex min-h-24 flex-col justify-between rounded-lg p-4 transition-colors hover:bg-[var(--bg-card-hover)]"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}
             >
-              <Icon size={20} style={{ color: 'var(--accent)' }} />
+              <Icon size={20} style={{ color: 'var(--accent-lift)' }} />
               <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{label}</span>
             </Link>
           ))}
