@@ -5,15 +5,16 @@ import { normalizeSearch } from '../../utils/normalize'
 import { printComanda } from '../../lib/printing'
 import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../../lib/orders'
 
+// El canal "salón" se gestiona ahora desde /mesas (mesa abierta → pedido vinculado).
+// Solo dejamos canales de takeaway / delivery aquí.
 const CANALES = [
-  { id: 'salon',     label: '🍽️  Salón'      },
   { id: 'delivery',  label: '🚗  Delivery'    },
   { id: 'whatsapp',  label: '💬  WhatsApp'   },
   { id: 'pedidosya', label: '🟡  PedidosYa'  },
 ]
 
 export default function NuevoPedidoModal({ open, onClose, onSave }) {
-  const [canal,   setCanal]   = useState('salon')
+  const [canal,   setCanal]   = useState('delivery')
   const [mesa,    setMesa]    = useState('')
   const [notas,   setNotas]   = useState('')
   const [descuentoPorcentaje, setDescuentoPorcentaje] = useState('')
@@ -53,7 +54,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
   // Reset on close
   useEffect(() => {
     if (!open) {
-      setCanal('salon'); setMesa(''); setNotas(''); setDescuentoPorcentaje('')
+      setCanal('delivery'); setMesa(''); setNotas(''); setDescuentoPorcentaje('')
       setClienteNombre(''); setClienteTelefono(''); setClienteDireccion('')
       setItems([]); setSearch(''); setError(null); setPrintOnSave(true); setVariantePopup(null)
     }
@@ -472,3 +473,4 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
     </div>
   )
 }
+           

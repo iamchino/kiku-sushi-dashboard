@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, ClipboardList, Package, Receipt, ListChecks,
   Users, ChefHat, LogOut, UtensilsCrossed, X, Menu, BarChart2,
-  Sun, Moon, BookOpen
+  Sun, Moon, BookOpen, LayoutGrid
 } from 'lucide-react'
 import clsx from 'clsx'
 import { auth } from '../../lib/supabase'
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { to: '/operaciones', icon: ChefHat,        label: 'Operaciones'  },
   { to: '/analiticas', icon: BarChart2,       label: 'Analíticas'   },
   { to: '/menu',       icon: UtensilsCrossed, label: 'Menú & Carta' },
+  { to: '/mesas',      icon: LayoutGrid,      label: 'Mesas'        },
   { to: '/pedidos',    icon: ClipboardList,   label: 'Pedidos'      },
   { to: '/cocina',     icon: ChefHat,         label: 'Cocina (KDS)' },
   { to: '/produccion', icon: ListChecks,      label: 'Producción'   },
@@ -218,3 +219,4 @@ export function Sidebar() {
     </>
   )
 }
+        

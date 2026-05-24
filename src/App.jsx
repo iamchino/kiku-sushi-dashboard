@@ -8,6 +8,8 @@ import Dashboard from './pages/Dashboard'
 import OperacionesPage from './pages/Operaciones'
 import MenuPage from './pages/Menu'
 import PedidosPage from './pages/Pedidos'
+import MesasPage from './pages/Mesas'
+import ConfigSalonPage from './pages/ConfigSalon'
 import CocinaKDS from './pages/Cocina'
 import ProduccionPage from './pages/Produccion'
 import ClientesPage from './pages/Clientes'
@@ -55,6 +57,8 @@ function AppRoutes() {
           <Route path="/operaciones" element={<OperacionesPage />} />
           <Route path="/analiticas" element={<AnaliticasPage />} />
           <Route path="/pedidos" element={<PedidosPage />} />
+          <Route path="/mesas" element={<MesasPage />} />
+          <Route path="/configuracion/salon" element={<ConfigSalonPage />} />
           <Route path="/menu" element={<MenuPage />} />
           <Route path="/cocina" element={<CocinaKDS />} />
           <Route path="/produccion" element={<ProduccionPage />} />

@@ -137,6 +137,7 @@ export function printComanda(pedido) {
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
   const items = normalizeItems(pedido)
   const canal = CANAL_LABELS[pedido?.canal] || pedido?.canal || 'Pedido'
+  const rondaLabel = pedido?._ronda_label || null
 
   const rows = items.map(item => `
     <div class="line">
@@ -150,11 +151,13 @@ export function printComanda(pedido) {
     <main class="ticket">
       <div class="center bold xl">KIKU SUSHI</div>
       <div class="center bold lg">COMANDA INTERNA</div>
+      ${rondaLabel ? `<div class="center bold" style="background:#000;color:#fff;padding:4px 0;margin:6px 0;">${escapeHtml(rondaLabel)}</div>` : ''}
       <div class="stamp">DOCUMENTO NO VALIDO COMO FACTURA</div>
       <div class="row"><span>Pedido</span><span class="bold">#${escapeHtml(shortId)}</span></div>
       <div class="row"><span>Fecha</span><span>${escapeHtml(formatDateTime(pedido?.created_at))}</span></div>
       <div class="row"><span>Canal</span><span>${escapeHtml(canal)}</span></div>
       ${pedido?.mesa ? `<div class="row"><span>Mesa</span><span class="bold">${escapeHtml(pedido.mesa)}</span></div>` : ''}
+      ${pedido?.personas ? `<div class="row"><span>Personas</span><span>${escapeHtml(pedido.personas)}</span></div>` : ''}
       ${renderClienteBlock(pedido)}
       <div class="sep"></div>
       ${rows || '<div class="center">Sin items</div>'}
@@ -164,7 +167,7 @@ export function printComanda(pedido) {
     </main>
   `
 
-  printDocument(`Comanda ${shortId}`, body)
+  printDocument(`Comanda ${shortId}${rondaLabel ? ' - ' + rondaLabel : ''}`, body)
 }
 
 export function printCustomerTicket(pedido, config) {
@@ -277,3 +280,4 @@ export function printFiscalTicket(pedido, comprobante, config) {
 
   printDocument(`Factura ${receiptNumber}`, body)
 }
+  

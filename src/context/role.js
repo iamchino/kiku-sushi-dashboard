@@ -3,7 +3,10 @@ import { createContext } from 'react'
 export const VALID_ROLES = new Set(['admin', 'cocina'])
 export const DEFAULT_ROLE = 'cocina'
 export const COCINA_DEFAULT_ROUTE = '/operaciones'
-export const COCINA_BLOCKED_ROUTES = new Set(['/', '/dashboard', '/analiticas', '/caja', '/clientes'])
+export const COCINA_BLOCKED_ROUTES = new Set([
+  '/', '/dashboard', '/analiticas', '/caja', '/clientes',
+  '/mesas', '/configuracion/salon',
+])
 
 export const RoleContext = createContext(DEFAULT_ROLE)
 
