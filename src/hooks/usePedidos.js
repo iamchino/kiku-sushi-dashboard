@@ -144,15 +144,24 @@ export function usePedidos() {
   }), [pedidos, grouped])
 
   // CRUD
-  const createPedido = async ({ canal, mesa, notas, items, descuento_porcentaje = 0 }) => {
+  const createPedido = async ({
+    canal, mesa, notas, items, descuento_porcentaje = 0,
+    cliente_nombre = null, cliente_telefono = null, cliente_direccion = null,
+  }) => {
     const normalizedItems = normalizePedidoItems(items)
     const descuento = clampDiscount(descuento_porcentaje)
+    const clienteNombre    = cliente_nombre?.trim()    || null
+    const clienteTelefono  = cliente_telefono?.trim()  || null
+    const clienteDireccion = cliente_direccion?.trim() || null
     const { data, error } = await supabase.rpc('crear_pedido_con_items', {
       p_canal: canal,
       p_mesa: mesa ? String(mesa) : null,
       p_notas: notas || null,
       p_items: normalizedItems,
       p_descuento_porcentaje: descuento,
+      p_cliente_nombre:    clienteNombre,
+      p_cliente_telefono:  clienteTelefono,
+      p_cliente_direccion: clienteDireccion,
     })
 
     if (error && !isMissingRpcFunction(error)) return { error }
@@ -168,10 +177,15 @@ export function usePedidos() {
       })
 
       if (!legacy.error) {
-        if (descuento > 0) {
+        const patch = {}
+        if (descuento > 0)      { patch.total = total; patch.descuento_porcentaje = descuento }
+        if (clienteNombre)       patch.cliente_nombre    = clienteNombre
+        if (clienteTelefono)     patch.cliente_telefono  = clienteTelefono
+        if (clienteDireccion)    patch.cliente_direccion = clienteDireccion
+        if (Object.keys(patch).length > 0) {
           let { error: updateError } = await supabase
             .from('pedidos')
-            .update({ total, descuento_porcentaje: descuento })
+            .update(patch)
             .eq('id', legacy.data)
 
           if (updateError && /descuento_porcentaje/i.test(updateError.message || '')) {
@@ -183,6 +197,14 @@ export function usePedidos() {
             updateError = retry.error
           }
 
+          if (updateError && /descuento_porcentaje|cliente_/i.test(updateError.message || '')) {
+            const safePatch = { ...patch }
+            for (const k of ['descuento_porcentaje', 'cliente_nombre', 'cliente_telefono', 'cliente_direccion']) {
+              if (new RegExp(k, 'i').test(updateError.message || '')) delete safePatch[k]
+            }
+            const retry = await supabase.from('pedidos').update(safePatch).eq('id', legacy.data)
+            updateError = retry.error
+          }
           if (updateError) return { error: updateError }
         }
 
@@ -200,22 +222,23 @@ export function usePedidos() {
           notas: notas || null,
           total,
           descuento_porcentaje: descuento,
+          cliente_nombre:    clienteNombre,
+          cliente_telefono:  clienteTelefono,
+          cliente_direccion: clienteDireccion,
         })
         .select('id')
         .single()
 
-      if (pedidoError && /descuento_porcentaje/i.test(pedidoError.message || '')) {
-        const retry = await supabase
-          .from('pedidos')
-          .insert({
-            canal,
-            mesa: mesa || null,
-            notas: notas || null,
-            total,
-          })
-          .select('id')
-          .single()
-
+      if (pedidoError && /descuento_porcentaje|cliente_/i.test(pedidoError.message || '')) {
+        const safeRow = {
+          canal, mesa: mesa || null, notas: notas || null, total,
+          descuento_porcentaje: descuento,
+          cliente_nombre: clienteNombre, cliente_telefono: clienteTelefono, cliente_direccion: clienteDireccion,
+        }
+        for (const k of ['descuento_porcentaje', 'cliente_nombre', 'cliente_telefono', 'cliente_direccion']) {
+          if (new RegExp(k, 'i').test(pedidoError.message || '')) delete safeRow[k]
+        }
+        const retry = await supabase.from('pedidos').insert(safeRow).select('id').single()
         pedido = retry.data
         pedidoError = retry.error
       }

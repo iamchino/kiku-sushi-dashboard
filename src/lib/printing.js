@@ -42,6 +42,19 @@ function formatDate(value) {
   return date.toLocaleDateString('es-AR')
 }
 
+function renderClienteBlock(pedido) {
+  const nombre    = pedido?.cliente_nombre?.trim()
+  const telefono  = pedido?.cliente_telefono?.trim()
+  const direccion = pedido?.cliente_direccion?.trim()
+  if (!nombre && !telefono && !direccion) return ''
+  const rows = [
+    nombre    && `<div class="row"><span>Cliente</span><span class="bold">${escapeHtml(nombre)}</span></div>`,
+    telefono  && `<div class="row"><span>Tel</span><span>${escapeHtml(telefono)}</span></div>`,
+    direccion && `<div class="row"><span>Dirección</span><span>${escapeHtml(direccion)}</span></div>`,
+  ].filter(Boolean).join('')
+  return `<div class="sep"></div>${rows}`
+}
+
 function normalizeItems(pedido) {
   return (pedido?.pedido_items || pedido?.items || []).map(item => ({
     id: item.id || item._key || `${item.nombre}-${item.cantidad}`,
@@ -142,6 +155,7 @@ export function printComanda(pedido) {
       <div class="row"><span>Fecha</span><span>${escapeHtml(formatDateTime(pedido?.created_at))}</span></div>
       <div class="row"><span>Canal</span><span>${escapeHtml(canal)}</span></div>
       ${pedido?.mesa ? `<div class="row"><span>Mesa</span><span class="bold">${escapeHtml(pedido.mesa)}</span></div>` : ''}
+      ${renderClienteBlock(pedido)}
       <div class="sep"></div>
       ${rows || '<div class="center">Sin items</div>'}
       ${pedido?.notas ? `<div class="sep"></div><div class="bold">Notas</div><div>${escapeHtml(pedido.notas)}</div>` : ''}
@@ -183,6 +197,7 @@ export function printCustomerTicket(pedido, config) {
       <div class="row"><span>Fecha</span><span>${escapeHtml(formatDateTime(new Date()))}</span></div>
       <div class="row"><span>Canal</span><span>${escapeHtml(canal)}</span></div>
       ${pedido?.mesa ? `<div class="row"><span>Mesa</span><span class="bold">${escapeHtml(pedido.mesa)}</span></div>` : ''}
+      ${renderClienteBlock(pedido)}
       <div class="sep"></div>
       ${rows || '<div class="center">Sin items</div>'}
       ${pedido?.notas ? `<div class="sep"></div><div class="bold">Notas</div><div>${escapeHtml(pedido.notas)}</div>` : ''}

@@ -1,7 +1,7 @@
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useEffect, useState } from 'react'
-import { ChevronRight, X, Clock, Printer } from 'lucide-react'
+import { ChevronRight, X, Clock, Printer, User, Phone, MapPin } from 'lucide-react'
 import { ESTADO_SIGUIENTE } from '../../hooks/usePedidos'
 
 const CANAL_CONFIG = {
@@ -86,8 +86,43 @@ export default function PedidoCard({ pedido, onAvanzar, onCancelar, onPrintComan
           ))
         )}
 
+        {(pedido.cliente_nombre || pedido.cliente_telefono || pedido.cliente_direccion) && (
+          <div
+            className="mt-2 pt-2 space-y-1 text-[10px]"
+            style={{ color: '#a1a1aa', borderTop: '1px solid #2a2a2e' }}
+          >
+            {pedido.cliente_nombre && (
+              <div className="flex items-center gap-1.5">
+                <User size={10} style={{ color: '#52525b' }} />
+                <span className="truncate">{pedido.cliente_nombre}</span>
+              </div>
+            )}
+            {pedido.cliente_telefono && (
+              <div className="flex items-center gap-1.5">
+                <Phone size={10} style={{ color: '#52525b' }} />
+                <a
+                  href={`tel:${pedido.cliente_telefono}`}
+                  className="hover:underline"
+                  style={{ color: 'var(--accent-lift)' }}
+                >
+                  {pedido.cliente_telefono}
+                </a>
+              </div>
+            )}
+            {pedido.cliente_direccion && (
+              <div className="flex items-start gap-1.5">
+                <MapPin size={10} style={{ color: '#52525b', marginTop: 2 }} />
+                <span className="leading-snug">{pedido.cliente_direccion}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {pedido.notas && (
-          <p className="text-[10px] mt-2 pt-2 italic" style={{ color: '#52525b', borderTop: '1px solid #2a2a2e' }}>
+          <p
+            className="text-[10px] mt-2 pt-2 italic"
+            style={{ color: '#52525b', borderTop: '1px solid #2a2a2e' }}
+          >
             📝 {pedido.notas}
           </p>
         )}

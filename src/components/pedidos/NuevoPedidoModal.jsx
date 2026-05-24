@@ -17,6 +17,9 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
   const [mesa,    setMesa]    = useState('')
   const [notas,   setNotas]   = useState('')
   const [descuentoPorcentaje, setDescuentoPorcentaje] = useState('')
+  const [clienteNombre,    setClienteNombre]    = useState('')
+  const [clienteTelefono,  setClienteTelefono]  = useState('')
+  const [clienteDireccion, setClienteDireccion] = useState('')
   const [items,   setItems]   = useState([])
   const [search,  setSearch]  = useState('')
   const [menuItems, setMenuItems] = useState([])
@@ -51,6 +54,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
   useEffect(() => {
     if (!open) {
       setCanal('salon'); setMesa(''); setNotas(''); setDescuentoPorcentaje('')
+      setClienteNombre(''); setClienteTelefono(''); setClienteDireccion('')
       setItems([]); setSearch(''); setError(null); setPrintOnSave(true); setVariantePopup(null)
     }
   }, [open])
@@ -130,7 +134,16 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
     e.preventDefault()
     if (items.length === 0) { setError('Agrega al menos un item al pedido.'); return }
 
-    const payload = { canal, mesa: mesa ? parseInt(mesa) : null, notas, descuento_porcentaje: descuento, items }
+    const payload = {
+      canal,
+      mesa: mesa ? parseInt(mesa) : null,
+      notas,
+      descuento_porcentaje: descuento,
+      cliente_nombre:    clienteNombre.trim()    || null,
+      cliente_telefono:  clienteTelefono.trim()  || null,
+      cliente_direccion: clienteDireccion.trim() || null,
+      items,
+    }
     setSaving(true)
     setError(null)
     const result = await onSave(payload)
@@ -229,6 +242,39 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
                     onFocus={e => e.target.style.border = '1px solid rgba(var(--accent-rgb),0.5)'}
                     onBlur={e => e.target.style.border = '1px solid var(--border)'}
                   />
+                </div>
+
+                {/* Cliente (opcional) */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                    Cliente <span style={{ color: 'var(--text-xmuted)' }}>(opcional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={clienteNombre}
+                    onChange={e => setClienteNombre(e.target.value)}
+                    placeholder="Nombre"
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  />
+                  <input
+                    type="tel"
+                    value={clienteTelefono}
+                    onChange={e => setClienteTelefono(e.target.value)}
+                    placeholder="Teléfono"
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  />
+                  {canal === 'delivery' && (
+                    <input
+                      type="text"
+                      value={clienteDireccion}
+                      onChange={e => setClienteDireccion(e.target.value)}
+                      placeholder="Dirección de entrega"
+                      className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                      style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
