@@ -18,7 +18,7 @@ const NAV_ITEMS = [
   { to: '/analiticas', icon: BarChart2,       label: 'Analíticas'   },
   { to: '/menu',       icon: UtensilsCrossed, label: 'Menú & Carta' },
   { to: '/mesas',      icon: LayoutGrid,      label: 'Mesas'        },
-  { to: '/pedidos',    icon: ClipboardList,   label: 'Pedidos'      },
+  { to: '/pedidos',    icon: ClipboardList,   label: 'Ordenes'      },
   { to: '/cocina',     icon: ChefHat,         label: 'Cocina (KDS)' },
   { to: '/produccion', icon: ListChecks,      label: 'Producción'   },
   { to: '/stock',      icon: Package,         label: 'Inventario'   },

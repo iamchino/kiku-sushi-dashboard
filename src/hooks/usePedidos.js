@@ -12,12 +12,6 @@ export const ESTADO_SIGUIENTE = {
   listo:      'entregado',
 }
 
-/**
- * Mapeo a estado simplificado (lo que se muestra en la lista):
- *   activa     → pendiente / preparando / listo
- *   completada → entregado
- *   cancelada  → cancelado
- */
 export function getEstadoSimple(pedido) {
   const e = pedido?.estado
   if (e === 'cancelado')  return 'cancelada'
@@ -25,22 +19,12 @@ export function getEstadoSimple(pedido) {
   return 'activa'
 }
 
-/**
- * Clasificación por tipo (tabs):
- *   salon     → tiene mesa_id o canal=salon
- *   llevar    → canal whatsapp/pedidosya/mostrador (o sin mesa y sin delivery)
- *   delivery  → canal=delivery
- */
 export function getTipoPedido(pedido) {
   if (pedido?.mesa_id || pedido?.canal === 'salon') return 'salon'
   if (pedido?.canal === 'delivery')                  return 'delivery'
   return 'llevar'
 }
 
-/**
- * Aplana recursivamente una receta hasta ingredientes crudos de stock.
- * Reutiliza la misma lógica del módulo de producción.
- */
 function calcularIngredientesCrudos(receta, cantidadPorciones, allRecetas, visited = new Set()) {
   if (!receta || visited.has(receta.id)) return []
   const newVisited = new Set(visited)
@@ -71,9 +55,6 @@ function calcularIngredientesCrudos(receta, cantidadPorciones, allRecetas, visit
   return result
 }
 
-/**
- * Agrupa ingredientes duplicados sumando cantidades.
- */
 function mergeIngredientes(ingredientes) {
   const map = {}
   for (const ing of ingredientes) {
@@ -113,13 +94,6 @@ function normalizePedidoItemsLegacy(items) {
   }))
 }
 
-/**
- * Hook unificado de pedidos.
- *
- * Modos:
- *  - mode: 'today'  (default histórico: kanban del día — comportamiento original)
- *  - mode: 'range'  (lista filtrable: usa dateFrom / dateTo, no excluye cancelados)
- */
 export function usePedidos(options = {}) {
   const {
     mode = 'today',
@@ -166,7 +140,6 @@ export function usePedidos(options = {}) {
     setLoading(false)
   }, [mode, dateFrom, dateTo])
 
-  // Initial load + Realtime
   useEffect(() => {
     fetchPedidos()
     const channel = supabase
@@ -178,7 +151,6 @@ export function usePedidos(options = {}) {
     return () => supabase.removeChannel(channel)
   }, [fetchPedidos, mode, dateFrom, dateTo])
 
-  // Group by estado (kanban — usa estados crudos)
   const grouped = useMemo(() => {
     const map = {}
     ESTADOS.forEach(e => { map[e] = [] })
@@ -186,7 +158,6 @@ export function usePedidos(options = {}) {
     return map
   }, [pedidos])
 
-  // Stats kanban
   const stats = useMemo(() => ({
     total:      pedidos.length,
     pendientes: grouped.pendiente?.length  || 0,
@@ -195,7 +166,6 @@ export function usePedidos(options = {}) {
     entregados: grouped.entregado?.length  || 0,
   }), [pedidos, grouped])
 
-  // CRUD
   const createPedido = async ({
     canal, mesa, notas, items, descuento_porcentaje = 0,
     cliente_nombre = null, cliente_telefono = null, cliente_direccion = null,
@@ -332,9 +302,6 @@ export function usePedidos(options = {}) {
     return { pedidoId: data }
   }
 
-  /**
-   * Descuenta stock automáticamente cuando un pedido se entrega.
-   */
   const descontarStockPedido = async (pedidoId) => {
     const pedido = pedidos.find(p => p.id === pedidoId)
     if (!pedido || pedido.stock_descontado) return
@@ -449,7 +416,6 @@ export function usePedidos(options = {}) {
     return error
   }
 
-  // Marca un pedido como facturado (proxy: tiene comprobante autorizado)
   const isFacturado = useCallback((pedido) => Boolean(getAuthorizedComprobante(pedido)), [])
 
   return {
