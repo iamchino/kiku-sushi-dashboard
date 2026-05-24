@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { startOfDay } from 'date-fns'
+import { startOfDay, endOfDay, subDays } from 'date-fns'
 import { calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../lib/orders'
+import { getAuthorizedComprobante } from '../lib/fiscal'
 
 export const ESTADOS = ['pendiente', 'preparando', 'listo', 'entregado']
 
@@ -9,6 +10,31 @@ export const ESTADO_SIGUIENTE = {
   pendiente:  'preparando',
   preparando: 'listo',
   listo:      'entregado',
+}
+
+/**
+ * Mapeo a estado simplificado (lo que se muestra en la lista):
+ *   activa     → pendiente / preparando / listo
+ *   completada → entregado
+ *   cancelada  → cancelado
+ */
+export function getEstadoSimple(pedido) {
+  const e = pedido?.estado
+  if (e === 'cancelado')  return 'cancelada'
+  if (e === 'entregado')  return 'completada'
+  return 'activa'
+}
+
+/**
+ * Clasificación por tipo (tabs):
+ *   salon     → tiene mesa_id o canal=salon
+ *   llevar    → canal whatsapp/pedidosya/mostrador (o sin mesa y sin delivery)
+ *   delivery  → canal=delivery
+ */
+export function getTipoPedido(pedido) {
+  if (pedido?.mesa_id || pedido?.canal === 'salon') return 'salon'
+  if (pedido?.canal === 'delivery')                  return 'delivery'
+  return 'llevar'
 }
 
 /**
@@ -87,20 +113,45 @@ function normalizePedidoItemsLegacy(items) {
   }))
 }
 
-export function usePedidos() {
+/**
+ * Hook unificado de pedidos.
+ *
+ * Modos:
+ *  - mode: 'today'  (default histórico: kanban del día — comportamiento original)
+ *  - mode: 'range'  (lista filtrable: usa dateFrom / dateTo, no excluye cancelados)
+ */
+export function usePedidos(options = {}) {
+  const {
+    mode = 'today',
+    dateFrom = null,
+    dateTo = null,
+  } = options
+
   const [pedidos, setPedidos]   = useState([])
   const [recetas, setRecetas]   = useState([])
   const [loading, setLoading]   = useState(true)
   const [error,   setError]     = useState(null)
 
   const fetchPedidos = useCallback(async () => {
-    const [resPedidos, resRecetas] = await Promise.all([
-      supabase
-        .from('pedidos')
-        .select('*, pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id)')
+    let query = supabase
+      .from('pedidos')
+      .select('*, pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id), comprobantes_fiscales(id, estado, cae, numero, punto_venta, importe_total, fecha_emision)')
+      .order('created_at', { ascending: false })
+
+    if (mode === 'today') {
+      query = query
         .gte('created_at', startOfDay(new Date()).toISOString())
         .neq('estado', 'cancelado')
-        .order('created_at', { ascending: false }),
+    } else {
+      const from = dateFrom ? startOfDay(new Date(dateFrom)) : startOfDay(subDays(new Date(), 6))
+      const to   = dateTo   ? endOfDay(new Date(dateTo))     : endOfDay(new Date())
+      query = query
+        .gte('created_at', from.toISOString())
+        .lte('created_at', to.toISOString())
+    }
+
+    const [resPedidos, resRecetas] = await Promise.all([
+      query,
       supabase
         .from('recetas')
         .select('*, receta_ingredientes!receta_id(*, stock(id, nombre, unidad, stock_actual, precio_unitario, rendimiento, tipo_stock, receta_id))')
@@ -108,25 +159,26 @@ export function usePedidos() {
     ])
 
     if (resPedidos.error) setError(resPedidos.error.message)
-    else setPedidos(resPedidos.data || [])
+    else { setError(null); setPedidos(resPedidos.data || []) }
 
     if (!resRecetas.error) setRecetas(resRecetas.data || [])
 
     setLoading(false)
-  }, [])
+  }, [mode, dateFrom, dateTo])
 
   // Initial load + Realtime
   useEffect(() => {
     fetchPedidos()
     const channel = supabase
-      .channel('pedidos-kanban')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' },      fetchPedidos)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedido_items' }, fetchPedidos)
+      .channel(`pedidos-${mode}-${dateFrom || 'def'}-${dateTo || 'def'}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' },               fetchPedidos)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedido_items' },          fetchPedidos)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comprobantes_fiscales' }, fetchPedidos)
       .subscribe()
     return () => supabase.removeChannel(channel)
-  }, [fetchPedidos])
+  }, [fetchPedidos, mode, dateFrom, dateTo])
 
-  // Group by estado
+  // Group by estado (kanban — usa estados crudos)
   const grouped = useMemo(() => {
     const map = {}
     ESTADOS.forEach(e => { map[e] = [] })
@@ -134,7 +186,7 @@ export function usePedidos() {
     return map
   }, [pedidos])
 
-  // Stats
+  // Stats kanban
   const stats = useMemo(() => ({
     total:      pedidos.length,
     pendientes: grouped.pendiente?.length  || 0,
@@ -282,15 +334,10 @@ export function usePedidos() {
 
   /**
    * Descuenta stock automáticamente cuando un pedido se entrega.
-   * Para cada item del pedido:
-   *   1. Busca la receta vinculada al menu_item
-   *   2. Si tiene variante, usa el campo "piezas" como multiplicador
-   *   3. Aplana recursivamente hasta ingredientes crudos
-   *   4. Descuenta de stock vía RPC atómica
    */
   const descontarStockPedido = async (pedidoId) => {
     const pedido = pedidos.find(p => p.id === pedidoId)
-    if (!pedido || pedido.stock_descontado) return // ya descontado o no existe
+    if (!pedido || pedido.stock_descontado) return
 
     const items = pedido.pedido_items || []
     const descuentoTotal = []
@@ -298,15 +345,12 @@ export function usePedidos() {
     for (const item of items) {
       if (!item.menu_item_id) continue
 
-      // Buscar la receta vinculada a este producto del menú
       const receta = recetas.find(r => r.menu_item_id === item.menu_item_id)
       if (!receta) continue
 
-      // Determinar cuántas porciones de la receta consume este item
       let piezasPorUnidad = 1
 
       if (item.variante_id) {
-        // Buscar la variante para obtener el campo "piezas"
         const { data: variante } = await supabase
           .from('menu_item_variantes')
           .select('piezas')
@@ -318,15 +362,12 @@ export function usePedidos() {
         }
       }
 
-      // Total de porciones = piezas_por_variante × cantidad_pedida
       const totalPorciones = piezasPorUnidad * (item.cantidad || 1)
 
-      // Aplanar a ingredientes crudos
       const ingredientes = mergeIngredientes(
         calcularIngredientesCrudos(receta, totalPorciones, recetas)
       )
 
-      // Descontar cada ingrediente
       for (const ing of ingredientes) {
         if (ing.cantidad <= 0) continue
         const { error: rpcErr } = await supabase.rpc('descontar_stock_produccion', {
@@ -345,7 +386,6 @@ export function usePedidos() {
       }
     }
 
-    // Marcar pedido como stock descontado
     if (descuentoTotal.length > 0) {
       const { error } = await supabase.from('pedidos').update({
         stock_descontado: true,
@@ -357,9 +397,6 @@ export function usePedidos() {
     return null
   }
 
-  /**
-   * Revierte el descuento de stock de un pedido (ej. cancelación post-entrega).
-   */
   const revertirStockPedido = async (pedidoId) => {
     const pedido = pedidos.find(p => p.id === pedidoId)
     if (!pedido?.stock_descontado || !pedido.descuento_detalle) return
@@ -384,7 +421,6 @@ export function usePedidos() {
     const siguiente = ESTADO_SIGUIENTE[estadoActual]
     if (!siguiente) return
 
-    // Si el pedido acaba de pasar a "entregado", descontar stock
     if (siguiente === 'entregado') {
       const stockError = await descontarStockPedido(id)
       if (stockError) return stockError
@@ -403,7 +439,6 @@ export function usePedidos() {
   const cancelarPedido = async (id) => {
     const pedido = pedidos.find(p => p.id === id)
 
-    // Si ya estaba entregado y tenía stock descontado, revertir
     if (pedido?.stock_descontado) {
       const stockError = await revertirStockPedido(id)
       if (stockError) return stockError
@@ -414,10 +449,14 @@ export function usePedidos() {
     return error
   }
 
+  // Marca un pedido como facturado (proxy: tiene comprobante autorizado)
+  const isFacturado = useCallback((pedido) => Boolean(getAuthorizedComprobante(pedido)), [])
+
   return {
     pedidos, grouped, stats,
     loading, error,
     createPedido, avanzarEstado, cancelarPedido,
     refetch: fetchPedidos,
+    isFacturado,
   }
 }

@@ -139,16 +139,16 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd }) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 md:p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-1 sm:p-2 md:p-3">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
       <div
-        className="relative w-full max-w-5xl h-[92vh] rounded-2xl flex flex-col overflow-hidden"
+        className="relative w-full max-w-[1400px] h-[96vh] sm:h-[94vh] rounded-xl flex flex-col overflow-hidden"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 32px 64px rgba(0,0,0,0.4)' }}
       >
         {/* Header en accent */}
         <div
-          className="flex items-center justify-between px-5 py-3 flex-shrink-0"
+          className="flex items-center justify-between px-4 py-2.5 flex-shrink-0"
           style={{
             background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
             color: '#ffffff',
@@ -175,23 +175,20 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd }) {
         <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col md:flex-row">
           {/* LEFT — buscador + grid productos */}
           <div className="flex-1 flex flex-col overflow-hidden md:border-r" style={{ borderColor: 'var(--border)' }}>
-            <div className="p-4 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>
-                Buscar producto
-              </p>
+            <div className="p-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-xmuted)' }} />
                 <input
                   value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Buscar producto..."
-                  className="w-full pl-9 pr-3 py-3 rounded-lg text-sm outline-none"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-lg text-sm outline-none"
                   style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   autoFocus
                 />
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-3">
               {loadingMenu ? (
                 <div className="flex justify-center py-10">
                   <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-lift)' }} />
@@ -200,11 +197,11 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd }) {
                 <p className="text-xs text-center py-10" style={{ color: 'var(--text-xmuted)' }}>Sin resultados</p>
               ) : (
                 grouped.map(([categoria, productos]) => (
-                  <div key={categoria} className="mb-5">
+                  <div key={categoria} className="mb-3">
                     <p className="text-[10px] font-bold uppercase tracking-wide mb-2 px-1" style={{ color: 'var(--text-muted)' }}>
                       {categoria} <span style={{ color: 'var(--text-xmuted)' }}>· {productos.length}</span>
                     </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1.5">
                       {productos.map(m => {
                         const hasVariantes = (m.menu_item_variantes || []).length > 0
                         const inCart = items.find(i => i.menu_item_id === m.id)
@@ -215,7 +212,7 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd }) {
                           <button
                             key={m.id} type="button"
                             onClick={() => handleSelectItem(m)}
-                            className="flex flex-col items-start gap-1 p-3 rounded-lg text-left transition-all"
+                            className="flex flex-col items-start gap-0.5 p-2 rounded-lg text-left transition-all min-h-[58px]"
                             style={{
                               background: inCart ? 'var(--accent-soft)' : 'var(--bg-input)',
                               border: inCart ? '1px solid var(--accent-border)' : '1px solid var(--border)',
@@ -285,15 +282,15 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd }) {
           </div>
 
           {/* RIGHT — carrito */}
-          <div className="md:w-[380px] flex flex-col overflow-hidden flex-shrink-0" style={{ background: 'var(--bg-input)' }}>
-            <div className="p-4 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="md:w-[300px] lg:w-[340px] flex flex-col overflow-hidden flex-shrink-0" style={{ background: 'var(--bg-input)' }}>
+            <div className="px-3 py-2 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
               <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
                 Items a agregar
                 {items.length > 0 && <span className="ml-1" style={{ color: 'var(--accent-lift)' }}>({items.length})</span>}
               </p>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
               {items.length === 0 ? (
                 <p className="text-xs text-center py-10" style={{ color: 'var(--text-xmuted)' }}>
                   Tocá un producto de la izquierda para agregarlo
@@ -301,7 +298,7 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd }) {
               ) : (
                 items.map(item => (
                   <div key={item._key}
-                    className="rounded-lg p-2.5 space-y-2"
+                    className="rounded-lg p-2 space-y-1.5"
                     style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -379,7 +376,7 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd }) {
             </div>
 
             {/* Footer carrito */}
-            <div className="flex-shrink-0 p-3 space-y-2" style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+            <div className="flex-shrink-0 p-2.5 space-y-1.5" style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-card)' }}>
               {error && (
                 <div className="rounded-md px-2 py-1.5 text-[11px] flex items-center gap-1.5"
                   style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171' }}>
