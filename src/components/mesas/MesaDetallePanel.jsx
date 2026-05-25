@@ -57,7 +57,10 @@ export default function MesaDetallePanel({
   const esLider    = Boolean(mesa.es_lider_grupo)
   const esMiembro  = Boolean(mesa.mesa_grupo_id)
   const miembros   = mesa.miembros_grupo || []
-  const puedeUnir  = Boolean(pedido) && !facturada && !esMiembro && mesasDisponiblesParaUnir.length > 0
+  // Mostramos el botón "Unir mesa" siempre que tenga sentido (pedido abierto,
+  // no facturada, no es miembro). Si no hay mesas libres para elegir, el modal
+  // muestra un empty-state; así el botón nunca "desaparece" sin explicación.
+  const puedeUnir  = Boolean(pedido) && !facturada && !esMiembro
 
   const handleEnviar = async () => {
     setEnviando(true); setActionErr(null)
@@ -77,7 +80,6 @@ export default function MesaDetallePanel({
   const handleCancelar = async () => {
     if (!confirm('¿Cancelar la mesa? Se descartará el pedido sin facturar.')) return
     setCancelando(true); setActionErr(null)
-    // Si tiene miembros agrupados, desagruparlos primero
     if (esLider && miembros.length > 0) {
       await onDesagrupar?.(mesa.id)
     }
@@ -112,7 +114,6 @@ export default function MesaDetallePanel({
       className="flex flex-col h-full w-full lg:w-[400px] xl:w-[420px] flex-shrink-0"
       style={{ background: 'var(--bg-card)', borderLeft: '1px solid var(--border)' }}
     >
-      {/* HEADER */}
       <div
         className="flex-shrink-0 px-4 py-3"
         style={{
@@ -166,7 +167,6 @@ export default function MesaDetallePanel({
         )}
       </div>
 
-      {/* CTA AGREGAR */}
       {pedido && !facturada && (
         <div className="flex-shrink-0 p-3" style={{ borderBottom: '1px solid var(--border)' }}>
           <button
@@ -184,7 +184,6 @@ export default function MesaDetallePanel({
         </div>
       )}
 
-      {/* BODY */}
       <div className="flex-1 overflow-y-auto">
         {pedidoError && (
           <div className="mx-3 mt-3 rounded-lg p-2.5 text-xs flex items-start gap-2"
@@ -234,7 +233,6 @@ export default function MesaDetallePanel({
           </div>
         ) : (
           <div className="px-3 py-3 space-y-3">
-            {/* Banner: grupo activo */}
             {esLider && miembros.length > 0 && (
               <div className="rounded-lg p-2.5 flex items-center gap-2 text-xs"
                 style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', color: 'var(--accent-lift)' }}>
@@ -316,7 +314,6 @@ export default function MesaDetallePanel({
         )}
       </div>
 
-      {/* FOOTER */}
       {pedido && (
         <div className="flex-shrink-0" style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-card)' }}>
           <div className="px-4 py-3 flex items-end justify-between gap-3"
@@ -391,7 +388,6 @@ export default function MesaDetallePanel({
             </div>
           )}
 
-          {/* Acciones secundarias compactas: iconos */}
           <div className="grid grid-cols-4 gap-1 p-3">
             <IconButton
               icon={Printer}
@@ -437,8 +433,7 @@ export default function MesaDetallePanel({
             ) : null}
           </div>
 
-          {/* Cancelar siempre disponible cuando el slot 4 está ocupado por Unir/Desagrupar */}
-          {!facturada && (esLider && miembros.length > 0 || puedeUnir) && (
+          {!facturada && ((esLider && miembros.length > 0) || puedeUnir) && (
             <div className="px-3 pb-3">
               <button
                 type="button"
@@ -470,7 +465,6 @@ export default function MesaDetallePanel({
         onClose={() => setShowCobrar(false)}
         pedido={pedido}
         onCerrarMesa={async () => {
-          // Si tiene miembros, desagruparlos antes de cerrar para que queden libres
           if (esLider && miembros.length > 0) {
             await onDesagrupar?.(mesa.id)
           }
@@ -491,7 +485,6 @@ export default function MesaDetallePanel({
   )
 }
 
-// ──────────────────────────────────────────────────────────────────────
 function IconButton({ icon: Icon, label, onClick, accent = false, danger = false, disabled = false, spin = false }) {
   const baseStyle = danger
     ? { background: 'transparent', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }
@@ -514,7 +507,6 @@ function IconButton({ icon: Icon, label, onClick, accent = false, danger = false
   )
 }
 
-// ──────────────────────────────────────────────────────────────────────
 function ItemRow({ item, onMinus, onPlus, onRemove, editable = true, dimmed = false }) {
   return (
     <div
@@ -548,9 +540,7 @@ function ItemRow({ item, onMinus, onPlus, onRemove, editable = true, dimmed = fa
         ${formatMoney(item.precio_unitario * item.cantidad)}
       </span>
       {editable && (
-        <button type="button" onClick={onRemove} className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style={{ color: 'var(--text-xmuted)' }}
-          onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
-          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}>
+        <button type="button" onClick={onRemove} className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style={{ color: 'var(--text-xmuted)' }}>
           <Trash2 size={11} />
         </button>
       )}
