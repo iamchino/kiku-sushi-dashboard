@@ -1,22 +1,72 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { Bell, X, CheckCheck, Trash2 } from 'lucide-react'
 import { useNotificaciones } from '../../hooks/useNotificaciones'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 
+/**
+ * Botón de notificaciones con panel desplegable.
+ *
+ * El panel se renderiza vía createPortal sobre <body> para escapar
+ * cualquier stacking context (ej. el <aside> sticky del Sidebar)
+ * que antes lo estaba ocultando detrás del contenido principal.
+ *
+ * La posición se calcula a partir del bounding rect del botón y se
+ * actualiza al hacer scroll / resize.
+ */
 export function NotificationBell() {
-  const [open, setOpen]       = useState(false)
-  const panelRef              = useRef(null)
+  const [open, setOpen] = useState(false)
+  const [coords, setCoords] = useState({ top: 0, left: 0 })
+  const buttonRef = useRef(null)
+  const panelRef  = useRef(null)
   const { notifs, unread, markAllRead, clearAll } = useNotificaciones()
 
-  // Cerrar al hacer click fuera
+  const updateCoords = useCallback(() => {
+    const btn = buttonRef.current
+    if (!btn) return
+    const rect = btn.getBoundingClientRect()
+    const panelWidth = 320 // w-80
+    const viewportW  = window.innerWidth
+    // Posiciona la esquina izquierda del panel justo debajo del botón.
+    // Si se sale por la derecha, lo recorta al viewport.
+    let left = rect.left
+    if (left + panelWidth + 8 > viewportW) {
+      left = Math.max(8, viewportW - panelWidth - 8)
+    }
+    setCoords({ top: rect.bottom + 6, left })
+  }, [])
+
+  // Recalcular cuando se abre, en scroll o resize.
+  useEffect(() => {
+    if (!open) return
+    updateCoords()
+    window.addEventListener('scroll',  updateCoords, true)
+    window.addEventListener('resize',  updateCoords)
+    return () => {
+      window.removeEventListener('scroll', updateCoords, true)
+      window.removeEventListener('resize', updateCoords)
+    }
+  }, [open, updateCoords])
+
+  // Cerrar al hacer click fuera (panel + botón)
   useEffect(() => {
     if (!open) return
     const handler = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false)
+      if (panelRef.current?.contains(e.target)) return
+      if (buttonRef.current?.contains(e.target)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  // Cerrar con Escape
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [open])
 
   const handleOpen = () => {
@@ -25,9 +75,9 @@ export function NotificationBell() {
   }
 
   return (
-    <div className="relative" ref={panelRef}>
-      {/* Bell button */}
+    <>
       <button
+        ref={buttonRef}
         onClick={handleOpen}
         className="relative w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-white/5"
         style={{ color: unread > 0 ? 'var(--accent-lift)' : '#52525b' }}
@@ -44,13 +94,19 @@ export function NotificationBell() {
         )}
       </button>
 
-      {/* Panel */}
-      {open && (
+      {open && typeof document !== 'undefined' && createPortal(
         <div
-          className="absolute left-0 top-10 z-50 w-80 max-w-[calc(100vw-2rem)] rounded-xl overflow-hidden shadow-2xl"
-          style={{ background: '#1c1c1f', border: '1px solid #2a2a2e', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}
+          ref={panelRef}
+          className="fixed w-80 max-w-[calc(100vw-1rem)] rounded-xl overflow-hidden shadow-2xl"
+          style={{
+            top: coords.top,
+            left: coords.left,
+            zIndex: 9999,
+            background: '#1c1c1f',
+            border: '1px solid #2a2a2e',
+            boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
+          }}
         >
-          {/* Header */}
           <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #2a2a2e' }}>
             <p className="text-sm font-semibold text-white">Notificaciones</p>
             <div className="flex items-center gap-1">
@@ -78,7 +134,6 @@ export function NotificationBell() {
             </div>
           </div>
 
-          {/* List */}
           <div className="max-h-80 overflow-y-auto">
             {notifs.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
@@ -116,7 +171,8 @@ export function NotificationBell() {
               ))
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <style>{`
@@ -126,6 +182,6 @@ export function NotificationBell() {
           75%{ transform: rotate(15deg) }
         }
       `}</style>
-    </div>
+    </>
   )
 }
