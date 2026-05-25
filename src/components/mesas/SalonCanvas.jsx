@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Grid3X3, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
 import MesaTile from './MesaTile'
 
@@ -10,6 +10,9 @@ const ZOOM_STEP = 0.1
  * Canvas que muestra el plano del salón con mesas posicionadas en absoluto.
  * Soporta zoom in/out y reset.
  * Click sobre mesa → onSelectMesa(mesa)
+ *
+ * Si la mesa cliqueada es miembro de un grupo (mesa.mesa_grupo_id set),
+ * se rutea automáticamente al líder.
  */
 export default function SalonCanvas({
   salon,
@@ -23,15 +26,28 @@ export default function SalonCanvas({
   const [zoom, setZoom] = useState(1)
   const containerRef = useRef(null)
 
-  // Reset zoom al cambiar de salón
   useEffect(() => { setZoom(1) }, [salon?.id])
 
   const canvasW = (salon?.ancho || 1200) * zoom
   const canvasH = (salon?.alto  || 800)  * zoom
 
+  // Lookup rápido para resolver el líder de una mesa miembro
+  const mesaById = useMemo(() => {
+    const m = new Map()
+    for (const x of mesas) m.set(x.id, x)
+    return m
+  }, [mesas])
+
+  const handleClick = (mesa) => {
+    if (mesa?.mesa_grupo_id) {
+      const leader = mesaById.get(mesa.mesa_grupo_id)
+      if (leader) { onSelectMesa?.(leader); return }
+    }
+    onSelectMesa?.(mesa)
+  }
+
   return (
     <div className="relative flex-1 overflow-hidden" style={{ background: 'var(--bg-app)' }}>
-      {/* Área scrollable */}
       <div ref={containerRef} className="absolute inset-0 overflow-auto">
         {loading ? (
           <div className="flex items-center justify-center h-full">
@@ -55,22 +71,25 @@ export default function SalonCanvas({
               backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
             }}
           >
-            {mesas.map(m => (
-              renderMesa
-                ? renderMesa(m, { selected: m.id === selectedMesaId, onClick: onSelectMesa, scale: zoom })
+            {mesas.map(m => {
+              const leader = m.mesa_grupo_id ? mesaById.get(m.mesa_grupo_id) : null
+              const selectedEffective = m.id === selectedMesaId || (leader && leader.id === selectedMesaId)
+              return renderMesa
+                ? renderMesa(m, { selected: selectedEffective, onClick: handleClick, scale: zoom })
                 : <MesaTile
                     key={m.id}
                     mesa={m}
-                    selected={m.id === selectedMesaId}
-                    onClick={onSelectMesa}
+                    leaderMesa={leader}
+                    selected={selectedEffective}
+                    onClick={handleClick}
                     scale={zoom}
                   />
-            ))}
+            })}
           </div>
         )}
       </div>
 
-      {/* Toolbar zoom — esquina inferior derecha (estilo Maps/Figma) */}
+      {/* Toolbar zoom — esquina inferior derecha */}
       <div
         className="absolute bottom-3 right-3 z-20 flex items-center gap-0.5 rounded-lg px-1 py-1"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}

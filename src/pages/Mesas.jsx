@@ -32,7 +32,10 @@ export default function MesasPage() {
     }
   }, [salones, activeSalonId])
 
-  const { mesas, stats, loading: loadingMesas, refetch } = useMesas({ salonId: activeSalonId })
+  const {
+    mesas, stats, loading: loadingMesas, refetch,
+    agruparMesa, desagruparGrupo,
+  } = useMesas({ salonId: activeSalonId })
 
   const [selectedMesaId, setSelectedMesaId] = useState(null)
   const [mesaAbrir,      setMesaAbrir]      = useState(null)
@@ -42,7 +45,24 @@ export default function MesasPage() {
     [mesas, selectedMesaId]
   )
 
+  // Mesas libres y NO miembros de otro grupo, para la opción "Unir mesa".
+  // Se excluye la mesa seleccionada (no puede unirse consigo misma).
+  const mesasDisponiblesParaUnir = useMemo(() => {
+    if (!selectedMesa) return []
+    return mesas.filter(m =>
+      m.id !== selectedMesa.id &&
+      m.estado_mesa === 'libre' &&
+      !m.mesa_grupo_id &&
+      !m.es_lider_grupo
+    )
+  }, [mesas, selectedMesa])
+
   const handleMesaClick = (mesa) => {
+    // Si es miembro de un grupo, rutear al líder.
+    if (mesa.mesa_grupo_id) {
+      setSelectedMesaId(mesa.mesa_grupo_id)
+      return
+    }
     if (mesa.estado_mesa === 'libre') {
       setMesaAbrir(mesa)
     } else {
@@ -50,12 +70,6 @@ export default function MesasPage() {
     }
   }
 
-  /**
-   * Llama directamente a la RPC `abrir_mesa` (sin hook reactivo) para
-   * evitar el conflicto de Realtime entre Mesas.jsx y MesaDetallePanel
-   * (si ambos montaban useMesaPedido sobre la misma mesa, el channel
-   * de Supabase se duplicaba y fallaba con error de subscribe).
-   */
   const handleAbrirMesa = async (form) => {
     if (!mesaAbrir?.id) return { error: new Error('Mesa no seleccionada') }
     const personas = Math.max(1, parseInt(form.personas) || 1)
@@ -190,6 +204,15 @@ export default function MesasPage() {
               mesa={selectedMesa}
               onClose={() => setSelectedMesaId(null)}
               onAbrirMesa={(m) => setMesaAbrir(m)}
+              mesasDisponiblesParaUnir={mesasDisponiblesParaUnir}
+              onUnir={async (leaderId, memberId) => {
+                const res = await agruparMesa(leaderId, memberId)
+                return res || {}
+              }}
+              onDesagrupar={async (leaderId) => {
+                const res = await desagruparGrupo(leaderId)
+                return res || {}
+              }}
             />
           )}
         </div>

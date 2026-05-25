@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   X, Users, Clock, User, Plus, Minus, Trash2, Printer,
-  Receipt, AlertCircle, Loader2, Ban, Tag, FileText,
+  Receipt, AlertCircle, Loader2, Ban, Tag, FileText, Link2, Unlink,
 } from 'lucide-react'
 import { useMesaPedido } from '../../hooks/useMesaPedido'
 import { useMinutesSince } from '../../hooks/useNowTick'
@@ -9,17 +9,23 @@ import { printComanda, printCustomerTicket, formatMoney } from '../../lib/printi
 import { getEstadoConfig } from './mesaColors'
 import AgregarItemsModal from './AgregarItemsModal'
 import CobrarMesaModal from './CobrarMesaModal'
+import UnirMesaModal from './UnirMesaModal'
 
 /**
- * Panel lateral de la mesa rediseñado para uso bajo estrés.
- * - Header compacto: número grande + chip de estado en una sola línea
- * - CTA principal "Agregar productos" siempre visible arriba
- * - Items con sección clara de "por enviar" vs "enviados"
- * - Total sticky abajo, fácil de leer
- * - Acción contextual GIGANTE según estado (enviar/cobrar/cerrar)
- * - Acciones secundarias en row de iconos compactos
+ * Panel lateral de la mesa.
+ *
+ * Soporte de agrupación visual:
+ *   - Si la mesa es líder de un grupo, muestra chip "+N" y botón "Desagrupar".
+ *   - Si la mesa no es miembro de ningún grupo y está ocupada, muestra
+ *     botón "Unir mesa" para agruparla con otra mesa libre.
+ *   - Al cobrar/cerrar la mesa líder, también se desagrupan los miembros.
  */
-export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
+export default function MesaDetallePanel({
+  mesa, onClose, onAbrirMesa,
+  mesasDisponiblesParaUnir = [],
+  onUnir,        // (leaderId, memberId) => { error }
+  onDesagrupar,  // (leaderId) => { error }
+}) {
   const {
     pedido, items, itemsNoEnviados, itemsEnviados,
     subtotal, descuentoPct, descuentoMonto, total,
@@ -30,13 +36,15 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
     setDescuento,
   } = useMesaPedido({ mesaId: mesa?.id })
 
-  const [showAgregar, setShowAgregar] = useState(false)
-  const [showCobrar,  setShowCobrar]  = useState(false)
-  const [enviando,    setEnviando]    = useState(false)
-  const [cancelando,  setCancelando]  = useState(false)
-  const [actionErr,   setActionErr]   = useState(null)
-  const [editDesc,    setEditDesc]    = useState(false)
-  const [descInput,   setDescInput]   = useState('')
+  const [showAgregar,   setShowAgregar]   = useState(false)
+  const [showCobrar,    setShowCobrar]    = useState(false)
+  const [showUnir,      setShowUnir]      = useState(false)
+  const [enviando,      setEnviando]      = useState(false)
+  const [cancelando,    setCancelando]    = useState(false)
+  const [desagrupando,  setDesagrupando]  = useState(false)
+  const [actionErr,     setActionErr]     = useState(null)
+  const [editDesc,      setEditDesc]      = useState(false)
+  const [descInput,     setDescInput]     = useState('')
 
   const minutos = useMinutesSince(mesa?.pedido_abierta_at)
 
@@ -44,6 +52,12 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
 
   const cfg = getEstadoConfig(mesa.estado_mesa)
   const todoEnviado = items.length > 0 && itemsNoEnviados.length === 0
+
+  // ── Grupo info ──────────────────────────────────────────────────────
+  const esLider    = Boolean(mesa.es_lider_grupo)
+  const esMiembro  = Boolean(mesa.mesa_grupo_id)
+  const miembros   = mesa.miembros_grupo || []
+  const puedeUnir  = Boolean(pedido) && !facturada && !esMiembro && mesasDisponiblesParaUnir.length > 0
 
   const handleEnviar = async () => {
     setEnviando(true); setActionErr(null)
@@ -63,10 +77,22 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
   const handleCancelar = async () => {
     if (!confirm('¿Cancelar la mesa? Se descartará el pedido sin facturar.')) return
     setCancelando(true); setActionErr(null)
+    // Si tiene miembros agrupados, desagruparlos primero
+    if (esLider && miembros.length > 0) {
+      await onDesagrupar?.(mesa.id)
+    }
     const { error } = await cancelarMesa()
     setCancelando(false)
     if (error) { setActionErr(error.message || 'Error al cancelar'); return }
     onClose?.()
+  }
+
+  const handleDesagrupar = async () => {
+    if (!confirm('¿Liberar las mesas agrupadas? Quedarán independientes.')) return
+    setDesagrupando(true); setActionErr(null)
+    const { error } = await onDesagrupar?.(mesa.id) || {}
+    setDesagrupando(false)
+    if (error) setActionErr(error.message || 'Error al desagrupar')
   }
 
   const handleSetDesc = async (e) => {
@@ -75,15 +101,10 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
     setEditDesc(false); setDescInput('')
   }
 
-  // Acción principal del footer.
-  // Los CTAs "Enviar a cocina" y "Cobrar / Facturar" fueron removidos:
-  // ese flujo ahora vive en la pestaña Ordenes (avanzar estado) y el cobro
-  // se sigue disparando desde el icono "Cobrar" de las acciones secundarias.
   const accionPrincipal = facturada
     ? { label: 'Cerrar mesa', icon: Receipt, color: '#71717a', onClick: () => setShowCobrar(true) }
     : null
 
-  // Evita warning de "variable no usada" cuando ya no se invoca el CTA grande.
   void todoEnviado; void enviando; void handleEnviar
 
   return (
@@ -91,7 +112,7 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
       className="flex flex-col h-full w-full lg:w-[400px] xl:w-[420px] flex-shrink-0"
       style={{ background: 'var(--bg-card)', borderLeft: '1px solid var(--border)' }}
     >
-      {/* ── HEADER COMPACTO ──────────────────────────────────────────── */}
+      {/* HEADER */}
       <div
         className="flex-shrink-0 px-4 py-3"
         style={{
@@ -100,14 +121,18 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
         }}
       >
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <p className="font-bold text-3xl leading-none">Mesa {mesa.numero}</p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <p className="font-bold text-3xl leading-none">
+              Mesa {mesa.numero}
+              {esLider && miembros.length > 0 && (
+                <span className="ml-2 text-base align-middle opacity-90">
+                  + {miembros.map(m => m.numero).join(', ')}
+                </span>
+              )}
+            </p>
             <span
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-              style={{
-                background: 'rgba(255,255,255,0.18)',
-                color: '#ffffff',
-              }}
+              style={{ background: 'rgba(255,255,255,0.18)', color: '#ffffff' }}
             >
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: cfg.borderHi }} />
               {cfg.label}
@@ -126,7 +151,7 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
         </div>
 
         {pedido && (
-          <div className="flex items-center gap-3 mt-1.5 text-[11px] opacity-90">
+          <div className="flex items-center gap-3 mt-1.5 text-[11px] opacity-90 flex-wrap">
             <span className="flex items-center gap-1"><Users size={11} /> {pedido.personas || 1}</span>
             {mesa.mozo_nombre && (
               <span className="flex items-center gap-1"><User size={11} /> {mesa.mozo_nombre}</span>
@@ -141,7 +166,7 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
         )}
       </div>
 
-      {/* ── CTA AGREGAR (siempre visible cuando hay pedido) ────────── */}
+      {/* CTA AGREGAR */}
       {pedido && !facturada && (
         <div className="flex-shrink-0 p-3" style={{ borderBottom: '1px solid var(--border)' }}>
           <button
@@ -159,7 +184,7 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
         </div>
       )}
 
-      {/* ── BODY: items + total ──────────────────────────────────── */}
+      {/* BODY */}
       <div className="flex-1 overflow-y-auto">
         {pedidoError && (
           <div className="mx-3 mt-3 rounded-lg p-2.5 text-xs flex items-start gap-2"
@@ -177,7 +202,6 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
             <Loader2 size={20} className="animate-spin" style={{ color: 'var(--accent-lift)' }} />
           </div>
         ) : !pedido ? (
-          // ── Mesa libre ────────────────────────────────────────────
           <div className="flex flex-col items-center justify-center py-12 px-6 text-center gap-4">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
               style={{ background: mesa.estado_mesa === 'libre' ? 'var(--accent-soft)' : 'rgba(251,191,36,0.15)' }}>
@@ -209,9 +233,18 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
             )}
           </div>
         ) : (
-          // ── Mesa abierta: items ───────────────────────────────────
           <div className="px-3 py-3 space-y-3">
-            {/* Items POR ENVIAR — más prominentes (borde accent) */}
+            {/* Banner: grupo activo */}
+            {esLider && miembros.length > 0 && (
+              <div className="rounded-lg p-2.5 flex items-center gap-2 text-xs"
+                style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', color: 'var(--accent-lift)' }}>
+                <Link2 size={14} className="flex-shrink-0" />
+                <p className="flex-1 font-medium">
+                  Mesa unida con {miembros.map(m => `mesa ${m.numero}`).join(', ')}
+                </p>
+              </div>
+            )}
+
             {itemsNoEnviados.length > 0 && (
               <section>
                 <div className="flex items-center justify-between mb-1.5 px-1">
@@ -238,7 +271,6 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
               </section>
             )}
 
-            {/* Items YA ENVIADOS */}
             {itemsEnviados.length > 0 && (
               <section>
                 <div className="flex items-center justify-between mb-1.5 px-1">
@@ -284,10 +316,9 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
         )}
       </div>
 
-      {/* ── TOTAL + acciones sticky ─────────────────────────────── */}
+      {/* FOOTER */}
       {pedido && (
         <div className="flex-shrink-0" style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-card)' }}>
-          {/* TOTAL prominente */}
           <div className="px-4 py-3 flex items-end justify-between gap-3"
             style={{ borderBottom: '1px solid var(--border)' }}>
             <div className="flex-1 min-w-0">
@@ -340,13 +371,12 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
             </div>
           )}
 
-          {/* CTA principal contextual GRANDE */}
           {accionPrincipal && (
             <div className="px-3 pt-3">
               <button
                 type="button"
                 onClick={accionPrincipal.onClick}
-                disabled={items.length === 0 && !facturada || accionPrincipal.loading}
+                disabled={(items.length === 0 && !facturada) || accionPrincipal.loading}
                 className="w-full py-4 rounded-xl text-base font-extrabold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-40 hover:scale-[1.01]"
                 style={{
                   background: accionPrincipal.gradient || accionPrincipal.color,
@@ -379,7 +409,23 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
               onClick={() => setShowCobrar(true)}
               accent
             />
-            {!facturada && (
+            {esLider && miembros.length > 0 ? (
+              <IconButton
+                icon={desagrupando ? Loader2 : Unlink}
+                label={`Desagrupar (${miembros.length})`}
+                onClick={handleDesagrupar}
+                disabled={desagrupando}
+                spin={desagrupando}
+                danger
+              />
+            ) : puedeUnir ? (
+              <IconButton
+                icon={Link2}
+                label="Unir mesa"
+                onClick={() => setShowUnir(true)}
+                accent
+              />
+            ) : !facturada ? (
               <IconButton
                 icon={cancelando ? Loader2 : Ban}
                 label="Cancelar"
@@ -388,8 +434,24 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
                 danger
                 spin={cancelando}
               />
-            )}
+            ) : null}
           </div>
+
+          {/* Cancelar siempre disponible cuando el slot 4 está ocupado por Unir/Desagrupar */}
+          {!facturada && (esLider && miembros.length > 0 || puedeUnir) && (
+            <div className="px-3 pb-3">
+              <button
+                type="button"
+                onClick={handleCancelar}
+                disabled={cancelando}
+                className="w-full py-2 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                style={{ background: 'transparent', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}
+              >
+                {cancelando ? <Loader2 size={11} className="animate-spin" /> : <Ban size={11} />}
+                Cancelar mesa
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -408,10 +470,22 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
         onClose={() => setShowCobrar(false)}
         pedido={pedido}
         onCerrarMesa={async () => {
+          // Si tiene miembros, desagruparlos antes de cerrar para que queden libres
+          if (esLider && miembros.length > 0) {
+            await onDesagrupar?.(mesa.id)
+          }
           const { error } = await cerrarMesa()
           if (!error) onClose?.()
           return { error }
         }}
+      />
+
+      <UnirMesaModal
+        open={showUnir}
+        leaderMesa={mesa}
+        mesasDisponibles={mesasDisponiblesParaUnir}
+        onClose={() => setShowUnir(false)}
+        onUnir={onUnir}
       />
     </aside>
   )
