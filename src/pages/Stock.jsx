@@ -319,6 +319,8 @@ export default function StockPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [ordenFilas, setOrdenFilas] = useState('estado')
+  // Tab activa: 'materia_prima' (default) o 'produccion'
+  const [tipoActivo, setTipoActivo] = useState('materia_prima')
 
   const {
     items, recetas, stats, loading, error, fetchStock,
@@ -327,7 +329,7 @@ export default function StockPage() {
 
   const normalizeCat = (cat) => {
     if (!cat) return 'almacen'
-    return cat.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+    return cat.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
   }
 
   const filtered = useMemo(() => {
@@ -427,22 +429,15 @@ export default function StockPage() {
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} style={{ color: 'var(--text-muted)' }} />
           </button>
           <button
-            onClick={() => openNew('materia_prima')}
+            onClick={() => openNew(tipoActivo)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white hover:scale-105 transition-all"
             style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}
           >
             <Plus size={15} />
-            <span className="hidden sm:inline">Materia prima</span>
-            <span className="sm:hidden">MP</span>
-          </button>
-          <button
-            onClick={() => openNew('produccion')}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white hover:scale-105 transition-all"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}
-          >
-            <Plus size={15} />
-            <span className="hidden sm:inline">Produccion</span>
-            <span className="sm:hidden">Prod</span>
+            <span className="hidden sm:inline">
+              {tipoActivo === 'produccion' ? 'Nuevo de producción' : 'Nueva materia prima'}
+            </span>
+            <span className="sm:hidden">Nuevo</span>
           </button>
         </div>
       </div>
@@ -473,24 +468,26 @@ export default function StockPage() {
       </div>
 
       <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative">
-          <select
-            value={categoria}
-            onChange={e => setCategoria(e.target.value)}
-            className="pl-3 pr-8 py-2 rounded-lg text-sm font-medium outline-none appearance-none cursor-pointer transition-all"
-            style={{
-              background: categoria !== 'todos' ? 'var(--accent-soft)' : 'var(--bg-input)',
-              border: `1px solid ${categoria !== 'todos' ? 'var(--accent-border)' : 'var(--border)'}`,
-              color: categoria !== 'todos' ? 'var(--accent-lift)' : 'var(--text-primary)',
-            }}
-          >
-            <option value="todos">Categorias materia prima</option>
-            {CATEGORIAS_STOCK.map(c => (
-              <option key={c.id} value={c.id}>{c.label}</option>
-            ))}
-          </select>
-          <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-xmuted)' }} />
-        </div>
+        {tipoActivo === 'materia_prima' && (
+          <div className="relative">
+            <select
+              value={categoria}
+              onChange={e => setCategoria(e.target.value)}
+              className="pl-3 pr-8 py-2 rounded-lg text-sm font-medium outline-none appearance-none cursor-pointer transition-all"
+              style={{
+                background: categoria !== 'todos' ? 'var(--accent-soft)' : 'var(--bg-input)',
+                border: `1px solid ${categoria !== 'todos' ? 'var(--accent-border)' : 'var(--border)'}`,
+                color: categoria !== 'todos' ? 'var(--accent-lift)' : 'var(--text-primary)',
+              }}
+            >
+              <option value="todos">Categorias materia prima</option>
+              {CATEGORIAS_STOCK.map(c => (
+                <option key={c.id} value={c.id}>{c.label}</option>
+              ))}
+            </select>
+            <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-xmuted)' }} />
+          </div>
+        )}
 
         <div className="relative">
           <select
@@ -524,30 +521,69 @@ export default function StockPage() {
         </div>
       )}
 
+      {/* Tabs: Materia prima (default) / Produccion */}
+      <div
+        className="flex items-center gap-1 p-1 rounded-xl"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}
+      >
+        {[
+          { id: 'materia_prima', label: 'Materia prima', icon: Package, count: stockMateriaPrima.length },
+          { id: 'produccion',    label: 'Produccion',    icon: ChefHat, count: stockProduccion.length },
+        ].map(t => {
+          const active = tipoActivo === t.id
+          const TabIcon = t.icon
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTipoActivo(t.id)}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all"
+              style={
+                active
+                  ? { background: 'var(--bg-active)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
+                  : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid transparent' }
+              }
+            >
+              <TabIcon size={14} />
+              <span>{t.label}</span>
+              <span
+                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                style={
+                  active
+                    ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)' }
+                    : { background: 'var(--bg-input)', color: 'var(--text-muted)' }
+                }
+              >
+                {t.count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
       {loading ? (
         <div className="space-y-2">{[1, 2, 3, 4, 5].map(i => <div key={i} className="skeleton h-12 rounded-lg" />)}</div>
+      ) : tipoActivo === 'materia_prima' ? (
+        <StockTable
+          title="Stock de materia prima"
+          icon={Package}
+          items={stockMateriaPrima}
+          emptyText={search ? `Sin resultados para "${search}"` : 'No hay materia prima cargada'}
+          updatePrecio={updatePrecio}
+          openEdit={openEdit}
+          setDeleteTarget={setDeleteTarget}
+        />
       ) : (
-        <div className="space-y-5">
-          <StockTable
-            title="Stock de produccion"
-            icon={ChefHat}
-            items={stockProduccion}
-            emptyText={search ? `Sin resultados para "${search}"` : 'No hay productos de produccion cargados'}
-            showCostColumns={false}
-            updatePrecio={updatePrecio}
-            openEdit={openEdit}
-            setDeleteTarget={setDeleteTarget}
-          />
-          <StockTable
-            title="Stock de materia prima"
-            icon={Package}
-            items={stockMateriaPrima}
-            emptyText={search ? `Sin resultados para "${search}"` : 'No hay materia prima cargada'}
-            updatePrecio={updatePrecio}
-            openEdit={openEdit}
-            setDeleteTarget={setDeleteTarget}
-          />
-        </div>
+        <StockTable
+          title="Stock de produccion"
+          icon={ChefHat}
+          items={stockProduccion}
+          emptyText={search ? `Sin resultados para "${search}"` : 'No hay productos de produccion cargados'}
+          showCostColumns={false}
+          updatePrecio={updatePrecio}
+          openEdit={openEdit}
+          setDeleteTarget={setDeleteTarget}
+        />
       )}
 
       <MovimientoModal
