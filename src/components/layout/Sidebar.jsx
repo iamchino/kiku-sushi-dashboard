@@ -19,7 +19,8 @@ const NAV_ITEMS = [
   { to: '/menu',       icon: UtensilsCrossed, label: 'Menú & Carta' },
   { to: '/mesas',      icon: LayoutGrid,      label: 'Mesas'        },
   { to: '/pedidos',    icon: ClipboardList,   label: 'Ordenes'      },
-  { to: '/cocina',     icon: ChefHat,         label: 'Cocina (KDS)' },
+  // KDS oculto del menú; la ruta y la lógica se mantienen disponibles si se quiere reactivar.
+  // { to: '/cocina',     icon: ChefHat,         label: 'Cocina (KDS)' },
   { to: '/produccion', icon: ListChecks,      label: 'Producción'   },
   { to: '/stock',      icon: Package,         label: 'Inventario'   },
   { to: '/recetas',    icon: BookOpen,        label: 'Recetas'      },
@@ -61,7 +62,6 @@ function ThemeToggle() {
       <span className="font-medium text-xs tracking-wide">
         {isDark ? 'Tema claro' : 'Tema oscuro'}
       </span>
-      {/* Indicador visual del estado actual */}
       <span
         className="ml-auto flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
         style={{
@@ -86,7 +86,6 @@ function SidebarContent({ onClose, showBell = false }) {
       className="flex flex-col h-full transition-colors duration-250"
       style={{ background: 'var(--bg-sidebar)' }}
     >
-      {/* Logo + close button (solo en mobile) */}
       <div
         className="flex items-center justify-between px-5 py-5"
         style={{ borderBottom: '1px solid var(--border)' }}
@@ -107,7 +106,6 @@ function SidebarContent({ onClose, showBell = false }) {
             </p>
           </div>
         </div>
-        {/* Right side: bell + close (mobile) */}
         <div className="flex items-center gap-1">
           {showBell && <NotificationBell />}
           {onClose && (
@@ -124,7 +122,6 @@ function SidebarContent({ onClose, showBell = false }) {
         </div>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
@@ -146,12 +143,9 @@ function SidebarContent({ onClose, showBell = false }) {
         ))}
       </nav>
 
-      {/* Footer: toggle de tema + logout */}
       <div className="px-3 pb-4 space-y-2" style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
-        {/* Toggle claro / oscuro */}
         <ThemeToggle />
 
-        {/* Logout */}
         <button
           onClick={() => auth.logout()}
           className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm transition-all duration-150"
@@ -180,7 +174,6 @@ export function Sidebar() {
 
   return (
     <>
-      {/* ── DESKTOP: sidebar fijo (≥ lg = 1024px) ─────────────────────────── */}
       <aside
         className="hidden lg:flex flex-col w-56 flex-shrink-0 h-screen sticky top-0"
         style={{ borderRight: '1px solid var(--border)' }}
@@ -188,7 +181,6 @@ export function Sidebar() {
         <SidebarContent showBell={true} />
       </aside>
 
-      {/* ── MOBILE/TABLET: botón hamburguesa ──────────────────────────────── */}
       <button
         onClick={() => setMobileOpen(true)}
         className="lg:hidden fixed top-4 left-4 z-40 w-9 h-9 rounded-xl flex items-center justify-center shadow-lg transition-all hover:scale-105"
@@ -198,7 +190,6 @@ export function Sidebar() {
         <Menu size={18} />
       </button>
 
-      {/* ── MOBILE/TABLET: overlay oscuro ─────────────────────────────────── */}
       {mobileOpen && (
         <div
           className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
@@ -206,7 +197,6 @@ export function Sidebar() {
         />
       )}
 
-      {/* ── MOBILE/TABLET: drawer deslizante ──────────────────────────────── */}
       <aside
         className="lg:hidden fixed top-0 left-0 z-50 h-full w-64 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out"
         style={{
@@ -219,4 +209,3 @@ export function Sidebar() {
     </>
   )
 }
-        

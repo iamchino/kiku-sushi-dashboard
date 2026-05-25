@@ -80,7 +80,7 @@ export default function PedidoDetalleModal({ pedido, onClose, onAvanzar, onCance
   const items      = pedido.pedido_items || []
   const facturada  = Boolean(comprobante)
   const siguiente  = ESTADO_SIGUIENTE[pedido.estado]
-  const puedeAvanzar = simple === 'activa' && siguiente && !pedido.mesa_id
+  const puedeAvanzar = simple === 'activa' && siguiente
   const puedeCancelar = simple === 'activa'
 
   const handleAvanzar = async () => {
@@ -311,20 +311,7 @@ export default function PedidoDetalleModal({ pedido, onClose, onAvanzar, onCance
           className="flex-shrink-0 p-3 space-y-2"
           style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-card)' }}
         >
-          {pedido.mesa_id ? (
-            <Link
-              to="/mesas"
-              onClick={onClose}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:scale-[1.01]"
-              style={{
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-                boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.35)',
-              }}
-            >
-              <ExternalLink size={14} />
-              Abrir mesa {pedido.mesa} (editar / cobrar)
-            </Link>
-          ) : puedeAvanzar ? (
+          {puedeAvanzar && (
             <button
               type="button"
               onClick={handleAvanzar}
@@ -338,13 +325,27 @@ export default function PedidoDetalleModal({ pedido, onClose, onAvanzar, onCance
               {busy ? <Loader2 size={14} className="animate-spin" /> : <ChevronRight size={14} />}
               {BTN_AVANZAR_LABEL[pedido.estado] || 'Avanzar estado'}
             </button>
-          ) : simple === 'completada' && (
+          )}
+
+          {!puedeAvanzar && simple === 'completada' && (
             <div
               className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium"
               style={{ background: 'rgba(52,211,153,0.08)', color: '#34d399', border: '1px solid rgba(52,211,153,0.18)' }}
             >
               <CheckCircle2 size={12} /> Pedido completado
             </div>
+          )}
+
+          {pedido.mesa_id && (
+            <Link
+              to="/mesas"
+              onClick={onClose}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-colors"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}
+            >
+              <ExternalLink size={12} />
+              Abrir mesa {pedido.mesa}
+            </Link>
           )}
 
           <div className="grid grid-cols-2 gap-2">

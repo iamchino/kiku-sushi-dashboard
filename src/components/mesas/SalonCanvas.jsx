@@ -18,7 +18,7 @@ export default function SalonCanvas({
   onSelectMesa,
   loading = false,
   emptyHint = 'Aún no hay mesas en este salón.',
-  renderMesa, // override opcional, recibe (mesa, props) → ReactNode (para modo edición)
+  renderMesa,
 }) {
   const [zoom, setZoom] = useState(1)
   const containerRef = useRef(null)
@@ -31,9 +31,48 @@ export default function SalonCanvas({
 
   return (
     <div className="relative flex-1 overflow-hidden" style={{ background: 'var(--bg-app)' }}>
-      {/* Toolbar zoom */}
+      {/* Área scrollable */}
+      <div ref={containerRef} className="absolute inset-0 overflow-auto">
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
+              style={{ borderColor: 'var(--accent-lift)', borderTopColor: 'transparent' }} />
+          </div>
+        ) : mesas.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
+            <Grid3X3 size={48} style={{ color: 'var(--text-xmuted)', opacity: 0.4 }} />
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{emptyHint}</p>
+          </div>
+        ) : (
+          <div
+            className="relative"
+            style={{
+              width: canvasW,
+              height: canvasH,
+              minWidth: '100%',
+              minHeight: '100%',
+              backgroundImage: `radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0)`,
+              backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
+            }}
+          >
+            {mesas.map(m => (
+              renderMesa
+                ? renderMesa(m, { selected: m.id === selectedMesaId, onClick: onSelectMesa, scale: zoom })
+                : <MesaTile
+                    key={m.id}
+                    mesa={m}
+                    selected={m.id === selectedMesaId}
+                    onClick={onSelectMesa}
+                    scale={zoom}
+                  />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Toolbar zoom — esquina inferior derecha (estilo Maps/Figma) */}
       <div
-        className="absolute top-3 left-3 z-20 flex items-center gap-0.5 rounded-lg px-1 py-1"
+        className="absolute bottom-3 right-3 z-20 flex items-center gap-0.5 rounded-lg px-1 py-1"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}
       >
         <button
@@ -72,45 +111,6 @@ export default function SalonCanvas({
         >
           <Maximize2 size={13} />
         </button>
-      </div>
-
-      {/* Área scrollable */}
-      <div ref={containerRef} className="absolute inset-0 overflow-auto">
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-              style={{ borderColor: 'var(--accent-lift)', borderTopColor: 'transparent' }} />
-          </div>
-        ) : mesas.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
-            <Grid3X3 size={48} style={{ color: 'var(--text-xmuted)', opacity: 0.4 }} />
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{emptyHint}</p>
-          </div>
-        ) : (
-          <div
-            className="relative"
-            style={{
-              width: canvasW,
-              height: canvasH,
-              minWidth: '100%',
-              minHeight: '100%',
-              backgroundImage: `radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0)`,
-              backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
-            }}
-          >
-            {mesas.map(m => (
-              renderMesa
-                ? renderMesa(m, { selected: m.id === selectedMesaId, onClick: onSelectMesa, scale: zoom })
-                : <MesaTile
-                    key={m.id}
-                    mesa={m}
-                    selected={m.id === selectedMesaId}
-                    onClick={onSelectMesa}
-                    scale={zoom}
-                  />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )

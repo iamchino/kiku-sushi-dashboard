@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  X, Users, Clock, User, Plus, Minus, Trash2, Printer, ChefHat,
+  X, Users, Clock, User, Plus, Minus, Trash2, Printer,
   Receipt, AlertCircle, Loader2, Ban, Tag, FileText,
 } from 'lucide-react'
 import { useMesaPedido } from '../../hooks/useMesaPedido'
@@ -75,26 +75,16 @@ export default function MesaDetallePanel({ mesa, onClose, onAbrirMesa }) {
     setEditDesc(false); setDescInput('')
   }
 
-  // Acción principal del footer según estado
-  const accionPrincipal = (() => {
-    if (facturada) return { label: 'Cerrar mesa', icon: Receipt, color: '#71717a', onClick: () => setShowCobrar(true) }
-    if (itemsNoEnviados.length > 0) return {
-      label: `Enviar a cocina (${itemsNoEnviados.length})`,
-      icon: ChefHat,
-      gradient: 'linear-gradient(135deg, #f97316, #ea580c)',
-      shadow: '0 6px 16px rgba(249,115,22,0.35)',
-      onClick: handleEnviar,
-      loading: enviando,
-    }
-    if (todoEnviado) return {
-      label: 'Cobrar / Facturar',
-      icon: Receipt,
-      gradient: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-      shadow: '0 6px 16px rgba(var(--accent-rgb),0.4)',
-      onClick: () => setShowCobrar(true),
-    }
-    return null
-  })()
+  // Acción principal del footer.
+  // Los CTAs "Enviar a cocina" y "Cobrar / Facturar" fueron removidos:
+  // ese flujo ahora vive en la pestaña Ordenes (avanzar estado) y el cobro
+  // se sigue disparando desde el icono "Cobrar" de las acciones secundarias.
+  const accionPrincipal = facturada
+    ? { label: 'Cerrar mesa', icon: Receipt, color: '#71717a', onClick: () => setShowCobrar(true) }
+    : null
+
+  // Evita warning de "variable no usada" cuando ya no se invoca el CTA grande.
+  void todoEnviado; void enviando; void handleEnviar
 
   return (
     <aside

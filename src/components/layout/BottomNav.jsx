@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { ChefHat, ClipboardList, LayoutGrid } from 'lucide-react'
+import { ClipboardList, LayoutGrid } from 'lucide-react'
 
 const TABS = [
   { to: '/operaciones', icon: LayoutGrid, label: 'Inicio' },
-  { to: '/cocina', icon: ChefHat, label: 'Cocina' },
+  // KDS oculto temporalmente.
+  // { to: '/cocina', icon: ChefHat, label: 'Cocina' },
   { to: '/produccion', icon: ClipboardList, label: 'Produccion' },
 ]
 

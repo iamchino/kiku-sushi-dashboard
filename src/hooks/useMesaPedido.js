@@ -20,9 +20,6 @@ export function useMesaPedido({ mesaId } = {}) {
     }
     setLoading(true)
 
-    // NO incluimos embed `mozos(...)` porque la FK pedidos.mozo_id
-    // puede no estar reconocida por PostgREST y romper todo el query.
-    // La info del mozo viene en la vista v_mesas_estado.
     const { data, error: qErr } = await supabase
       .from('pedidos')
       .select('*, pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id, enviado_cocina, enviado_at), comprobantes_fiscales(*)')
@@ -41,9 +38,6 @@ export function useMesaPedido({ mesaId } = {}) {
     }
 
     if (data?.pedido_items) {
-      // Ordenamos por enviado_at (los no enviados quedan al final por ser null,
-      // los enviados van por orden de envio). Para no enviados, mantienen el
-      // orden de la base.
       data.pedido_items = [...data.pedido_items].sort((a, b) => {
         const ta = a.enviado_at ? new Date(a.enviado_at).getTime() : Number.POSITIVE_INFINITY
         const tb = b.enviado_at ? new Date(b.enviado_at).getTime() : Number.POSITIVE_INFINITY
@@ -67,7 +61,7 @@ export function useMesaPedido({ mesaId } = {}) {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [mesaId, fetchPedido])
+  }, [mesaId, fetchPedido, instanceId])
 
   // ── Derivados ───────────────────────────────────────────────────────────
   const items = useMemo(() => pedido?.pedido_items || [], [pedido])
@@ -118,10 +112,22 @@ export function useMesaPedido({ mesaId } = {}) {
     if (rpcErr) {
       // eslint-disable-next-line no-console
       console.error('[useMesaPedido] error al agregar items:', rpcErr)
-    } else {
-      fetchPedido()
+      return { error: rpcErr }
     }
-    return { error: rpcErr }
+
+    // Auto-envío a cocina: al ya no existir el botón manual "Enviar a cocina",
+    // los items se marcan como enviados automáticamente y el pedido avanza
+    // pendiente→preparando. Así aparece como Activa en Ordenes.
+    const { error: enviarErr } = await supabase.rpc('enviar_a_cocina', {
+      p_pedido_id: pedido.id,
+    })
+    if (enviarErr) {
+      // eslint-disable-next-line no-console
+      console.warn('[useMesaPedido] items agregados pero error al auto-enviar a cocina:', enviarErr)
+    }
+
+    fetchPedido()
+    return { error: null }
   }
 
   const recalcularTotal = useCallback(async (pedidoId) => {

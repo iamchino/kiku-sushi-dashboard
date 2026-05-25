@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Plus, RefreshCw, Search, Utensils, ShoppingBag, Truck, LayoutList,
-  ClipboardList, Printer, ChevronRight,
+  ClipboardList, Printer, ChevronRight, ChevronDown, Ban, Loader2,
 } from 'lucide-react'
-import { usePedidos, getTipoPedido, getEstadoSimple } from '../hooks/usePedidos'
+import { usePedidos, getTipoPedido, getEstadoSimple, ESTADO_SIGUIENTE } from '../hooks/usePedidos'
 import { getAuthorizedComprobante } from '../lib/fiscal'
 import { normalizeSearch } from '../utils/normalize'
 import NuevoPedidoModal from '../components/pedidos/NuevoPedidoModal'
@@ -21,6 +21,21 @@ const ESTADO_BADGE = {
   activa:     { label: 'Activa',     bg: 'rgba(79,142,247,0.10)', color: '#4f8ef7' },
   completada: { label: 'Completada', bg: 'rgba(52,211,153,0.10)', color: '#34d399' },
   cancelada:  { label: 'Cancelada',  bg: 'rgba(239,68,68,0.10)',  color: '#f87171' },
+}
+
+// Etiquetas crudas para el menú de cambio de estado.
+const ESTADO_CRUDO_LABEL = {
+  pendiente:  'Pendiente',
+  preparando: 'En cocina',
+  listo:      'Listo',
+  entregado:  'Entregado',
+  cancelado:  'Cancelado',
+}
+
+const BTN_AVANZAR_LABEL = {
+  pendiente:  'Marcar en cocina',
+  preparando: 'Marcar listo',
+  listo:      'Marcar entregado',
 }
 
 const TIPO_META = {
@@ -285,14 +300,26 @@ export default function PedidosPage() {
               </thead>
               <tbody>
                 {filtered.map(p => (
-                  <PedidoRow key={p.id} pedido={p} onSelect={() => setPedidoSel(p)} />
+                  <PedidoRow
+                    key={p.id}
+                    pedido={p}
+                    onSelect={() => setPedidoSel(p)}
+                    onAvanzar={avanzarEstado}
+                    onCancelar={cancelarPedido}
+                  />
                 ))}
               </tbody>
             </table>
 
             <div className="md:hidden divide-y" style={{ borderColor: 'var(--border)' }}>
               {filtered.map(p => (
-                <PedidoMobileRow key={p.id} pedido={p} onSelect={() => setPedidoSel(p)} />
+                <PedidoMobileRow
+                  key={p.id}
+                  pedido={p}
+                  onSelect={() => setPedidoSel(p)}
+                  onAvanzar={avanzarEstado}
+                  onCancelar={cancelarPedido}
+                />
               ))}
             </div>
           </>
@@ -314,6 +341,8 @@ export default function PedidosPage() {
     </div>
   )
 }
+
+/* ────────────────────────── subcomponentes UI ────────────────────────── */
 
 function Th({ children, right = false }) {
   return (
@@ -356,12 +385,107 @@ function SelectField({ value, onChange, options }) {
   )
 }
 
-function PedidoRow({ pedido, onSelect }) {
-  const tipo      = getTipoPedido(pedido)
+/**
+ * Badge de estado clickeable. Si el pedido está activo,
+ * abre un mini-menú con las opciones de cambio de estado.
+ */
+function EstadoBadgeMenu({ pedido, onAvanzar, onCancelar }) {
+  const [open, setOpen]   = useState(false)
+  const [busy, setBusy]   = useState(false)
+  const ref = useRef(null)
+
   const simple    = getEstadoSimple(pedido)
+  const badge     = ESTADO_BADGE[simple]
+  const siguiente = ESTADO_SIGUIENTE[pedido.estado]
+  const canMutate = simple === 'activa'
+
+  useEffect(() => {
+    if (!open) return
+    const onDocClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [open])
+
+  if (!badge) return null
+
+  const handleAvanzar = async (e) => {
+    e.stopPropagation()
+    setBusy(true)
+    await onAvanzar?.(pedido.id, pedido.estado)
+    setBusy(false)
+    setOpen(false)
+  }
+
+  const handleCancelar = async (e) => {
+    e.stopPropagation()
+    if (!confirm('¿Cancelar este pedido?')) return
+    setBusy(true)
+    await onCancelar?.(pedido.id)
+    setBusy(false)
+    setOpen(false)
+  }
+
+  return (
+    <div ref={ref} className="relative inline-block" onClick={e => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={() => canMutate && setOpen(o => !o)}
+        disabled={!canMutate || busy}
+        className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors"
+        style={{
+          background: badge.bg,
+          color: badge.color,
+          cursor: canMutate ? 'pointer' : 'default',
+          border: canMutate ? '1px solid transparent' : 'none',
+        }}
+        onMouseEnter={e => { if (canMutate) e.currentTarget.style.borderColor = badge.color + '55' }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'transparent' }}
+        title={canMutate ? 'Cambiar estado' : null}
+      >
+        {busy ? <Loader2 size={10} className="animate-spin" /> : badge.label}
+        {canMutate && !busy && <ChevronDown size={10} />}
+      </button>
+
+      {open && canMutate && (
+        <div
+          className="absolute z-30 mt-1 left-0 min-w-[170px] rounded-lg shadow-xl overflow-hidden"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+        >
+          <p className="px-3 py-1.5 text-[10px] uppercase tracking-wider"
+            style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
+            Estado actual: {ESTADO_CRUDO_LABEL[pedido.estado]}
+          </p>
+          {siguiente && (
+            <button
+              type="button"
+              onClick={handleAvanzar}
+              className="w-full text-left px-3 py-2 text-xs font-medium transition-colors hover:bg-[var(--bg-hover)]"
+              style={{ color: 'var(--accent-lift)' }}
+            >
+              → {BTN_AVANZAR_LABEL[pedido.estado] || `Marcar ${ESTADO_CRUDO_LABEL[siguiente]}`}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleCancelar}
+            className="w-full text-left px-3 py-2 text-xs font-medium transition-colors hover:bg-[var(--bg-hover)] flex items-center gap-2"
+            style={{ color: '#f87171', borderTop: '1px solid var(--border)' }}
+          >
+            <Ban size={11} />
+            Cancelar pedido
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PedidoRow({ pedido, onSelect, onAvanzar, onCancelar }) {
+  const tipo      = getTipoPedido(pedido)
   const tipoMeta  = TIPO_META[tipo]
   const TipoIcon  = tipoMeta?.icon
-  const badge     = ESTADO_BADGE[simple]
   const facturado = Boolean(getAuthorizedComprobante(pedido))
   const codigo    = codigoPedido(pedido)
   const { fecha, hora } = formatFechaHora(pedido.created_at)
@@ -407,14 +531,7 @@ function PedidoRow({ pedido, onSelect }) {
         <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{hora}</p>
       </td>
       <td className="px-4 py-3">
-        {badge && (
-          <span
-            className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full"
-            style={{ background: badge.bg, color: badge.color }}
-          >
-            {badge.label}
-          </span>
-        )}
+        <EstadoBadgeMenu pedido={pedido} onAvanzar={onAvanzar} onCancelar={onCancelar} />
       </td>
       <td className="px-4 py-3">
         <span
@@ -456,33 +573,24 @@ function PedidoRow({ pedido, onSelect }) {
   )
 }
 
-function PedidoMobileRow({ pedido, onSelect }) {
+function PedidoMobileRow({ pedido, onSelect, onAvanzar, onCancelar }) {
   const tipo      = getTipoPedido(pedido)
-  const simple    = getEstadoSimple(pedido)
   const tipoMeta  = TIPO_META[tipo]
   const TipoIcon  = tipoMeta?.icon
-  const badge     = ESTADO_BADGE[simple]
   const facturado = Boolean(getAuthorizedComprobante(pedido))
   const codigo    = codigoPedido(pedido)
   const { fecha, hora } = formatFechaHora(pedido.created_at)
   const resumen   = productosResumen(pedido.pedido_items)
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className="w-full text-left px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]"
+    <div
+      className="px-4 py-3 transition-colors hover:bg-[var(--bg-hover)]"
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-2 cursor-pointer" onClick={onSelect}>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{codigo}</span>
-            {badge && (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-                style={{ background: badge.bg, color: badge.color }}>
-                {badge.label}
-              </span>
-            )}
+            <EstadoBadgeMenu pedido={pedido} onAvanzar={onAvanzar} onCancelar={onCancelar} />
           </div>
           <p className="text-[11px] mt-1 flex items-center gap-1.5" style={{ color: tipoMeta?.color }}>
             {TipoIcon && <TipoIcon size={11} />}
@@ -503,7 +611,7 @@ function PedidoMobileRow({ pedido, onSelect }) {
           <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} className="ml-auto mt-1" />
         </div>
       </div>
-    </button>
+    </div>
   )
 }
 
