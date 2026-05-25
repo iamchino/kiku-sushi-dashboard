@@ -29,13 +29,32 @@ export function useNotificaciones() {
     } catch { /* ignorar si el browser bloquea audio */ }
   }, [])
 
-  // Ref para acceder a las últimas funciones dentro del callback de realtime
-  // sin que el effect se re-ejecute (evita el bug "cannot add callbacks after subscribe")
-  const handlersRef = useRef({ setNotifs, setUnread, playBeep })
-  useEffect(() => { handlersRef.current = { setNotifs, setUnread, playBeep } }, [playBeep])
+  // Doble beep para reservas (más distintivo que el de pedidos)
+  const playReservaBeep = useCallback(() => {
+    try {
+      if (!audioCtx.current)
+        audioCtx.current = new (window.AudioContext || window.webkitAudioContext)()
+      const ctx = audioCtx.current
+      const playTone = (freq, delay, dur = 0.25) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain); gain.connect(ctx.destination)
+        osc.frequency.value = freq; osc.type = 'sine'
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + delay)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + dur)
+        osc.start(ctx.currentTime + delay); osc.stop(ctx.currentTime + delay + dur)
+      }
+      playTone(660, 0)
+      playTone(990, 0.18)
+    } catch { /* ignorar */ }
+  }, [])
+
+  const handlersRef = useRef({ setNotifs, setUnread, playBeep, playReservaBeep })
+  useEffect(() => {
+    handlersRef.current = { setNotifs, setUnread, playBeep, playReservaBeep }
+  }, [playBeep, playReservaBeep])
 
   useEffect(() => {
-    // Permiso notificaciones nativas
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
       Notification.requestPermission().catch(() => {})
     }
@@ -75,7 +94,7 @@ export function useNotificaciones() {
       const { setNotifs, setUnread, playBeep } = handlersRef.current
       const actual = parseFloat(item.stock_actual)
       const minimo = parseFloat(item.stock_minimo)
-      if (actual > minimo) return // No alertar si está OK
+      if (actual > minimo) return
 
       const critico = actual <= 0
       const n = {
@@ -106,9 +125,52 @@ export function useNotificaciones() {
       }
     }
 
-    // Canal único — se crea UNA SOLA VEZ (deps: [])
+    /**
+     * Notificación de nueva reserva — disparada por INSERT en `reservas`.
+     * Hace ping con sonido distintivo y notificación nativa.
+     * Si origen === 'web' destaca con emoji web 🌐.
+     */
+    const addReservaAlert = (reserva) => {
+      const { setNotifs, setUnread, playReservaBeep } = handlersRef.current
+      const esWeb = reserva.origen === 'web'
+      const emoji = esWeb ? '🌐' : '📅'
+      const label = esWeb ? 'Nueva reserva desde la web' : 'Nueva reserva'
+
+      const fecha = reserva.fecha
+        ? new Date(reserva.fecha + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })
+        : ''
+      const hora = String(reserva.hora || '').slice(0, 5)
+
+      const n = {
+        id:       crypto.randomUUID(),
+        pedidoId: reserva.id,
+        shortId:  (reserva.cliente_nombre || '').slice(0, 12) || 'Reserva',
+        canal:    `${fecha} ${hora} · ${reserva.personas}p`,
+        mesa:     null,
+        estado:   'reserva_nueva',
+        label,
+        emoji,
+        color:    esWeb ? '#4f8ef7' : 'var(--accent-lift)',
+        ts:       new Date(),
+        read:     false,
+      }
+      setNotifs(prev => [n, ...prev].slice(0, 30))
+      setUnread(u => u + 1)
+      playReservaBeep()
+
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+          new Notification(`${emoji} ${label}`, {
+            body: `${reserva.cliente_nombre} · ${fecha} ${hora} · ${reserva.personas} personas`,
+            icon: '/favicon.ico',
+            tag:  'kiku-reserva-' + reserva.id,
+          })
+        } catch { /* ignorar */ }
+      }
+    }
+
     const channel = supabase
-      .channel('notif-pedidos-stock')
+      .channel('notif-pedidos-stock-reservas')
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'pedidos' },
         ({ new: p }) => addNotif(p, p.estado || 'pendiente')
@@ -120,17 +182,20 @@ export function useNotificaciones() {
       .on('postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'stock' },
         ({ new: s, old: o }) => {
-          // Solo alertar si el stock bajó y ahora está por debajo del mínimo
           if (parseFloat(s.stock_actual) < parseFloat(o.stock_actual) &&
               parseFloat(s.stock_actual) <= parseFloat(s.stock_minimo)) {
             addStockAlert(s)
           }
         }
       )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'reservas' },
+        ({ new: r }) => addReservaAlert(r)
+      )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, []) // ← deps vacío: el canal se crea y destruye una sola vez
+  }, [])
 
   const markAllRead = useCallback(() => {
     setNotifs(prev => prev.map(n => ({ ...n, read: true })))

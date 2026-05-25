@@ -5,16 +5,6 @@ import { useNotificaciones } from '../../hooks/useNotificaciones'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-/**
- * Botón de notificaciones con panel desplegable.
- *
- * El panel se renderiza vía createPortal sobre <body> para escapar
- * cualquier stacking context (ej. el <aside> sticky del Sidebar)
- * que antes lo estaba ocultando detrás del contenido principal.
- *
- * La posición se calcula a partir del bounding rect del botón y se
- * actualiza al hacer scroll / resize.
- */
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const [coords, setCoords] = useState({ top: 0, left: 0 })
@@ -26,10 +16,8 @@ export function NotificationBell() {
     const btn = buttonRef.current
     if (!btn) return
     const rect = btn.getBoundingClientRect()
-    const panelWidth = 320 // w-80
+    const panelWidth = 320
     const viewportW  = window.innerWidth
-    // Posiciona la esquina izquierda del panel justo debajo del botón.
-    // Si se sale por la derecha, lo recorta al viewport.
     let left = rect.left
     if (left + panelWidth + 8 > viewportW) {
       left = Math.max(8, viewportW - panelWidth - 8)
@@ -37,7 +25,6 @@ export function NotificationBell() {
     setCoords({ top: rect.bottom + 6, left })
   }, [])
 
-  // Recalcular cuando se abre, en scroll o resize.
   useEffect(() => {
     if (!open) return
     updateCoords()
@@ -49,7 +36,6 @@ export function NotificationBell() {
     }
   }, [open, updateCoords])
 
-  // Cerrar al hacer click fuera (panel + botón)
   useEffect(() => {
     if (!open) return
     const handler = (e) => {
@@ -61,7 +47,6 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
-  // Cerrar con Escape
   useEffect(() => {
     if (!open) return
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
@@ -156,7 +141,9 @@ export function NotificationBell() {
                     <p className="text-[11px] mt-0.5" style={{ color: '#52525b' }}>
                       {n.estado?.startsWith('stock_')
                         ? n.canal
-                        : `#${n.shortId}${n.mesa ? ` · Mesa ${n.mesa}` : n.canal ? ` · ${n.canal}` : ''}`
+                        : n.estado?.startsWith('reserva_')
+                          ? `${n.shortId} · ${n.canal}`
+                          : `#${n.shortId}${n.mesa ? ` · Mesa ${n.mesa}` : n.canal ? ` · ${n.canal}` : ''}`
                       }
                     </p>
                     <p className="text-[10px] mt-1" style={{ color: '#3f3f46' }}>
