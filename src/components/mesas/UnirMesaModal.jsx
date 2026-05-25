@@ -1,24 +1,60 @@
-import { useState } from 'react'
-import { X, Link2, Loader2, AlertCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { X, Link2, Loader2, AlertCircle, Check } from 'lucide-react'
 
 /**
- * Modal para unir la mesa actual (líder) con otra mesa libre del mismo salón.
- * Lista solo mesas libres y que no estén ya en otro grupo.
+ * Modal para unir la mesa actual (líder) con UNA O MÁS mesas libres del mismo
+ * salón. Muestra grilla de mesas libres disponibles; el usuario puede tocar
+ * varias y las une todas al confirmar (loop sobre onUnir).
  */
 export default function UnirMesaModal({ open, leaderMesa, mesasDisponibles = [], onClose, onUnir }) {
-  const [selected, setSelected] = useState(null)
-  const [busy, setBusy]         = useState(false)
-  const [error, setError]       = useState(null)
+  const [selectedIds, setSelectedIds] = useState(() => new Set())
+  const [busy, setBusy]               = useState(false)
+  const [error, setError]             = useState(null)
+
+  // Reset selección al abrir/cerrar
+  useEffect(() => {
+    if (!open) {
+      setSelectedIds(new Set())
+      setError(null)
+      setBusy(false)
+    }
+  }, [open])
 
   if (!open || !leaderMesa) return null
 
+  const toggle = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const selectAll = () => {
+    setSelectedIds(new Set(mesasDisponibles.map(m => m.id)))
+  }
+
+  const clearAll = () => setSelectedIds(new Set())
+
+  const selectedCount = selectedIds.size
+
   const handleConfirm = async () => {
-    if (!selected) return
+    if (selectedCount === 0) return
     setBusy(true); setError(null)
-    const { error: err } = await onUnir?.(leaderMesa.id, selected) || {}
+
+    // Unir una por una. Si alguna falla, abortamos y mostramos el error.
+    for (const memberId of selectedIds) {
+      const { error: err } = await onUnir?.(leaderMesa.id, memberId) || {}
+      if (err) {
+        setBusy(false)
+        setError(err.message || 'Error al unir una de las mesas')
+        return
+      }
+    }
+
     setBusy(false)
-    if (err) { setError(err.message || 'Error al unir mesas'); return }
-    setSelected(null)
+    setSelectedIds(new Set())
     onClose?.()
   }
 
@@ -39,13 +75,13 @@ export default function UnirMesaModal({ open, leaderMesa, mesasDisponibles = [],
         >
           <div>
             <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              Unir mesa
+              Unir mesas
             </p>
             <p className="font-bold text-base mt-0.5" style={{ color: 'var(--text-primary)' }}>
               Mesa {leaderMesa.numero} se unirá con…
             </p>
             <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              La mesa elegida pasa a compartir el mismo pedido. Se desagrupan al cobrar.
+              Elegí una o varias mesas. Todas pasarán a compartir el mismo pedido.
             </p>
           </div>
           <button
@@ -58,6 +94,40 @@ export default function UnirMesaModal({ open, leaderMesa, mesasDisponibles = [],
             <X size={16} />
           </button>
         </div>
+
+        {/* Toolbar: contador + select all/clear */}
+        {mesasDisponibles.length > 0 && (
+          <div
+            className="flex-shrink-0 flex items-center justify-between px-4 py-2 text-xs"
+            style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-app)' }}
+          >
+            <span style={{ color: 'var(--text-muted)' }}>
+              {selectedCount > 0
+                ? <><strong style={{ color: 'var(--accent-lift)' }}>{selectedCount}</strong> seleccionada{selectedCount === 1 ? '' : 's'} de {mesasDisponibles.length}</>
+                : <>{mesasDisponibles.length} mesa{mesasDisponibles.length === 1 ? '' : 's'} disponible{mesasDisponibles.length === 1 ? '' : 's'}</>}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={selectAll}
+                disabled={selectedCount === mesasDisponibles.length}
+                className="px-2 py-1 rounded text-[11px] font-medium transition-colors disabled:opacity-40"
+                style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+              >
+                Todas
+              </button>
+              <button
+                type="button"
+                onClick={clearAll}
+                disabled={selectedCount === 0}
+                className="px-2 py-1 rounded text-[11px] font-medium transition-colors disabled:opacity-40"
+                style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+              >
+                Limpiar
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-3 py-3">
           {error && (
@@ -81,19 +151,27 @@ export default function UnirMesaModal({ open, leaderMesa, mesasDisponibles = [],
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {mesasDisponibles.map(m => {
-                const isSel = selected === m.id
+                const isSel = selectedIds.has(m.id)
                 return (
                   <button
                     key={m.id}
                     type="button"
-                    onClick={() => setSelected(m.id)}
-                    className="flex flex-col items-center justify-center py-3 rounded-lg transition-all"
+                    onClick={() => toggle(m.id)}
+                    className="relative flex flex-col items-center justify-center py-3 rounded-lg transition-all"
                     style={{
                       background: isSel ? 'var(--accent-soft)' : 'var(--bg-input)',
                       border: isSel ? '2px solid var(--accent)' : '1px solid var(--border)',
                       color: isSel ? 'var(--accent-lift)' : 'var(--text-primary)',
                     }}
                   >
+                    {isSel && (
+                      <span
+                        className="absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                        style={{ background: 'var(--accent)', color: '#fff' }}
+                      >
+                        <Check size={10} strokeWidth={3} />
+                      </span>
+                    )}
                     <span className="font-bold text-lg leading-none">{m.numero}</span>
                     <span className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
                       {m.capacidad}p
@@ -117,12 +195,14 @@ export default function UnirMesaModal({ open, leaderMesa, mesasDisponibles = [],
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={!selected || busy}
+            disabled={selectedCount === 0 || busy}
             className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50"
             style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
           >
-            {busy ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
-            Unir mesa
+            {busy
+              ? <><Loader2 size={14} className="animate-spin" /> Uniendo…</>
+              : <><Link2 size={14} /> {selectedCount > 1 ? `Unir ${selectedCount} mesas` : 'Unir mesa'}</>
+            }
           </button>
         </div>
       </div>
