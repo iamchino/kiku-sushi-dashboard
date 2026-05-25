@@ -1,0 +1,310 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Plus, RefreshCw, Search, Calendar, ClipboardList, ChevronRight, Users, Clock } from 'lucide-react'
+import { supabase } from '../lib/supabase'
+import {
+  useReservas, RESERVA_ESTADO_LABEL, RESERVA_ESTADO_COLOR,
+} from '../hooks/useReservas'
+import { normalizeSearch } from '../utils/normalize'
+import NuevaReservaModal from '../components/reservas/NuevaReservaModal'
+import ReservaDetalleModal from '../components/reservas/ReservaDetalleModal'
+
+const ORIGEN_META = {
+  web:       { label: 'Web',       color: '#4f8ef7' },
+  dashboard: { label: 'Dashboard', color: 'var(--accent-lift)' },
+  telefono:  { label: 'Teléfono',  color: '#fbbf24' },
+  whatsapp:  { label: 'WhatsApp',  color: '#34d399' },
+}
+
+const ESTADO_FILTRO_OPCIONES = [
+  { id: 'todos',      label: 'Todos los estados' },
+  { id: 'pendiente',  label: 'Pendientes' },
+  { id: 'confirmada', label: 'Confirmadas' },
+  { id: 'sentada',    label: 'Sentadas' },
+  { id: 'no_show',    label: 'No-show' },
+  { id: 'cancelada',  label: 'Canceladas' },
+]
+
+const RANGO_OPCIONES = [
+  { id: 'hoy',      label: 'Hoy' },
+  { id: 'semana',   label: 'Próx. 7 días' },
+  { id: 'mes',      label: 'Próx. 30 días' },
+  { id: 'custom',   label: 'Custom' },
+]
+
+function rangoToDates(rango, customFrom, customTo) {
+  const today = new Date()
+  const toIso = (d) => d.toISOString().slice(0, 10)
+  if (rango === 'hoy')    return { from: toIso(today), to: toIso(today) }
+  if (rango === 'semana') return { from: toIso(today), to: toIso(new Date(today.getTime() + 6 * 86400000)) }
+  if (rango === 'mes')    return { from: toIso(today), to: toIso(new Date(today.getTime() + 30 * 86400000)) }
+  return { from: customFrom || toIso(today), to: customTo || toIso(today) }
+}
+
+export default function ReservasPage() {
+  const [rango, setRango]           = useState('semana')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo]     = useState('')
+  const [search, setSearch]         = useState('')
+  const [estadoFiltro, setEstadoFiltro] = useState('todos')
+
+  const [nuevaOpen, setNuevaOpen] = useState(false)
+  const [selected,  setSelected]  = useState(null)
+  const [mesasLibres, setMesasLibres] = useState([])
+
+  const { from, to } = useMemo(
+    () => rangoToDates(rango, customFrom, customTo),
+    [rango, customFrom, customTo]
+  )
+
+  const {
+    reservas, stats, loading, error,
+    crearReserva, actualizarEstado, sentarReserva, eliminarReserva, refetch,
+  } = useReservas({ mode: 'range', dateFrom: from, dateTo: to })
+
+  // Cargar mesas libres cuando se abre el modal de detalle (para acción Sentar)
+  useEffect(() => {
+    if (!selected) return
+    supabase
+      .from('v_mesas_estado')
+      .select('id, numero, capacidad, salon_id, estado_mesa, activa')
+      .eq('activa', true)
+      .eq('estado_mesa', 'libre')
+      .order('numero', { ascending: true })
+      .then(({ data }) => setMesasLibres(data || []))
+  }, [selected])
+
+  const filtered = useMemo(() => {
+    const q = normalizeSearch(search.trim())
+    let list = reservas.slice()
+    if (estadoFiltro !== 'todos') list = list.filter(r => r.estado === estadoFiltro)
+    if (q) {
+      list = list.filter(r => {
+        const nombre = normalizeSearch(r.cliente_nombre || '')
+        const tel    = normalizeSearch(r.cliente_telefono || '')
+        const email  = normalizeSearch(r.cliente_email || '')
+        return nombre.includes(q) || tel.includes(q) || email.includes(q)
+      })
+    }
+    return list
+  }, [reservas, search, estadoFiltro])
+
+  return (
+    <div className="flex flex-col h-full">
+      <div
+        className="flex items-center justify-between px-4 md:px-6 py-4 flex-shrink-0 gap-3 flex-wrap"
+        style={{ borderBottom: '1px solid var(--border)' }}
+      >
+        <div>
+          <h1 className="text-lg md:text-xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            Reservas
+          </h1>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            Reservas del salón · {stats.total} en el rango
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={refetch}
+            disabled={loading}
+            className="p-2 rounded-lg transition-all disabled:opacity-50"
+            style={{ border: '1px solid var(--border)' }}
+            title="Actualizar"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} style={{ color: 'var(--text-muted)' }} />
+          </button>
+
+          <button
+            onClick={() => setNuevaOpen(true)}
+            className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
+            style={{
+              background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
+              boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)',
+            }}
+          >
+            <Plus size={15} />
+            <span className="hidden sm:inline">Nueva reserva</span>
+            <span className="sm:hidden">Nueva</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div
+        className="px-4 md:px-6 py-3 flex-shrink-0 flex flex-wrap items-end gap-3"
+        style={{ borderBottom: '1px solid var(--border)' }}
+      >
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por nombre, teléfono o email…"
+            className="w-full pl-9 pr-3 py-2 rounded-lg text-sm outline-none"
+            style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+          />
+        </div>
+
+        <select
+          value={rango}
+          onChange={e => setRango(e.target.value)}
+          className="px-2 py-1.5 rounded-lg text-xs outline-none cursor-pointer"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+        >
+          {RANGO_OPCIONES.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
+
+        {rango === 'custom' && (
+          <>
+            <input
+              type="date"
+              value={customFrom}
+              onChange={e => setCustomFrom(e.target.value)}
+              className="px-2 py-1.5 rounded-lg text-xs outline-none"
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            />
+            <input
+              type="date"
+              value={customTo}
+              onChange={e => setCustomTo(e.target.value)}
+              className="px-2 py-1.5 rounded-lg text-xs outline-none"
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            />
+          </>
+        )}
+
+        <select
+          value={estadoFiltro}
+          onChange={e => setEstadoFiltro(e.target.value)}
+          className="px-2 py-1.5 rounded-lg text-xs outline-none cursor-pointer"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+        >
+          {ESTADO_FILTRO_OPCIONES.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
+      </div>
+
+      {/* Stats chips */}
+      <div className="flex-shrink-0 px-4 md:px-6 py-2 flex items-center gap-2 overflow-x-auto"
+        style={{ borderBottom: '1px solid var(--border)' }}>
+        {Object.entries(stats).filter(([k]) => k !== 'total').map(([estado, count]) => {
+          const meta = RESERVA_ESTADO_COLOR[estado]
+          if (!meta) return null
+          return (
+            <span
+              key={estado}
+              className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap"
+              style={{ background: meta.bg, color: meta.color }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} />
+              {RESERVA_ESTADO_LABEL[estado]}: {count}
+            </span>
+          )
+        })}
+      </div>
+
+      {error && (
+        <div className="mx-4 md:mx-6 mt-3 px-4 py-3 rounded-xl text-sm flex-shrink-0"
+          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          {error}
+        </div>
+      )}
+
+      <div className="flex-1 overflow-auto">
+        {loading ? (
+          <div className="px-4 md:px-6 py-4 space-y-2">
+            {[1,2,3,4].map(i => <div key={i} className="skeleton h-14 rounded-lg" />)}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'var(--bg-input)' }}>
+              <Calendar size={24} style={{ color: 'var(--text-muted)' }} />
+            </div>
+            <div>
+              <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                Sin reservas en el rango seleccionado
+              </p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                Cuando entren reservas desde la web aparecerán acá automáticamente.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
+            {filtered.map(r => (
+              <ReservaRow key={r.id} reserva={r} onSelect={() => setSelected(r)} />
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <NuevaReservaModal
+        open={nuevaOpen}
+        onClose={() => setNuevaOpen(false)}
+        onCreate={crearReserva}
+      />
+
+      <ReservaDetalleModal
+        reserva={selected}
+        mesasLibres={mesasLibres}
+        onClose={() => { setSelected(null); setMesasLibres([]) }}
+        onActualizarEstado={actualizarEstado}
+        onSentar={sentarReserva}
+        onEliminar={eliminarReserva}
+      />
+    </div>
+  )
+}
+
+function ReservaRow({ reserva, onSelect }) {
+  const estadoMeta = RESERVA_ESTADO_COLOR[reserva.estado]
+  const origenMeta = ORIGEN_META[reserva.origen] || ORIGEN_META.dashboard
+  const hora = String(reserva.hora).slice(0, 5)
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="w-full text-left px-4 md:px-6 py-3 transition-colors hover:bg-[var(--bg-hover)] flex items-center gap-3"
+      >
+        <div className="flex flex-col items-center justify-center min-w-[56px] py-2 px-2 rounded-lg flex-shrink-0"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
+          <span className="text-[10px] uppercase font-bold tracking-wide" style={{ color: 'var(--text-muted)' }}>
+            {new Date(reserva.fecha + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
+          </span>
+          <span className="text-base font-bold leading-none mt-0.5" style={{ color: 'var(--accent-lift)' }}>
+            {hora}
+          </span>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>
+              {reserva.cliente_nombre}
+            </p>
+            {estadoMeta && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                style={{ background: estadoMeta.bg, color: estadoMeta.color }}>
+                {RESERVA_ESTADO_LABEL[reserva.estado]}
+              </span>
+            )}
+            <span className="text-[10px] px-1.5 py-0.5 rounded"
+              style={{ background: 'var(--bg-input)', color: origenMeta.color, border: '1px solid var(--border)' }}>
+              {origenMeta.label}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            <span className="flex items-center gap-1"><Users size={11} /> {reserva.personas}p</span>
+            <span className="flex items-center gap-1"><Clock size={11} /> {reserva.duracion_min}m</span>
+            {reserva.cliente_telefono && (
+              <span className="truncate">📞 {reserva.cliente_telefono}</span>
+            )}
+          </div>
+        </div>
+
+        <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
+      </button>
+    </li>
+  )
+}

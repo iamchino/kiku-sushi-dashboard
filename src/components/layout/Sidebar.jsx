@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, ClipboardList, Package, Receipt, ListChecks,
   Users, ChefHat, LogOut, UtensilsCrossed, X, Menu, BarChart2,
-  Sun, Moon, BookOpen, LayoutGrid
+  Sun, Moon, BookOpen, LayoutGrid, CalendarDays
 } from 'lucide-react'
 import clsx from 'clsx'
 import { auth } from '../../lib/supabase'
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: '/analiticas', icon: BarChart2,       label: 'Analíticas'   },
   { to: '/menu',       icon: UtensilsCrossed, label: 'Menú & Carta' },
   { to: '/mesas',      icon: LayoutGrid,      label: 'Mesas'        },
+  { to: '/reservas',   icon: CalendarDays,    label: 'Reservas'     },
   { to: '/pedidos',    icon: ClipboardList,   label: 'Ordenes'      },
   // KDS oculto del menú; la ruta y la lógica se mantienen disponibles si se quiere reactivar.
   // { to: '/cocina',     icon: ChefHat,         label: 'Cocina (KDS)' },
@@ -28,13 +29,11 @@ const NAV_ITEMS = [
   { to: '/clientes',   icon: Users,           label: 'Clientes'     },
 ]
 
-// ── Hook: cierra el sidebar cuando cambia la ruta (en mobile) ────────────────
 function useAutoClose(setOpen) {
   const location = useLocation()
   useEffect(() => { setOpen(false) }, [location.pathname, setOpen])
 }
 
-// ── Botón de toggle de tema ───────────────────────────────────────────────────
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme()
   const isDark = theme === 'dark'
@@ -75,7 +74,6 @@ function ThemeToggle() {
   )
 }
 
-// ── Sidebar content (reutilizado en desktop y drawer) ────────────────────────
 function SidebarContent({ onClose, showBell = false }) {
   useAutoClose(onClose ?? (() => {}))
   const role = useRole()
@@ -167,7 +165,6 @@ function SidebarContent({ onClose, showBell = false }) {
   )
 }
 
-// ── Componente público: Sidebar + Hamburger ───────────────────────────────────
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const close = useCallback(() => setMobileOpen(false), [])

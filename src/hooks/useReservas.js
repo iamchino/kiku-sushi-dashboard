@@ -1,0 +1,146 @@
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { supabase } from '../lib/supabase'
+import { startOfDay, endOfDay, addDays } from 'date-fns'
+
+export const RESERVA_ESTADOS = ['pendiente', 'confirmada', 'sentada', 'no_show', 'cancelada']
+
+export const RESERVA_ESTADO_LABEL = {
+  pendiente:  'Pendiente',
+  confirmada: 'Confirmada',
+  sentada:    'Sentada',
+  no_show:    'No-show',
+  cancelada:  'Cancelada',
+}
+
+export const RESERVA_ESTADO_COLOR = {
+  pendiente:  { bg: 'rgba(251,191,36,0.10)',  color: '#fbbf24' },
+  confirmada: { bg: 'rgba(79,142,247,0.10)',  color: '#4f8ef7' },
+  sentada:    { bg: 'rgba(52,211,153,0.10)',  color: '#34d399' },
+  no_show:    { bg: 'rgba(113,113,122,0.10)', color: '#a1a1aa' },
+  cancelada:  { bg: 'rgba(239,68,68,0.10)',   color: '#f87171' },
+}
+
+/**
+ * Hook con realtime para reservas.
+ *
+ * Modos:
+ *  - mode: 'today'  → solo reservas de hoy
+ *  - mode: 'range'  → desde/hasta (default: hoy + 14 días)
+ */
+export function useReservas(options = {}) {
+  const {
+    mode     = 'range',
+    dateFrom = null,
+    dateTo   = null,
+  } = options
+
+  const [reservas, setReservas] = useState([])
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState(null)
+
+  const fetchReservas = useCallback(async () => {
+    let query = supabase
+      .from('reservas')
+      .select('*')
+      .order('fecha', { ascending: true })
+      .order('hora',  { ascending: true })
+
+    if (mode === 'today') {
+      const today = new Date().toISOString().slice(0, 10)
+      query = query.eq('fecha', today)
+    } else {
+      const from = dateFrom
+        ? startOfDay(new Date(dateFrom)).toISOString().slice(0, 10)
+        : new Date().toISOString().slice(0, 10)
+      const to = dateTo
+        ? endOfDay(new Date(dateTo)).toISOString().slice(0, 10)
+        : addDays(new Date(), 14).toISOString().slice(0, 10)
+      query = query.gte('fecha', from).lte('fecha', to)
+    }
+
+    const { data, error: qErr } = await query
+    if (qErr) setError(qErr.message)
+    else { setError(null); setReservas(data || []) }
+    setLoading(false)
+  }, [mode, dateFrom, dateTo])
+
+  useEffect(() => {
+    fetchReservas()
+    const channel = supabase
+      .channel(`reservas-${mode}-${dateFrom || 'def'}-${dateTo || 'def'}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas' }, fetchReservas)
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [fetchReservas, mode, dateFrom, dateTo])
+
+  const stats = useMemo(() => {
+    const acc = { total: reservas.length, pendiente: 0, confirmada: 0, sentada: 0, no_show: 0, cancelada: 0 }
+    for (const r of reservas) {
+      if (acc[r.estado] !== undefined) acc[r.estado]++
+    }
+    return acc
+  }, [reservas])
+
+  // ── CRUD ─────────────────────────────────────────────────────────────
+  const crearReserva = async (payload) => {
+    const { error: rpcErr, data } = await supabase.rpc('crear_reserva', {
+      p_fecha:            payload.fecha,
+      p_hora:             payload.hora,
+      p_personas:         payload.personas,
+      p_cliente_nombre:   payload.cliente_nombre,
+      p_cliente_telefono: payload.cliente_telefono || null,
+      p_cliente_email:    payload.cliente_email    || null,
+      p_notas:            payload.notas            || null,
+      p_origen:           payload.origen           || 'dashboard',
+      p_duracion_min:     payload.duracion_min     || 90,
+      p_auto_confirmar:   payload.auto_confirmar !== false,
+    })
+    if (!rpcErr) fetchReservas()
+    return { reservaId: data, error: rpcErr }
+  }
+
+  const actualizarEstado = async (id, estado) => {
+    const { error: rpcErr } = await supabase.rpc('actualizar_estado_reserva', {
+      p_reserva_id: id,
+      p_estado:     estado,
+    })
+    if (!rpcErr) fetchReservas()
+    return { error: rpcErr }
+  }
+
+  /**
+   * Sienta la reserva en una mesa específica. Abre la mesa con los datos
+   * de la reserva (personas + cliente). Devuelve el pedido_id.
+   */
+  const sentarReserva = async (reservaId, mesaId, mozoId = null) => {
+    const { data, error: rpcErr } = await supabase.rpc('sentar_reserva', {
+      p_reserva_id: reservaId,
+      p_mesa_id:    mesaId,
+      p_mozo_id:    mozoId,
+    })
+    if (!rpcErr) fetchReservas()
+    return { pedidoId: data, error: rpcErr }
+  }
+
+  const eliminarReserva = async (id) => {
+    const { error: delErr } = await supabase.from('reservas').delete().eq('id', id)
+    if (!delErr) fetchReservas()
+    return { error: delErr }
+  }
+
+  const updateReserva = async (id, patch) => {
+    const { error: updErr } = await supabase
+      .from('reservas')
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq('id', id)
+    if (!updErr) fetchReservas()
+    return { error: updErr }
+  }
+
+  return {
+    reservas, stats,
+    loading, error,
+    refetch: fetchReservas,
+    crearReserva, actualizarEstado, sentarReserva, eliminarReserva, updateReserva,
+  }
+}
