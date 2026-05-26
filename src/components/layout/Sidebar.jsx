@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, ClipboardList, Package, Receipt, ListChecks,
   Users, ChefHat, LogOut, UtensilsCrossed, X, Menu, BarChart2,
-  Sun, Moon, BookOpen, LayoutGrid, CalendarDays
+  Sun, Moon, BookOpen, LayoutGrid, CalendarDays, Inbox
 } from 'lucide-react'
 import clsx from 'clsx'
 import { auth } from '../../lib/supabase'
@@ -27,6 +27,7 @@ const NAV_ITEMS = [
   { to: '/recetas',    icon: BookOpen,        label: 'Recetas'      },
   { to: '/caja',       icon: Receipt,         label: 'Caja y ARCA'  },
   { to: '/clientes',   icon: Users,           label: 'Clientes'     },
+  { to: '/notificaciones', icon: Inbox,       label: 'Notificaciones' },
 ]
 
 function useAutoClose(setOpen) {

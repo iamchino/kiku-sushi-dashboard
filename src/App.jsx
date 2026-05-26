@@ -18,6 +18,7 @@ import StockPage from './pages/Stock'
 import AnaliticasPage from './pages/Analiticas'
 import RecetasPage from './pages/Recetas'
 import CajaPage from './pages/Caja'
+import NotificacionesPage from './pages/Notificaciones'
 import Login from './pages/Login'
 import { ThemeProvider } from './context/ThemeContext'
 import { RoleContext, DEFAULT_ROLE, getRoleFromUser, canAccessRoute, getDefaultRoute } from './context/role'
@@ -69,6 +70,7 @@ function AppRoutes() {
           <Route path="/recetas" element={<RecetasPage />} />
           <Route path="/caja" element={<CajaPage />} />
           <Route path="/clientes" element={<ClientesPage />} />
+          <Route path="/notificaciones" element={<NotificacionesPage />} />
           <Route path="*" element={<Navigate to={defaultRoute} replace />} />
         </Routes>
       </RoleGuard>

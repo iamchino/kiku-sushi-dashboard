@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, Calendar, Clock, Users, User, Phone, Mail, FileText, Loader2, AlertCircle } from 'lucide-react'
+import { X, Calendar, Clock, Users, User, Phone, Mail, FileText, Loader2, AlertCircle, Salad, Accessibility } from 'lucide-react'
 
 /**
  * Modal para crear una reserva manual desde el dashboard.
@@ -13,6 +13,8 @@ export default function NuevaReservaModal({ open, onClose, onCreate }) {
   const [telefono, setTelefono] = useState('')
   const [email,    setEmail]    = useState('')
   const [notas,    setNotas]    = useState('')
+  const [restricciones, setRestricciones] = useState('')
+  const [accesibilidad, setAccesibilidad] = useState('')
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState(null)
 
@@ -20,6 +22,7 @@ export default function NuevaReservaModal({ open, onClose, onCreate }) {
     if (!open) {
       setFecha(''); setHora('20:30'); setPersonas(2)
       setNombre(''); setTelefono(''); setEmail(''); setNotas('')
+      setRestricciones(''); setAccesibilidad('')
       setBusy(false); setError(null)
     } else {
       // Default: hoy
@@ -44,6 +47,8 @@ export default function NuevaReservaModal({ open, onClose, onCreate }) {
       cliente_telefono: telefono.trim() || null,
       cliente_email:    email.trim()    || null,
       notas:            notas.trim()    || null,
+      restricciones:    restricciones.trim() || null,
+      accesibilidad:    accesibilidad.trim() || null,
       origen:           'dashboard',
       auto_confirmar:   true,
     }) || {}
@@ -165,12 +170,34 @@ export default function NuevaReservaModal({ open, onClose, onCreate }) {
             </Field>
           </div>
 
+          <Field icon={Salad} label="Restricciones alimentarias (opcional)">
+            <input
+              type="text"
+              value={restricciones}
+              onChange={e => setRestricciones(e.target.value)}
+              placeholder="Vegetariano, celíaco, alergias, etc."
+              className="w-full px-2 py-2 rounded-lg text-sm outline-none"
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            />
+          </Field>
+
+          <Field icon={Accessibility} label="Accesibilidad (opcional)">
+            <input
+              type="text"
+              value={accesibilidad}
+              onChange={e => setAccesibilidad(e.target.value)}
+              placeholder="Silla de ruedas, planta baja, etc."
+              className="w-full px-2 py-2 rounded-lg text-sm outline-none"
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            />
+          </Field>
+
           <Field icon={FileText} label="Notas (opcional)">
             <textarea
               value={notas}
               onChange={e => setNotas(e.target.value)}
               rows={2}
-              placeholder="Cumpleaños, alergias, etc."
+              placeholder="Cumpleaños, ocasión especial, etc."
               className="w-full px-2 py-2 rounded-lg text-sm outline-none resize-none"
               style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
             />

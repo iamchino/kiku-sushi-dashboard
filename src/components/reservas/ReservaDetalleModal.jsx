@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   X, Calendar, Clock, Users, User, Phone, Mail, FileText,
   Loader2, AlertCircle, Check, XCircle, UserMinus, Utensils,
+  Salad, Accessibility,
 } from 'lucide-react'
 import { RESERVA_ESTADO_LABEL, RESERVA_ESTADO_COLOR } from '../../hooks/useReservas'
 
@@ -144,6 +145,30 @@ export default function ReservaDetalleModal({
                   </a>
                 </div>
               )}
+            </div>
+          )}
+
+          {reserva.restricciones && (
+            <div className="rounded-lg p-3"
+              style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.20)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: '#22c55e' }}>
+                <Salad size={10} className="inline mr-1" /> Restricciones alimentarias
+              </p>
+              <p className="text-xs whitespace-pre-wrap leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                {reserva.restricciones}
+              </p>
+            </div>
+          )}
+
+          {reserva.accesibilidad && (
+            <div className="rounded-lg p-3"
+              style={{ background: 'rgba(79,142,247,0.06)', border: '1px solid rgba(79,142,247,0.20)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: '#4f8ef7' }}>
+                <Accessibility size={10} className="inline mr-1" /> Accesibilidad
+              </p>
+              <p className="text-xs whitespace-pre-wrap leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                {reserva.accesibilidad}
+              </p>
             </div>
           )}
 

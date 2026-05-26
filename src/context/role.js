@@ -5,7 +5,7 @@ export const DEFAULT_ROLE = 'cocina'
 export const COCINA_DEFAULT_ROUTE = '/operaciones'
 export const COCINA_BLOCKED_ROUTES = new Set([
   '/', '/dashboard', '/analiticas', '/caja', '/clientes',
-  '/mesas', '/reservas', '/configuracion/salon',
+  '/mesas', '/reservas', '/configuracion/salon', '/notificaciones',
 ])
 
 export const RoleContext = createContext(DEFAULT_ROLE)

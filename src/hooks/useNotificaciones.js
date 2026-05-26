@@ -1,19 +1,38 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
-const ESTADO_LABELS = {
-  pendiente:  { label: 'Nuevo pedido',       emoji: '🔔', color: 'var(--accent-lift)' },
-  preparando: { label: 'En preparación',      emoji: '👨‍🍳', color: '#4f8ef7' },
-  listo:      { label: 'Listo para entregar', emoji: '✅', color: '#34d399' },
-  entregado:  { label: 'Entregado',           emoji: '🎉', color: '#52525b' },
-  cancelado:  { label: 'Cancelado',           emoji: '❌', color: '#f87171' },
+// ─── Presentación visual por tipo ──────────────────────────────────────────
+// Los iconos/colores se derivan del campo `tipo` para que la UI quede
+// desacoplada del payload de DB.
+const TIPO_META = {
+  reserva_nueva:    { color: '#4f8ef7' },
+  pedido_nuevo:     { color: 'var(--accent-lift)' },
+  // Transitorias (no persistidas):
+  pedido_listo:     { color: '#34d399' },
+  pedido_cancelado: { color: '#f87171' },
+  pedido_preparando:{ color: '#fbbf24' },
+  pedido_entregado: { color: '#52525b' },
+  stock_bajo:       { color: '#fbbf24' },
 }
 
+const LIMIT_INICIAL = 30
+const LIMIT_MAX     = 100
+
+/**
+ * Hook unificado de notificaciones del dashboard.
+ *
+ * Fuentes:
+ *   - Persistidas: tabla `notificaciones` (INSERT en reservas y pedidos vía
+ *     triggers SQL). Cargadas al montar + suscripción realtime.
+ *   - Transitorias: UPDATE de pedidos (cambio de estado) y stock bajo.
+ *     Viven solo en memoria; no quedan en historial.
+ */
 export function useNotificaciones() {
   const [notifs, setNotifs] = useState([])
   const [unread, setUnread] = useState(0)
   const audioCtx = useRef(null)
 
+  // ─── Beep simple (pedidos / stock) ────────────────────────────────────
   const playBeep = useCallback(() => {
     try {
       if (!audioCtx.current)
@@ -26,10 +45,10 @@ export function useNotificaciones() {
       gain.gain.setValueAtTime(0.3, ctx.currentTime)
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
       osc.start(); osc.stop(ctx.currentTime + 0.4)
-    } catch { /* ignorar si el browser bloquea audio */ }
+    } catch { /* navegador bloqueó audio */ }
   }, [])
 
-  // Doble beep para reservas (más distintivo que el de pedidos)
+  // ─── Doble beep (reservas) ────────────────────────────────────────────
   const playReservaBeep = useCallback(() => {
     try {
       if (!audioCtx.current)
@@ -46,166 +65,235 @@ export function useNotificaciones() {
       }
       playTone(660, 0)
       playTone(990, 0.18)
-    } catch { /* ignorar */ }
+    } catch { /* ignore */ }
   }, [])
 
-  const handlersRef = useRef({ setNotifs, setUnread, playBeep, playReservaBeep })
-  useEffect(() => {
-    handlersRef.current = { setNotifs, setUnread, playBeep, playReservaBeep }
-  }, [playBeep, playReservaBeep])
+  // ─── Mapper: fila de tabla → shape de UI ──────────────────────────────
+  const toNotifShape = useCallback((row) => {
+    const meta = TIPO_META[row.tipo] || { color: '#a1a1aa' }
+    return {
+      id:              row.id,
+      _persisted:      true,
+      tipo:            row.tipo,
+      titulo:          row.titulo,
+      mensaje:         row.mensaje,
+      color:           meta.color,
+      referenciaId:    row.referencia_id,
+      referenciaTabla: row.referencia_tabla,
+      metadata:        row.metadata || {},
+      leida:           row.leida,
+      ts:              new Date(row.created_at),
+    }
+  }, [])
 
+  // ─── Fetch inicial desde DB ──────────────────────────────────────────
+  const fetchInitial = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('notificaciones')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(LIMIT_INICIAL)
+    if (error) {
+      console.error('[notif] fetch inicial:', error)
+      return
+    }
+    const items = (data || []).map(toNotifShape)
+    setNotifs(items)
+    setUnread(items.filter(n => !n.leida).length)
+  }, [toNotifShape])
+
+  useEffect(() => {
+    fetchInitial()
+  }, [fetchInitial])
+
+  // Refs para que el listener nunca tenga closures viejos
+  const handlersRef = useRef({ toNotifShape, playBeep, playReservaBeep })
+  useEffect(() => {
+    handlersRef.current = { toNotifShape, playBeep, playReservaBeep }
+  }, [toNotifShape, playBeep, playReservaBeep])
+
+  // ─── Realtime listener ────────────────────────────────────────────────
   useEffect(() => {
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
       Notification.requestPermission().catch(() => {})
     }
 
-    const addNotif = (pedido, estado) => {
-      const { setNotifs, setUnread, playBeep } = handlersRef.current
-      const cfg = ESTADO_LABELS[estado] || { label: estado, emoji: '📋', color: '#a1a1aa' }
-      const n = {
-        id:       crypto.randomUUID(),
-        pedidoId: pedido.id,
-        shortId:  (pedido.id || '').slice(-4).toUpperCase() || '----',
-        canal:    pedido.canal || '',
-        mesa:     pedido.mesa  || null,
-        estado,
-        ...cfg,
-        ts:   new Date(),
-        read: false,
-      }
-      setNotifs(prev => [n, ...prev].slice(0, 30))
+    const addTransitoria = (notif) => {
+      setNotifs(prev => [notif, ...prev].slice(0, LIMIT_MAX))
       setUnread(u => u + 1)
-
-      if (['pendiente', 'listo', 'cancelado'].includes(estado)) {
-        playBeep()
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-          try {
-            new Notification(`${cfg.emoji} ${cfg.label}`, {
-              body: `Pedido #${n.shortId}${n.mesa ? ` · Mesa ${n.mesa}` : n.canal ? ` · ${n.canal}` : ''}`,
-              icon: '/favicon.ico',
-              tag:  'kiku-pedido',
-            })
-          } catch { /* ignorar */ }
-        }
-      }
-    }
-
-    const addStockAlert = (item) => {
-      const { setNotifs, setUnread, playBeep } = handlersRef.current
-      const actual = parseFloat(item.stock_actual)
-      const minimo = parseFloat(item.stock_minimo)
-      if (actual > minimo) return
-
-      const critico = actual <= 0
-      const n = {
-        id:       crypto.randomUUID(),
-        pedidoId: item.id,
-        shortId:  (item.nombre || '').slice(0, 8),
-        canal:    item.categoria || 'Inventario',
-        mesa:     null,
-        estado:   critico ? 'stock_critico' : 'stock_bajo',
-        label:    critico ? `¡${item.nombre} agotado!` : `${item.nombre} stock bajo`,
-        emoji:    critico ? '🚨' : '⚠️',
-        color:    critico ? '#ef4444' : '#f59e0b',
-        ts:       new Date(),
-        read:     false,
-      }
-      setNotifs(prev => [n, ...prev].slice(0, 30))
-      setUnread(u => u + 1)
-      playBeep()
-
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        try {
-          new Notification(`${n.emoji} ${n.label}`, {
-            body: `${actual} ${item.unidad} restante — mínimo: ${minimo} ${item.unidad}`,
-            icon: '/favicon.ico',
-            tag: 'kiku-stock-' + item.id,
-          })
-        } catch { /* ignorar */ }
-      }
-    }
-
-    /**
-     * Notificación de nueva reserva — disparada por INSERT en `reservas`.
-     * Hace ping con sonido distintivo y notificación nativa.
-     * Si origen === 'web' destaca con emoji web 🌐.
-     */
-    const addReservaAlert = (reserva) => {
-      const { setNotifs, setUnread, playReservaBeep } = handlersRef.current
-      const esWeb = reserva.origen === 'web'
-      const emoji = esWeb ? '🌐' : '📅'
-      const label = esWeb ? 'Nueva reserva desde la web' : 'Nueva reserva'
-
-      const fecha = reserva.fecha
-        ? new Date(reserva.fecha + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })
-        : ''
-      const hora = String(reserva.hora || '').slice(0, 5)
-
-      const n = {
-        id:       crypto.randomUUID(),
-        pedidoId: reserva.id,
-        shortId:  (reserva.cliente_nombre || '').slice(0, 12) || 'Reserva',
-        canal:    `${fecha} ${hora} · ${reserva.personas}p`,
-        mesa:     null,
-        estado:   'reserva_nueva',
-        label,
-        emoji,
-        color:    esWeb ? '#4f8ef7' : 'var(--accent-lift)',
-        ts:       new Date(),
-        read:     false,
-      }
-      setNotifs(prev => [n, ...prev].slice(0, 30))
-      setUnread(u => u + 1)
-      playReservaBeep()
-
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        try {
-          new Notification(`${emoji} ${label}`, {
-            body: `${reserva.cliente_nombre} · ${fecha} ${hora} · ${reserva.personas} personas`,
-            icon: '/favicon.ico',
-            tag:  'kiku-reserva-' + reserva.id,
-          })
-        } catch { /* ignorar */ }
-      }
     }
 
     const channel = supabase
-      .channel('notif-pedidos-stock-reservas')
+      .channel('notif-dashboard-v2')
+      // Persistidas: INSERT en notificaciones
       .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'pedidos' },
-        ({ new: p }) => addNotif(p, p.estado || 'pendiente')
+        { event: 'INSERT', schema: 'public', table: 'notificaciones' },
+        ({ new: row }) => {
+          const { toNotifShape, playBeep, playReservaBeep } = handlersRef.current
+          const n = toNotifShape(row)
+          console.log('[notif] persistida recibida:', n.tipo, n.mensaje)
+
+          setNotifs(prev => {
+            // Evitar duplicado si ya está (improbable pero protege contra
+            // doble suscripción en hot-reload).
+            if (prev.some(x => x.id === n.id)) return prev
+            return [n, ...prev].slice(0, LIMIT_MAX)
+          })
+          if (!n.leida) setUnread(u => u + 1)
+
+          // Sonido por tipo
+          if (n.tipo === 'reserva_nueva') playReservaBeep()
+          else                            playBeep()
+
+          // Notificación nativa del navegador
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            try {
+              new Notification(n.titulo, {
+                body: n.mensaje,
+                icon: '/favicon.ico',
+                tag:  'kiku-notif-' + n.id,
+              })
+            } catch { /* ignorar */ }
+          }
+        }
       )
+      // Transitorias: UPDATE de pedidos (cambio de estado)
       .on('postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'pedidos' },
-        ({ new: p, old: o }) => { if (p.estado !== o.estado) addNotif(p, p.estado) }
+        ({ new: p, old: o }) => {
+          if (p.estado === o.estado) return
+          const tipo = `pedido_${p.estado}`
+          const meta = TIPO_META[tipo] || { color: '#a1a1aa' }
+          const shortId = (p.id || '').slice(-4).toUpperCase()
+          addTransitoria({
+            id:              crypto.randomUUID(),
+            _persisted:      false,
+            tipo,
+            titulo:          `Pedido ${p.estado}`,
+            mensaje:         `#${shortId}${p.canal ? ' · ' + p.canal : ''}`,
+            color:           meta.color,
+            referenciaId:    p.id,
+            referenciaTabla: 'pedidos',
+            metadata:        p,
+            leida:           false,
+            ts:              new Date(),
+          })
+          if (['listo', 'cancelado'].includes(p.estado)) handlersRef.current.playBeep()
+        }
       )
+      // Transitorias: UPDATE de stock (alerta bajo mínimo)
       .on('postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'stock' },
         ({ new: s, old: o }) => {
           if (parseFloat(s.stock_actual) < parseFloat(o.stock_actual) &&
               parseFloat(s.stock_actual) <= parseFloat(s.stock_minimo)) {
-            addStockAlert(s)
+            const meta = TIPO_META.stock_bajo
+            addTransitoria({
+              id:           crypto.randomUUID(),
+              _persisted:   false,
+              tipo:         'stock_bajo',
+              titulo:       '📦 Stock bajo',
+              mensaje:      `${s.nombre || 'Item'} · ${s.stock_actual} ${s.unidad || ''}`,
+              color:        meta.color,
+              referenciaId: s.id,
+              referenciaTabla: 'stock',
+              metadata:     s,
+              leida:        false,
+              ts:           new Date(),
+            })
+            handlersRef.current.playBeep()
           }
         }
       )
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'reservas' },
-        ({ new: r }) => addReservaAlert(r)
-      )
-      .subscribe()
+      .subscribe((status, err) => {
+        // Esperado: 'SUBSCRIBED'. Si ves CHANNEL_ERROR o TIMED_OUT:
+        // verificar que las tablas estén en publication supabase_realtime.
+        console.log('[notif] channel status:', status, err || '')
+      })
 
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  const markAllRead = useCallback(() => {
-    setNotifs(prev => prev.map(n => ({ ...n, read: true })))
+  // ─── Actions ────────────────────────────────────────────────────────
+  const markRead = useCallback(async (id) => {
+    let target
+    setNotifs(prev => {
+      target = prev.find(n => n.id === id)
+      if (!target || target.leida) return prev
+      return prev.map(n => n.id === id ? { ...n, leida: true } : n)
+    })
+    if (target && !target.leida) {
+      setUnread(u => Math.max(0, u - 1))
+      if (target._persisted) {
+        await supabase.rpc('marcar_notificacion_leida', { p_id: id })
+      }
+    }
+  }, [])
+
+  const markAllRead = useCallback(async () => {
+    setNotifs(prev => prev.map(n => ({ ...n, leida: true })))
     setUnread(0)
+    await supabase.rpc('marcar_todas_notificaciones_leidas')
+  }, [])
+
+  const deleteOne = useCallback(async (id) => {
+    let target
+    setNotifs(prev => {
+      target = prev.find(n => n.id === id)
+      return prev.filter(n => n.id !== id)
+    })
+    if (target && !target.leida) setUnread(u => Math.max(0, u - 1))
+    if (target?._persisted) {
+      await supabase.rpc('eliminar_notificacion', { p_id: id })
+    }
   }, [])
 
   const clearAll = useCallback(() => {
-    setNotifs([])
+    // Solo limpia la vista local; el historial persiste en DB.
+    setNotifs(prev => prev.filter(n => n._persisted === false ? false : false))
     setUnread(0)
   }, [])
 
-  return { notifs, unread, markAllRead, clearAll }
+  const refresh = fetchInitial
+
+  return { notifs, unread, markRead, markAllRead, deleteOne, clearAll, refresh }
+}
+
+/**
+ * Hook auxiliar para listar/paginar el historial completo en /notificaciones.
+ * Devuelve raw rows ordenadas por fecha desc con filtros opcionales.
+ */
+export function useHistorialNotificaciones() {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [filtros, setFiltros] = useState({ tipo: 'todos', leida: 'todos' })
+
+  const fetchItems = useCallback(async () => {
+    setLoading(true)
+    let q = supabase.from('notificaciones').select('*').order('created_at', { ascending: false }).limit(500)
+    if (filtros.tipo !== 'todos')  q = q.eq('tipo', filtros.tipo)
+    if (filtros.leida === 'si')    q = q.eq('leida', true)
+    if (filtros.leida === 'no')    q = q.eq('leida', false)
+    const { data, error } = await q
+    if (error) console.error('[notif historial]', error)
+    setItems(data || [])
+    setLoading(false)
+  }, [filtros])
+
+  useEffect(() => { fetchItems() }, [fetchItems])
+
+  // Refresca al recibir nuevas (realtime simple)
+  useEffect(() => {
+    const channel = supabase
+      .channel('notif-historial')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notificaciones' }, () => fetchItems())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [fetchItems])
+
+  const marcarLeida   = (id) => supabase.rpc('marcar_notificacion_leida', { p_id: id }).then(fetchItems)
+  const marcarTodas   = ()    => supabase.rpc('marcar_todas_notificaciones_leidas').then(fetchItems)
+  const eliminarOne   = (id) => supabase.rpc('eliminar_notificacion', { p_id: id }).then(fetchItems)
+
+  return { items, loading, filtros, setFiltros, refresh: fetchItems, marcarLeida, marcarTodas, eliminarOne }
 }

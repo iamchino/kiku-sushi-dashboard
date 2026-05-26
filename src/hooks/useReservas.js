@@ -94,6 +94,8 @@ export function useReservas(options = {}) {
       p_origen:           payload.origen           || 'dashboard',
       p_duracion_min:     payload.duracion_min     || 90,
       p_auto_confirmar:   payload.auto_confirmar !== false,
+      p_restricciones:    payload.restricciones    || null,
+      p_accesibilidad:    payload.accesibilidad    || null,
     })
     if (!rpcErr) fetchReservas()
     return { reservaId: data, error: rpcErr }
