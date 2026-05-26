@@ -1,0 +1,2 @@
+// Windows Resource File for embedding icon into executable
+IDI_ICON1 ICON "printerIcon.ico"

@@ -1,0 +1,163 @@
+{
+  "_meta": {
+    "descripcion": "Extracción manual de las 6 facturas que mando Juan Manuel. Sirve de baseline para medir accuracy del modelo: por cada factura el script extract-invoice.mjs compara la salida de Qwen2-VL contra esto y calcula precision/recall sobre items, precios y totales.",
+    "generado_por": "humano (Claude leyendo las fotos)",
+    "fecha": "2026-05-25"
+  },
+  "facturas": [
+    {
+      "archivo": "01_logistica_la_serenisima.jpg",
+      "tipo_documento": "factura_a",
+      "proveedor": {
+        "razon_social": "LOGISTICA LA SERENISIMA S.A.",
+        "cuit": "30707210385",
+        "telefono": "0800-888-0080",
+        "direccion": "GUAYMALLEN 2198, ROSARIO, SANTA FE"
+      },
+      "numero": "05008 00391138",
+      "fecha_emision": "2026-05-21",
+      "condicion_pago": "contado",
+      "items": [
+        {
+          "codigo": "374000",
+          "descripcion": "QUESO LS FINLANDIA CLASICO MANGA 2KG",
+          "cantidad": 4,
+          "unidad": "un",
+          "precio_unitario": 21402.00,
+          "importe": 85608.00,
+          "confianza": 1.0
+        }
+      ],
+      "subtotal": 85608.00,
+      "iva_porcentaje": 21,
+      "iva": 17977.68,
+      "total": 103585.68,
+      "calidad_imagen": "excelente",
+      "advertencias": []
+    },
+    {
+      "archivo": "02_vera_noelia_pescaderia.jpg",
+      "tipo_documento": "remito",
+      "proveedor": {
+        "razon_social": "VERA NOELIA FABIANA",
+        "direccion": "JUJUY 2825 PISO 2, ROSARIO, SANTA FE",
+        "cuit": null,
+        "telefono": null
+      },
+      "numero": "928",
+      "fecha_emision": "2026-05-15",
+      "condicion_pago": "contado",
+      "items": [
+        { "codigo": "0295", "descripcion": "SALMON AHUMADO ENTERO",       "cantidad": 1.35,  "unidad": "kg", "precio_unitario": 35100.00, "importe":  47385.00, "confianza": 0.95 },
+        { "codigo": "6040", "descripcion": "COLA EN PLANCHA A BORDO",     "cantidad": 6.40,  "unidad": "kg", "precio_unitario": 12500.00, "importe":  80000.00, "confianza": 0.95 },
+        { "codigo": "7016", "descripcion": "PULPO ESPAÑOL CONCISA 4/5",   "cantidad": 4.75,  "unidad": "kg", "precio_unitario": 42900.00, "importe": 203775.00, "confianza": 0.95 },
+        { "codigo": "0362", "descripcion": "GASTOS DE ENVIO",             "cantidad": 12.50, "unidad": "un", "precio_unitario":   800.00, "importe":  10000.00, "confianza": 0.95 }
+      ],
+      "subtotal": 41160.00,
+      "total": 341160.00,
+      "calidad_imagen": "buena",
+      "advertencias": [
+        "subtotal impreso (41.160) NO coincide con la suma de items (341.160)",
+        "manuscrito sobre el documento con un total de $700.000 tachado y otro de $60 — ignorado para el calculo",
+        "documento esquinas rotas"
+      ]
+    },
+    {
+      "archivo": "03_presupuesto_bolsas.jpg",
+      "tipo_documento": "presupuesto",
+      "proveedor": {
+        "razon_social": null,
+        "telefono": "3416167617",
+        "direccion": "OV LAGOS 36 D BIS, 2000 ROSARIO, SANTA FE",
+        "cuit": null
+      },
+      "numero": "0001-00136093",
+      "fecha_emision": "2026-05-11",
+      "condicion_pago": "cuenta_corriente",
+      "items": [
+        { "codigo": "77", "descripcion": "ROLLO COCINA 200 PAÑOS x 1 -NEW PEL",       "cantidad":  8, "unidad": "un",    "precio_unitario": 2983.499, "importe": 23867.99, "confianza": 0.85 },
+        { "codigo": null, "descripcion": "BOLSA FONDO CUADRADO N°5 (26x17x40) x 250", "cantidad": 50, "unidad": "paq",   "precio_unitario":  194.890, "importe":  9744.50, "confianza": 0.80 },
+        { "codigo": null, "descripcion": "MANGA DESCARTABLE N°4 (28x50) x 10",         "cantidad":  2, "unidad": "paq",   "precio_unitario": 4600.000, "importe":  9200.00, "confianza": 0.85 }
+      ],
+      "subtotal": 42812.49,
+      "total": 42812.49,
+      "calidad_imagen": "regular",
+      "advertencias": [
+        "documento rotado 90 grados — requiere pre-procesado",
+        "P.UNIT con 3 decimales (raro pero correcto)"
+      ]
+    },
+    {
+      "archivo": "04_entrepreneur_panko.jpg",
+      "tipo_documento": "factura_a",
+      "proveedor": {
+        "razon_social": "ENTREPRENEUR SRL",
+        "cuit": "30710918917",
+        "telefono": "0341-4238686 / 8681",
+        "direccion": "Av Francia 3950, 2000 Rosario, Santa Fe"
+      },
+      "numero": "0006-00822869",
+      "fecha_emision": "2026-05-08",
+      "condicion_pago": "cuenta_corriente",
+      "items": [
+        { "codigo": null, "descripcion": "Panko - TASSYA - x 200 gr", "cantidad": 3, "unidad": "un", "precio_unitario": 2426.45, "importe": 7279.34, "confianza": 0.75 }
+      ],
+      "subtotal": 7279.34,
+      "iva_porcentaje": 21,
+      "iva": 1528.66,
+      "total": 8808.00,
+      "calidad_imagen": "regular",
+      "advertencias": [
+        "ticket termico chico — texto borroso en algunas filas",
+        "documento rotado 90 grados"
+      ]
+    },
+    {
+      "archivo": "05_flomar_vieyras.jpg",
+      "tipo_documento": "factura_a",
+      "proveedor": {
+        "razon_social": "Flomar PyM SRL",
+        "cuit": "30716519488",
+        "telefono": "0341-426-2565 / 421-6206",
+        "direccion": "ZEBALLOS 1536, 2000 ROSARIO"
+      },
+      "numero": "0001-00027499",
+      "fecha_emision": "2026-05-05",
+      "condicion_pago": "cuenta_corriente",
+      "items": [
+        { "codigo": "177", "descripcion": "CAYOS VIEYRAS (Lote L000017720251231)", "cantidad": 2.030, "unidad": "kg", "precio_unitario": 29999.00, "importe": 60897.97, "confianza": 0.98 }
+      ],
+      "subtotal": 60897.97,
+      "iva_porcentaje": 21,
+      "iva": 12788.57,
+      "total": 73686.54,
+      "calidad_imagen": "buena",
+      "advertencias": [
+        "documento con dobleces — sin pérdida de informacion"
+      ]
+    },
+    {
+      "archivo": "06_distribuidora_tokyo.jpg",
+      "tipo_documento": "remito",
+      "proveedor": {
+        "razon_social": "Distribuidora Tokyo (AQUINO MARTIN DALMACIO)",
+        "cuit": "20254293696",
+        "direccion": "GUATEMALA 5841, CABA",
+        "telefono": null
+      },
+      "numero": "00001-10245",
+      "fecha_emision": "2026-05-05",
+      "condicion_pago": null,
+      "items": [
+        { "codigo": null, "descripcion": "Gari (Jengibre) ROSA x Kg",       "cantidad": 1, "unidad": "kg", "precio_unitario":  7500.00, "importe":  7500.00, "confianza": 1.0 },
+        { "codigo": null, "descripcion": "Hojas de Bamboo FRESCAS",         "cantidad": 1, "unidad": "un", "precio_unitario":  8600.00, "importe":  8600.00, "confianza": 1.0 },
+        { "codigo": null, "descripcion": "Palito con funda bamboo 21cm",    "cantidad": 1, "unidad": "un", "precio_unitario":  4200.00, "importe":  4200.00, "confianza": 1.0 },
+        { "codigo": null, "descripcion": "SAKE KIKU-MASAMUNE 1800ML",       "cantidad": 1, "unidad": "un", "precio_unitario": 69000.00, "importe": 69000.00, "confianza": 1.0 }
+      ],
+      "subtotal": 89300.00,
+      "total": 89300.00,
+      "calidad_imagen": "excelente",
+      "advertencias": []
+    }
+  ]
+}

@@ -1,5 +1,13 @@
 import { buildArcaQrUrl, formatReceiptNumber } from './fiscal'
 import { calculateDiscountAmount, calculateOrderSubtotal, clampDiscount } from './orders'
+import { printerClient, getPrinterFor, canPrintRemote } from './printerClient'
+import {
+  buildComandaText,
+  buildCustomerTicketText,
+  buildFiscalTicketText,
+  formatMoney as escposFormatMoney,
+} from './escposFormatter'
+import { getPrinterConfig } from './printerStore'
 
 const CANAL_LABELS = {
   salon: 'Salon',
@@ -18,12 +26,7 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;')
 }
 
-export function formatMoney(value) {
-  return Number(value || 0).toLocaleString('es-AR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-}
+export const formatMoney = escposFormatMoney
 
 function formatDateTime(value) {
   const date = value ? new Date(value) : new Date()
@@ -50,7 +53,7 @@ function renderClienteBlock(pedido) {
   const rows = [
     nombre    && `<div class="row"><span>Cliente</span><span class="bold">${escapeHtml(nombre)}</span></div>`,
     telefono  && `<div class="row"><span>Tel</span><span>${escapeHtml(telefono)}</span></div>`,
-    direccion && `<div class="row"><span>Dirección</span><span>${escapeHtml(direccion)}</span></div>`,
+    direccion && `<div class="row"><span>Direccion</span><span>${escapeHtml(direccion)}</span></div>`,
   ].filter(Boolean).join('')
   return `<div class="sep"></div>${rows}`
 }
@@ -65,7 +68,13 @@ function normalizeItems(pedido) {
   }))
 }
 
-function printDocument(title, bodyHtml) {
+// ============================================================
+// FALLBACK: impresion via window.print() (iframe + dialog del navegador).
+// Se usa si NO esta configurado GG EZ Print, o si el WebSocket falla.
+// Es el mismo flujo que tenia el sistema antes.
+// ============================================================
+
+function printDocumentBrowser(title, bodyHtml) {
   const iframe = document.createElement('iframe')
   iframe.setAttribute('title', title)
   iframe.style.position = 'fixed'
@@ -133,7 +142,7 @@ function printDocument(title, bodyHtml) {
   }, 250)
 }
 
-export function printComanda(pedido) {
+function buildComandaHtml(pedido) {
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
   const items = normalizeItems(pedido)
   const canal = CANAL_LABELS[pedido?.canal] || pedido?.canal || 'Pedido'
@@ -147,7 +156,7 @@ export function printComanda(pedido) {
     ${item.notas ? `<div class="note">Nota: ${escapeHtml(item.notas)}</div>` : ''}
   `).join('')
 
-  const body = `
+  return `
     <main class="ticket">
       <div class="center bold xl">KIKU SUSHI</div>
       <div class="center bold lg">COMANDA INTERNA</div>
@@ -166,11 +175,9 @@ export function printComanda(pedido) {
       <div class="center sm">Kiku Sushi - Cocina</div>
     </main>
   `
-
-  printDocument(`Comanda ${shortId}${rondaLabel ? ' - ' + rondaLabel : ''}`, body)
 }
 
-export function printCustomerTicket(pedido, config) {
+function buildCustomerHtml(pedido, config) {
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
   const items = normalizeItems(pedido)
   const canal = CANAL_LABELS[pedido?.canal] || pedido?.canal || 'Pedido'
@@ -192,7 +199,7 @@ export function printCustomerTicket(pedido, config) {
     `
   }).join('')
 
-  const body = `
+  return `
     <main class="ticket">
       <div class="center bold xl">${escapeHtml(config?.nombre_fantasia || 'KIKU SUSHI')}</div>
       <div class="center bold lg">NO VALIDO COMO FACTURA</div>
@@ -212,11 +219,9 @@ export function printCustomerTicket(pedido, config) {
       <div class="row bold lg"><span>Total</span><span>$${formatMoney(total)}</span></div>
     </main>
   `
-
-  printDocument(`Ticket cliente ${shortId}`, body)
 }
 
-export function printFiscalTicket(pedido, comprobante, config) {
+function buildFiscalHtml(pedido, comprobante, config) {
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : ''
   const items = normalizeItems(pedido)
   const qrUrl = comprobante?.qr_url || buildArcaQrUrl(comprobante, config)
@@ -237,7 +242,7 @@ export function printFiscalTicket(pedido, comprobante, config) {
     `
   }).join('')
 
-  const body = `
+  return `
     <main class="ticket">
       <div class="center bold xl">${escapeHtml(config?.nombre_fantasia || 'KIKU SUSHI')}</div>
       ${config?.razon_social ? `<div class="center">${escapeHtml(config.razon_social)}</div>` : ''}
@@ -277,7 +282,66 @@ export function printFiscalTicket(pedido, comprobante, config) {
       <div class="center sm">Comprobante autorizado por ARCA</div>
     </main>
   `
-
-  printDocument(`Factura ${receiptNumber}`, body)
 }
-  
+
+// ============================================================
+// FLUJO NUEVO: primero intenta GG EZ Print (WebSocket -> ESC/POS),
+// si falla cae al fallback del navegador con el HTML.
+// ============================================================
+
+async function tryRemotePrint(kind, content) {
+  if (!canPrintRemote(kind)) return false
+  const printer = getPrinterFor(kind)
+  const cfg = getPrinterConfig()
+  try {
+    await printerClient.print({
+      printerName: printer.name,
+      type: printer.type,
+      content,
+      fontSize: cfg.font_size,
+      paperWidth: cfg.paper_width,
+    })
+    return true
+  } catch (err) {
+    console.warn(`[printing] GG EZ Print fallo para ${kind}, fallback a window.print():`, err.message)
+    return false
+  }
+}
+
+// ============================================================
+// API publica - mantiene las mismas firmas que la version anterior.
+// ============================================================
+
+export async function printComanda(pedido) {
+  const cfg = getPrinterConfig()
+  const text = buildComandaText(pedido, { width: cfg.chars_per_line })
+  const ok = await tryRemotePrint('comanda', text)
+  if (ok) return
+
+  const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
+  const rondaLabel = pedido?._ronda_label || ''
+  printDocumentBrowser(
+    `Comanda ${shortId}${rondaLabel ? ' - ' + rondaLabel : ''}`,
+    buildComandaHtml(pedido)
+  )
+}
+
+export async function printCustomerTicket(pedido, config) {
+  const cfg = getPrinterConfig()
+  const text = buildCustomerTicketText(pedido, config, { width: cfg.chars_per_line })
+  const ok = await tryRemotePrint('ticket', text)
+  if (ok) return
+
+  const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
+  printDocumentBrowser(`Ticket cliente ${shortId}`, buildCustomerHtml(pedido, config))
+}
+
+export async function printFiscalTicket(pedido, comprobante, config) {
+  const cfg = getPrinterConfig()
+  const text = buildFiscalTicketText(pedido, comprobante, config, { width: cfg.chars_per_line })
+  const ok = await tryRemotePrint('fiscal', text)
+  if (ok) return
+
+  const receiptNumber = formatReceiptNumber(comprobante?.punto_venta, comprobante?.numero)
+  printDocumentBrowser(`Factura ${receiptNumber}`, buildFiscalHtml(pedido, comprobante, config))
+}

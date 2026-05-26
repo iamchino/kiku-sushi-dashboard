@@ -1,18 +1,21 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, LayoutGrid, Users } from 'lucide-react'
+import { ArrowLeft, LayoutGrid, Users, Printer } from 'lucide-react'
 import SalonEditor from '../components/mesas/SalonEditor'
 import MozosManager from '../components/mesas/MozosManager'
+import PrinterConfig from '../components/config/PrinterConfig'
 
 const TABS = [
-  { id: 'plano',   label: 'Plano del salón', Icon: LayoutGrid },
-  { id: 'mozos',   label: 'Camareros',       Icon: Users },
+  { id: 'plano',       label: 'Plano del salón', Icon: LayoutGrid },
+  { id: 'mozos',       label: 'Camareros',       Icon: Users },
+  { id: 'impresoras',  label: 'Impresoras',      Icon: Printer },
 ]
 
 /**
  * Página de configuración del salón:
  * - Editor de plano (drag/drop de mesas, multi-salón)
  * - Gestión de camareros
+ * - Configuración de impresoras (GG EZ Print)
  */
 export default function ConfigSalonPage() {
   const [tab, setTab] = useState('plano')
@@ -39,7 +42,7 @@ export default function ConfigSalonPage() {
               Configuración del salón
             </h1>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              Diseñá el plano de tus salones y administrá camareros
+              Diseñá el plano de tus salones, administrá camareros y configurá las impresoras
             </p>
           </div>
         </div>
@@ -73,6 +76,14 @@ export default function ConfigSalonPage() {
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="max-w-2xl mx-auto">
             <MozosManager />
+          </div>
+        </div>
+      )}
+
+      {tab === 'impresoras' && (
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="max-w-3xl mx-auto">
+            <PrinterConfig />
           </div>
         </div>
       )}

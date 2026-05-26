@@ -22,6 +22,7 @@ import Login from './pages/Login'
 import { ThemeProvider } from './context/ThemeContext'
 import { RoleContext, DEFAULT_ROLE, getRoleFromUser, canAccessRoute, getDefaultRoute } from './context/role'
 import { useRole } from './context/useRole'
+import { usePrinterStore } from './lib/printerStore'
 
 function AdminLayout({ children }) {
   const role = useRole()
@@ -79,6 +80,7 @@ function AppRoutes() {
 export default function App() {
   const [session, setSession] = useState(undefined)
   const [role, setRole] = useState(DEFAULT_ROLE)
+  const loadPrinterConfig = usePrinterStore(s => s.load)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -91,6 +93,11 @@ export default function App() {
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  // Cargar config de impresoras cuando hay sesion (RLS autenticada).
+  useEffect(() => {
+    if (session) loadPrinterConfig()
+  }, [session, loadPrinterConfig])
 
   if (session === undefined) {
     return (
