@@ -3,6 +3,7 @@ import { Plus, RefreshCw, Search, Calendar, ClipboardList, ChevronRight, Users, 
 import { supabase } from '../lib/supabase'
 import {
   useReservas, RESERVA_ESTADO_LABEL, RESERVA_ESTADO_COLOR,
+  TIPO_EXPERIENCIA_OPCIONES, TIPO_EXPERIENCIA_LABEL, TIPO_EXPERIENCIA_COLOR,
 } from '../hooks/useReservas'
 import { normalizeSearch } from '../utils/normalize'
 import NuevaReservaModal from '../components/reservas/NuevaReservaModal'
@@ -31,6 +32,19 @@ const RANGO_OPCIONES = [
   { id: 'custom',   label: 'Custom' },
 ]
 
+const TIPO_FILTRO_OPCIONES = [
+  { id: 'todos', label: 'Todos los tipos' },
+  ...TIPO_EXPERIENCIA_OPCIONES.map(o => ({ id: o.id, label: o.label })),
+  { id: 'sin_tipo', label: 'Sin tipo (legacy)' },
+]
+
+const SORT_OPCIONES = [
+  { id: 'fecha_asc',  label: 'Fecha · más cercana primero' },
+  { id: 'fecha_desc', label: 'Fecha · más lejana primero' },
+  { id: 'creada_desc', label: 'Más recientes (por creación)' },
+  { id: 'creada_asc',  label: 'Más antiguas (por creación)' },
+]
+
 function rangoToDates(rango, customFrom, customTo) {
   const today = new Date()
   const toIso = (d) => d.toISOString().slice(0, 10)
@@ -46,6 +60,8 @@ export default function ReservasPage() {
   const [customTo, setCustomTo]     = useState('')
   const [search, setSearch]         = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState('todos')
+  const [tipoFiltro, setTipoFiltro]     = useState('todos')
+  const [sortBy, setSortBy]             = useState('fecha_asc')
 
   const [nuevaOpen, setNuevaOpen] = useState(false)
   const [selected,  setSelected]  = useState(null)
@@ -77,6 +93,13 @@ export default function ReservasPage() {
     const q = normalizeSearch(search.trim())
     let list = reservas.slice()
     if (estadoFiltro !== 'todos') list = list.filter(r => r.estado === estadoFiltro)
+    if (tipoFiltro !== 'todos') {
+      if (tipoFiltro === 'sin_tipo') {
+        list = list.filter(r => !r.tipo_experiencia)
+      } else {
+        list = list.filter(r => r.tipo_experiencia === tipoFiltro)
+      }
+    }
     if (q) {
       list = list.filter(r => {
         const nombre = normalizeSearch(r.cliente_nombre || '')
@@ -85,8 +108,21 @@ export default function ReservasPage() {
         return nombre.includes(q) || tel.includes(q) || email.includes(q)
       })
     }
+    // Sort según opción seleccionada
+    const cmpFecha = (a, b) => {
+      const aKey = `${a.fecha} ${a.hora}`
+      const bKey = `${b.fecha} ${b.hora}`
+      return aKey.localeCompare(bKey)
+    }
+    const cmpCreada = (a, b) => new Date(a.created_at) - new Date(b.created_at)
+
+    if (sortBy === 'fecha_asc')   list.sort(cmpFecha)
+    if (sortBy === 'fecha_desc')  list.sort((a, b) => -cmpFecha(a, b))
+    if (sortBy === 'creada_asc')  list.sort(cmpCreada)
+    if (sortBy === 'creada_desc') list.sort((a, b) => -cmpCreada(a, b))
+
     return list
-  }, [reservas, search, estadoFiltro])
+  }, [reservas, search, estadoFiltro, tipoFiltro, sortBy])
 
   return (
     <div className="flex flex-col h-full">
@@ -182,6 +218,26 @@ export default function ReservasPage() {
         >
           {ESTADO_FILTRO_OPCIONES.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
         </select>
+
+        <select
+          value={tipoFiltro}
+          onChange={e => setTipoFiltro(e.target.value)}
+          className="px-2 py-1.5 rounded-lg text-xs outline-none cursor-pointer"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+          title="Filtrar por experiencia"
+        >
+          {TIPO_FILTRO_OPCIONES.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
+
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value)}
+          className="px-2 py-1.5 rounded-lg text-xs outline-none cursor-pointer"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+          title="Ordenar por"
+        >
+          {SORT_OPCIONES.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
       </div>
 
       {/* Stats chips */}
@@ -259,6 +315,8 @@ export default function ReservasPage() {
 function ReservaRow({ reserva, onSelect }) {
   const estadoMeta = RESERVA_ESTADO_COLOR[reserva.estado]
   const origenMeta = ORIGEN_META[reserva.origen] || ORIGEN_META.dashboard
+  const tipoLabel  = TIPO_EXPERIENCIA_LABEL[reserva.tipo_experiencia]
+  const tipoColor  = TIPO_EXPERIENCIA_COLOR[reserva.tipo_experiencia]
   const hora = String(reserva.hora).slice(0, 5)
 
   return (
@@ -287,6 +345,13 @@ function ReservaRow({ reserva, onSelect }) {
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
                 style={{ background: estadoMeta.bg, color: estadoMeta.color }}>
                 {RESERVA_ESTADO_LABEL[reserva.estado]}
+              </span>
+            )}
+            {tipoLabel && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"
+                style={{ background: `${tipoColor}15`, color: tipoColor, border: `1px solid ${tipoColor}33` }}>
+                <span className="w-1 h-1 rounded-full" style={{ background: tipoColor }} />
+                {tipoLabel}
               </span>
             )}
             <span className="text-[10px] px-1.5 py-0.5 rounded"

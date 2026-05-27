@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { X, Calendar, Clock, Users, User, Phone, Mail, FileText, Loader2, AlertCircle, Salad, Accessibility } from 'lucide-react'
+import { X, Calendar, Clock, Users, User, Phone, Mail, FileText, Loader2, AlertCircle, Salad, Accessibility, Sparkles } from 'lucide-react'
+import { TIPO_EXPERIENCIA_OPCIONES } from '../../hooks/useReservas'
 
 /**
  * Modal para crear una reserva manual desde el dashboard.
@@ -15,6 +16,7 @@ export default function NuevaReservaModal({ open, onClose, onCreate }) {
   const [notas,    setNotas]    = useState('')
   const [restricciones, setRestricciones] = useState('')
   const [accesibilidad, setAccesibilidad] = useState('')
+  const [tipoExperiencia, setTipoExperiencia] = useState('carta_abierta')
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState(null)
 
@@ -23,6 +25,7 @@ export default function NuevaReservaModal({ open, onClose, onCreate }) {
       setFecha(''); setHora('20:30'); setPersonas(2)
       setNombre(''); setTelefono(''); setEmail(''); setNotas('')
       setRestricciones(''); setAccesibilidad('')
+      setTipoExperiencia('carta_abierta')
       setBusy(false); setError(null)
     } else {
       // Default: hoy
@@ -49,6 +52,7 @@ export default function NuevaReservaModal({ open, onClose, onCreate }) {
       notas:            notas.trim()    || null,
       restricciones:    restricciones.trim() || null,
       accesibilidad:    accesibilidad.trim() || null,
+      tipo_experiencia: tipoExperiencia      || null,
       origen:           'dashboard',
       auto_confirmar:   true,
     }) || {}
@@ -145,6 +149,20 @@ export default function NuevaReservaModal({ open, onClose, onCreate }) {
               className="w-full px-2 py-2 rounded-lg text-sm outline-none"
               style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
             />
+          </Field>
+
+          <Field icon={Sparkles} label="Experiencia">
+            <select
+              value={tipoExperiencia}
+              onChange={e => setTipoExperiencia(e.target.value)}
+              required
+              className="w-full px-2 py-2 rounded-lg text-sm outline-none cursor-pointer"
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            >
+              {TIPO_EXPERIENCIA_OPCIONES.map(o => (
+                <option key={o.id} value={o.id}>{o.label}</option>
+              ))}
+            </select>
           </Field>
 
           <div className="grid grid-cols-2 gap-3">

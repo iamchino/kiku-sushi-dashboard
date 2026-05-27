@@ -2,9 +2,12 @@ import { useMemo, useState } from 'react'
 import {
   X, Calendar, Clock, Users, User, Phone, Mail, FileText,
   Loader2, AlertCircle, Check, XCircle, UserMinus, Utensils,
-  Salad, Accessibility,
+  Salad, Accessibility, Sparkles,
 } from 'lucide-react'
-import { RESERVA_ESTADO_LABEL, RESERVA_ESTADO_COLOR } from '../../hooks/useReservas'
+import {
+  RESERVA_ESTADO_LABEL, RESERVA_ESTADO_COLOR,
+  TIPO_EXPERIENCIA_LABEL, TIPO_EXPERIENCIA_COLOR,
+} from '../../hooks/useReservas'
 
 const ORIGEN_META = {
   web:       { label: 'Web',       color: '#4f8ef7' },
@@ -120,6 +123,26 @@ export default function ReservaDetalleModal({
               style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
               <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {reserva.tipo_experiencia && TIPO_EXPERIENCIA_LABEL[reserva.tipo_experiencia] && (
+            <div className="rounded-lg p-3 flex items-center gap-2"
+              style={{
+                background: `${TIPO_EXPERIENCIA_COLOR[reserva.tipo_experiencia]}10`,
+                border: `1px solid ${TIPO_EXPERIENCIA_COLOR[reserva.tipo_experiencia]}30`,
+              }}>
+              <Sparkles size={13} style={{ color: TIPO_EXPERIENCIA_COLOR[reserva.tipo_experiencia] }} />
+              <div className="flex-1">
+                <p className="text-[10px] uppercase tracking-wide font-bold"
+                  style={{ color: 'var(--text-muted)' }}>
+                  Experiencia
+                </p>
+                <p className="text-sm font-semibold"
+                  style={{ color: TIPO_EXPERIENCIA_COLOR[reserva.tipo_experiencia] }}>
+                  {TIPO_EXPERIENCIA_LABEL[reserva.tipo_experiencia]}
+                </p>
+              </div>
             </div>
           )}
 

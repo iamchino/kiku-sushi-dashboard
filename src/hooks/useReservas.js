@@ -20,6 +20,22 @@ export const RESERVA_ESTADO_COLOR = {
   cancelada:  { bg: 'rgba(239,68,68,0.10)',   color: '#f87171' },
 }
 
+// ─── Tipos de experiencia (deben coincidir con check de DB) ───────────────
+export const TIPO_EXPERIENCIA_OPCIONES = [
+  { id: 'carta_abierta',        label: 'Carta abierta',         short: 'Carta',         color: '#9b8faa' },
+  { id: 'omakase',              label: 'Omakase',               short: 'Omakase',       color: '#E8D4A2' },
+  { id: 'kiku_libre',           label: 'Kiku Libre',            short: 'Kiku Libre',    color: '#FF4FBE' },
+  { id: 'umami_del_sur',        label: 'Umami del Sur',         short: 'Umami',         color: '#7B3FBE' },
+  { id: 'pacifico_y_patagonia', label: 'Pacífico y Patagonia',  short: 'Pacífico',      color: '#4f8ef7' },
+]
+
+export const TIPO_EXPERIENCIA_LABEL = Object.fromEntries(
+  TIPO_EXPERIENCIA_OPCIONES.map(o => [o.id, o.label])
+)
+export const TIPO_EXPERIENCIA_COLOR = Object.fromEntries(
+  TIPO_EXPERIENCIA_OPCIONES.map(o => [o.id, o.color])
+)
+
 /**
  * Hook con realtime para reservas.
  *
@@ -96,6 +112,7 @@ export function useReservas(options = {}) {
       p_auto_confirmar:   payload.auto_confirmar !== false,
       p_restricciones:    payload.restricciones    || null,
       p_accesibilidad:    payload.accesibilidad    || null,
+      p_tipo_experiencia: payload.tipo_experiencia || null,
     })
     if (!rpcErr) fetchReservas()
     return { reservaId: data, error: rpcErr }
