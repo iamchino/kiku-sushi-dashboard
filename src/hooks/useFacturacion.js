@@ -7,6 +7,7 @@ import {
   buildFiscalRequest,
   esNotaCredito,
   getAuthorizedComprobante,
+  getNotasCredito,
   letraFromTipo,
   normalizeComprobanteResponse,
 } from '../lib/fiscal'
@@ -113,11 +114,32 @@ export function useFacturacion() {
     const facturados = pedidos.filter(getAuthorizedComprobante)
     const pendiente = pedidos.filter(pedido => !getAuthorizedComprobante(pedido))
 
+    // Total facturado real (sólo facturas autorizadas)
+    const totalFacturado = facturados.reduce((acc, p) => {
+      const c = getAuthorizedComprobante(p)
+      return acc + Number(c?.importe_total || 0)
+    }, 0)
+
+    // Sumar todas las Notas de Crédito autorizadas
+    let totalNotasCredito = 0
+    let cantidadNotasCredito = 0
+    pedidos.forEach(p => {
+      const ncs = getNotasCredito(p)
+      cantidadNotasCredito += ncs.length
+      totalNotasCredito += ncs.reduce((acc, nc) => acc + Number(nc.importe_total || 0), 0)
+    })
+
+    const netoFacturado = Math.max(0, totalFacturado - totalNotasCredito)
+
     return {
       pedidos: pedidos.length,
       total,
       facturados: facturados.length,
       pendientes: pendiente.length,
+      totalFacturado,
+      notasCredito: cantidadNotasCredito,
+      totalNotasCredito,
+      netoFacturado,
     }
   }, [pedidos])
 

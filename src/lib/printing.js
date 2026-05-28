@@ -1,3 +1,4 @@
+import QRCode from 'qrcode'
 import { buildArcaQrUrl, formatReceiptNumber, nombreComprobante } from './fiscal'
 import { calculateDiscountAmount, calculateOrderSubtotal, clampDiscount } from './orders'
 import { printerClient, getPrinterFor, canPrintRemote } from './printerClient'
@@ -8,6 +9,25 @@ import {
   formatMoney as escposFormatMoney,
 } from './escposFormatter'
 import { getPrinterConfig } from './printerStore'
+
+/**
+ * Genera un data URL PNG del QR a partir de la URL de ARCA.
+ * Si falla por cualquier razón devuelve null y caemos al fallback de texto.
+ */
+async function generateQrDataUrl(qrUrl) {
+  if (!qrUrl) return null
+  try {
+    return await QRCode.toDataURL(qrUrl, {
+      errorCorrectionLevel: 'M',
+      margin: 1,
+      width: 200,
+      color: { dark: '#000000', light: '#FFFFFF' },
+    })
+  } catch (err) {
+    console.warn('[printing] No se pudo generar QR data URL:', err.message)
+    return null
+  }
+}
 
 const CANAL_LABELS = {
   salon: 'Salon',
@@ -237,7 +257,6 @@ function buildCustomerHtml(pedido, config) {
 function buildFiscalHtml(pedido, comprobante, config) {
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : ''
   const items = normalizeItems(pedido)
-  const qrUrl = comprobante?.qr_url || buildArcaQrUrl(comprobante, config)
   const receiptNumber = formatReceiptNumber(comprobante?.punto_venta, comprobante?.numero)
   const cae = comprobante?.cae || ''
   const descuento = clampDiscount(pedido?.descuento_porcentaje)
@@ -312,7 +331,7 @@ function buildFiscalHtml(pedido, comprobante, config) {
       <div class="row"><span>Vto. CAE</span><span>${escapeHtml(formatDate(comprobante?.cae_vto))}</span></div>
       ${comprobante?.qr_data_url
         ? `<img class="qr" alt="QR ARCA" src="${escapeHtml(comprobante.qr_data_url)}" />`
-        : `<div class="qr-url">${escapeHtml(qrUrl || 'QR pendiente de generar en backend')}</div>`
+        : ''
       }
       <div class="sep"></div>
       <div class="center sm">Comprobante autorizado por ARCA</div>
@@ -374,10 +393,21 @@ export async function printCustomerTicket(pedido, config) {
 
 export async function printFiscalTicket(pedido, comprobante, config) {
   const cfg = getPrinterConfig()
-  const text = buildFiscalTicketText(pedido, comprobante, config, { width: cfg.chars_per_line })
+
+  // Enriquecemos el comprobante con el QR como imagen (data URL) si todavía no lo tiene.
+  let enrichedComprobante = comprobante
+  if (comprobante && !comprobante.qr_data_url) {
+    const qrUrl = comprobante.qr_url || buildArcaQrUrl(comprobante, config)
+    const qrDataUrl = await generateQrDataUrl(qrUrl)
+    if (qrDataUrl) {
+      enrichedComprobante = { ...comprobante, qr_data_url: qrDataUrl }
+    }
+  }
+
+  const text = buildFiscalTicketText(pedido, enrichedComprobante, config, { width: cfg.chars_per_line })
   const ok = await tryRemotePrint('fiscal', text)
   if (ok) return
 
-  const receiptNumber = formatReceiptNumber(comprobante?.punto_venta, comprobante?.numero)
-  printDocumentBrowser(`Factura ${receiptNumber}`, buildFiscalHtml(pedido, comprobante, config))
+  const receiptNumber = formatReceiptNumber(enrichedComprobante?.punto_venta, enrichedComprobante?.numero)
+  printDocumentBrowser(`Factura ${receiptNumber}`, buildFiscalHtml(pedido, enrichedComprobante, config))
 }

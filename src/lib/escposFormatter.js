@@ -9,7 +9,7 @@
  * Para tickets mas anchos (papel 80mm = ~48 cols) pasar `width` distinto.
  */
 
-import { buildArcaQrUrl, formatReceiptNumber, nombreComprobante } from './fiscal'
+import { formatReceiptNumber, nombreComprobante } from './fiscal'
 import { calculateDiscountAmount, calculateOrderSubtotal, clampDiscount } from './orders'
 
 const CANAL_LABELS = {
@@ -265,7 +265,6 @@ export function buildFiscalTicketText(pedido, comprobante, config, opts = {}) {
   const items = normalizeItems(pedido)
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : ''
 
-  const qrUrl = comprobante?.qr_url || buildArcaQrUrl(comprobante, config)
   const receiptNumber = formatReceiptNumber(comprobante?.punto_venta, comprobante?.numero)
   const cae = comprobante?.cae || ''
 
@@ -344,10 +343,9 @@ export function buildFiscalTicketText(pedido, comprobante, config, opts = {}) {
   out.push(line(width))
   if (cae) out.push(row('CAE', cae, width))
   if (comprobante?.cae_vto) out.push(row('Vto. CAE', formatDate(comprobante.cae_vto), width))
-  if (qrUrl) {
-    out.push('QR ARCA:')
-    out.push(...wrap(qrUrl, width))
-  }
+  // Nota: la URL del QR se omite del ticket impreso. El QR como imagen lo
+  // imprime el cliente del navegador (HTML) o el cliente GG EZ Print si
+  // se manda el data URL en el content. En texto plano no la mostramos.
   out.push(line(width))
   out.push(center('Comprobante autorizado', width))
   out.push(center('por ARCA', width))

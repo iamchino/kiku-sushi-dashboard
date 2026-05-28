@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { useFacturacion } from '../hooks/useFacturacion'
 import { supabase } from '../lib/supabase'
-import { formatReceiptNumber, getAuthorizedComprobante, nombreComprobante } from '../lib/fiscal'
+import { esNotaCredito, formatReceiptNumber, getAuthorizedComprobante, getNotasCredito, nombreComprobante } from '../lib/fiscal'
 import { formatMoney } from '../lib/printing'
 import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../lib/orders'
 import FacturarModal from '../components/caja/FacturarModal'
@@ -29,6 +29,7 @@ import NotaCreditoModal from '../components/caja/NotaCreditoModal'
 const FILTERS = [
   { id: 'pendientes', label: 'Pendientes' },
   { id: 'facturados', label: 'Facturados' },
+  { id: 'con_nc', label: 'Con NC' },
   { id: 'todos', label: 'Todos' },
 ]
 
@@ -448,6 +449,9 @@ function EditPedidoModal({ pedido, open, saving, onClose, onSave }) {
 
 function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, onTicket, onEdit, onNotaCredito }) {
   const comprobante = getAuthorizedComprobante(pedido)
+  const notasCredito = getNotasCredito(pedido)
+  const totalNc = notasCredito.reduce((acc, nc) => acc + Number(nc.importe_total || 0), 0)
+  const netoFacturado = comprobante ? Math.max(0, Number(comprobante.importe_total || 0) - totalNc) : 0
   const shortId = pedido.id.slice(-4).toUpperCase()
   const items = pedido.pedido_items || []
   const canal = CANAL_LABEL[pedido.canal] || pedido.canal
@@ -495,16 +499,39 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
             {descuento > 0 && (
               <p className="text-[10px] font-semibold" style={{ color: '#34d399' }}>-{descuento.toLocaleString('es-AR')}%</p>
             )}
+            {notasCredito.length > 0 && (
+              <p className="mt-1 text-[10px] font-semibold" style={{ color: '#f87171' }}>
+                NC: -${formatMoney(totalNc)}
+              </p>
+            )}
+            {notasCredito.length > 0 && (
+              <p className="text-[10px] font-semibold" style={{ color: 'var(--accent-lift)' }}>
+                Neto: ${formatMoney(netoFacturado)}
+              </p>
+            )}
           </div>
           {comprobante ? (
-            <span
-              title={comprobanteLabel}
-              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold"
-              style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }}
-            >
-              <CheckCircle2 size={12} />
-              {comprobante.letra} {formatReceiptNumber(comprobante.punto_venta, comprobante.numero)}
-            </span>
+            <div className="flex flex-col items-end gap-1">
+              <span
+                title={comprobanteLabel}
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold"
+                style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }}
+              >
+                <CheckCircle2 size={12} />
+                {comprobante.letra} {formatReceiptNumber(comprobante.punto_venta, comprobante.numero)}
+              </span>
+              {notasCredito.map(nc => (
+                <span
+                  key={nc.id}
+                  title={`${nombreComprobante(nc.tipo_cbte)} por $${formatMoney(nc.importe_total)}`}
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold"
+                  style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}
+                >
+                  <FileMinus2 size={11} />
+                  NC {nc.letra} {formatReceiptNumber(nc.punto_venta, nc.numero)} (-${formatMoney(nc.importe_total)})
+                </span>
+              ))}
+            </div>
           ) : (
             <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
               <AlertTriangle size={12} />
@@ -594,6 +621,9 @@ export default function CajaPage() {
   const filteredPedidos = useMemo(() => {
     if (filter === 'todos') return pedidos
     if (filter === 'facturados') return pedidos.filter(getAuthorizedComprobante)
+    if (filter === 'con_nc') {
+      return pedidos.filter(pedido => (pedido.comprobantes_fiscales || []).some(c => esNotaCredito(c.tipo_cbte) && c.estado === 'autorizado'))
+    }
     return pedidos.filter(pedido => !getAuthorizedComprobante(pedido))
   }, [filter, pedidos])
 
@@ -723,11 +753,13 @@ export default function CajaPage() {
           />
         </section>
 
-        <section className="mt-4 grid gap-3 sm:grid-cols-4">
+        <section className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Stat label="Pedidos" value={stats.pedidos} />
           <Stat label="Pendientes" value={stats.pendientes} color="#fbbf24" />
           <Stat label="Facturados" value={stats.facturados} color="#34d399" />
-          <Stat label="Total dia" value={`$${formatMoney(stats.total)}`} color="#4f8ef7" />
+          <Stat label="Notas Crédito" value={stats.notasCredito} color="#f87171" />
+          <Stat label="Total facturado" value={`$${formatMoney(stats.totalFacturado)}`} color="#4f8ef7" />
+          <Stat label="Neto (post-NC)" value={`$${formatMoney(stats.netoFacturado)}`} color="var(--accent-lift)" />
         </section>
 
         {(error || setupWarning || notice || !arcaReady) && (
