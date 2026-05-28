@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { startOfDay } from 'date-fns'
 import { supabase } from '../lib/supabase'
-import { buildFiscalRequest, getAuthorizedComprobante, normalizeComprobanteResponse } from '../lib/fiscal'
+import {
+  RECEPTOR_CONSUMIDOR_FINAL,
+  TIPO_CBTE,
+  buildFiscalRequest,
+  esNotaCredito,
+  getAuthorizedComprobante,
+  letraFromTipo,
+  normalizeComprobanteResponse,
+} from '../lib/fiscal'
 import { printComanda, printCustomerTicket, printFiscalTicket } from '../lib/printing'
 import { calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../lib/orders'
 
 const ARCA_API_BASE = (import.meta.env.VITE_ARCA_API_URL || '').replace(/\/$/, '')
 const ARCA_COMPROBANTES_URL = import.meta.env.VITE_ARCA_COMPROBANTES_URL
-  || (ARCA_API_BASE ? `${ARCA_API_BASE}/api/arca/comprobantes` : '')
+  || (ARCA_API_BASE ? `${ARCA_API_BASE}/arca-comprobantes` : '')
 
 function sortPedidos(a, b) {
   return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -202,18 +210,14 @@ export function useFacturacion() {
     return { ...values, id: pedidoId, pedido_items: items, descuento_porcentaje: descuento, total }
   }, [fetchData])
 
-  const facturarEImprimir = useCallback(async (pedido) => {
-    const existing = getAuthorizedComprobante(pedido)
-    if (existing) {
-      await imprimirTicket(pedido, existing)
-      return existing
-    }
-
+  /**
+   * Llama al backend ARCA y devuelve { comprobante, payload, result }.
+   * Si el backend ya insertó el comprobante, NO duplicamos. Si no, hacemos el insert legacy.
+   */
+  const llamarArca = useCallback(async (pedido, payload) => {
     if (!arcaReady) {
       throw new Error('El conector ARCA no esta configurado. Falta backend WSFE, CUIT o punto de venta.')
     }
-
-    const payload = buildFiscalRequest(pedido, config)
     const { data: sessionData } = await supabase.auth.getSession()
     const token = sessionData?.session?.access_token
 
@@ -228,12 +232,20 @@ export function useFacturacion() {
 
     const result = await response.json().catch(() => ({}))
     if (!response.ok) {
-      throw new Error(result?.message || result?.error || 'ARCA rechazo o no respondio la solicitud.')
+      throw new Error(result?.error || result?.message || 'ARCA rechazo o no respondio la solicitud.')
     }
 
-    const comprobante = normalizeComprobanteResponse(result, pedido, config)
+    // Caso 1: backend nuevo ya insertó el comprobante en Supabase
+    if (result?.comprobante?.id) {
+      return { comprobante: result.comprobante, result }
+    }
+
+    // Caso 2: backend legacy: hay que insertar nosotros
+    const comprobante = normalizeComprobanteResponse(result, pedido, config, {
+      tipo_cbte: payload.tipo_cbte,
+    })
     if (!comprobante.cae || !comprobante.numero) {
-      throw new Error('ARCA no devolvio CAE o numero de comprobante.')
+      throw new Error('ARCA no devolvió CAE o número de comprobante.')
     }
 
     const { data, error: insertError } = await supabase
@@ -243,11 +255,95 @@ export function useFacturacion() {
       .single()
 
     if (insertError) throw insertError
+    return { comprobante: data, result }
+  }, [arcaReady, config])
 
-    await imprimirTicket(pedido, data)
+  /**
+   * Facturar un pedido. Si ya tiene factura autorizada, sólo reimprime.
+   *
+   * @param {object} pedido
+   * @param {object} [opts]
+   * @param {number} [opts.tipo_cbte]  Default 6 (Factura B)
+   * @param {object} [opts.receptor]   Default Consumidor Final
+   */
+  const facturarEImprimir = useCallback(async (pedido, opts = {}) => {
+    const existing = getAuthorizedComprobante(pedido)
+    if (existing && !opts.forceNew) {
+      await imprimirTicket(pedido, existing)
+      return existing
+    }
+
+    const tipoCbte = Number(opts.tipo_cbte || TIPO_CBTE.FACTURA_B)
+    const payload = buildFiscalRequest(pedido, config, {
+      tipo_cbte: tipoCbte,
+      receptor: opts.receptor || RECEPTOR_CONSUMIDOR_FINAL,
+    })
+
+    const { comprobante } = await llamarArca(pedido, payload)
+    await imprimirTicket(pedido, comprobante)
     await fetchData()
-    return data
-  }, [arcaReady, config, fetchData, imprimirTicket])
+    return comprobante
+  }, [config, fetchData, imprimirTicket, llamarArca])
+
+  /**
+   * Emitir Nota de Crédito sobre un comprobante ya autorizado.
+   * Devuelve la NC creada (también la imprime).
+   *
+   * @param {object} pedido
+   * @param {object} comprobanteOriginal  Factura A/B/C que se anula.
+   * @param {object} [opts]
+   * @param {number} [opts.total]   Total a creditear (default = total del comprobante original).
+   */
+  const emitirNotaCredito = useCallback(async (pedido, comprobanteOriginal, opts = {}) => {
+    if (!comprobanteOriginal?.cae) {
+      throw new Error('El comprobante a anular no tiene CAE.')
+    }
+    if (esNotaCredito(comprobanteOriginal.tipo_cbte)) {
+      throw new Error('No se puede emitir Nota de Crédito sobre otra Nota de Crédito.')
+    }
+
+    // Mapear factura → NC: A→3, B→8, C→13
+    const ncTipo = {
+      1: TIPO_CBTE.NOTA_CREDITO_A,
+      6: TIPO_CBTE.NOTA_CREDITO_B,
+      11: TIPO_CBTE.NOTA_CREDITO_C,
+    }[Number(comprobanteOriginal.tipo_cbte)] || TIPO_CBTE.NOTA_CREDITO_B
+
+    const total = opts.total ?? Number(comprobanteOriginal.importe_total || pedido.total || 0)
+
+    // Construimos un "pseudo-pedido" con el total a creditear para que splitTax funcione bien
+    const pedidoParaPayload = {
+      ...pedido,
+      total,
+      pedido_items: opts.items || pedido.pedido_items || [],
+    }
+
+    const payload = buildFiscalRequest(pedidoParaPayload, config, {
+      tipo_cbte: ncTipo,
+      receptor: {
+        condicion_iva: comprobanteOriginal.receptor_condicion_iva || 'Consumidor Final',
+        condicion_iva_id: comprobanteOriginal.receptor_condicion_iva_id,
+        doc_tipo: Number(comprobanteOriginal.doc_tipo || 99),
+        doc_nro: String(comprobanteOriginal.doc_nro || '0'),
+        nombre: comprobanteOriginal.receptor_nombre || 'Consumidor Final',
+        domicilio: comprobanteOriginal.receptor_domicilio || '',
+      },
+      cbtes_asociados: [
+        {
+          tipo_cbte: Number(comprobanteOriginal.tipo_cbte),
+          punto_venta: Number(comprobanteOriginal.punto_venta),
+          numero: Number(comprobanteOriginal.numero),
+          cuit_emisor: config?.cuit,
+          fecha: comprobanteOriginal.fecha_emision,
+        },
+      ],
+    })
+
+    const { comprobante } = await llamarArca(pedidoParaPayload, payload)
+    await imprimirTicket(pedido, comprobante)
+    await fetchData()
+    return comprobante
+  }, [config, fetchData, imprimirTicket, llamarArca])
 
   return {
     pedidos,
@@ -264,5 +360,9 @@ export function useFacturacion() {
     imprimirTicket,
     actualizarPedido,
     facturarEImprimir,
+    emitirNotaCredito,
   }
 }
+
+// Re-exports útiles para los componentes
+export { TIPO_CBTE, letraFromTipo }

@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Clock,
   Edit3,
+  FileMinus2,
   FileText,
   Loader2,
   Plus,
@@ -19,9 +20,11 @@ import {
 } from 'lucide-react'
 import { useFacturacion } from '../hooks/useFacturacion'
 import { supabase } from '../lib/supabase'
-import { formatReceiptNumber, getAuthorizedComprobante } from '../lib/fiscal'
+import { formatReceiptNumber, getAuthorizedComprobante, nombreComprobante } from '../lib/fiscal'
 import { formatMoney } from '../lib/printing'
 import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../lib/orders'
+import FacturarModal from '../components/caja/FacturarModal'
+import NotaCreditoModal from '../components/caja/NotaCreditoModal'
 
 const FILTERS = [
   { id: 'pendientes', label: 'Pendientes' },
@@ -443,13 +446,14 @@ function EditPedidoModal({ pedido, open, saving, onClose, onSave }) {
   )
 }
 
-function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, onTicket, onEdit }) {
+function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, onTicket, onEdit, onNotaCredito }) {
   const comprobante = getAuthorizedComprobante(pedido)
   const shortId = pedido.id.slice(-4).toUpperCase()
   const items = pedido.pedido_items || []
   const canal = CANAL_LABEL[pedido.canal] || pedido.canal
   const date = new Date(pedido.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
   const descuento = clampDiscount(pedido.descuento_porcentaje)
+  const comprobanteLabel = comprobante ? nombreComprobante(comprobante.tipo_cbte) : null
 
   return (
     <article
@@ -493,9 +497,13 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
             )}
           </div>
           {comprobante ? (
-            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }}>
+            <span
+              title={comprobanteLabel}
+              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold"
+              style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }}
+            >
               <CheckCircle2 size={12} />
-              {formatReceiptNumber(comprobante.punto_venta, comprobante.numero)}
+              {comprobante.letra} {formatReceiptNumber(comprobante.punto_venta, comprobante.numero)}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
@@ -532,6 +540,17 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
           <ReceiptText size={14} />
           Ticket no fiscal
         </button>
+        {comprobante && (
+          <button
+            onClick={() => onNotaCredito(pedido, comprobante)}
+            disabled={busy}
+            className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-50"
+            style={{ color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
+          >
+            <FileMinus2 size={14} />
+            Nota Crédito
+          </button>
+        )}
         <button
           onClick={() => onTicket(pedido)}
           disabled={busy || (!comprobante && !arcaReady)}
@@ -561,6 +580,7 @@ export default function CajaPage() {
     imprimirTicketNoFiscal,
     actualizarPedido,
     facturarEImprimir,
+    emitirNotaCredito,
   } = useFacturacion()
 
   const [filter, setFilter] = useState('pendientes')
@@ -568,6 +588,8 @@ export default function CajaPage() {
   const [editingPedido, setEditingPedido] = useState(null)
   const [savingEdit, setSavingEdit] = useState(false)
   const [notice, setNotice] = useState(null)
+  const [facturarTarget, setFacturarTarget] = useState(null)        // { pedido }
+  const [ncTarget, setNcTarget] = useState(null)                     // { pedido, comprobante }
 
   const filteredPedidos = useMemo(() => {
     if (filter === 'todos') return pedidos
@@ -576,13 +598,55 @@ export default function CajaPage() {
   }, [filter, pedidos])
 
   const handleTicket = async (pedido) => {
+    // Si ya está facturado, reimprime directo. Si no, abre modal para elegir tipo.
+    const existing = getAuthorizedComprobante(pedido)
+    if (existing) {
+      setBusyId(pedido.id)
+      setNotice(null)
+      try {
+        await facturarEImprimir(pedido)
+        setNotice({ type: 'ok', text: 'Ticket reimpreso.' })
+      } catch (err) {
+        setNotice({ type: 'error', text: err.message || 'No se pudo imprimir.' })
+      } finally {
+        setBusyId(null)
+      }
+      return
+    }
+    setFacturarTarget({ pedido })
+  }
+
+  const handleConfirmarFactura = async ({ tipo_cbte, receptor }) => {
+    if (!facturarTarget?.pedido) return
+    const pedido = facturarTarget.pedido
     setBusyId(pedido.id)
     setNotice(null)
     try {
-      await facturarEImprimir(pedido)
-      setNotice({ type: 'ok', text: 'Ticket enviado a impresion.' })
+      await facturarEImprimir(pedido, { tipo_cbte, receptor })
+      setNotice({ type: 'ok', text: 'Comprobante emitido y enviado a impresión.' })
+      setFacturarTarget(null)
     } catch (err) {
       setNotice({ type: 'error', text: err.message || 'No se pudo facturar.' })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const handleNotaCredito = (pedido, comprobante) => {
+    setNcTarget({ pedido, comprobante })
+  }
+
+  const handleConfirmarNc = async ({ total, motivo }) => {
+    if (!ncTarget?.pedido || !ncTarget?.comprobante) return
+    const { pedido, comprobante } = ncTarget
+    setBusyId(pedido.id)
+    setNotice(null)
+    try {
+      await emitirNotaCredito(pedido, comprobante, { total, motivo })
+      setNotice({ type: 'ok', text: 'Nota de crédito emitida y enviada a impresión.' })
+      setNcTarget(null)
+    } catch (err) {
+      setNotice({ type: 'error', text: err.message || 'No se pudo emitir la NC.' })
     } finally {
       setBusyId(null)
     }
@@ -732,6 +796,7 @@ export default function CajaPage() {
                   onNoFiscalTicket={handleNoFiscalTicket}
                   onTicket={handleTicket}
                   onEdit={setEditingPedido}
+                  onNotaCredito={handleNotaCredito}
                 />
               ))}
             </div>
@@ -745,6 +810,24 @@ export default function CajaPage() {
         saving={savingEdit}
         onClose={() => setEditingPedido(null)}
         onSave={handleSaveEdit}
+      />
+
+      <FacturarModal
+        open={Boolean(facturarTarget)}
+        pedido={facturarTarget?.pedido}
+        busy={Boolean(facturarTarget && busyId === facturarTarget.pedido?.id)}
+        permiteFacturaA={Boolean(config?.permite_factura_a)}
+        onClose={() => setFacturarTarget(null)}
+        onConfirm={handleConfirmarFactura}
+      />
+
+      <NotaCreditoModal
+        open={Boolean(ncTarget)}
+        pedido={ncTarget?.pedido}
+        comprobante={ncTarget?.comprobante}
+        busy={Boolean(ncTarget && busyId === ncTarget.pedido?.id)}
+        onClose={() => setNcTarget(null)}
+        onConfirm={handleConfirmarNc}
       />
     </div>
   )
