@@ -381,28 +381,3 @@ export async function printFiscalTicket(pedido, comprobante, config) {
   const receiptNumber = formatReceiptNumber(comprobante?.punto_venta, comprobante?.numero)
   printDocumentBrowser(`Factura ${receiptNumber}`, buildFiscalHtml(pedido, comprobante, config))
 }
-  printDocumentBrowser(
-    `Comanda ${shortId}${rondaLabel ? ' - ' + rondaLabel : ''}`,
-    buildComandaHtml(pedido)
-  )
-}
-
-export async function printCustomerTicket(pedido, config) {
-  const cfg = getPrinterConfig()
-  const text = buildCustomerTicketText(pedido, config, { width: cfg.chars_per_line })
-  const ok = await tryRemotePrint('ticket', text)
-  if (ok) return
-
-  const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
-  printDocumentBrowser(`Ticket cliente ${shortId}`, buildCustomerHtml(pedido, config))
-}
-
-export async function printFiscalTicket(pedido, comprobante, config) {
-  const cfg = getPrinterConfig()
-  const text = buildFiscalTicketText(pedido, comprobante, config, { width: cfg.chars_per_line })
-  const ok = await tryRemotePrint('fiscal', text)
-  if (ok) return
-
-  const receiptNumber = formatReceiptNumber(comprobante?.punto_venta, comprobante?.numero)
-  printDocumentBrowser(`Factura ${receiptNumber}`, buildFiscalHtml(pedido, comprobante, config))
-}

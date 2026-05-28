@@ -354,17 +354,3 @@ export function buildFiscalTicketText(pedido, comprobante, config, opts = {}) {
 
   return out.join('\n')
 }
-
-  out.push(line(width))
-  if (cae) out.push(row('CAE', cae, width))
-  if (comprobante?.cae_vto) out.push(row('Vto. CAE', formatDate(comprobante.cae_vto), width))
-  if (qrUrl) {
-    out.push('QR ARCA:')
-    out.push(...wrap(qrUrl, width))
-  }
-  out.push(line(width))
-  out.push(center('Comprobante autorizado', width))
-  out.push(center('por ARCA', width))
-
-  return out.join('\n')
-}
