@@ -13,8 +13,8 @@ const CANALES = [
   { id: 'pedidosya', label: '🟡  PedidosYa'  },
 ]
 
-export default function NuevoPedidoModal({ open, onClose, onSave }) {
-  const [canal,   setCanal]   = useState('delivery')
+export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial = 'delivery' }) {
+  const [canal,   setCanal]   = useState(canalInicial)
   const [mesa,    setMesa]    = useState('')
   const [notas,   setNotas]   = useState('')
   const [descuentoPorcentaje, setDescuentoPorcentaje] = useState('')
@@ -51,14 +51,16 @@ export default function NuevoPedidoModal({ open, onClose, onSave }) {
       })
   }, [open])
 
-  // Reset on close
+  // Reset on close. Cuando se reabre, respeta el canalInicial.
   useEffect(() => {
-    if (!open) {
-      setCanal('delivery'); setMesa(''); setNotas(''); setDescuentoPorcentaje('')
+    if (open) {
+      setCanal(canalInicial)
+    } else {
+      setCanal(canalInicial); setMesa(''); setNotas(''); setDescuentoPorcentaje('')
       setClienteNombre(''); setClienteTelefono(''); setClienteDireccion('')
       setItems([]); setSearch(''); setError(null); setPrintOnSave(true); setVariantePopup(null)
     }
-  }, [open])
+  }, [open, canalInicial])
 
   const filtered = useMemo(() => {
     if (!search.trim()) return menuItems

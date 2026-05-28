@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Plus, RefreshCw, Search, Utensils, ShoppingBag, Truck, LayoutList,
   ClipboardList, Printer, ChevronRight, ChevronDown, Ban, Loader2,
@@ -7,6 +8,7 @@ import { usePedidos, getTipoPedido, getEstadoSimple, ESTADO_SIGUIENTE } from '..
 import { getAuthorizedComprobante } from '../lib/fiscal'
 import { normalizeSearch } from '../utils/normalize'
 import NuevoPedidoModal from '../components/pedidos/NuevoPedidoModal'
+import ElegirMesaModal from '../components/pedidos/ElegirMesaModal'
 import PedidoDetalleModal from '../components/pedidos/PedidoDetalleModal'
 import { printComanda, formatMoney } from '../lib/printing'
 
@@ -100,7 +102,34 @@ export default function PedidosPage() {
   const [orden, setOrden]               = useState('recent')
 
   const [nuevoOpen, setNuevoOpen] = useState(false)
+  const [nuevoCanal, setNuevoCanal] = useState('delivery')
+  const [elegirMesaOpen, setElegirMesaOpen] = useState(false)
+  const [tipoMenuOpen, setTipoMenuOpen] = useState(false)
+  const tipoMenuRef = useRef(null)
   const [pedidoSel, setPedidoSel] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const focusId = searchParams.get('focus')
+
+  // Cerrar el dropdown al click fuera
+  useEffect(() => {
+    if (!tipoMenuOpen) return
+    const handler = (e) => {
+      if (tipoMenuRef.current?.contains(e.target)) return
+      setTipoMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [tipoMenuOpen])
+
+  const handleTipoClick = (tipoId) => {
+    setTipoMenuOpen(false)
+    if (tipoId === 'salon') {
+      setElegirMesaOpen(true)
+    } else {
+      setNuevoCanal(tipoId)
+      setNuevoOpen(true)
+    }
+  }
 
   const {
     pedidos, loading, error,
@@ -110,6 +139,19 @@ export default function PedidosPage() {
     dateFrom: fechaDesde || last7,
     dateTo:   fechaHasta || today,
   })
+
+  // Si venimos de una notificación con ?focus=<id>, abrimos automáticamente
+  // el detalle de ese pedido cuando termina de cargar.
+  useEffect(() => {
+    if (!focusId || loading) return
+    const target = pedidos.find(p => p.id === focusId)
+    if (target) {
+      setPedidoSel(target)
+      // Limpiamos el query param para que F5 no reabra el modal
+      searchParams.delete('focus')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [focusId, loading, pedidos, searchParams, setSearchParams])
 
   const filtered = useMemo(() => {
     const q = normalizeSearch(search.trim())
@@ -191,18 +233,62 @@ export default function PedidosPage() {
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} style={{ color: 'var(--text-muted)' }} />
           </button>
 
-          <button
-            onClick={() => setNuevoOpen(true)}
-            className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
-            style={{
-              background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-              boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)',
-            }}
-          >
-            <Plus size={15} />
-            <span className="hidden sm:inline">Nueva Orden</span>
-            <span className="sm:hidden">Nueva</span>
-          </button>
+          <div ref={tipoMenuRef} className="relative">
+            <button
+              onClick={() => setTipoMenuOpen(o => !o)}
+              className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
+              style={{
+                background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
+                boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)',
+              }}
+            >
+              <Plus size={15} />
+              <span className="hidden sm:inline">Nueva Orden</span>
+              <span className="sm:hidden">Nueva</span>
+              <ChevronDown size={13} className={tipoMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
+            </button>
+            {tipoMenuOpen && (
+              <div
+                className="absolute right-0 top-full mt-2 w-56 rounded-xl overflow-hidden z-30"
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  boxShadow: '0 16px 40px rgba(0,0,0,0.2)',
+                }}
+              >
+                <button
+                  onClick={() => handleTipoClick('llevar')}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm transition-colors"
+                  style={{ color: 'var(--text-primary)', background: 'transparent' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <ShoppingBag size={15} style={{ color: '#fbbf24' }} />
+                  Para Llevar
+                </button>
+                <button
+                  onClick={() => handleTipoClick('salon')}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm transition-colors"
+                  style={{ color: 'var(--text-primary)', background: 'transparent', borderTop: '1px solid var(--border)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <Utensils size={15} style={{ color: 'var(--accent-lift)' }} />
+                  Para Comer Aquí
+                </button>
+                <button
+                  onClick={() => handleTipoClick('delivery')}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm transition-colors"
+                  style={{ color: 'var(--text-primary)', background: 'transparent', borderTop: '1px solid var(--border)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <Truck size={15} style={{ color: '#4f8ef7' }} />
+                  Delivery
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -330,6 +416,13 @@ export default function PedidosPage() {
         open={nuevoOpen}
         onClose={() => setNuevoOpen(false)}
         onSave={createPedido}
+        canalInicial={nuevoCanal}
+      />
+
+      <ElegirMesaModal
+        open={elegirMesaOpen}
+        onClose={() => setElegirMesaOpen(false)}
+        onPedidoCreado={refetch}
       />
 
       <PedidoDetalleModal

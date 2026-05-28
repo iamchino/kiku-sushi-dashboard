@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, RefreshCw, Search, Calendar, ClipboardList, ChevronRight, Users, Clock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
@@ -66,6 +67,8 @@ export default function ReservasPage() {
   const [nuevaOpen, setNuevaOpen] = useState(false)
   const [selected,  setSelected]  = useState(null)
   const [mesasLibres, setMesasLibres] = useState([])
+  const [searchParams, setSearchParams] = useSearchParams()
+  const focusId = searchParams.get('focus')
 
   const { from, to } = useMemo(
     () => rangoToDates(rango, customFrom, customTo),
@@ -76,6 +79,18 @@ export default function ReservasPage() {
     reservas, stats, loading, error,
     crearReserva, actualizarEstado, sentarReserva, eliminarReserva, refetch,
   } = useReservas({ mode: 'range', dateFrom: from, dateTo: to })
+
+  // Si venimos de una notificación con ?focus=<id>, abrimos automáticamente
+  // el detalle de esa reserva cuando termina de cargar.
+  useEffect(() => {
+    if (!focusId || loading) return
+    const target = reservas.find(r => r.id === focusId)
+    if (target) {
+      setSelected(target)
+      searchParams.delete('focus')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [focusId, loading, reservas, searchParams, setSearchParams])
 
   // Cargar mesas libres cuando se abre el modal de detalle (para acción Sentar)
   useEffect(() => {
