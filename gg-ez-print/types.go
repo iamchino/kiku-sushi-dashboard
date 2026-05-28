@@ -7,6 +7,11 @@ type PrintJob struct {
 	Content     string `json:"content"`
 	FontSize    int    `json:"font_size"`
 	PaperWidth  int    `json:"paper_width"`
+	// QRCodeData: si está presente, el formatter va a renderizar un QR
+	// como bitmap raster ESC/POS y reemplazarlo en el lugar del marker
+	// `{{QR}}` que esté dentro de Content. Si no hay marker, se imprime
+	// al final del ticket.
+	QRCodeData string `json:"qr_code_data,omitempty"`
 }
 
 // WSMessage represents a WebSocket message

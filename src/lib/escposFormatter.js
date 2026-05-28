@@ -9,76 +9,12 @@
  * Para tickets mas anchos (papel 80mm = ~48 cols) pasar `width` distinto.
  */
 
-import QRCode from 'qrcode'
 import { buildArcaQrUrl, formatReceiptNumber, nombreComprobante } from './fiscal'
 
-// ============================================================
-// QR como bitmap raster ESC/POS (comando GS v 0).
-// Compatible con TODAS las impresoras térmicas ESC/POS — la
-// aproximación GS(k QR nativo no funciona en muchos modelos
-// genéricos, así que mejor enviamos la imagen ya rasterizada.
-// ============================================================
-function escposQrBitmap(url, opts = {}) {
-  const data = String(url || '')
-  if (!data) return ''
-
-  const scale = opts.scale || 6        // 1 módulo QR = scale x scale pixels
-  const ecLevel = opts.errorCorrectionLevel || 'M'
-
-  // 1) Generar los módulos del QR (síncrono)
-  let qr
-  try {
-    qr = QRCode.create(data, { errorCorrectionLevel: ecLevel })
-  } catch {
-    return ''
-  }
-  const size = qr.modules.size
-  const moduleData = qr.modules.data // Uint8Array con 0/1 por módulo
-  const pxSize = size * scale
-  const bytesPerRow = Math.ceil(pxSize / 8)
-  const buf = new Uint8Array(bytesPerRow * pxSize)
-
-  // 2) Bit-packing: cada bit del buffer = 1 píxel (1 = negro)
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      if (!moduleData[y * size + x]) continue
-      // Cada módulo se expande a scale × scale píxeles
-      for (let dy = 0; dy < scale; dy++) {
-        const py = y * scale + dy
-        for (let dx = 0; dx < scale; dx++) {
-          const px = x * scale + dx
-          const byteIdx = py * bytesPerRow + (px >> 3)
-          const bitIdx = 7 - (px & 7)
-          buf[byteIdx] |= (1 << bitIdx)
-        }
-      }
-    }
-  }
-
-  // 3) Construir comando GS v 0 (raster bit image)
-  //    GS v 0 m xL xH yL yH d1...dk
-  const GS = '\x1d'
-  const ESC = '\x1b'
-  const xL = String.fromCharCode(bytesPerRow & 0xff)
-  const xH = String.fromCharCode((bytesPerRow >> 8) & 0xff)
-  const yL = String.fromCharCode(pxSize & 0xff)
-  const yH = String.fromCharCode((pxSize >> 8) & 0xff)
-  const header = `${GS}v0\x00${xL}${xH}${yL}${yH}`
-
-  // 4) Convertir el buffer a string. Uint8Array → string char-por-char.
-  //    No usar String.fromCharCode(...buf) porque puede romper con arrays grandes.
-  let payload = ''
-  const chunkSize = 4096
-  for (let i = 0; i < buf.length; i += chunkSize) {
-    payload += String.fromCharCode(...buf.subarray(i, Math.min(i + chunkSize, buf.length)))
-  }
-
-  // 5) Centramos antes, restauramos izquierda después
-  const alignCenter = `${ESC}a\x01`
-  const alignLeft = `${ESC}a\x00`
-
-  return `${alignCenter}${header}${payload}\n${alignLeft}`
-}
+// El QR del ticket fiscal se genera SERVER-SIDE por GG EZ Print (Go).
+// Nosotros solo dejamos un marker `{{QR}}` en el contenido y mandamos
+// la URL aparte en el campo `qr_code_data`. De esta forma evitamos el
+// problema de que JSON+Go expanden bytes > 127 a UTF-8 multi-byte.
 import { calculateDiscountAmount, calculateOrderSubtotal, clampDiscount } from './orders'
 
 const CANAL_LABELS = {
@@ -413,11 +349,12 @@ export function buildFiscalTicketText(pedido, comprobante, config, opts = {}) {
   if (cae) out.push(row('CAE', cae, width))
   if (comprobante?.cae_vto) out.push(row('Vto. CAE', formatDate(comprobante.cae_vto), width))
 
-  // QR ARCA: bitmap raster ESC/POS (GS v 0). Universal — funciona en
-  // cualquier impresora térmica ESC/POS sin importar el modelo.
+  // QR ARCA: dejamos un marker {{QR}} que GG EZ Print reemplaza por el
+  // raster ESC/POS generado server-side (Go). Esto evita el problema de
+  // expansion UTF-8 al pasar bytes binarios por JSON.
   const qrUrl = comprobante?.qr_url || buildArcaQrUrl(comprobante, config)
   if (qrUrl) {
-    out.push(escposQrBitmap(qrUrl))
+    out.push('{{QR}}')
   }
 
   out.push(line(width))

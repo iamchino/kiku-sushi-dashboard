@@ -1,17 +1,48 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Bell, X, CheckCheck, Trash2, ArrowRight } from 'lucide-react'
 import { useNotificaciones } from '../../hooks/useNotificaciones'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
+
+/**
+ * Resuelve la ruta destino de una notificación a partir de su
+ * referencia_tabla y referencia_id. Devuelve null si no hay destino válido.
+ */
+function getNotifTarget(notif) {
+  const refTabla = notif?.referenciaTabla
+  const refId = notif?.referenciaId
+  if (!refTabla) return null
+
+  const tipo = notif?.tipo || ''
+
+  switch (refTabla) {
+    case 'pedidos':
+      // pedidos en estado 'listo' o 'preparando' viven en cocina; el resto
+      // en /pedidos. La página acepta ?focus=<id> para resaltar el item.
+      if (tipo === 'pedido_listo' || tipo === 'pedido_preparando') {
+        return refId ? `/cocina?focus=${refId}` : '/cocina'
+      }
+      return refId ? `/pedidos?focus=${refId}` : '/pedidos'
+    case 'reservas':
+      return refId ? `/reservas?focus=${refId}` : '/reservas'
+    case 'stock':
+      return refId ? `/stock?focus=${refId}` : '/stock'
+    case 'mesas':
+      return refId ? `/mesas?focus=${refId}` : '/mesas'
+    default:
+      return null
+  }
+}
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const [coords, setCoords] = useState({ top: 0, left: 0 })
   const buttonRef = useRef(null)
   const panelRef  = useRef(null)
-  const { notifs, unread, markAllRead, clearAll } = useNotificaciones()
+  const navigate = useNavigate()
+  const { notifs, unread, markAllRead, markRead, clearAll } = useNotificaciones()
 
   const updateCoords = useCallback(() => {
     const btn = buttonRef.current
@@ -140,30 +171,50 @@ export function NotificationBell() {
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sin notificaciones</p>
               </div>
             ) : (
-              visibles.map(n => (
-                <div
-                  key={n.id}
-                  className="flex items-start gap-3 px-4 py-3 transition-colors"
-                  style={{
-                    borderBottom: '1px solid var(--border)',
-                    background: n.leida ? 'transparent' : `${n.color}10`,
-                  }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{n.titulo}</p>
-                    <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                      {n.mensaje}
-                    </p>
-                    <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
-                      {formatDistanceToNow(n.ts, { locale: es, addSuffix: true })}
-                    </p>
-                  </div>
-                  {!n.leida && (
-                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5"
-                      style={{ background: n.color }} />
-                  )}
-                </div>
-              ))
+              visibles.map(n => {
+                const target = getNotifTarget(n)
+                const clickable = Boolean(target)
+                const Tag = clickable ? 'button' : 'div'
+                const handleClick = () => {
+                  if (!clickable) return
+                  if (n._persisted && !n.leida) markRead?.(n.id)
+                  setOpen(false)
+                  navigate(target)
+                }
+                return (
+                  <Tag
+                    key={n.id}
+                    type={clickable ? 'button' : undefined}
+                    onClick={handleClick}
+                    className={`w-full text-left flex items-start gap-3 px-4 py-3 transition-colors ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
+                    style={{
+                      borderBottom: '1px solid var(--border)',
+                      background: n.leida ? 'transparent' : `${n.color}10`,
+                    }}
+                    onMouseEnter={e => { if (clickable) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                    onMouseLeave={e => { if (clickable) e.currentTarget.style.background = n.leida ? 'transparent' : `${n.color}10` }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{n.titulo}</p>
+                      <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                        {n.mensaje}
+                      </p>
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                        {formatDistanceToNow(n.ts, { locale: es, addSuffix: true })}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      {!n.leida && (
+                        <div className="w-1.5 h-1.5 rounded-full mt-1.5"
+                          style={{ background: n.color }} />
+                      )}
+                      {clickable && (
+                        <ArrowRight size={11} style={{ color: 'var(--text-xmuted)', marginTop: !n.leida ? 0 : 4 }} />
+                      )}
+                    </div>
+                  </Tag>
+                )
+              })
             )}
           </div>
 

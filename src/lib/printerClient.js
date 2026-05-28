@@ -203,7 +203,7 @@ class PrinterClient {
    * @param {number} [job.paperWidth=58]
    * @param {string} [job.hostOverride] - Permite testear contra otra IP.
    */
-  async print({ printerName, type, content, fontSize, paperWidth, hostOverride }) {
+  async print({ printerName, type, content, fontSize, paperWidth, hostOverride, qrCodeData }) {
     const cfg = getPrinterConfig()
     const host = hostOverride || cfg.server_host
     if (!printerName) throw new Error('GG EZ Print: falta printer_name')
@@ -219,6 +219,7 @@ class PrinterClient {
           content: String(content || ''),
           font_size: Number(fontSize || cfg.font_size || 1),
           paper_width: Number(paperWidth || cfg.paper_width || 58),
+          ...(qrCodeData ? { qr_code_data: String(qrCodeData) } : {}),
         },
       },
       msg => msg.status === 'success' || msg.status === 'error'

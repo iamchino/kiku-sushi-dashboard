@@ -344,7 +344,7 @@ function buildFiscalHtml(pedido, comprobante, config) {
 // si falla cae al fallback del navegador con el HTML.
 // ============================================================
 
-async function tryRemotePrint(kind, content) {
+async function tryRemotePrint(kind, content, extra = {}) {
   if (!canPrintRemote(kind)) return false
   const printer = getPrinterFor(kind)
   const cfg = getPrinterConfig()
@@ -355,6 +355,7 @@ async function tryRemotePrint(kind, content) {
       content,
       fontSize: cfg.font_size,
       paperWidth: cfg.paper_width,
+      qrCodeData: extra.qrCodeData,
     })
     return true
   } catch (err) {
@@ -405,7 +406,10 @@ export async function printFiscalTicket(pedido, comprobante, config) {
   }
 
   const text = buildFiscalTicketText(pedido, enrichedComprobante, config, { width: cfg.chars_per_line })
-  const ok = await tryRemotePrint('fiscal', text)
+  // Pasamos la URL del QR al servicio de impresión para que la renderice
+  // server-side como bitmap raster (en Go los bytes no se mangle por UTF-8).
+  const qrCodeData = enrichedComprobante?.qr_url || buildArcaQrUrl(enrichedComprobante, config) || ''
+  const ok = await tryRemotePrint('fiscal', text, { qrCodeData })
   if (ok) return
 
   const receiptNumber = formatReceiptNumber(enrichedComprobante?.punto_venta, enrichedComprobante?.numero)

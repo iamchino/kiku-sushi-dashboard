@@ -68,8 +68,26 @@ func formatESCPOSTicket(job PrintJob) []byte {
 	}
 	b.Write([]byte{0x1D, 0x21, sizeByte})
 
-	// Write content
-	b.WriteString(job.Content + "\n")
+	// Si vino qr_code_data, generamos el QR raster ESC/POS y lo insertamos
+	// en el lugar del marker {{QR}}. Si no hay marker, va al final del content.
+	content := job.Content
+	if job.QRCodeData != "" {
+		qrBytes, err := generateQRRaster(job.QRCodeData, 6)
+		if err != nil {
+			logToConsole("ERROR: No se pudo generar QR: %v", err)
+			b.WriteString(content)
+		} else {
+			parts := bytes.SplitN([]byte(content), []byte("{{QR}}"), 2)
+			b.Write(parts[0])
+			b.Write(qrBytes)
+			if len(parts) == 2 {
+				b.Write(parts[1])
+			}
+		}
+	} else {
+		b.WriteString(content)
+	}
+	b.WriteByte('\n')
 
 	// Feed and cut paper
 	b.Write([]byte{0x1B, 0x64, 0x03}) // Feed 3 lines
