@@ -9,7 +9,41 @@
  * Para tickets mas anchos (papel 80mm = ~48 cols) pasar `width` distinto.
  */
 
-import { formatReceiptNumber, nombreComprobante } from './fiscal'
+import { buildArcaQrUrl, formatReceiptNumber, nombreComprobante } from './fiscal'
+
+// ============================================================
+// ESC/POS QR (nativo de la impresora). GG EZ Print pasa los bytes
+// tal cual, así que las impresoras térmicas con soporte QR (mayoría
+// modernas) lo generan ellas mismas.
+// ============================================================
+function escposQrCode(url) {
+  const data = String(url || '')
+  if (!data) return ''
+
+  const GS = '\x1d'
+  const ESC = '\x1b'
+  const cn = '\x31' // function code 49 = QR
+
+  // 1) Model 2 (más compatible)
+  const setModel = `${GS}(k\x04\x00${cn}\x41\x32\x00`
+  // 2) Tamaño del módulo (1..16). 6 = QR aprox 35mm a 80mm de papel.
+  const setSize = `${GS}(k\x03\x00${cn}\x43\x06`
+  // 3) Corrección de errores: 48=L (7%), 49=M (15%), 50=Q, 51=H
+  const setEC = `${GS}(k\x03\x00${cn}\x45\x31`
+  // 4) Guardar datos en el buffer de impresión
+  const dataLen = data.length + 3
+  const pL = String.fromCharCode(dataLen & 0xff)
+  const pH = String.fromCharCode((dataLen >> 8) & 0xff)
+  const storeData = `${GS}(k${pL}${pH}${cn}\x50\x30${data}`
+  // 5) Imprimir el QR cargado
+  const printQr = `${GS}(k\x03\x00${cn}\x51\x30`
+
+  // Centrar antes / restaurar alineación izquierda después
+  const alignCenter = `${ESC}a\x01`
+  const alignLeft = `${ESC}a\x00`
+
+  return `${alignCenter}${setModel}${setSize}${setEC}${storeData}${printQr}\n${alignLeft}`
+}
 import { calculateDiscountAmount, calculateOrderSubtotal, clampDiscount } from './orders'
 
 const CANAL_LABELS = {
@@ -343,9 +377,14 @@ export function buildFiscalTicketText(pedido, comprobante, config, opts = {}) {
   out.push(line(width))
   if (cae) out.push(row('CAE', cae, width))
   if (comprobante?.cae_vto) out.push(row('Vto. CAE', formatDate(comprobante.cae_vto), width))
-  // Nota: la URL del QR se omite del ticket impreso. El QR como imagen lo
-  // imprime el cliente del navegador (HTML) o el cliente GG EZ Print si
-  // se manda el data URL en el content. En texto plano no la mostramos.
+
+  // QR ARCA: comandos ESC/POS embebidos. GG EZ Print los pasa tal cual
+  // y la impresora térmica lo genera nativamente (sin necesidad de imagen).
+  const qrUrl = comprobante?.qr_url || buildArcaQrUrl(comprobante, config)
+  if (qrUrl) {
+    out.push(escposQrCode(qrUrl))
+  }
+
   out.push(line(width))
   out.push(center('Comprobante autorizado', width))
   out.push(center('por ARCA', width))
