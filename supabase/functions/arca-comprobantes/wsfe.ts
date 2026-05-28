@@ -61,11 +61,13 @@ function alicuotaIdFromRate(rate: number): number {
 }
 
 function buildAuthXml(creds: WsaaCredentials, cuit: string): string {
-  return `<Auth>
-    <Token>${xmlEscape(creds.token)}</Token>
-    <Sign>${xmlEscape(creds.sign)}</Sign>
-    <Cuit>${xmlEscape(cuit)}</Cuit>
-  </Auth>`
+  // Cada elemento del Auth debe ir con el prefijo del namespace WSFE (ar:),
+  // si no ARCA responde "Campo Auth no fue ingresado o esta mal formado".
+  return `<ar:Auth>
+    <ar:Token>${xmlEscape(creds.token)}</ar:Token>
+    <ar:Sign>${xmlEscape(creds.sign)}</ar:Sign>
+    <ar:Cuit>${xmlEscape(cuit)}</ar:Cuit>
+  </ar:Auth>`
 }
 
 function wrapSoap(bodyInner: string): string {

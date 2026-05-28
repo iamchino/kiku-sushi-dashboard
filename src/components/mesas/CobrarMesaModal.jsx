@@ -1,84 +1,148 @@
-import { useState } from 'react'
-import { X, Loader2, Receipt, FileText, CheckCircle2, AlertCircle, Lock } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  AlertCircle,
+  Banknote,
+  CheckCircle2,
+  CreditCard,
+  FileText,
+  Loader2,
+  Lock,
+  Receipt,
+  Send,
+  X,
+} from 'lucide-react'
 import { useFacturacion } from '../../hooks/useFacturacion'
 import { getAuthorizedComprobante } from '../../lib/fiscal'
 import { formatMoney } from '../../lib/printing'
 
 /**
  * Modal de cobro de mesa.
- * Reusa useFacturacion para:
- *  - Imprimir ticket no fiscal (sin disparar ARCA)
- *  - Facturar (ARCA) + imprimir
- *  - Cerrar mesa (marca pedido como entregado)
  *
- * MVP: no incluye selector de medio de pago.
+ * Flujo:
+ *  1) El mozo elige medio de pago (efectivo / transferencia / crédito / débito).
+ *     Si es tarjeta, ingresa el nro de operación del posnet.
+ *  2) Una vez cargado el medio, se habilitan las acciones:
+ *      - Ticket no fiscal       (imprime + registra pago + cierra mesa)
+ *      - Facturar + ticket      (ARCA + imprime + registra pago + cierra mesa)
+ *      - Cerrar sin imprimir    (registra pago + cierra mesa)
+ *  3) Si la mesa ya tenía factura emitida, el botón de facturar pasa a "Re-imprimir".
  */
+
+const MEDIOS_PAGO = [
+  { id: 'efectivo',         label: 'Efectivo',          icon: Banknote,   color: '#34d399' },
+  { id: 'transferencia',    label: 'Transferencia',     icon: Send,       color: '#60a5fa' },
+  { id: 'tarjeta_credito',  label: 'Tarjeta Crédito',   icon: CreditCard, color: '#f59e0b' },
+  { id: 'tarjeta_debito',   label: 'Tarjeta Débito',    icon: CreditCard, color: '#a78bfa' },
+]
+
+const TARJETAS = new Set(['tarjeta_credito', 'tarjeta_debito'])
+
 export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa }) {
   const {
     config, arcaReady,
     facturarEImprimir, imprimirTicketNoFiscal, imprimirTicket,
+    registrarPago,
   } = useFacturacion()
 
-  const [loadingTicket, setLoadingTicket] = useState(false)
-  const [loadingFactura, setLoadingFactura] = useState(false)
-  const [loadingCierre, setLoadingCierre] = useState(false)
+  const [medio, setMedio] = useState(null)
+  const [nroOp, setNroOp] = useState('')
+  const [loadingAction, setLoadingAction] = useState(null) // 'ticket' | 'factura' | 'cerrar' | null
   const [error, setError] = useState(null)
+
+  // Reset al abrir
+  useEffect(() => {
+    if (!open) return
+    setMedio(null)
+    setNroOp('')
+    setError(null)
+    setLoadingAction(null)
+  }, [open, pedido?.id])
+
+  const comprobanteAutorizado = useMemo(
+    () => (pedido ? getAuthorizedComprobante(pedido) : null),
+    [pedido],
+  )
 
   if (!open || !pedido) return null
 
-  const comprobanteAutorizado = getAuthorizedComprobante(pedido)
+  const needsNroOp = medio && TARJETAS.has(medio)
+  const nroOpOk = needsNroOp ? String(nroOp).trim().length > 0 : true
+  const medioOk = Boolean(medio) && nroOpOk
 
-  const handleTicketNoFiscal = async () => {
-    setError(null); setLoadingTicket(true)
-    try {
-      await imprimirTicketNoFiscal(pedido)
-    } catch (e) {
-      setError(e.message || 'Error al imprimir')
-    } finally {
-      setLoadingTicket(false)
+  // Wrapper para correr una acción con loading + error + cierre mesa + cierre modal.
+  const runAction = async (kind, fn) => {
+    if (!medioOk) {
+      setError('Elegí un medio de pago antes de continuar.')
+      return
     }
-  }
-
-  const handleFacturar = async () => {
-    setError(null); setLoadingFactura(true)
+    setError(null)
+    setLoadingAction(kind)
     try {
-      if (comprobanteAutorizado) {
-        await imprimirTicket(pedido, comprobanteAutorizado)
-      } else {
-        await facturarEImprimir(pedido)
+      const comprobanteUsado = await fn()
+
+      // 1) Registrar el pago en la BD (para arqueo)
+      await registrarPago({
+        pedido,
+        comprobante: comprobanteUsado || comprobanteAutorizado,
+        medio_pago: medio,
+        numero_operacion: needsNroOp ? nroOp.trim() : null,
+        monto: pedido.total,
+      })
+
+      // 2) Cerrar la mesa (RPC)
+      if (onCerrarMesa) {
+        const { error: cerrarErr } = (await onCerrarMesa()) || {}
+        if (cerrarErr) {
+          setError(`Pago y/o factura registrados, pero la mesa no se cerró: ${cerrarErr.message || cerrarErr}`)
+          return
+        }
       }
+
+      onClose?.()
     } catch (e) {
-      setError(e.message || 'Error al facturar')
+      setError(e.message || 'Algo falló en la acción.')
     } finally {
-      setLoadingFactura(false)
+      setLoadingAction(null)
     }
   }
 
-  const handleCerrar = async () => {
-    setError(null); setLoadingCierre(true)
-    const { error: err } = await onCerrarMesa?.() || {}
-    setLoadingCierre(false)
-    if (err) { setError(err.message || 'Error al cerrar mesa'); return }
-    onClose?.()
-  }
+  const handleTicketNoFiscal = () => runAction('ticket', async () => {
+    await imprimirTicketNoFiscal(pedido)
+    return null
+  })
+
+  const handleFacturar = () => runAction('factura', async () => {
+    if (comprobanteAutorizado) {
+      await imprimirTicket(pedido, comprobanteAutorizado)
+      return comprobanteAutorizado
+    }
+    return await facturarEImprimir(pedido)
+  })
+
+  const handleCerrarSinImprimir = () => runAction('cerrar', async () => null)
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={loadingAction ? undefined : onClose} />
 
       <div
-        className="relative w-full max-w-md rounded-2xl flex flex-col"
+        className="relative w-full max-w-md rounded-2xl flex flex-col max-h-[92vh] overflow-hidden"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 32px 64px rgba(0,0,0,0.4)' }}
       >
-        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between px-5 py-4 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
           <p className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>Cobrar mesa</p>
-          <button type="button" onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ color: 'var(--text-muted)' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={Boolean(loadingAction)}
+            className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-50"
+            style={{ color: 'var(--text-muted)' }}
+          >
             <X size={16} />
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-4 overflow-y-auto">
           {/* Resumen */}
           <div
             className="rounded-xl p-4"
@@ -105,7 +169,7 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
               <div>
                 <p className="font-semibold">Ya se facturó</p>
                 <p className="mt-0.5 opacity-90">
-                  Factura B {comprobanteAutorizado?.punto_venta?.toString().padStart(5,'0')}-
+                  Factura {comprobanteAutorizado.letra} {comprobanteAutorizado?.punto_venta?.toString().padStart(5,'0')}-
                   {comprobanteAutorizado?.numero?.toString().padStart(8,'0')} · CAE {comprobanteAutorizado.cae}
                 </p>
               </div>
@@ -128,6 +192,58 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
             </div>
           )}
 
+          {/* Selector de medio de pago */}
+          <div>
+            <p className="text-[10px] uppercase tracking-widest font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>
+              Medio de pago *
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {MEDIOS_PAGO.map(opt => {
+                const Icon = opt.icon
+                const active = medio === opt.id
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => { setMedio(opt.id); setError(null) }}
+                    disabled={Boolean(loadingAction)}
+                    className="rounded-lg px-3 py-3 text-left flex items-center gap-2 transition-colors disabled:opacity-50"
+                    style={active
+                      ? { background: 'var(--accent-soft)', border: `1px solid ${opt.color}`, color: opt.color }
+                      : { background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                  >
+                    <Icon size={16} style={{ color: opt.color }} />
+                    <span className="text-xs font-semibold">{opt.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {needsNroOp && (
+              <div className="mt-3">
+                <label className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: 'var(--text-muted)' }}>
+                  Nro. operación (posnet) *
+                </label>
+                <input
+                  inputMode="numeric"
+                  autoFocus
+                  value={nroOp}
+                  onChange={e => setNroOp(e.target.value)}
+                  placeholder="Ej: 0123456789"
+                  className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
+                  style={{
+                    background: 'var(--bg-input)',
+                    border: `1px solid ${nroOpOk ? 'var(--border)' : '#f87171'}`,
+                    color: 'var(--text-primary)',
+                  }}
+                />
+                {!nroOpOk && (
+                  <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>Obligatorio para tarjetas.</p>
+                )}
+              </div>
+            )}
+          </div>
+
           {error && (
             <div
               className="rounded-lg px-3 py-2 text-xs flex items-start gap-2"
@@ -137,61 +253,59 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
             </div>
           )}
 
-          {/* Acciones de impresión */}
           <div className="space-y-2">
             <button
               type="button"
               onClick={handleTicketNoFiscal}
-              disabled={loadingTicket}
-              className="w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+              disabled={!medioOk || Boolean(loadingAction)}
+              className="w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
               style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
             >
-              {loadingTicket
-                ? <><Loader2 size={14} className="animate-spin" /> Imprimiendo…</>
-                : <><FileText size={14} /> Ticket no fiscal</>
+              {loadingAction === 'ticket'
+                ? <><Loader2 size={14} className="animate-spin" /> Imprimiendo y cerrando…</>
+                : <><FileText size={14} /> Ticket no fiscal + cerrar mesa</>
               }
             </button>
 
             <button
               type="button"
               onClick={handleFacturar}
-              disabled={loadingFactura || (!arcaReady && !comprobanteAutorizado)}
+              disabled={!medioOk || Boolean(loadingAction) || (!arcaReady && !comprobanteAutorizado)}
               className="w-full py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-40 hover:scale-[1.01]"
               style={{
                 background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
                 boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.35)',
               }}
             >
-              {loadingFactura
+              {loadingAction === 'factura'
                 ? <><Loader2 size={14} className="animate-spin" /> Procesando…</>
                 : comprobanteAutorizado
-                  ? <><Receipt size={14} /> Re-imprimir factura</>
-                  : <><Receipt size={14} /> Facturar + ticket fiscal</>
+                  ? <><Receipt size={14} /> Re-imprimir factura + cerrar mesa</>
+                  : <><Receipt size={14} /> Facturar + ticket fiscal + cerrar mesa</>
               }
             </button>
           </div>
 
-          {/* Cerrar mesa */}
           <button
             type="button"
-            onClick={handleCerrar}
-            disabled={loadingCierre}
-            className="w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+            onClick={handleCerrarSinImprimir}
+            disabled={!medioOk || Boolean(loadingAction)}
+            className="w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all disabled:opacity-40"
             style={{
-              background: comprobanteAutorizado ? '#ef4444' : 'var(--bg-input)',
-              color: comprobanteAutorizado ? '#ffffff' : 'var(--text-muted)',
+              background: 'var(--bg-input)',
+              color: 'var(--text-muted)',
               border: '1px solid var(--border)',
             }}
           >
-            {loadingCierre
+            {loadingAction === 'cerrar'
               ? <Loader2 size={11} className="animate-spin" />
               : <Lock size={11} />
             }
-            {comprobanteAutorizado ? 'Cerrar mesa y liberar' : 'Cerrar mesa sin facturar'}
+            Cerrar mesa sin imprimir
           </button>
 
           {!config?.cuit && (
-            <p className="text-[10px] text-center" style={{ color: 'var(--text-xmuted)' }}>
+            <p className="text-[10px] text-center" style={{ color: 'var(--text-muted)' }}>
               Configurá tus datos fiscales en Caja para habilitar facturación.
             </p>
           )}

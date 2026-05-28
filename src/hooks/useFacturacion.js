@@ -173,6 +173,46 @@ export function useFacturacion() {
     await registrarImpresion({ pedido, tipo: 'ticket_no_fiscal' }).catch(() => null)
   }, [config, registrarImpresion])
 
+  /**
+   * Registra un pago para un pedido (arqueo de caja).
+   * Un pago por pedido (constraint de DB). Si ya existe, hace upsert.
+   *
+   * @param {object} args
+   * @param {object} args.pedido
+   * @param {object} [args.comprobante] - Si el pago se asocia a una factura emitida.
+   * @param {'efectivo'|'transferencia'|'tarjeta_credito'|'tarjeta_debito'} args.medio_pago
+   * @param {string} [args.numero_operacion] - Cupón del posnet (sólo tarjetas).
+   * @param {number} [args.monto] - Default total del pedido.
+   * @param {string} [args.notas]
+   */
+  const registrarPago = useCallback(async ({ pedido, comprobante, medio_pago, numero_operacion, monto, notas }) => {
+    if (!pedido?.id) throw new Error('Falta pedido_id para registrar el pago.')
+    if (!medio_pago) throw new Error('Falta medio de pago.')
+
+    const requiereNroOp = medio_pago === 'tarjeta_credito' || medio_pago === 'tarjeta_debito'
+    if (requiereNroOp && !String(numero_operacion || '').trim()) {
+      throw new Error('Ingresá el número de operación del posnet.')
+    }
+
+    const row = {
+      pedido_id: pedido.id,
+      comprobante_id: comprobante?.id || null,
+      medio_pago,
+      numero_operacion: numero_operacion ? String(numero_operacion).trim() : null,
+      monto: Number(monto ?? pedido.total ?? 0),
+      notas: notas ? String(notas).trim() : null,
+    }
+
+    const { data, error: insertErr } = await supabase
+      .from('pagos')
+      .upsert(row, { onConflict: 'pedido_id' })
+      .select()
+      .single()
+
+    if (insertErr) throw insertErr
+    return data
+  }, [])
+
   const actualizarPedido = useCallback(async (pedidoId, values) => {
     const items = normalizePedidoItems(values.items || [])
     if (items.length === 0) throw new Error('El pedido debe tener al menos un item.')
@@ -383,6 +423,7 @@ export function useFacturacion() {
     actualizarPedido,
     facturarEImprimir,
     emitirNotaCredito,
+    registrarPago,
   }
 }
 
