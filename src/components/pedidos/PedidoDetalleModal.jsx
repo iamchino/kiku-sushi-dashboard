@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  X, Printer, Ban, ChevronRight, Receipt, User, Phone, MapPin,
+  X, Printer, Ban, Receipt, User, Phone, MapPin,
   Clock, Tag, ExternalLink, AlertCircle, Loader2, Utensils, Truck,
   ShoppingBag, CheckCircle2,
 } from 'lucide-react'
-import { ESTADO_SIGUIENTE, getEstadoSimple, getTipoPedido } from '../../hooks/usePedidos'
+import { getEstadoSimple, getTipoPedido } from '../../hooks/usePedidos'
+import { useFacturacion } from '../../hooks/useFacturacion'
 import { printComanda, printCustomerTicket, formatMoney } from '../../lib/printing'
 import { getAuthorizedComprobante } from '../../lib/fiscal'
+import FacturarModal from '../caja/FacturarModal'
 
 const TIPO_META = {
   salon:    { label: 'Para Comer Aquí', icon: Utensils,    color: 'var(--accent-lift)' },
@@ -29,11 +31,6 @@ const ESTADO_CRUDO_LABEL = {
   cancelado:  'Cancelado',
 }
 
-const BTN_AVANZAR_LABEL = {
-  pendiente:  'Enviar a cocina',
-  preparando: 'Marcar listo',
-  listo:      'Marcar entregado',
-}
 
 function formatFechaHora(value) {
   if (!value) return ''
@@ -53,9 +50,11 @@ function formatFechaHora(value) {
  *  - Cancelar pedido (cuando el pedido está activo)
  *  - Para pedidos de salón: link a la mesa para editar items / cobrar
  */
-export default function PedidoDetalleModal({ pedido, onClose, onAvanzar, onCancelar }) {
+export default function PedidoDetalleModal({ pedido, onClose, onCancelar }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [facturarOpen, setFacturarOpen] = useState(false)
+  const { config, arcaReady, facturarEImprimir, imprimirTicket } = useFacturacion()
 
   useEffect(() => {
     if (!pedido) return
@@ -79,16 +78,9 @@ export default function PedidoDetalleModal({ pedido, onClose, onAvanzar, onCance
   const codigo     = pedido.codigo || `KS${shortId}`
   const items      = pedido.pedido_items || []
   const facturada  = Boolean(comprobante)
-  const siguiente  = ESTADO_SIGUIENTE[pedido.estado]
-  const puedeAvanzar = simple === 'activa' && siguiente
+  const puedeAvanzar = false
   const puedeCancelar = simple === 'activa'
 
-  const handleAvanzar = async () => {
-    setBusy(true); setError(null)
-    const err = await onAvanzar?.(pedido.id, pedido.estado)
-    setBusy(false)
-    if (err) setError(err.message || 'Error al avanzar el estado')
-  }
 
   const handleCancelar = async () => {
     if (!confirm('¿Cancelar este pedido? Esta acción no se puede deshacer.')) return
@@ -97,6 +89,32 @@ export default function PedidoDetalleModal({ pedido, onClose, onAvanzar, onCance
     setBusy(false)
     if (err) { setError(err.message || 'Error al cancelar'); return }
     onClose?.()
+  }
+
+  const handleFacturarClick = () => {
+    setError(null)
+    if (comprobante) {
+      // Ya facturado → reimprime directo
+      imprimirTicket(pedido, comprobante)
+      return
+    }
+    if (!arcaReady) {
+      setError('ARCA no está configurado.')
+      return
+    }
+    setFacturarOpen(true)
+  }
+
+  const handleConfirmarFactura = async ({ tipo_cbte, receptor }) => {
+    setBusy(true); setError(null)
+    try {
+      await facturarEImprimir(pedido, { tipo_cbte, receptor })
+      setFacturarOpen(false)
+    } catch (e) {
+      setError(e.message || 'No se pudo facturar')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -311,10 +329,11 @@ export default function PedidoDetalleModal({ pedido, onClose, onAvanzar, onCance
           className="flex-shrink-0 p-3 space-y-2"
           style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-card)' }}
         >
-          {puedeAvanzar && (
+          {/* Facturar: botón principal cuando se puede emitir comprobante */}
+          {(arcaReady || comprobante) && simple !== 'cancelada' && (
             <button
               type="button"
-              onClick={handleAvanzar}
+              onClick={handleFacturarClick}
               disabled={busy}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:scale-[1.01] disabled:opacity-60"
               style={{
@@ -322,8 +341,8 @@ export default function PedidoDetalleModal({ pedido, onClose, onAvanzar, onCance
                 boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.35)',
               }}
             >
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <ChevronRight size={14} />}
-              {BTN_AVANZAR_LABEL[pedido.estado] || 'Avanzar estado'}
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <Receipt size={14} />}
+              {comprobante ? 'Re-imprimir factura' : 'Facturar + ticket fiscal'}
             </button>
           )}
 
@@ -381,6 +400,15 @@ export default function PedidoDetalleModal({ pedido, onClose, onAvanzar, onCance
           )}
         </div>
       </div>
+
+      <FacturarModal
+        open={facturarOpen}
+        pedido={pedido}
+        busy={busy}
+        permiteFacturaA={Boolean(config?.permite_factura_a)}
+        onClose={() => setFacturarOpen(false)}
+        onConfirm={handleConfirmarFactura}
+      />
     </div>
   )
 }

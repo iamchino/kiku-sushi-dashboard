@@ -72,7 +72,7 @@ func formatESCPOSTicket(job PrintJob) []byte {
 	// en el lugar del marker {{QR}}. Si no hay marker, va al final del content.
 	content := job.Content
 	if job.QRCodeData != "" {
-		qrBytes, err := generateQRRaster(job.QRCodeData, 6)
+		qrBytes, err := generateQRRaster(job.QRCodeData, 3)
 		if err != nil {
 			logToConsole("ERROR: No se pudo generar QR: %v", err)
 			b.WriteString(content)
