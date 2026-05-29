@@ -33,6 +33,22 @@ const FILTERS = [
   { id: 'todos', label: 'Todos' },
 ]
 
+const RANGOS_RAPIDOS = [
+  { id: 'hoy',     label: 'Hoy' },
+  { id: 'semana',  label: 'Últ. 7 días' },
+  { id: 'mes',     label: 'Últ. 30 días' },
+  { id: 'custom',  label: 'Custom' },
+]
+
+function calcularRango(id, customFrom, customTo) {
+  const hoy = new Date()
+  const toIso = d => d.toISOString().slice(0, 10)
+  if (id === 'hoy')    return { from: toIso(hoy),                               to: toIso(hoy) }
+  if (id === 'semana') return { from: toIso(new Date(hoy.getTime() - 6 * 86400000)),  to: toIso(hoy) }
+  if (id === 'mes')    return { from: toIso(new Date(hoy.getTime() - 29 * 86400000)), to: toIso(hoy) }
+  return { from: customFrom || toIso(hoy), to: customTo || toIso(hoy) }
+}
+
 const CANAL_LABEL = {
   salon: 'Salon',
   delivery: 'Delivery',
@@ -593,6 +609,15 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
 }
 
 export default function CajaPage() {
+  const [rango, setRango]           = useState('hoy')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo,   setCustomTo]   = useState('')
+
+  const { from: dateFrom, to: dateTo } = useMemo(
+    () => calcularRango(rango, customFrom, customTo),
+    [rango, customFrom, customTo],
+  )
+
   const {
     pedidos,
     config,
@@ -608,7 +633,7 @@ export default function CajaPage() {
     actualizarPedido,
     facturarEImprimir,
     emitirNotaCredito,
-  } = useFacturacion()
+  } = useFacturacion({ dateFrom, dateTo })
 
   const [filter, setFilter] = useState('pendientes')
   const [busyId, setBusyId] = useState(null)
@@ -720,6 +745,9 @@ export default function CajaPage() {
             <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-4xl" style={{ color: 'var(--text-primary)' }}>
               Caja y ARCA
             </h1>
+            <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+              Mostrando: {dateFrom === dateTo ? dateFrom : `${dateFrom} → ${dateTo}`}
+            </p>
           </div>
           <button
             onClick={refetch}
@@ -731,6 +759,46 @@ export default function CajaPage() {
             Actualizar
           </button>
         </header>
+
+        {/* Filtro de fecha */}
+        <section className="mb-4 flex flex-wrap items-end gap-2">
+          {RANGOS_RAPIDOS.map(r => (
+            <button
+              key={r.id}
+              onClick={() => setRango(r.id)}
+              className="rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
+              style={rango === r.id
+                ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
+                : { color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            >
+              {r.label}
+            </button>
+          ))}
+          {rango === 'custom' && (
+            <>
+              <div>
+                <label className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: 'var(--text-muted)' }}>Desde</label>
+                <input
+                  type="date"
+                  value={customFrom}
+                  onChange={e => setCustomFrom(e.target.value)}
+                  className="block mt-1 rounded-lg px-3 py-1.5 text-xs outline-none"
+                  style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: 'var(--text-muted)' }}>Hasta</label>
+                <input
+                  type="date"
+                  value={customTo}
+                  onChange={e => setCustomTo(e.target.value)}
+                  className="block mt-1 rounded-lg px-3 py-1.5 text-xs outline-none"
+                  style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                />
+              </div>
+            </>
+          )}
+        </section>
 
         <section className="grid gap-3 lg:grid-cols-3">
           <StatusPill

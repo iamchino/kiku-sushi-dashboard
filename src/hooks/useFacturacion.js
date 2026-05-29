@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { startOfDay } from 'date-fns'
+import { endOfDay, startOfDay } from 'date-fns'
 import { supabase } from '../lib/supabase'
 import {
   RECEPTOR_CONSUMIDOR_FINAL,
@@ -43,7 +43,8 @@ function withoutVariantId(items) {
   })
 }
 
-export function useFacturacion() {
+export function useFacturacion(options = {}) {
+  const { dateFrom = null, dateTo = null } = options
   const [pedidos, setPedidos] = useState([])
   const [config, setConfig] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -55,13 +56,17 @@ export function useFacturacion() {
     setError(null)
     setSetupWarning(null)
 
-    const start = startOfDay(new Date()).toISOString()
+    // Rango: si vienen dateFrom/dateTo (YYYY-MM-DD), se usan; si no, hoy.
+    const from = dateFrom ? startOfDay(new Date(`${dateFrom}T00:00:00`)) : startOfDay(new Date())
+    const to   = dateTo   ? endOfDay(new Date(`${dateTo}T00:00:00`))     : endOfDay(new Date())
+    const start = from.toISOString()
+    const end   = to.toISOString()
 
     const pedidosQuery = supabase
       .from('pedidos')
       .select('*, pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id), comprobantes_fiscales(*)')
       .gte('created_at', start)
-      .neq('estado', 'cancelado')
+      .lte('created_at', end)
       .order('created_at', { ascending: false })
 
     let { data: pedidosData, error: pedidosError } = await pedidosQuery
@@ -92,7 +97,7 @@ export function useFacturacion() {
     setPedidos((pedidosData || []).sort(sortPedidos))
     setConfig(configData || null)
     setLoading(false)
-  }, [])
+  }, [dateFrom, dateTo])
 
   useEffect(() => {
     fetchData()
