@@ -40,13 +40,20 @@ const RANGOS_RAPIDOS = [
   { id: 'custom',  label: 'Custom' },
 ]
 
+// Devuelve YYYY-MM-DD en hora LOCAL (no UTC, para no perder pedidos de noche).
+function localDateISO(d = new Date()) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 function calcularRango(id, customFrom, customTo) {
   const hoy = new Date()
-  const toIso = d => d.toISOString().slice(0, 10)
-  if (id === 'hoy')    return { from: toIso(hoy),                               to: toIso(hoy) }
-  if (id === 'semana') return { from: toIso(new Date(hoy.getTime() - 6 * 86400000)),  to: toIso(hoy) }
-  if (id === 'mes')    return { from: toIso(new Date(hoy.getTime() - 29 * 86400000)), to: toIso(hoy) }
-  return { from: customFrom || toIso(hoy), to: customTo || toIso(hoy) }
+  if (id === 'hoy')    return { from: localDateISO(hoy),                                        to: localDateISO(hoy) }
+  if (id === 'semana') return { from: localDateISO(new Date(hoy.getTime() - 6 * 86400000)),   to: localDateISO(hoy) }
+  if (id === 'mes')    return { from: localDateISO(new Date(hoy.getTime() - 29 * 86400000)),  to: localDateISO(hoy) }
+  return { from: customFrom || localDateISO(hoy), to: customTo || localDateISO(hoy) }
 }
 
 const CANAL_LABEL = {

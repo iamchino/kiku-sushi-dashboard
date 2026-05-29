@@ -117,8 +117,15 @@ export function usePedidos(options = {}) {
         .gte('created_at', startOfDay(new Date()).toISOString())
         .neq('estado', 'cancelado')
     } else {
-      const from = dateFrom ? startOfDay(new Date(dateFrom)) : startOfDay(subDays(new Date(), 6))
-      const to   = dateTo   ? endOfDay(new Date(dateTo))     : endOfDay(new Date())
+      // OJO: new Date("2026-05-28") se parsea como UTC midnight, lo que en
+      // Argentina (UTC-3) corre el límite y deja afuera pedidos de la noche.
+      // Forzamos parseo en hora LOCAL agregando 'T00:00:00'.
+      const from = dateFrom
+        ? startOfDay(new Date(`${dateFrom}T00:00:00`))
+        : startOfDay(subDays(new Date(), 6))
+      const to = dateTo
+        ? endOfDay(new Date(`${dateTo}T00:00:00`))
+        : endOfDay(new Date())
       query = query
         .gte('created_at', from.toISOString())
         .lte('created_at', to.toISOString())

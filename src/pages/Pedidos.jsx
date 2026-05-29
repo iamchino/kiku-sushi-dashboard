@@ -89,9 +89,17 @@ function codigoPedido(p) {
   return `KS${String(p.id).slice(-8).toUpperCase()}`
 }
 
+// Devuelve YYYY-MM-DD en hora LOCAL (no UTC).
+function localDateISO(date = new Date()) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 export default function PedidosPage() {
-  const today = new Date().toISOString().slice(0, 10)
-  const last7 = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10)
+  const today = localDateISO()
+  const last7 = localDateISO(new Date(Date.now() - 6 * 86400000))
 
   const [tab, setTab]               = useState('todas')
   const [search, setSearch]         = useState('')
@@ -726,7 +734,6 @@ function EmptyState() {
       </div>
       <div>
         <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-          No hay pedidos para los filtros seleccionados
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
           Probá cambiar el rango de fechas o el tipo de pedido.
