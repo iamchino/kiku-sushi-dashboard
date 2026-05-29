@@ -19,11 +19,16 @@ import { calculateDiscountAmount, calculateOrderSubtotal, clampDiscount } from '
 
 const CANAL_LABELS = {
   salon: 'Salon',
+  llevar: 'Take Away',
+  takeaway: 'Take Away',
   delivery: 'Delivery',
   whatsapp: 'WhatsApp',
   pedidosya: 'PedidosYa',
   rappi: 'Rappi',
 }
+
+const DELIVERY_CHANNELS = new Set(['delivery', 'pedidosya', 'rappi'])
+const TAKEAWAY_CHANNELS = new Set(['llevar', 'takeaway', 'take_away', 'take-away', 'take away', 'whatsapp'])
 
 const DEFAULT_WIDTH = 32
 
@@ -125,6 +130,24 @@ function normalizeItems(pedido) {
   }))
 }
 
+function hasMesa(pedido) {
+  return pedido?.mesa !== null && pedido?.mesa !== undefined && String(pedido.mesa).trim() !== ''
+}
+
+export function getComandaDestinationLabel(pedido) {
+  const canal = String(pedido?.canal || '').trim().toLowerCase()
+
+  if ((canal === 'salon' || pedido?.mesa_id || hasMesa(pedido)) && hasMesa(pedido)) {
+    return `MESA ${pedido.mesa}`
+  }
+
+  if (canal === 'salon' || pedido?.mesa_id) return 'SALON'
+  if (pedido?.cliente_direccion || DELIVERY_CHANNELS.has(canal)) return 'DELIVERY'
+  if (TAKEAWAY_CHANNELS.has(canal)) return 'TAKE AWAY'
+
+  return ascii(CANAL_LABELS[canal] || pedido?.canal || 'Pedido').toUpperCase()
+}
+
 function clienteBlock(pedido, width) {
   const nombre    = pedido?.cliente_nombre?.trim()
   const telefono  = pedido?.cliente_telefono?.trim()
@@ -147,6 +170,7 @@ export function buildComandaText(pedido, opts = {}) {
   const items = normalizeItems(pedido)
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
   const rondaLabel = pedido?._ronda_label || null
+  const destinationLabel = getComandaDestinationLabel(pedido)
 
   // Para que la fecha y hora se vean separadas como en el ticket de referencia
   const dt = pedido?.created_at ? new Date(pedido.created_at) : new Date()
@@ -158,15 +182,11 @@ export function buildComandaText(pedido, opts = {}) {
   // Header: "ORDEN" en grande (con doble fila para que se note más)
   out.push(line(width, '='))
   out.push(center('ORDEN', width))
+  out.push(center(destinationLabel, width))
   out.push(line(width, '='))
   out.push('')
 
-  // Mesa: lo más prominente
-  if (pedido?.mesa) {
-    out.push(center(`MESA ${pedido.mesa}`, width))
-    out.push('')
-  }
-
+  // Ronda: se destaca cuando se reimprime solo una tanda adicional.
   if (rondaLabel) {
     out.push(center(`*** ${ascii(rondaLabel).toUpperCase()} ***`, width))
     out.push('')

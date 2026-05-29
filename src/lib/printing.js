@@ -6,6 +6,7 @@ import {
   buildComandaText,
   buildCustomerTicketText,
   buildFiscalTicketText,
+  getComandaDestinationLabel,
   formatMoney as escposFormatMoney,
 } from './escposFormatter'
 import { getPrinterConfig } from './printerStore'
@@ -31,6 +32,8 @@ async function generateQrDataUrl(qrUrl) {
 
 const CANAL_LABELS = {
   salon: 'Salon',
+  llevar: 'Take Away',
+  takeaway: 'Take Away',
   delivery: 'Delivery',
   whatsapp: 'WhatsApp',
   pedidosya: 'PedidosYa',
@@ -166,6 +169,7 @@ function buildComandaHtml(pedido) {
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
   const items = normalizeItems(pedido)
   const rondaLabel = pedido?._ronda_label || null
+  const destinationLabel = getComandaDestinationLabel(pedido)
 
   const dt = pedido?.created_at ? new Date(pedido.created_at) : new Date()
   const fecha = dt.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -181,19 +185,19 @@ function buildComandaHtml(pedido) {
   return `
     <main class="ticket">
       <style>
-        .cmd-header { text-align: center; font-weight: 800; font-size: 22px; letter-spacing: 4px; padding: 6px 0; border-top: 2px solid #000; border-bottom: 2px solid #000; margin-bottom: 12px; }
-        .cmd-mesa { text-align: center; font-weight: 800; font-size: 26px; margin: 8px 0 14px; }
+        .cmd-header { text-align: center; font-weight: 800; font-size: 22px; letter-spacing: 4px; padding: 6px 0; border-top: 2px solid #000; border-bottom: 2px solid #000; margin-bottom: 8px; }
+        .cmd-destination { text-align: center; font-weight: 900; font-size: 32px; line-height: 1.05; margin: 8px 0 14px; padding: 5px 0; border-bottom: 2px solid #000; }
         .cmd-info { font-size: 12px; display: flex; justify-content: space-between; margin: 2px 0; }
         .cmd-section { text-align: center; font-weight: 700; font-size: 11px; letter-spacing: 3px; margin: 12px 0 6px; padding: 4px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; }
-        .cmd-item { margin: 0 0 12px; }
-        .cmd-item-line { font-size: 18px; font-weight: 700; line-height: 1.2; }
-        .cmd-qty { font-weight: 800; }
-        .cmd-name { font-weight: 700; }
-        .cmd-note { font-size: 11px; font-weight: 500; margin-left: 28px; margin-top: 2px; }
+        .cmd-item { margin: 0 0 18px; }
+        .cmd-item-line { font-size: 32px; font-weight: 900; line-height: 1.08; word-break: break-word; }
+        .cmd-qty { font-weight: 900; }
+        .cmd-name { font-weight: 900; }
+        .cmd-note { font-size: 18px; font-weight: 700; margin-left: 34px; margin-top: 4px; }
         .cmd-foot { border-top: 1px dashed #000; margin-top: 6px; }
       </style>
       <div class="cmd-header">ORDEN</div>
-      ${pedido?.mesa ? `<div class="cmd-mesa">MESA ${escapeHtml(pedido.mesa)}</div>` : ''}
+      <div class="cmd-destination">${escapeHtml(destinationLabel)}</div>
       ${rondaLabel ? `<div class="center bold" style="background:#000;color:#fff;padding:4px 0;margin:6px 0;">${escapeHtml(rondaLabel)}</div>` : ''}
       <div class="cmd-info"><span>Orden:</span><span class="bold">#${escapeHtml(shortId)}</span></div>
       <div class="cmd-info"><span>Fecha:</span><span>${escapeHtml(fecha)}</span></div>
@@ -353,7 +357,7 @@ async function tryRemotePrint(kind, content, extra = {}) {
       printerName: printer.name,
       type: printer.type,
       content,
-      fontSize: cfg.font_size,
+      fontSize: extra.fontSize ?? cfg.font_size,
       paperWidth: cfg.paper_width,
       qrCodeData: extra.qrCodeData,
     })
@@ -364,14 +368,21 @@ async function tryRemotePrint(kind, content, extra = {}) {
   }
 }
 
+function charsForFontSize(charsPerLine, fontSize) {
+  const base = Number(charsPerLine) || 32
+  const scale = Math.max(1, Number(fontSize) || 1)
+  return Math.max(10, Math.floor(base / scale))
+}
+
 // ============================================================
 // API publica - mantiene las mismas firmas que la version anterior.
 // ============================================================
 
 export async function printComanda(pedido) {
   const cfg = getPrinterConfig()
-  const text = buildComandaText(pedido, { width: cfg.chars_per_line })
-  const ok = await tryRemotePrint('comanda', text)
+  const fontSize = Math.max(Number(cfg.font_size) || 1, 2)
+  const text = buildComandaText(pedido, { width: charsForFontSize(cfg.chars_per_line, fontSize) })
+  const ok = await tryRemotePrint('comanda', text, { fontSize })
   if (ok) return
 
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
