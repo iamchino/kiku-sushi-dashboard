@@ -409,6 +409,14 @@ export async function printFiscalTicket(pedido, comprobante, config) {
   // Pasamos la URL del QR al servicio de impresión para que la renderice
   // server-side como bitmap raster (en Go los bytes no se mangle por UTF-8).
   const qrCodeData = enrichedComprobante?.qr_url || buildArcaQrUrl(enrichedComprobante, config) || ''
+  if (!qrCodeData) {
+    console.warn('[printing] qr_code_data vacío — el QR no se va a imprimir. Comprobante:', {
+      tipo_cbte: enrichedComprobante?.tipo_cbte,
+      numero:    enrichedComprobante?.numero,
+      cae:       enrichedComprobante?.cae,
+      qr_url:    enrichedComprobante?.qr_url,
+    })
+  }
   const ok = await tryRemotePrint('fiscal', text, { qrCodeData })
   if (ok) return
 

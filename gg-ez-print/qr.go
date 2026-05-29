@@ -16,7 +16,10 @@ func generateQRRaster(text string, scale int) ([]byte, error) {
 		scale = 6
 	}
 
-	q, err := qrcode.New(text, qrcode.Medium)
+	// Error correction LOW: minimiza la cantidad de módulos para una URL
+	// larga como la de ARCA QR. Eso hace los puntos más grandes y mejora
+	// la legibilidad en impresoras térmicas.
+	q, err := qrcode.New(text, qrcode.Low)
 	if err != nil {
 		return nil, err
 	}
