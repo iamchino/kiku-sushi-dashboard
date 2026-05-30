@@ -199,6 +199,15 @@ export function useFacturacion(options = {}) {
       throw new Error('Ingresá el número de operación del posnet.')
     }
 
+    const { data: turnoAbierto } = await supabase
+      .from('caja_turnos')
+      .select('id')
+      .eq('estado', 'abierto')
+      .order('apertura_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .catch(() => ({ data: null }))
+
     const row = {
       pedido_id: pedido.id,
       comprobante_id: comprobante?.id || null,
@@ -207,6 +216,7 @@ export function useFacturacion(options = {}) {
       monto: Number(monto ?? pedido.total ?? 0),
       notas: notas ? String(notas).trim() : null,
     }
+    if (turnoAbierto?.id) row.caja_turno_id = turnoAbierto.id
 
     const { data, error: insertErr } = await supabase
       .from('pagos')

@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Trash2,
   Usb,
+  WalletCards,
   X,
 } from 'lucide-react'
 import { useFacturacion } from '../hooks/useFacturacion'
@@ -23,6 +24,7 @@ import { supabase } from '../lib/supabase'
 import { esNotaCredito, formatReceiptNumber, getAuthorizedComprobante, getNotasCredito, nombreComprobante } from '../lib/fiscal'
 import { formatMoney } from '../lib/printing'
 import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../lib/orders'
+import ArqueoCajaSection from '../components/caja/ArqueoCajaSection'
 import FacturarModal from '../components/caja/FacturarModal'
 import NotaCreditoModal from '../components/caja/NotaCreditoModal'
 
@@ -31,6 +33,11 @@ const FILTERS = [
   { id: 'facturados', label: 'Facturados' },
   { id: 'con_nc', label: 'Con NC' },
   { id: 'todos', label: 'Todos' },
+]
+
+const SECCIONES_CAJA = [
+  { id: 'facturacion', label: 'Facturacion', icon: Receipt },
+  { id: 'arqueo', label: 'Arqueo y movimientos', icon: WalletCards },
 ]
 
 const RANGOS_RAPIDOS = [
@@ -649,6 +656,7 @@ export default function CajaPage() {
   const [notice, setNotice] = useState(null)
   const [facturarTarget, setFacturarTarget] = useState(null)        // { pedido }
   const [ncTarget, setNcTarget] = useState(null)                     // { pedido, comprobante }
+  const [seccion, setSeccion] = useState('facturacion')
 
   const filteredPedidos = useMemo(() => {
     if (filter === 'todos') return pedidos
@@ -866,49 +874,72 @@ export default function CajaPage() {
           </section>
         )}
 
-        <section className="mt-5">
-          <div className="mb-3 flex flex-wrap gap-2">
-            {FILTERS.map(item => (
+        <section className="mt-5 flex flex-wrap gap-2">
+          {SECCIONES_CAJA.map(item => {
+            const Icon = item.icon
+            return (
               <button
                 key={item.id}
-                onClick={() => setFilter(item.id)}
-                className="rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
-                style={filter === item.id
+                onClick={() => setSeccion(item.id)}
+                className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
+                style={seccion === item.id
                   ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
                   : { color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
               >
+                <Icon size={14} />
                 {item.label}
               </button>
-            ))}
-          </div>
+            )
+          })}
+        </section>
 
-          {loading ? (
-            <div className="flex h-56 items-center justify-center">
-              <Loader2 size={28} className="animate-spin" style={{ color: 'var(--accent-lift)' }} />
-            </div>
-          ) : filteredPedidos.length === 0 ? (
-            <div className="rounded-lg py-16 text-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
-              <Receipt size={32} className="mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>No hay pedidos en esta vista</p>
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              {filteredPedidos.map(pedido => (
-                <PedidoCajaCard
-                  key={pedido.id}
-                  pedido={pedido}
-                  arcaReady={arcaReady}
-                  busy={busyId === pedido.id}
-                  onComanda={imprimirComanda}
-                  onNoFiscalTicket={handleNoFiscalTicket}
-                  onTicket={handleTicket}
-                  onEdit={setEditingPedido}
-                  onNotaCredito={handleNotaCredito}
-                />
+        {seccion === 'arqueo' ? (
+          <ArqueoCajaSection dateFrom={dateFrom} dateTo={dateTo} />
+        ) : (
+          <section className="mt-5">
+            <div className="mb-3 flex flex-wrap gap-2">
+              {FILTERS.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => setFilter(item.id)}
+                  className="rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
+                  style={filter === item.id
+                    ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
+                    : { color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                >
+                  {item.label}
+                </button>
               ))}
             </div>
-          )}
-        </section>
+
+            {loading ? (
+              <div className="flex h-56 items-center justify-center">
+                <Loader2 size={28} className="animate-spin" style={{ color: 'var(--accent-lift)' }} />
+              </div>
+            ) : filteredPedidos.length === 0 ? (
+              <div className="rounded-lg py-16 text-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
+                <Receipt size={32} className="mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>No hay pedidos en esta vista</p>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {filteredPedidos.map(pedido => (
+                  <PedidoCajaCard
+                    key={pedido.id}
+                    pedido={pedido}
+                    arcaReady={arcaReady}
+                    busy={busyId === pedido.id}
+                    onComanda={imprimirComanda}
+                    onNoFiscalTicket={handleNoFiscalTicket}
+                    onTicket={handleTicket}
+                    onEdit={setEditingPedido}
+                    onNotaCredito={handleNotaCredito}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </div>
 
       <EditPedidoModal
