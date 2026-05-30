@@ -434,6 +434,36 @@ export function usePedidos(options = {}) {
     return null
   }
 
+  const cerrarPedido = async (id) => {
+    const pedido = pedidos.find(p => p.id === id)
+    if (!pedido) return new Error('Pedido no encontrado')
+    if (pedido.estado === 'cancelado') return new Error('No se puede cerrar un pedido cancelado')
+
+    if (!pedido.stock_descontado) {
+      const stockError = await descontarStockPedido(id)
+      if (stockError) return stockError
+    }
+
+    let { error: updateError } = await supabase
+      .from('pedidos')
+      .update({
+        estado: 'entregado',
+        cerrada_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+
+    if (updateError && /cerrada_at/i.test(updateError.message || '')) {
+      const retry = await supabase
+        .from('pedidos')
+        .update({ estado: 'entregado' })
+        .eq('id', id)
+      updateError = retry.error
+    }
+
+    if (!updateError) fetchPedidos()
+    return updateError
+  }
+
   const cancelarPedido = async (id) => {
     const pedido = pedidos.find(p => p.id === id)
 
@@ -452,7 +482,7 @@ export function usePedidos(options = {}) {
   return {
     pedidos, grouped, stats,
     loading, error,
-    createPedido, avanzarEstado, cancelarPedido,
+    createPedido, avanzarEstado, cerrarPedido, cancelarPedido,
     refetch: fetchPedidos,
     isFacturado,
   }

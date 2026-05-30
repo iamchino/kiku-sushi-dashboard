@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   AlertCircle,
   Banknote,
+  Ban,
   CheckCircle2,
   CreditCard,
   FileText,
@@ -30,9 +31,10 @@ import { formatMoney } from '../../lib/printing'
 
 const MEDIOS_PAGO = [
   { id: 'efectivo',         label: 'Efectivo',          icon: Banknote,   color: '#34d399' },
-  { id: 'transferencia',    label: 'Transferencia',     icon: Send,       color: '#60a5fa' },
   { id: 'tarjeta_credito',  label: 'Tarjeta Crédito',   icon: CreditCard, color: '#f59e0b' },
   { id: 'tarjeta_debito',   label: 'Tarjeta Débito',    icon: CreditCard, color: '#a78bfa' },
+  { id: 'transferencia',    label: 'Transferencia',     icon: Send,       color: '#60a5fa' },
+  { id: 'sin_pago',         label: 'Sin pago',           icon: Ban,        color: '#94a3b8' },
 ]
 
 const TARJETAS = new Set(['tarjeta_credito', 'tarjeta_debito'])
@@ -80,14 +82,16 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
     try {
       const comprobanteUsado = await fn()
 
-      // 1) Registrar el pago en la BD (para arqueo)
-      await registrarPago({
-        pedido,
-        comprobante: comprobanteUsado || comprobanteAutorizado,
-        medio_pago: medio,
-        numero_operacion: needsNroOp ? nroOp.trim() : null,
-        monto: pedido.total,
-      })
+      // 1) Registrar el pago en la BD (para arqueo). "Sin pago" cierra sin sumar caja.
+      if (medio !== 'sin_pago') {
+        await registrarPago({
+          pedido,
+          comprobante: comprobanteUsado || comprobanteAutorizado,
+          medio_pago: medio,
+          numero_operacion: needsNroOp ? nroOp.trim() : null,
+          monto: pedido.total,
+        })
+      }
 
       // 2) Cerrar la mesa (RPC)
       if (onCerrarMesa) {

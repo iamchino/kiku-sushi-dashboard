@@ -8,7 +8,7 @@ import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, c
 // El canal "salón" se gestiona ahora desde /mesas (mesa abierta → pedido vinculado).
 // Solo dejamos canales de takeaway / delivery aquí.
 const CANALES = [
-  { id: 'delivery',  label: '🚗  Delivery'    },
+  { id: 'delivery',  label: 'Web'             },
   { id: 'whatsapp',  label: '💬  WhatsApp'   },
   { id: 'pedidosya', label: '🟡  PedidosYa'  },
 ]

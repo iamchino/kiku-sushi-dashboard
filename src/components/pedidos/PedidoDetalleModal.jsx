@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   X, Printer, Ban, Receipt, User, Phone, MapPin,
   Clock, Tag, ExternalLink, AlertCircle, Loader2, Utensils, Truck,
-  ShoppingBag, CheckCircle2,
+  ShoppingBag, CheckCircle2, Lock,
 } from 'lucide-react'
 import { getEstadoSimple, getTipoPedido } from '../../hooks/usePedidos'
 import { useFacturacion } from '../../hooks/useFacturacion'
@@ -14,7 +14,7 @@ import FacturarModal from '../caja/FacturarModal'
 const TIPO_META = {
   salon:    { label: 'Para Comer Aquí', icon: Utensils,    color: 'var(--accent-lift)' },
   llevar:   { label: 'Para Llevar',     icon: ShoppingBag, color: '#fbbf24'             },
-  delivery: { label: 'Delivery',        icon: Truck,       color: '#4f8ef7'             },
+  delivery: { label: 'Web',             icon: Truck,       color: '#4f8ef7'             },
 }
 
 const ESTADO_BADGE = {
@@ -50,7 +50,7 @@ function formatFechaHora(value) {
  *  - Cancelar pedido (cuando el pedido está activo)
  *  - Para pedidos de salón: link a la mesa para editar items / cobrar
  */
-export default function PedidoDetalleModal({ pedido, onClose, onCancelar }) {
+export default function PedidoDetalleModal({ pedido, onClose, onCerrarClick, onCancelar }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [facturarOpen, setFacturarOpen] = useState(false)
@@ -352,7 +352,23 @@ export default function PedidoDetalleModal({ pedido, onClose, onCancelar }) {
           style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-card)' }}
         >
           {/* Facturar: botón principal cuando se puede emitir comprobante */}
-          {(arcaReady || comprobante) && simple !== 'cancelada' && (
+          {simple === 'activa' && (
+            <button
+              type="button"
+              onClick={onCerrarClick}
+              disabled={busy}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:scale-[1.01] disabled:opacity-60"
+              style={{
+                background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
+                boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.35)',
+              }}
+            >
+              <Lock size={14} />
+              Cerrar pedido
+            </button>
+          )}
+
+          {(arcaReady || comprobante) && simple !== 'activa' && simple !== 'cancelada' && (
             <button
               type="button"
               onClick={handleFacturarClick}

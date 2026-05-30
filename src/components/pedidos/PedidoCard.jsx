@@ -6,7 +6,7 @@ import { ESTADO_SIGUIENTE } from '../../hooks/usePedidos'
 
 const CANAL_CONFIG = {
   salon:     { label: 'Salón',      color: 'var(--accent-lift)', bg: 'rgba(var(--accent-rgb),0.12)'  },
-  delivery:  { label: 'Delivery',   color: '#4f8ef7', bg: 'rgba(79,142,247,0.12)'  },
+  delivery:  { label: 'Web',        color: '#4f8ef7', bg: 'rgba(79,142,247,0.12)'  },
   whatsapp:  { label: 'WhatsApp',   color: '#34d399', bg: 'rgba(52,211,153,0.12)'  },
   pedidosya: { label: 'PedidosYa',  color: '#fbbf24', bg: 'rgba(251,191,36,0.12)'  },
 }

@@ -185,7 +185,7 @@ export function useFacturacion(options = {}) {
    * @param {object} args
    * @param {object} args.pedido
    * @param {object} [args.comprobante] - Si el pago se asocia a una factura emitida.
-   * @param {'efectivo'|'transferencia'|'tarjeta_credito'|'tarjeta_debito'} args.medio_pago
+   * @param {'efectivo'|'transferencia'|'tarjeta_credito'|'tarjeta_debito'|'sin_pago'} args.medio_pago
    * @param {string} [args.numero_operacion] - Cupón del posnet (sólo tarjetas).
    * @param {number} [args.monto] - Default total del pedido.
    * @param {string} [args.notas]
@@ -193,20 +193,22 @@ export function useFacturacion(options = {}) {
   const registrarPago = useCallback(async ({ pedido, comprobante, medio_pago, numero_operacion, monto, notas }) => {
     if (!pedido?.id) throw new Error('Falta pedido_id para registrar el pago.')
     if (!medio_pago) throw new Error('Falta medio de pago.')
+    if (medio_pago === 'sin_pago') return null
 
     const requiereNroOp = medio_pago === 'tarjeta_credito' || medio_pago === 'tarjeta_debito'
     if (requiereNroOp && !String(numero_operacion || '').trim()) {
       throw new Error('Ingresá el número de operación del posnet.')
     }
 
-    const { data: turnoAbierto } = await supabase
+    let turnoAbierto = null
+    const turnoResult = await supabase
       .from('caja_turnos')
       .select('id')
       .eq('estado', 'abierto')
       .order('apertura_at', { ascending: false })
       .limit(1)
       .maybeSingle()
-      .catch(() => ({ data: null }))
+    if (!turnoResult.error) turnoAbierto = turnoResult.data
 
     const row = {
       pedido_id: pedido.id,

@@ -3,11 +3,13 @@ import { useSearchParams } from 'react-router-dom'
 import {
   Plus, RefreshCw, Search, Utensils, ShoppingBag, Truck, LayoutList,
   ClipboardList, Printer, ChevronRight, ChevronDown, Ban, Loader2,
+  Lock,
 } from 'lucide-react'
 import { usePedidos, getTipoPedido, getEstadoSimple, ESTADO_SIGUIENTE } from '../hooks/usePedidos'
 import { getAuthorizedComprobante } from '../lib/fiscal'
 import { normalizeSearch } from '../utils/normalize'
 import NuevoPedidoModal from '../components/pedidos/NuevoPedidoModal'
+import CerrarPedidoModal from '../components/pedidos/CerrarPedidoModal'
 import ElegirMesaModal from '../components/pedidos/ElegirMesaModal'
 import PedidoDetalleModal from '../components/pedidos/PedidoDetalleModal'
 import { printComanda, formatMoney } from '../lib/printing'
@@ -43,7 +45,7 @@ const BTN_AVANZAR_LABEL = {
 const TIPO_META = {
   salon:    { label: 'Para Comer Aquí', icon: Utensils,    color: 'var(--accent-lift)' },
   llevar:   { label: 'Para Llevar',     icon: ShoppingBag, color: '#fbbf24'             },
-  delivery: { label: 'Delivery',        icon: Truck,       color: '#4f8ef7'             },
+  delivery: { label: 'Web',             icon: Truck,       color: '#4f8ef7'             },
 }
 
 const ESTADO_FILTRO_OPCIONES = [
@@ -98,8 +100,16 @@ function localDateISO(date = new Date()) {
 }
 
 export default function PedidosPage() {
-  const today = localDateISO()
-  const last7 = localDateISO(new Date(Date.now() - 6 * 86400000))
+  const [defaultDates] = useState(() => {
+    const todayDate = new Date()
+    const fromDate = new Date(todayDate)
+    fromDate.setDate(todayDate.getDate() - 6)
+    return {
+      today: localDateISO(todayDate),
+      last7: localDateISO(fromDate),
+    }
+  })
+  const { today, last7 } = defaultDates
 
   const [tab, setTab]               = useState('todas')
   const [search, setSearch]         = useState('')
@@ -115,6 +125,7 @@ export default function PedidosPage() {
   const [tipoMenuOpen, setTipoMenuOpen] = useState(false)
   const tipoMenuRef = useRef(null)
   const [pedidoSel, setPedidoSel] = useState(null)
+  const [cerrarTarget, setCerrarTarget] = useState(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const focusId = searchParams.get('focus')
 
@@ -141,7 +152,7 @@ export default function PedidosPage() {
 
   const {
     pedidos, loading, error,
-    createPedido, avanzarEstado, cancelarPedido, refetch,
+    createPedido, avanzarEstado, cerrarPedido, cancelarPedido, refetch,
   } = usePedidos({
     mode: 'range',
     dateFrom: fechaDesde || last7,
@@ -398,6 +409,7 @@ export default function PedidosPage() {
                     key={p.id}
                     pedido={p}
                     onSelect={() => setPedidoSel(p)}
+                    onCerrarClick={() => setCerrarTarget(p)}
                     onAvanzar={avanzarEstado}
                     onCancelar={cancelarPedido}
                   />
@@ -411,6 +423,7 @@ export default function PedidosPage() {
                   key={p.id}
                   pedido={p}
                   onSelect={() => setPedidoSel(p)}
+                  onCerrarClick={() => setCerrarTarget(p)}
                   onAvanzar={avanzarEstado}
                   onCancelar={cancelarPedido}
                 />
@@ -436,8 +449,22 @@ export default function PedidosPage() {
       <PedidoDetalleModal
         pedido={pedidoSel}
         onClose={() => setPedidoSel(null)}
+        onCerrarClick={() => setCerrarTarget(pedidoSel)}
         onAvanzar={avanzarEstado}
         onCancelar={cancelarPedido}
+      />
+
+      <CerrarPedidoModal
+        open={Boolean(cerrarTarget)}
+        pedido={cerrarTarget}
+        onCerrarPedido={cerrarPedido}
+        onClose={(result) => {
+          setCerrarTarget(null)
+          if (result?.closed) {
+            setPedidoSel(null)
+            refetch()
+          }
+        }}
       />
     </div>
   )
@@ -583,7 +610,7 @@ function EstadoBadgeMenu({ pedido, onAvanzar, onCancelar }) {
   )
 }
 
-function PedidoRow({ pedido, onSelect, onAvanzar, onCancelar }) {
+function PedidoRow({ pedido, onSelect, onCerrarClick, onAvanzar, onCancelar }) {
   const tipo      = getTipoPedido(pedido)
   const tipoMeta  = TIPO_META[tipo]
   const TipoIcon  = tipoMeta?.icon
@@ -591,6 +618,7 @@ function PedidoRow({ pedido, onSelect, onAvanzar, onCancelar }) {
   const codigo    = codigoPedido(pedido)
   const { fecha, hora } = formatFechaHora(pedido.created_at)
   const resumen   = productosResumen(pedido.pedido_items)
+  const canClose  = getEstadoSimple(pedido) === 'activa'
 
   return (
     <tr
@@ -659,6 +687,18 @@ function PedidoRow({ pedido, onSelect, onAvanzar, onCancelar }) {
           >
             <Printer size={13} />
           </button>
+          {canClose && (
+            <button
+              type="button"
+              onClick={onCerrarClick}
+              className="inline-flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] font-semibold transition-colors hover:bg-[var(--bg-hover)]"
+              style={{ color: 'var(--accent-lift)', border: '1px solid var(--accent-border)', background: 'var(--accent-soft)' }}
+              title="Cerrar pedido"
+            >
+              <Lock size={12} />
+              Cerrar
+            </button>
+          )}
           <button
             type="button"
             onClick={onSelect}
@@ -674,7 +714,7 @@ function PedidoRow({ pedido, onSelect, onAvanzar, onCancelar }) {
   )
 }
 
-function PedidoMobileRow({ pedido, onSelect, onAvanzar, onCancelar }) {
+function PedidoMobileRow({ pedido, onSelect, onCerrarClick, onAvanzar, onCancelar }) {
   const tipo      = getTipoPedido(pedido)
   const tipoMeta  = TIPO_META[tipo]
   const TipoIcon  = tipoMeta?.icon
@@ -682,6 +722,7 @@ function PedidoMobileRow({ pedido, onSelect, onAvanzar, onCancelar }) {
   const codigo    = codigoPedido(pedido)
   const { fecha, hora } = formatFechaHora(pedido.created_at)
   const resumen   = productosResumen(pedido.pedido_items)
+  const canClose  = getEstadoSimple(pedido) === 'activa'
 
   return (
     <div
@@ -704,6 +745,17 @@ function PedidoMobileRow({ pedido, onSelect, onAvanzar, onCancelar }) {
           <p className="text-[10px] mt-1" style={{ color: 'var(--text-xmuted)' }}>
             {fecha} {hora} · {facturado ? 'Facturado' : 'No facturado'}
           </p>
+          {canClose && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onCerrarClick?.() }}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold"
+              style={{ color: 'var(--accent-lift)', border: '1px solid var(--accent-border)', background: 'var(--accent-soft)' }}
+            >
+              <Lock size={11} />
+              Cerrar pedido
+            </button>
+          )}
         </div>
         <div className="text-right">
           <p className="text-sm font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
