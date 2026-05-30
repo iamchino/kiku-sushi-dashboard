@@ -54,16 +54,21 @@ export default function PedidoDetalleModal({ pedido, onClose, onCancelar }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [facturarOpen, setFacturarOpen] = useState(false)
+  const [zoomImg, setZoomImg] = useState(null)
   const { config, arcaReady, facturarEImprimir, imprimirTicket } = useFacturacion()
 
   useEffect(() => {
     if (!pedido) return
     setError(null)
     setBusy(false)
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      if (zoomImg) { setZoomImg(null); return }
+      onClose?.()
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [pedido, onClose])
+  }, [pedido, onClose, zoomImg])
 
   const tipo       = useMemo(() => pedido ? getTipoPedido(pedido) : null, [pedido])
   const simple     = useMemo(() => pedido ? getEstadoSimple(pedido) : null, [pedido])
@@ -252,6 +257,23 @@ export default function PedidoDetalleModal({ pedido, onClose, onCancelar }) {
                       className="flex items-start gap-3 px-3 py-2 rounded-lg"
                       style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}
                     >
+                      {item.imagen_url && (
+                        <button
+                          type="button"
+                          onClick={() => setZoomImg({ url: item.imagen_url, alt: item.nombre })}
+                          className="flex-shrink-0 w-11 h-11 rounded-md overflow-hidden transition-transform hover:scale-105 cursor-zoom-in"
+                          style={{ border: '1px solid var(--border)' }}
+                          title="Ampliar imagen"
+                          aria-label={`Ampliar imagen de ${item.nombre}`}
+                        >
+                          <img
+                            src={item.imagen_url}
+                            alt={item.nombre}
+                            loading="lazy"
+                            className="w-full h-full object-cover"
+                          />
+                        </button>
+                      )}
                       <span
                         className="text-xs font-bold w-7 text-center flex-shrink-0 pt-0.5"
                         style={{ color: 'var(--accent-lift)' }}
@@ -409,6 +431,31 @@ export default function PedidoDetalleModal({ pedido, onClose, onCancelar }) {
         onClose={() => setFacturarOpen(false)}
         onConfirm={handleConfirmarFactura}
       />
+
+      {/* Lightbox: imagen ampliada del producto */}
+      {zoomImg && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(2px)' }}
+          onClick={(e) => { e.stopPropagation(); setZoomImg(null) }}
+        >
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setZoomImg(null) }}
+            className="absolute top-4 right-4 w-9 h-9 rounded-lg flex items-center justify-center"
+            style={{ background: 'rgba(255,255,255,0.18)', color: '#fff' }}
+            aria-label="Cerrar imagen"
+          >
+            <X size={18} />
+          </button>
+          <img
+            src={zoomImg.url}
+            alt={zoomImg.alt}
+            className="max-w-full max-h-[88vh] rounded-lg object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   )
 }

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-  LayoutDashboard, ClipboardList, Package, Receipt, ListChecks,
-  Users, ChefHat, LogOut, UtensilsCrossed, X, Menu, BarChart2,
+  Home, ClipboardList, Package, Receipt, ListChecks,
+  Users, ChefHat, LogOut, UtensilsCrossed, X, Menu,
   Sun, Moon, BookOpen, LayoutGrid, CalendarDays, Inbox
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -13,9 +13,11 @@ import { useRole } from '../../context/useRole'
 import { canAccessRoute } from '../../context/role'
 
 const NAV_ITEMS = [
-  { to: '/',           icon: LayoutDashboard, label: 'Dashboard'    },
+  { to: '/',           icon: Home,            label: 'Inicio'       },
   { to: '/operaciones', icon: ChefHat,        label: 'Operaciones'  },
-  { to: '/analiticas', icon: BarChart2,       label: 'Analíticas'   },
+  // Dashboard y Analíticas ocultos del menú; las rutas siguen disponibles si se quiere reactivar.
+  // { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard'    },
+  // { to: '/analiticas', icon: BarChart2,       label: 'Analíticas'   },
   { to: '/menu',       icon: UtensilsCrossed, label: 'Menú & Carta' },
   { to: '/mesas',      icon: LayoutGrid,      label: 'Mesas'        },
   { to: '/reservas',   icon: CalendarDays,    label: 'Reservas'     },

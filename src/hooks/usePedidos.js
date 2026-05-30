@@ -140,7 +140,31 @@ export function usePedidos(options = {}) {
     ])
 
     if (resPedidos.error) setError(resPedidos.error.message)
-    else { setError(null); setPedidos(resPedidos.data || []) }
+    else {
+      setError(null)
+      const list = resPedidos.data || []
+      // pedido_items.menu_item_id no tiene FK declarada, así que el embed de
+      // PostgREST no trae la imagen. Resolvemos el join acá: buscamos las
+      // imágenes de los productos involucrados y las pegamos en cada item.
+      const ids = [...new Set(
+        list.flatMap(p => (p.pedido_items || [])
+          .map(i => i.menu_item_id)
+          .filter(Boolean))
+      )]
+      if (ids.length > 0) {
+        const { data: imgs } = await supabase
+          .from('menu_items')
+          .select('id, imagen_url')
+          .in('id', ids)
+        const imgMap = Object.fromEntries((imgs || []).map(m => [m.id, m.imagen_url]))
+        list.forEach(p => {
+          (p.pedido_items || []).forEach(i => {
+            i.imagen_url = i.menu_item_id ? (imgMap[i.menu_item_id] || null) : null
+          })
+        })
+      }
+      setPedidos(list)
+    }
 
     if (!resRecetas.error) setRecetas(resRecetas.data || [])
 
