@@ -50,6 +50,9 @@ export function useFacturacion(options = {}) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [setupWarning, setSetupWarning] = useState(null)
+  const [channelName] = useState(() => (
+    `caja-facturacion-${globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2, 10)}`
+  ))
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -103,14 +106,14 @@ export function useFacturacion(options = {}) {
     fetchData()
 
     const channel = supabase
-      .channel('caja-facturacion')
+      .channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedido_items' }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comprobantes_fiscales' }, fetchData)
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [fetchData])
+  }, [channelName, fetchData])
 
   const arcaReady = Boolean(ARCA_COMPROBANTES_URL && config?.cuit && config?.punto_venta)
 
