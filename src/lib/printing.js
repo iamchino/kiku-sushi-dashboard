@@ -186,14 +186,14 @@ function buildComandaHtml(pedido) {
     <main class="ticket">
       <style>
         .cmd-header { text-align: center; font-weight: 800; font-size: 22px; letter-spacing: 4px; padding: 6px 0; border-top: 2px solid #000; border-bottom: 2px solid #000; margin-bottom: 8px; }
-        .cmd-destination { text-align: center; font-weight: 900; font-size: 32px; line-height: 1.05; margin: 8px 0 14px; padding: 5px 0; border-bottom: 2px solid #000; }
+        .cmd-destination { text-align: center; font-weight: 900; font-size: 28px; line-height: 1.05; margin: 8px 0 14px; padding: 5px 0; border-bottom: 2px solid #000; }
         .cmd-info { font-size: 12px; display: flex; justify-content: space-between; margin: 2px 0; }
         .cmd-section { text-align: center; font-weight: 700; font-size: 11px; letter-spacing: 3px; margin: 12px 0 6px; padding: 4px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; }
-        .cmd-item { margin: 0 0 18px; }
-        .cmd-item-line { font-size: 32px; font-weight: 900; line-height: 1.08; word-break: break-word; }
+        .cmd-item { margin: 0 0 14px; }
+        .cmd-item-line { font-size: 24px; font-weight: 900; line-height: 1.12; word-break: break-word; }
         .cmd-qty { font-weight: 900; }
         .cmd-name { font-weight: 900; }
-        .cmd-note { font-size: 18px; font-weight: 700; margin-left: 34px; margin-top: 4px; }
+        .cmd-note { font-size: 15px; font-weight: 700; margin-left: 30px; margin-top: 4px; }
         .cmd-foot { border-top: 1px dashed #000; margin-top: 6px; }
       </style>
       <div class="cmd-header">ORDEN</div>
@@ -380,7 +380,7 @@ function charsForFontSize(charsPerLine, fontSize) {
 
 export async function printComanda(pedido) {
   const cfg = getPrinterConfig()
-  const fontSize = Math.max(Number(cfg.font_size) || 1, 2)
+  const fontSize = Number(cfg.font_size) || 1
   const text = buildComandaText(pedido, { width: charsForFontSize(cfg.chars_per_line, fontSize) })
   const ok = await tryRemotePrint('comanda', text, { fontSize })
   if (ok) return
