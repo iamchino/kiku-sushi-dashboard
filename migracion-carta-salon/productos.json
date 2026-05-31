@@ -1,0 +1,952 @@
+[
+  {
+    "categoria": "Especiales de Temporada",
+    "subtitulo": "",
+    "nombre": "Kiku Otoñal",
+    "precio": 30000,
+    "descripcion": "2 pzas rebozadas (korokke, langostinos furai o harumaki) + 8 pzas de sushi omakase + bebida (cerveza, gaseosa o copa de vino). No se combinan variedades.",
+    "imagen_origen": null,
+    "slug": "kiku-otonal",
+    "orden": 0
+  },
+  {
+    "categoria": "Combinados",
+    "subtitulo": "Surtidos de 12 y 15 piezas",
+    "nombre": "Kiku 12 pzas",
+    "precio": 31900,
+    "descripcion": "Sin sashimi • Ebi Roll | Philadelphia Roll | Ahumado Roll | New York Roll",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772108175/restaurant/products/hklqg7b1nqqrc6brdcuu.jpg",
+    "slug": "kiku-12-pzas",
+    "orden": 1
+  },
+  {
+    "categoria": "Combinados",
+    "subtitulo": "Surtidos de 12 y 15 piezas",
+    "nombre": "Kiku 15 pzas",
+    "precio": 34600,
+    "descripcion": "Ebi Roll | Philadelphia Roll | Ahumado Roll | New York Roll | Sashimi",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772108207/restaurant/products/kxywzwqr0wvhmzafcr2u.jpg",
+    "slug": "kiku-15-pzas",
+    "orden": 2
+  },
+  {
+    "categoria": "Combinados",
+    "subtitulo": "Surtidos de 12 y 15 piezas",
+    "nombre": "Fusión 12 pzas",
+    "precio": 30200,
+    "descripcion": "Sin tiradito de Salmón • Sake Roll | Tartar Sake Roll | Guacamole Roll | Ebi Roll | Spicy Roll",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772107888/restaurant/products/xiecb3t8k6dk848blnfi.jpg",
+    "slug": "fusion-12-pzas",
+    "orden": 3
+  },
+  {
+    "categoria": "Combinados",
+    "subtitulo": "Surtidos de 12 y 15 piezas",
+    "nombre": "Fusión 15 pzas",
+    "precio": 31700,
+    "descripcion": "Tiradito de Salmón | Sake Roll | Tartar Sake Roll | Guacamole Roll | Ebi Roll | Spicy Roll",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772107918/restaurant/products/c0ljsk4qh6xxszsktetg.jpg",
+    "slug": "fusion-15-pzas",
+    "orden": 4
+  },
+  {
+    "categoria": "Combinados",
+    "subtitulo": "Surtidos de 12 y 15 piezas",
+    "nombre": "Nikkei 12 pzas",
+    "precio": 35000,
+    "descripcion": "Sin Tiradito de Pulpo • Sake Roll | Tempura Roll | Acevichado Roll | Ebi Roll | Nikkei Roll",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772109309/restaurant/products/e8ntrzlusujmbyuclpp0.jpg",
+    "slug": "nikkei-12-pzas",
+    "orden": 5
+  },
+  {
+    "categoria": "Combinados",
+    "subtitulo": "Surtidos de 12 y 15 piezas",
+    "nombre": "Nikkei 15 pzas",
+    "precio": 38000,
+    "descripcion": "Tiradito de Pulpo | Sake Roll | Tempura Roll | Acevichado Roll | Ebi Roll | Nikkei Roll",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772124991/restaurant/products/fknkh3aua1o5cihomjiu.jpg",
+    "slug": "nikkei-15-pzas",
+    "orden": 6
+  },
+  {
+    "categoria": "Combinados",
+    "subtitulo": "Surtidos de 12 y 15 piezas",
+    "nombre": "Exotic 12 pzas",
+    "precio": 27600,
+    "descripcion": "Phila Nipón Roll | Fancy Roll | Ebi Mango Roll | Niguiri Thai | Tiradito Nipón",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772067476/restaurant/products/nkbboj0a6mrvcqqkgz3e.jpg",
+    "slug": "exotic-12-pzas",
+    "orden": 7
+  },
+  {
+    "categoria": "Combinados",
+    "subtitulo": "Surtidos de 12 y 15 piezas",
+    "nombre": "Exotic 15 pzas",
+    "precio": 32000,
+    "descripcion": "Phila Nipón Roll | Fancy Roll | Ebi Mango Roll | Niguiri Thai | Tiradito Nipón",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772067498/restaurant/products/dhiilxvnhvsephyguf9x.jpg",
+    "slug": "exotic-15-pzas",
+    "orden": 8
+  },
+  {
+    "categoria": "Combinados",
+    "subtitulo": "Surtidos de 12 y 15 piezas",
+    "nombre": "Veggie 15 pzas",
+    "precio": 24300,
+    "descripcion": "Ponzu Roll | Maki Vegan Roll | Bajiru Roll | Arrolladitos Primavera Veggie. Ponzu Roll: relleno de hongos confitados, rúcula, zanahoria y tomates en juliana, envuelto en alga nori y arroz, cubierto de un colchón de paltas, bañado en salsa ponzu. Maki Vegan Roll: arroz relleno de guacamole y espinaca, cubierto de alga nori, con top de tartar vegano (mayonesa spicy y chauchas). Bajiru Roll: relleno de queso, mix de tomates confitados y albahaca fresca, envuelto en arroz y alga nori, con mayonesa de olivo trufada.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772133200/restaurant/products/uapvirdudaavbds9mdjy.jpg",
+    "slug": "veggie-15-pzas",
+    "orden": 9
+  },
+  {
+    "categoria": "Gyozas",
+    "subtitulo": "Empanadillas japonesas · 4 unidades",
+    "nombre": "Gyozas de langostinos",
+    "precio": 13900,
+    "descripcion": "4 unidades de empanadillas de trigo japonesas, relleno de langostinos al curry. Selladas y al vapor. Acompañado de salsa china agridulce.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772121142/restaurant/products/pnndirfdmwxflylsiekw.jpg",
+    "slug": "gyozas-de-langostinos",
+    "orden": 10
+  },
+  {
+    "categoria": "Gyozas",
+    "subtitulo": "Empanadillas japonesas · 4 unidades",
+    "nombre": "Gyozas de ternera",
+    "precio": 13500,
+    "descripcion": "4 unidades de empanadillas de trigo japonesas, relleno de ternera. Selladas y al vapor. Acompañado de salsa de soja cítrica.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772121159/restaurant/products/uyzhqtuawy0mc0l4rs8o.jpg",
+    "slug": "gyozas-de-ternera",
+    "orden": 11
+  },
+  {
+    "categoria": "Gyozas",
+    "subtitulo": "Empanadillas japonesas · 4 unidades",
+    "nombre": "Gyozas tako",
+    "precio": 13900,
+    "descripcion": "4 unidades de empanadillas de trigo japonesas, relleno de vegetales y pulpo. Selladas y al vapor. Acompañado de salsa china agridulce.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772121177/restaurant/products/koptjg9uqlhem2r2hdcg.jpg",
+    "slug": "gyozas-tako",
+    "orden": 12
+  },
+  {
+    "categoria": "Gyozas",
+    "subtitulo": "Empanadillas japonesas · 4 unidades",
+    "nombre": "Gyozas chiken teriyaki",
+    "precio": 13900,
+    "descripcion": "4 unidades de empanadillas de trigo japonesas, relleno de pollo y teriyaki. Selladas y al vapor. Acompañado de salsa teriyaki y negui.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772121105/restaurant/products/u0yqq6q4s5dil3qq0ga3.jpg",
+    "slug": "gyozas-chiken-teriyaki",
+    "orden": 13
+  },
+  {
+    "categoria": "Gyozas",
+    "subtitulo": "Empanadillas japonesas · 4 unidades",
+    "nombre": "Gyozas veggie",
+    "precio": 11000,
+    "descripcion": "4 unidades de empanadillas de trigo japonesas, relleno de vegetales. Selladas y al vapor. Acompañado de salsa china agridulce.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772121194/restaurant/products/swtd1e89f9zdbayltcpr.jpg",
+    "slug": "gyozas-veggie",
+    "orden": 14
+  },
+  {
+    "categoria": "Gyozas",
+    "subtitulo": "Empanadillas japonesas · 4 unidades",
+    "nombre": "Gyozas acevichadas",
+    "precio": 13900,
+    "descripcion": "4 unidades de empanadillas japonesas fritas, rellenas de pesca blanca, cebolla morada y cilantro. Fritas, acompañadas de salsa tonkatsu.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772120805/restaurant/products/zy1wvmho5p961hjawhdk.jpg",
+    "slug": "gyozas-acevichadas",
+    "orden": 15
+  },
+  {
+    "categoria": "Gyozas",
+    "subtitulo": "Empanadillas japonesas · 4 unidades",
+    "nombre": "Gyozas de cerdo",
+    "precio": 13000,
+    "descripcion": "4 unidades de empanadillas de trigo japonesas, relleno de carne de cerdo. Selladas y al vapor. Acompañado de salsa china agridulce.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772121123/restaurant/products/edx45k5ssd7ioryfcqyj.jpg",
+    "slug": "gyozas-de-cerdo",
+    "orden": 16
+  },
+  {
+    "categoria": "Harumakis",
+    "subtitulo": "",
+    "nombre": "Harumakis de carne",
+    "precio": 11500,
+    "descripcion": "4 unidades de arrollados primavera de carne fritos. Acompañado de salsa china agridulce.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772121256/restaurant/products/nijvomh7vpx5q5dewsmo.jpg",
+    "slug": "harumakis-de-carne",
+    "orden": 17
+  },
+  {
+    "categoria": "Rebozados",
+    "subtitulo": "Apanados en panco y fritos",
+    "nombre": "2 Langostinos furai",
+    "precio": 9000,
+    "descripcion": "2 pzas de langostinos rebozados en panco y fritos. Acompañado de salsa agridulce de mostaza y miel.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772033153/restaurant/products/qzt0ciwnw5orglkpqmnd.jpg",
+    "slug": "2-langostinos-furai",
+    "orden": 18
+  },
+  {
+    "categoria": "Rebozados",
+    "subtitulo": "Apanados en panco y fritos",
+    "nombre": "4 Langostinos furai",
+    "precio": 14000,
+    "descripcion": "4 pzas de langostinos rebozados en panco y fritos. Acompañado de salsa agridulce de mostaza y miel.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772028682/restaurant/products/qnbqz7q38ql3qatsw0vs.jpg",
+    "slug": "4-langostinos-furai",
+    "orden": 19
+  },
+  {
+    "categoria": "Rebozados",
+    "subtitulo": "Apanados en panco y fritos",
+    "nombre": "6 Langostinos furai",
+    "precio": 22000,
+    "descripcion": "6 pzas de langostinos rebozados en panco y fritos. Acompañado de salsa agridulce de mostaza y miel.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772053230/restaurant/products/gywfojvnysfguwb63h8w.jpg",
+    "slug": "6-langostinos-furai",
+    "orden": 20
+  },
+  {
+    "categoria": "Rebozados",
+    "subtitulo": "Apanados en panco y fritos",
+    "nombre": "2 Maki furai",
+    "precio": 12300,
+    "descripcion": "2 pzas de Maki de salmón, apanado y frito. Top de guacamole y vieiras rancheras.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772121507/restaurant/products/aqbxue3uopzbb6vspwwn.jpg",
+    "slug": "2-maki-furai",
+    "orden": 21
+  },
+  {
+    "categoria": "Rebozados",
+    "subtitulo": "Apanados en panco y fritos",
+    "nombre": "4 Maki furai",
+    "precio": 17000,
+    "descripcion": "4 pzas de Maki de salmón, apanado y frito. Top de guacamole y vieiras rancheras.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772121523/restaurant/products/akygdyxiimbt7cnxal6p.jpg",
+    "slug": "4-maki-furai",
+    "orden": 22
+  },
+  {
+    "categoria": "Rebozados",
+    "subtitulo": "Apanados en panco y fritos",
+    "nombre": "Dupla furai",
+    "precio": 18000,
+    "descripcion": "Dupla de un ceviche de vieiras y maíz chulpi. Un tartar de salmón sobre colchón de shari furai.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772053270/restaurant/products/cld3qmgnoomvev9iw1qa.jpg",
+    "slug": "dupla-furai",
+    "orden": 23
+  },
+  {
+    "categoria": "Rebozados",
+    "subtitulo": "Apanados en panco y fritos",
+    "nombre": "Oniguiri furai",
+    "precio": 16000,
+    "descripcion": "Dupla de triángulos de shari, envueltos en alga nori, rebozado en panco y frito, relleno de salmón cocido. Coronado de mayo japo y salsa brava.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772053004/restaurant/products/keiaz0laeyitzuuf00uk.jpg",
+    "slug": "oniguiri-furai",
+    "orden": 24
+  },
+  {
+    "categoria": "Rebozados",
+    "subtitulo": "Apanados en panco y fritos",
+    "nombre": "Vieiras furai",
+    "precio": 13000,
+    "descripcion": "Callos de vieiras apanadas en panco y fritas. Acompañadas de salsa brava.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772122840/restaurant/products/pzcbqttclh5wxvpup2q9.jpg",
+    "slug": "vieiras-furai",
+    "orden": 25
+  },
+  {
+    "categoria": "Korokkes",
+    "subtitulo": "",
+    "nombre": "Korokke de pulpo",
+    "precio": 17000,
+    "descripcion": "2 unidades de croquetas japonesas rellenas de puerro, salsa blanca y pulpo. Acompañado de salsa brava.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772054446/restaurant/products/gn6zyxvveln5oy16pzvw.jpg",
+    "slug": "korokke-de-pulpo",
+    "orden": 26
+  },
+  {
+    "categoria": "Korokkes",
+    "subtitulo": "",
+    "nombre": "Korokke de salmón",
+    "precio": 16000,
+    "descripcion": "2 unidades de croquetas japonesas rellenas de puerro, salsa blanca y salmón. Acompañado de salsa brava.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772054512/restaurant/products/lbbxp0taxte4tku5nz96.jpg",
+    "slug": "korokke-de-salmon",
+    "orden": 27
+  },
+  {
+    "categoria": "Korokkes",
+    "subtitulo": "",
+    "nombre": "Korokke de shitake",
+    "precio": 14000,
+    "descripcion": "2 unidades de croquetas japonesas rellenas de puerro, salsa blanca y shitake. Acompañado de salsa brava.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772054536/restaurant/products/aygibrsksodmsdhvgbik.jpg",
+    "slug": "korokke-de-shitake",
+    "orden": 28
+  },
+  {
+    "categoria": "Tempura",
+    "subtitulo": "2 personas",
+    "nombre": "Tempura Pacifico (2 personas)",
+    "precio": 22000,
+    "descripcion": "Trozos tamaño bocado fritos en una masa estilo japonesa de vegetales, salmón y langostinos. Acompañado de salsa spicy.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772122912/restaurant/products/uvht1jmegzile4ambnt5.jpg",
+    "slug": "tempura-pacifico-2-personas",
+    "orden": 29
+  },
+  {
+    "categoria": "Tempura",
+    "subtitulo": "2 personas",
+    "nombre": "Tempura Veggie",
+    "precio": 17000,
+    "descripcion": "Trozos tamaño bocado fritos en una masa estilo japonesa de vegetales. Acompañado de salsa spicy.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772123369/restaurant/products/ebacx1kjgoivsho9twxr.jpg",
+    "slug": "tempura-veggie",
+    "orden": 30
+  },
+  {
+    "categoria": "Tiraditos",
+    "subtitulo": "",
+    "nombre": "Tiradito nipón",
+    "precio": 21000,
+    "descripcion": "Láminas de salmón, acompañado de chimi nipón, espolvoreado de maíz chulpi.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772123966/restaurant/products/enzftipovv3ssehxnocq.jpg",
+    "slug": "tiradito-nipon",
+    "orden": 31
+  },
+  {
+    "categoria": "Tiraditos",
+    "subtitulo": "",
+    "nombre": "Tiradito maracuyá",
+    "precio": 20000,
+    "descripcion": "Láminas de salmón, acompañado de salsa maracuyá. Coronado de plátano frito.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772123920/restaurant/products/pnatl1gxraf5jzj0tql2.jpg",
+    "slug": "tiradito-maracuya",
+    "orden": 32
+  },
+  {
+    "categoria": "Tiraditos",
+    "subtitulo": "",
+    "nombre": "Tiradito confitados",
+    "precio": 18000,
+    "descripcion": "Láminas de pesca del día. Acompañado de leche de tigre confitada. Topping acevichado y maíz chulpi.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772123700/restaurant/products/w5kidlyxgdy9jnwp3z0c.jpg",
+    "slug": "tiradito-confitados",
+    "orden": 33
+  },
+  {
+    "categoria": "Rollos de Sushi",
+    "subtitulo": "",
+    "nombre": "8 Tamago roll",
+    "precio": 16000,
+    "descripcion": "Queso, palmitos y salmón. Envuelto en lámina de tamago. Coronado en salsa maracuyá. Top de hilos de boniato frito.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772054901/restaurant/products/agzpla0swyradu6objqh.jpg",
+    "slug": "8-tamago-roll",
+    "orden": 34
+  },
+  {
+    "categoria": "Rollos de Sushi",
+    "subtitulo": "",
+    "nombre": "8 Tamago palta roll",
+    "precio": 16000,
+    "descripcion": "Queso, palmito y palta. Envuelto en lámina de tamago. Salsa maracuyá, coronado de hilos de boniato frito.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772208973/restaurant/products/xtg6fdme1mefk5bjzyqu.jpg",
+    "slug": "8-tamago-palta-roll",
+    "orden": 35
+  },
+  {
+    "categoria": "Rollos de Sushi",
+    "subtitulo": "",
+    "nombre": "8 Tamago ebi furai roll",
+    "precio": 16500,
+    "descripcion": "Queso cítrico y ebi furai. Envuelto en lámina de tamago. Coronado en salsa maracuyá. Top de hilos de boniato frito.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772056917/restaurant/products/orfguce7hiadumsrof7m.jpg",
+    "slug": "8-tamago-ebi-furai-roll",
+    "orden": 36
+  },
+  {
+    "categoria": "Rollos de Sushi",
+    "subtitulo": "",
+    "nombre": "9 Huanca Roll",
+    "precio": 16000,
+    "descripcion": "Langostinos furai y palta. Semicubierto de salmón. Coronado en salsa huancaína y polvo de aceituna.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772054754/restaurant/products/x3bujivcpf7gkxn9zq27.jpg",
+    "slug": "9-huanca-roll",
+    "orden": 37
+  },
+  {
+    "categoria": "Niguiris",
+    "subtitulo": "Moriawases",
+    "nombre": "6 Niguiri de salmón",
+    "precio": 23000,
+    "descripcion": "Bocado de arroz, cubierto por una lonja de salmón rosado.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772211086/restaurant/products/hptanmys63avhdqggzrm.jpg",
+    "slug": "6-niguiri-de-salmon",
+    "orden": 38
+  },
+  {
+    "categoria": "Yakimeshis",
+    "subtitulo": "Platos de cocina",
+    "nombre": "Yakimeshi Cerdo",
+    "precio": 18500,
+    "descripcion": "Arroz salteado con vegetales, huevo, trozos de cerdo y salsa de soja.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772207059/restaurant/products/ouer77mevodadtwssy9j.jpg",
+    "slug": "yakimeshi-cerdo",
+    "orden": 39
+  },
+  {
+    "categoria": "Yakimeshis",
+    "subtitulo": "Platos de cocina",
+    "nombre": "Yakimeshi de Langostinos",
+    "precio": 21500,
+    "descripcion": "Arroz salteado con vegetales, huevo, langostinos y salsa de soja. Espolvoreado con katsuobushi.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772207082/restaurant/products/myb1yceyb7d59goj7jjq.jpg",
+    "slug": "yakimeshi-de-langostinos",
+    "orden": 40
+  },
+  {
+    "categoria": "Yakimeshis",
+    "subtitulo": "Platos de cocina",
+    "nombre": "Yakimeshi Veggie",
+    "precio": 18000,
+    "descripcion": "Arroz salteado con vegetales, huevo y salsa de soja.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772053717/restaurant/products/o43pouihbtzedb2ga4vd.jpg",
+    "slug": "yakimeshi-veggie",
+    "orden": 41
+  },
+  {
+    "categoria": "Yakisobas",
+    "subtitulo": "Platos de cocina",
+    "nombre": "Yakisoba de Cerdo",
+    "precio": 19500,
+    "descripcion": "Fideos salteados con vegetales, carne de cerdo y salsa yakisoba.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772206533/restaurant/products/hgm5shqbgnnp9hwgxhtp.jpg",
+    "slug": "yakisoba-de-cerdo",
+    "orden": 42
+  },
+  {
+    "categoria": "Yakisobas",
+    "subtitulo": "Platos de cocina",
+    "nombre": "Yakisoba de Langostinos",
+    "precio": 21500,
+    "descripcion": "Fideos salteados con vegetales, langostinos y salsa yakisoba. Espolvoreado de katsuobushi.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772206717/restaurant/products/nshykqp8stkmcazlmewg.jpg",
+    "slug": "yakisoba-de-langostinos",
+    "orden": 43
+  },
+  {
+    "categoria": "Yakisobas",
+    "subtitulo": "Platos de cocina",
+    "nombre": "Yakisoba Veggie",
+    "precio": 18000,
+    "descripcion": "Fideos salteados con vegetales y salsa yakisoba.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772206449/restaurant/products/cred1qykbimog3zknimt.jpg",
+    "slug": "yakisoba-veggie",
+    "orden": 44
+  },
+  {
+    "categoria": "Saltados",
+    "subtitulo": "Platos de cocina",
+    "nombre": "Saltado de Lomo",
+    "precio": 19000,
+    "descripcion": "Cebolla, zanahoria y morrones. Acompañado de arroz gohan y furikake. Salsa de soja y aceite de sésamo.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772126930/restaurant/products/y4nrqcpyhqztzxshsobv.jpg",
+    "slug": "saltado-de-lomo",
+    "orden": 45
+  },
+  {
+    "categoria": "Saltados",
+    "subtitulo": "Platos de cocina",
+    "nombre": "Saltado de Pollo",
+    "precio": 19000,
+    "descripcion": "Cebolla, zanahoria y morrones. Acompañado de arroz gohan y furikake. Miel, mostaza y aceite de sésamo.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772127012/restaurant/products/rsrqotp4zcufuovvpinl.jpg",
+    "slug": "saltado-de-pollo",
+    "orden": 46
+  },
+  {
+    "categoria": "Saltados",
+    "subtitulo": "Platos de cocina",
+    "nombre": "Saltado Veggie",
+    "precio": 16000,
+    "descripcion": "Cebolla, zanahoria y morrones. Acompañado de arroz gohan y furikake.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772126521/restaurant/products/l8v4tpncoza4igncmhwp.jpg",
+    "slug": "saltado-veggie",
+    "orden": 47
+  },
+  {
+    "categoria": "Postres",
+    "subtitulo": "",
+    "nombre": "Copa Dulce",
+    "precio": 8500,
+    "descripcion": "",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772055104/restaurant/products/juzvfo3wlzekn1a9rlgx.jpg",
+    "slug": "copa-dulce",
+    "orden": 48
+  },
+  {
+    "categoria": "Postres",
+    "subtitulo": "",
+    "nombre": "Taiyaki",
+    "precio": 6700,
+    "descripcion": "Buñuelo japonés.",
+    "imagen_origen": null,
+    "slug": "taiyaki",
+    "orden": 49
+  },
+  {
+    "categoria": "Postres",
+    "subtitulo": "",
+    "nombre": "Taiyaki Cream",
+    "precio": 7900,
+    "descripcion": "Buñuelo japonés con bocha de helado.",
+    "imagen_origen": null,
+    "slug": "taiyaki-cream",
+    "orden": 50
+  },
+  {
+    "categoria": "Postres",
+    "subtitulo": "",
+    "nombre": "Aisu",
+    "precio": 9000,
+    "descripcion": "Helado en tempura frío.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772054943/restaurant/products/uuiaxm35z8axenmgrgjd.jpg",
+    "slug": "aisu",
+    "orden": 51
+  },
+  {
+    "categoria": "Bebidas sin alcohol",
+    "subtitulo": "",
+    "nombre": "Agua c/gas",
+    "precio": 3800,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "agua-c-gas",
+    "orden": 52
+  },
+  {
+    "categoria": "Bebidas sin alcohol",
+    "subtitulo": "",
+    "nombre": "Agua s/gas",
+    "precio": 3800,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "agua-s-gas",
+    "orden": 53
+  },
+  {
+    "categoria": "Bebidas sin alcohol",
+    "subtitulo": "",
+    "nombre": "Jarra de Limonada",
+    "precio": 15000,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "jarra-de-limonada",
+    "orden": 54
+  },
+  {
+    "categoria": "Bebidas sin alcohol",
+    "subtitulo": "",
+    "nombre": "Coca cola lata",
+    "precio": 4000,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "coca-cola-lata",
+    "orden": 55
+  },
+  {
+    "categoria": "Bebidas sin alcohol",
+    "subtitulo": "",
+    "nombre": "Coca cola zero lata",
+    "precio": 4000,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "coca-cola-zero-lata",
+    "orden": 56
+  },
+  {
+    "categoria": "Bebidas sin alcohol",
+    "subtitulo": "",
+    "nombre": "Sprite lata",
+    "precio": 4000,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "sprite-lata",
+    "orden": 57
+  },
+  {
+    "categoria": "Bebidas sin alcohol",
+    "subtitulo": "",
+    "nombre": "Vaso de limonada",
+    "precio": 5000,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "vaso-de-limonada",
+    "orden": 58
+  },
+  {
+    "categoria": "Tragos",
+    "subtitulo": "Con alcohol",
+    "nombre": "Cynar Pomelo",
+    "precio": 6500,
+    "descripcion": "Pomelo.",
+    "imagen_origen": null,
+    "slug": "cynar-pomelo",
+    "orden": 59
+  },
+  {
+    "categoria": "Tragos",
+    "subtitulo": "Con alcohol",
+    "nombre": "Cynar Soda",
+    "precio": 6500,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "cynar-soda",
+    "orden": 60
+  },
+  {
+    "categoria": "Tragos",
+    "subtitulo": "Con alcohol",
+    "nombre": "Aperol Spritz",
+    "precio": 6900,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "aperol-spritz",
+    "orden": 61
+  },
+  {
+    "categoria": "Tragos",
+    "subtitulo": "Con alcohol",
+    "nombre": "Soju Tonic",
+    "precio": 8500,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "soju-tonic",
+    "orden": 62
+  },
+  {
+    "categoria": "Tragos",
+    "subtitulo": "Con alcohol",
+    "nombre": "Gin La Salvaje Tónica",
+    "precio": 6800,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "gin-la-salvaje-tonica",
+    "orden": 63
+  },
+  {
+    "categoria": "Tragos",
+    "subtitulo": "Con alcohol",
+    "nombre": "Gin Dry Yugen Tónica",
+    "precio": 9500,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "gin-dry-yugen-tonica",
+    "orden": 64
+  },
+  {
+    "categoria": "Tragos",
+    "subtitulo": "Con alcohol",
+    "nombre": "Somek",
+    "precio": 30000,
+    "descripcion": "Dos cervezas a elección, una botella de soju.",
+    "imagen_origen": null,
+    "slug": "somek",
+    "orden": 65
+  },
+  {
+    "categoria": "Cervezas",
+    "subtitulo": "",
+    "nombre": "Cerveza Heineken 330ml",
+    "precio": 6000,
+    "descripcion": "Lager.",
+    "imagen_origen": null,
+    "slug": "cerveza-heineken-330ml",
+    "orden": 66
+  },
+  {
+    "categoria": "Cervezas",
+    "subtitulo": "",
+    "nombre": "Cerveza Corona 330ml",
+    "precio": 5500,
+    "descripcion": "Mexican Lager.",
+    "imagen_origen": null,
+    "slug": "cerveza-corona-330ml",
+    "orden": 67
+  },
+  {
+    "categoria": "Cervezas",
+    "subtitulo": "",
+    "nombre": "Cerveza Sapporo 330ml",
+    "precio": 9500,
+    "descripcion": "Japón. Hokkaido, cerveza malteada.",
+    "imagen_origen": null,
+    "slug": "cerveza-sapporo-330ml",
+    "orden": 68
+  },
+  {
+    "categoria": "Cervezas",
+    "subtitulo": "",
+    "nombre": "Cerveza Tsingtao 330ml",
+    "precio": 8500,
+    "descripcion": "China.",
+    "imagen_origen": null,
+    "slug": "cerveza-tsingtao-330ml",
+    "orden": 69
+  },
+  {
+    "categoria": "Vinos · Viña Las Perdices",
+    "subtitulo": "",
+    "nombre": "Las Perdices Torrontés Dulce Natural",
+    "precio": 21000,
+    "descripcion": "",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1775054739/restaurant/products/keoinr3hwpwbqtidh2l1.jpg",
+    "slug": "las-perdices-torrontes-dulce-natural",
+    "orden": 70
+  },
+  {
+    "categoria": "Vinos · Viña Las Perdices",
+    "subtitulo": "",
+    "nombre": "Chac Chac Malbec Rosé",
+    "precio": 22000,
+    "descripcion": "",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1775054810/restaurant/products/e5jkx9jf6e55uj8w8n7g.jpg",
+    "slug": "chac-chac-malbec-rose",
+    "orden": 71
+  },
+  {
+    "categoria": "Vinos · Viña Las Perdices",
+    "subtitulo": "",
+    "nombre": "Las Perdices Reserva Malbec",
+    "precio": 28000,
+    "descripcion": "",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1775054663/restaurant/products/nl82e91mjr9stsfm2i2k.jpg",
+    "slug": "las-perdices-reserva-malbec",
+    "orden": 72
+  },
+  {
+    "categoria": "Vinos · Viña Las Perdices",
+    "subtitulo": "",
+    "nombre": "Las Perdices Reserva Sauvignon Blanc",
+    "precio": 28000,
+    "descripcion": "",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1775054715/restaurant/products/iq1ryfptvfqfkdj5oj9i.jpg",
+    "slug": "las-perdices-reserva-sauvignon-blanc",
+    "orden": 73
+  },
+  {
+    "categoria": "Vinos · Viña Las Perdices",
+    "subtitulo": "",
+    "nombre": "Las Perdices Reserva Pinot Noir",
+    "precio": 28000,
+    "descripcion": "",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1775054693/restaurant/products/ughdbanx1nn6l0pagqik.jpg",
+    "slug": "las-perdices-reserva-pinot-noir",
+    "orden": 74
+  },
+  {
+    "categoria": "Vinos · Viña Las Perdices",
+    "subtitulo": "",
+    "nombre": "Riesling de Viña Las Perdices",
+    "precio": 38000,
+    "descripcion": "",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1775054772/restaurant/products/wyztrxo08qnuirgdwzfa.jpg",
+    "slug": "riesling-de-vina-las-perdices",
+    "orden": 75
+  },
+  {
+    "categoria": "Vinos · Viña Las Perdices",
+    "subtitulo": "",
+    "nombre": "Albariño de Viña Las Perdices",
+    "precio": 38000,
+    "descripcion": "",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1775054478/restaurant/products/wcjl5ywl8zguywe5rqfx.jpg",
+    "slug": "albarino-de-vina-las-perdices",
+    "orden": 76
+  },
+  {
+    "categoria": "Vinos · Viña Las Perdices",
+    "subtitulo": "",
+    "nombre": "Las Perdices Extra Brut Método Tradicional",
+    "precio": 40000,
+    "descripcion": "Espumante.",
+    "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1775054630/restaurant/products/gmifk2esd5vj7qjybvek.png",
+    "slug": "las-perdices-extra-brut-metodo-tradicional",
+    "orden": 77
+  },
+  {
+    "categoria": "Vinos · Salentein",
+    "subtitulo": "",
+    "nombre": "Salentein Reserva Chardonnay",
+    "precio": 26000,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "salentein-reserva-chardonnay",
+    "orden": 78
+  },
+  {
+    "categoria": "Vinos · Salentein",
+    "subtitulo": "",
+    "nombre": "Salentein Reserva Sauvignon Blanc",
+    "precio": 26500,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "salentein-reserva-sauvignon-blanc",
+    "orden": 79
+  },
+  {
+    "categoria": "Vinos · Salentein",
+    "subtitulo": "",
+    "nombre": "Salentein Reserva Malbec",
+    "precio": 24000,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "salentein-reserva-malbec",
+    "orden": 80
+  },
+  {
+    "categoria": "Vinos · Salentein",
+    "subtitulo": "",
+    "nombre": "Salentein Brut Nature",
+    "precio": 30000,
+    "descripcion": "Espumante.",
+    "imagen_origen": null,
+    "slug": "salentein-brut-nature",
+    "orden": 81
+  },
+  {
+    "categoria": "Vinos · Salentein",
+    "subtitulo": "",
+    "nombre": "Salentein Brut Rosé",
+    "precio": 30000,
+    "descripcion": "Espumante.",
+    "imagen_origen": null,
+    "slug": "salentein-brut-rose",
+    "orden": 82
+  },
+  {
+    "categoria": "Vinos · Salentein",
+    "subtitulo": "",
+    "nombre": "Salentein Extra Brut",
+    "precio": 30000,
+    "descripcion": "Espumante.",
+    "imagen_origen": null,
+    "slug": "salentein-extra-brut",
+    "orden": 83
+  },
+  {
+    "categoria": "Vinos · Salentein",
+    "subtitulo": "",
+    "nombre": "Salentein Blanc de Blancs",
+    "precio": 30000,
+    "descripcion": "Espumante.",
+    "imagen_origen": null,
+    "slug": "salentein-blanc-de-blancs",
+    "orden": 84
+  },
+  {
+    "categoria": "Vinos · Salentein",
+    "subtitulo": "",
+    "nombre": "Salentein Doux",
+    "precio": 30000,
+    "descripcion": "Espumante.",
+    "imagen_origen": null,
+    "slug": "salentein-doux",
+    "orden": 85
+  },
+  {
+    "categoria": "Vinos · Escorihuela Gascón",
+    "subtitulo": "",
+    "nombre": "Escorihuela Gascón Sauvignon Blanc",
+    "precio": 27000,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "escorihuela-gascon-sauvignon-blanc",
+    "orden": 86
+  },
+  {
+    "categoria": "Vinos · Luigi Bosca",
+    "subtitulo": "",
+    "nombre": "Luigi Bosca Chardonnay",
+    "precio": 36000,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "luigi-bosca-chardonnay",
+    "orden": 87
+  },
+  {
+    "categoria": "Vinos · Luigi Bosca",
+    "subtitulo": "",
+    "nombre": "Luigi Bosca Sauvignon Blanc",
+    "precio": 36000,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "luigi-bosca-sauvignon-blanc",
+    "orden": 88
+  },
+  {
+    "categoria": "Vinos · Luigi Bosca",
+    "subtitulo": "",
+    "nombre": "Luigi Bosca Rosé",
+    "precio": 36000,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "luigi-bosca-rose",
+    "orden": 89
+  },
+  {
+    "categoria": "Vinos · Catena Zapata",
+    "subtitulo": "",
+    "nombre": "DV Catena Chardonnay",
+    "precio": 40000,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "dv-catena-chardonnay",
+    "orden": 90
+  },
+  {
+    "categoria": "Vinos · Rutini Wines",
+    "subtitulo": "",
+    "nombre": "Rutini Wines Sauvignon Blanc",
+    "precio": 45000,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "rutini-wines-sauvignon-blanc",
+    "orden": 91
+  },
+  {
+    "categoria": "Vinos · Rutini Wines",
+    "subtitulo": "",
+    "nombre": "Rutini Malbec",
+    "precio": 45000,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "rutini-malbec",
+    "orden": 92
+  },
+  {
+    "categoria": "Vinos por Copa",
+    "subtitulo": "",
+    "nombre": "Copa Vino Blanco",
+    "precio": 7500,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "copa-vino-blanco",
+    "orden": 93
+  },
+  {
+    "categoria": "Vinos por Copa",
+    "subtitulo": "",
+    "nombre": "Copa Vino Malbec",
+    "precio": 7500,
+    "descripcion": "",
+    "imagen_origen": null,
+    "slug": "copa-vino-malbec",
+    "orden": 94
+  }
+]
