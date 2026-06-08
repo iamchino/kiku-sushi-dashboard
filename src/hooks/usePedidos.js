@@ -6,6 +6,8 @@ import { getAuthorizedComprobante } from '../lib/fiscal'
 
 export const ESTADOS = ['pendiente', 'preparando', 'listo', 'entregado']
 
+const ENABLE_ORDER_STOCK_DISCOUNT = import.meta.env.VITE_ENABLE_ORDER_STOCK_DISCOUNT === 'true'
+
 export const ESTADO_SIGUIENTE = {
   pendiente:  'preparando',
   preparando: 'listo',
@@ -334,6 +336,8 @@ export function usePedidos(options = {}) {
   }
 
   const descontarStockPedido = async (pedidoId) => {
+    if (!ENABLE_ORDER_STOCK_DISCOUNT) return null
+
     const pedido = pedidos.find(p => p.id === pedidoId)
     if (!pedido || pedido.stock_descontado) return
 

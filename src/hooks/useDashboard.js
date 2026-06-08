@@ -44,7 +44,7 @@ export function useDashboard() {
     return {
       pedidos_total: data.length,
       pedidos_salon: data.filter(p => p.canal === 'salon').length,
-      pedidos_delivery: data.filter(p => p.canal === 'delivery').length,
+      pedidos_delivery: data.filter(p => p.canal !== 'salon').length,
       ventas_total: ventas,
       ticket_promedio: ticket,
     }
@@ -104,9 +104,14 @@ export function useDashboard() {
   }, [])
 
   const fetchAlertasStock = useCallback(async () => {
-    const { data, error } = await supabase.from('stock').select('nombre, stock_actual, stock_minimo, unidad')
+    const { data, error } = await supabase.from('stock').select('id, nombre, stock_actual, stock_minimo, unidad')
     if (error) throw error
-    return (data || []).filter(s => parseFloat(s.stock_actual) <= parseFloat(s.stock_minimo))
+    return (data || [])
+      .filter(s => parseFloat(s.stock_actual) <= parseFloat(s.stock_minimo))
+      .map(s => ({
+        ...s,
+        estado: parseFloat(s.stock_actual) <= 0 ? 'critico' : 'bajo',
+      }))
   }, [])
 
   const fetchAll = useCallback(async () => {
@@ -137,6 +142,7 @@ export function useDashboard() {
       .channel('dashboard-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, () => fetchAll())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedido_items' }, () => fetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'stock' }, () => fetchAll())
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [fetchAll])

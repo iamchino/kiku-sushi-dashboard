@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, RefreshCw, Search, Calendar, ClipboardList, ChevronRight, Users, Clock } from 'lucide-react'
+import { Plus, RefreshCw, Search, Calendar, ChevronRight, Users, Clock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
   useReservas, RESERVA_ESTADO_LABEL, RESERVA_ESTADO_COLOR,

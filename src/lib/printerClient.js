@@ -16,7 +16,6 @@ import { getPrinterConfig } from './printerStore'
 
 const CONNECT_TIMEOUT_MS = 4000
 const REQUEST_TIMEOUT_MS = 8000
-const RECONNECT_DELAY_MS = 5000
 
 class PrinterClient {
   constructor() {
@@ -105,7 +104,7 @@ class PrinterClient {
 
       ws.onmessage = (event) => this.handleMessage(event.data)
 
-      ws.onerror = (event) => {
+      ws.onerror = () => {
         // El navegador no expone detalle, solo el evento.
         this.lastError = `Error WebSocket en ${host} (cert no instalado o servicio caido)`
         if (!settled) {

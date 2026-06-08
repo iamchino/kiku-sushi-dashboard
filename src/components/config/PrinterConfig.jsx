@@ -51,7 +51,7 @@ const FIELD_STYLE = {
 }
 
 export default function PrinterConfig() {
-  const { loading, config, override, remote, load, save, clearOverride } = usePrinterStore()
+  const { loading, config, override, load, save, clearOverride } = usePrinterStore()
 
   const [host, setHost] = useState('')
   const [target, setTarget] = useState('remote') // remote | local

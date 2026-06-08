@@ -69,7 +69,7 @@ export default function Dashboard() {
         <KpiCard label="Ventas del día" valor={loading ? null : `$${Number(kpis?.ventas_total || 0).toLocaleString('es-AR')}`} delta={delta('ventas_total', 'ventas_total')} loading={loading} />
         <KpiCard label="Ticket promedio" valor={loading ? null : `$${Math.round(kpis?.ticket_promedio || 0).toLocaleString('es-AR')}`} delta={delta('ticket_promedio', 'ticket_promedio')} loading={loading} />
         <KpiCard label="Pedidos salón" valor={loading ? null : kpis?.pedidos_salon ?? 0} delta={delta('pedidos_salon', 'pedidos_salon')} loading={loading} />
-        <KpiCard label="Pedidos delivery" valor={loading ? null : kpis?.pedidos_delivery ?? 0} delta={delta('pedidos_delivery', 'pedidos_delivery')} loading={loading} />
+        <KpiCard label="Delivery/take away" valor={loading ? null : kpis?.pedidos_delivery ?? 0} delta={delta('pedidos_delivery', 'pedidos_delivery')} loading={loading} />
       </div>
 
       {/* Charts row */}

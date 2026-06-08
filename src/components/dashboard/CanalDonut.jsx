@@ -9,7 +9,7 @@ const COLORES = {
 
 const ETIQUETAS = {
   salon: 'Salón',
-  delivery: 'Delivery',
+  delivery: 'Delivery/take away',
   whatsapp: 'WhatsApp',
   pedidosya: 'PedidosYa',
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
-  X, Calendar, Clock, Users, User, Phone, Mail, FileText,
+  X, Calendar, Clock, Users, Phone, Mail, FileText,
   Loader2, AlertCircle, Check, XCircle, UserMinus, Utensils,
   Salad, Accessibility, Sparkles,
 } from 'lucide-react'

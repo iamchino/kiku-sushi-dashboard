@@ -30,7 +30,6 @@ export function useMesaPedido({ mesaId } = {}) {
       .maybeSingle()
 
     if (qErr) {
-      // eslint-disable-next-line no-console
       console.error('[useMesaPedido] error al cargar pedido:', qErr)
       setError(qErr.message)
     } else {
@@ -110,7 +109,6 @@ export function useMesaPedido({ mesaId } = {}) {
       p_items:     normalized,
     })
     if (rpcErr) {
-      // eslint-disable-next-line no-console
       console.error('[useMesaPedido] error al agregar items:', rpcErr)
       return { error: rpcErr }
     }
@@ -122,7 +120,6 @@ export function useMesaPedido({ mesaId } = {}) {
       p_pedido_id: pedido.id,
     })
     if (enviarErr) {
-      // eslint-disable-next-line no-console
       console.warn('[useMesaPedido] items agregados pero error al auto-enviar a cocina:', enviarErr)
     }
 
