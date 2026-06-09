@@ -26,6 +26,7 @@ export default function MenuPage() {
   const [editItem,    setEditItem]    = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deletingId,  setDeletingId]  = useState(null)
+  const [notice,      setNotice]      = useState(null)
 
   const {
     grouped, categories, stats,
@@ -76,16 +77,53 @@ export default function MenuPage() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return
+    const nombre = deleteTarget.nombre
     setDeletingId(deleteTarget.id)
-    await deleteItem(deleteTarget.id)
+    const result = await deleteItem(deleteTarget.id)
     setDeleteTarget(null)
     setDeletingId(null)
+
+    if (!result.ok) {
+      setNotice({
+        type: 'error',
+        text: `No se pudo eliminar "${nombre}": ${result.error?.message || 'error desconocido'}`,
+      })
+    } else if (result.hidden) {
+      setNotice({
+        type: 'info',
+        text: `"${nombre}" tiene ventas registradas, así que se ocultó de la carta en lugar de borrarse (para conservar el historial). Podés volver a mostrarlo cuando quieras.`,
+      })
+    } else {
+      setNotice({ type: 'success', text: `"${nombre}" se eliminó correctamente.` })
+    }
   }
 
   const isEmpty = Object.keys(filteredGrouped).length === 0
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-7xl mx-auto">
+
+      {/* ── Aviso (resultado de eliminar) ── */}
+      {notice && (
+        <div
+          className="flex items-start gap-3 rounded-xl px-4 py-3 text-sm"
+          style={{
+            background: notice.type === 'error' ? 'rgba(239,68,68,0.1)'
+              : notice.type === 'info' ? 'rgba(251,191,36,0.1)'
+              : 'rgba(52,211,153,0.1)',
+            border: `1px solid ${notice.type === 'error' ? 'rgba(239,68,68,0.25)'
+              : notice.type === 'info' ? 'rgba(251,191,36,0.25)'
+              : 'rgba(52,211,153,0.25)'}`,
+            color: 'var(--text-primary)',
+          }}
+        >
+          <AlertCircle size={16} className="mt-0.5 shrink-0" style={{
+            color: notice.type === 'error' ? '#f87171' : notice.type === 'info' ? '#fbbf24' : '#34d399',
+          }} />
+          <span className="flex-1">{notice.text}</span>
+          <button onClick={() => setNotice(null)} style={{ color: 'var(--text-muted)' }} className="font-medium">✕</button>
+        </div>
+      )}
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
@@ -352,7 +390,8 @@ export default function MenuPage() {
             <div className="text-center">
               <p className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>¿Eliminar producto?</p>
               <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                "<span style={{ color: 'var(--text-primary)' }}>{deleteTarget.nombre}</span>" se eliminará permanentemente.
+                "<span style={{ color: 'var(--text-primary)' }}>{deleteTarget.nombre}</span>" se eliminará de forma permanente.
+                Tus <span style={{ color: 'var(--text-primary)' }}>reportes de ventas se conservan</span> (los pedidos guardan el nombre y el precio). Esta acción no se puede deshacer.
               </p>
             </div>
             <div className="flex gap-3">

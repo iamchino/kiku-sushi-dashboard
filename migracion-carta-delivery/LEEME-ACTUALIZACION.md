@@ -11,6 +11,24 @@ Todos los scripts son seguros de re-correr y van en este orden:
 | 4 | `04_badges_delivery.sql` | Pone los íconos **picante / vegano / vegetariano / sin TACC**. |
 | 5 | `05_orden_delivery.sql` | Reordena **toda** la carta (0..129). Correr **al final** del delivery. |
 | 6 | `06_rename_rollos_a_rolls.sql` | Renombra la categoría **"Rollos" → "Rolls"** en toda la tabla (delivery, salón, take away). |
+| 7 | `07_cocina_gyoza_yaki.sql` | Alta de **Gyozas chiken teriyaki** + **Yakisobas (3)** + **Yakimeshis (3)** en delivery, con foto del bucket `carta/` y **precios de delivery/take away** que pasó Manu. |
+| 8 | `08_orden_delivery_v2.sql` | **Reemplaza al 05.** Reordena toda la carta (0..138) ya con todos los nuevos ítems en su sección. |
+| 9 | `09_harumakis_tonkatsu.sql` | Alta de **Harumakis tonkatsu** ($11.500) y **Tonkatsu** ($21.000) en delivery, con foto del bucket `carta/`. |
+
+### 7 · Cocina que faltaba (junio 2026)
+Se trajeron desde la carta salón, con su foto, pero con **precio de delivery**:
+
+| Ítem | Precio delivery/llevar |
+|---|--:|
+| Gyozas chiken teriyaki | $13.900 |
+| Yakisoba Veggie | $15.000 |
+| Yakisoba de Cerdo | $16.500 |
+| Yakisoba de Langostinos | $21.500 |
+| Yakimeshi Veggie | $15.000 |
+| Yakimeshi Cerdo | $16.500 |
+| Yakimeshi de Langostinos | $21.500 |
+
+Las fotos reusan las ya subidas en `menu-images/carta/<slug>.jpg`, así que **no hay que subir nada nuevo**. Si preferís copiarlas al bucket `delivery/`, avisá y dejo el script.
 
 Cómo correr: Supabase → **SQL Editor** → pegar cada archivo en orden → **Run**.
 

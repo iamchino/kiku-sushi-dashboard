@@ -18,6 +18,11 @@ Fuente: `https://kiku-sushi.vercel.app/carta/menu-principal-1767897736776`
 | `03_update_badges_existentes.sql` | Setea los badges sobre los 20 ítems ya cargados que los tienen. |
 | `04_orden_carta.sql` | Reordena los **135 ítems** según el orden oficial del sitio. |
 | `subir-imagenes-nuevos.mjs` | Sube las 34 imágenes nuevas a `menu-images/carta/<slug>.jpg`. |
+| `08_spicy_roll.sql` | Alta de **4 Spicy roll** ($12.100) y **8 Spicy roll** ($18.000 salón) en la carta salón. Foto reusada del bucket `delivery/`. Add-only, no duplica. |
+| `09_orden_carta_v2.sql` | Reordena la carta (0..136) ya con los dos Spicy roll al inicio de **Rebozados**. Correr al final. |
+
+### Spicy roll (junio 2026)
+Faltaban en la carta salón. Precios: **4 Spicy roll** $12.100 (igual a llevar/delivery) · **8 Spicy roll** $18.000 salón (en delivery/llevar va a $17.000, que ya está cargado en delivery como "8 Spicy"). Las imágenes se reusan de `menu-images/delivery/` (`4-spicy-roll.jpg`, `8-spicy.jpg`), no hay que subir nada.
 
 ## Resumen del análisis
 

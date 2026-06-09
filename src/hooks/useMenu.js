@@ -98,10 +98,38 @@ export function useMenu(tipo) {
     return null
   }
 
+  // Borrado inteligente:
+  // 1) Intenta borrar el producto de verdad.
+  // 2) Si el producto ya fue usado en algún pedido, la base de datos lo bloquea
+  //    (FK violation, código 23503) para no romper el historial de ventas.
+  //    En ese caso lo OCULTAMOS (activo = false) en lugar de borrarlo.
+  // Devuelve un objeto: { ok, hidden, error }
+  //   - { ok: true,  hidden: false } → se borró de verdad (no tenía ventas)
+  //   - { ok: true,  hidden: true  } → se ocultó porque tenía ventas
+  //   - { ok: false, error }         → falló por otro motivo
   const deleteItem = async (id) => {
     const { error } = await supabase.from('menu_items').delete().eq('id', id)
-    if (!error) fetchItems()
-    return error
+
+    if (!error) {
+      fetchItems()
+      return { ok: true, hidden: false, error: null }
+    }
+
+    // 23503 = foreign_key_violation → el producto está referenciado en pedidos
+    if (error.code === '23503') {
+      const { error: hideError } = await supabase
+        .from('menu_items')
+        .update({ activo: false })
+        .eq('id', id)
+
+      if (!hideError) {
+        fetchItems()
+        return { ok: true, hidden: true, error: null }
+      }
+      return { ok: false, hidden: false, error: hideError }
+    }
+
+    return { ok: false, hidden: false, error }
   }
 
   const toggleActive = async (id, currentValue) => {
