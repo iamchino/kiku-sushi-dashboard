@@ -131,11 +131,11 @@ const CATALOGO = [
     ],
   },
   {
-    categoria: 'Saltados', subtitulo: 'Platos de cocina',
+    categoria: 'Salteados', subtitulo: 'Platos de cocina',
     items: [
-      { n: 'Saltado de Lomo', p: 19000, d: 'Cebolla, zanahoria y morrones. Acompañado de arroz gohan y furikake. Salsa de soja y aceite de sésamo.', i: 'v1772126930/restaurant/products/y4nrqcpyhqztzxshsobv.jpg' },
-      { n: 'Saltado de Pollo', p: 19000, d: 'Cebolla, zanahoria y morrones. Acompañado de arroz gohan y furikake. Miel, mostaza y aceite de sésamo.', i: 'v1772127012/restaurant/products/rsrqotp4zcufuovvpinl.jpg' },
-      { n: 'Saltado Veggie', p: 16000, d: 'Cebolla, zanahoria y morrones. Acompañado de arroz gohan y furikake.', i: 'v1772126521/restaurant/products/l8v4tpncoza4igncmhwp.jpg' },
+      { n: 'Salteado de Lomo', p: 19000, d: 'Cebolla, zanahoria y morrones. Acompañado de arroz gohan y furikake. Salsa de soja y aceite de sésamo.', i: 'v1772126930/restaurant/products/y4nrqcpyhqztzxshsobv.jpg' },
+      { n: 'Salteado de Pollo', p: 19000, d: 'Cebolla, zanahoria y morrones. Acompañado de arroz gohan y furikake. Miel, mostaza y aceite de sésamo.', i: 'v1772127012/restaurant/products/rsrqotp4zcufuovvpinl.jpg' },
+      { n: 'Salteado Veggie', p: 16000, d: 'Cebolla, zanahoria y morrones. Acompañado de arroz gohan y furikake.', i: 'v1772126521/restaurant/products/l8v4tpncoza4igncmhwp.jpg' },
     ],
   },
   {

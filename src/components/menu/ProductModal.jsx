@@ -185,7 +185,7 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
               <Field label="Categoría *">
                 <input
                   name="categoria" value={form.categoria} onChange={handleField}
-                  className="input-modal" placeholder="Ej: Rollos de Sushi"
+                  className="input-modal" placeholder="Ej: Rolls de Sushi"
                   list="cat-suggestions" required
                 />
                 <datalist id="cat-suggestions">

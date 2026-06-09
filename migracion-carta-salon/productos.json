@@ -340,7 +340,7 @@
     "orden": 33
   },
   {
-    "categoria": "Rollos de Sushi",
+    "categoria": "Rolls de Sushi",
     "subtitulo": "",
     "nombre": "8 Tamago roll",
     "precio": 16000,
@@ -350,7 +350,7 @@
     "orden": 34
   },
   {
-    "categoria": "Rollos de Sushi",
+    "categoria": "Rolls de Sushi",
     "subtitulo": "",
     "nombre": "8 Tamago palta roll",
     "precio": 16000,
@@ -360,7 +360,7 @@
     "orden": 35
   },
   {
-    "categoria": "Rollos de Sushi",
+    "categoria": "Rolls de Sushi",
     "subtitulo": "",
     "nombre": "8 Tamago ebi furai roll",
     "precio": 16500,
@@ -370,7 +370,7 @@
     "orden": 36
   },
   {
-    "categoria": "Rollos de Sushi",
+    "categoria": "Rolls de Sushi",
     "subtitulo": "",
     "nombre": "9 Huanca Roll",
     "precio": 16000,
@@ -450,9 +450,9 @@
     "orden": 44
   },
   {
-    "categoria": "Saltados",
+    "categoria": "Salteados",
     "subtitulo": "Platos de cocina",
-    "nombre": "Saltado de Lomo",
+    "nombre": "Salteado de Lomo",
     "precio": 19000,
     "descripcion": "Cebolla, zanahoria y morrones. Acompañado de arroz gohan y furikake. Salsa de soja y aceite de sésamo.",
     "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772126930/restaurant/products/y4nrqcpyhqztzxshsobv.jpg",
@@ -460,9 +460,9 @@
     "orden": 45
   },
   {
-    "categoria": "Saltados",
+    "categoria": "Salteados",
     "subtitulo": "Platos de cocina",
-    "nombre": "Saltado de Pollo",
+    "nombre": "Salteado de Pollo",
     "precio": 19000,
     "descripcion": "Cebolla, zanahoria y morrones. Acompañado de arroz gohan y furikake. Miel, mostaza y aceite de sésamo.",
     "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772127012/restaurant/products/rsrqotp4zcufuovvpinl.jpg",
@@ -470,9 +470,9 @@
     "orden": 46
   },
   {
-    "categoria": "Saltados",
+    "categoria": "Salteados",
     "subtitulo": "Platos de cocina",
-    "nombre": "Saltado Veggie",
+    "nombre": "Salteado Veggie",
     "precio": 16000,
     "descripcion": "Cebolla, zanahoria y morrones. Acompañado de arroz gohan y furikake.",
     "imagen_origen": "https://res.cloudinary.com/dujkztmkx/image/upload/v1772126521/restaurant/products/l8v4tpncoza4igncmhwp.jpg",
