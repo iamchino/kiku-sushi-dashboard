@@ -6,6 +6,8 @@ import {
   Banknote,
   Calculator,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Clock3,
   Link2,
   Loader2,
@@ -605,10 +607,168 @@ function ConciliacionPanel({ ventasPorMedio, pagos }) {
   )
 }
 
+function belongsToTurnLocal(row, turno, fieldName) {
+  if (!turno || !row) return false
+  if (row[fieldName]) return row[fieldName] === turno.id
+  if (!row.created_at) return false
+  const created = new Date(row.created_at).getTime()
+  const start = new Date(turno.apertura_at).getTime()
+  const end = turno.cierre_at ? new Date(turno.cierre_at).getTime() : Date.now()
+  return created >= start && created <= end
+}
+
+function CierreDetalle({ turno, movimientos, pagos }) {
+  const detalleMedios = turno.denominaciones_cierre?.medios || null
+  const movs = movimientos.filter(mov => belongsToTurnLocal(mov, turno, 'turno_id'))
+  const turnoPagos = pagos.filter(pago => belongsToTurnLocal(pago, turno, 'caja_turno_id'))
+
+  const cobrosPorMedio = MEDIOS_ARQUEO.map(medio => {
+    const rows = turnoPagos.filter(pago => pago.medio_pago === medio.id)
+    const total = rows.reduce((acc, row) => acc + Number(row.monto || 0), 0)
+    return { ...medio, total, cantidad: rows.length }
+  })
+
+  return (
+    <div className="mt-1 space-y-4 rounded-lg p-3" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
+      <div className="grid gap-2 sm:grid-cols-3 text-xs">
+        <div>
+          <p className="font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Apertura</p>
+          <p style={{ color: 'var(--text-secondary)' }}>Fondo inicial ${formatMoney(turno.apertura_monto || 0)}</p>
+          {turno.notas_apertura && <p style={{ color: 'var(--text-muted)' }}>{turno.notas_apertura}</p>}
+        </div>
+        <div>
+          <p className="font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Cierre</p>
+          <p style={{ color: 'var(--text-secondary)' }}>{timeLabel(turno.cierre_at)}</p>
+          {turno.notas_cierre && <p style={{ color: 'var(--text-muted)' }}>{turno.notas_cierre}</p>}
+        </div>
+        <div>
+          <p className="font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Totales</p>
+          <p style={{ color: 'var(--text-secondary)' }}>Esperado ${formatMoney(turno.efectivo_esperado || 0)}</p>
+          <p style={{ color: 'var(--text-secondary)' }}>Contado ${formatMoney(turno.cierre_monto || 0)}</p>
+        </div>
+      </div>
+
+      {/* Desglose por medio del cierre */}
+      <div>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Cierre por medio</p>
+        {detalleMedios ? (
+          <div className="space-y-1">
+            <div className="hidden gap-2 px-2 sm:grid sm:grid-cols-[1fr_110px_110px_110px] text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+              <span>Medio</span><span className="text-right">Esperado</span><span className="text-right">Contado</span><span className="text-right">Diferencia</span>
+            </div>
+            {MEDIOS_ARQUEO.map(medio => {
+              const dato = detalleMedios[medio.id] || { esperado: 0, contado: 0 }
+              const dif = Number(dato.contado || 0) - Number(dato.esperado || 0)
+              return (
+                <div key={medio.id} className="grid gap-2 rounded px-2 py-1.5 text-xs sm:grid-cols-[1fr_110px_110px_110px]" style={{ background: 'var(--bg-card)' }}>
+                  <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{medio.label}</span>
+                  <span className="sm:text-right" style={{ color: 'var(--text-secondary)' }}>${formatMoney(dato.esperado)}</span>
+                  <span className="sm:text-right" style={{ color: 'var(--text-secondary)' }}>${formatMoney(dato.contado)}</span>
+                  <span className="font-semibold sm:text-right" style={{ color: diferenciaColor(dif) }}>{dif >= 0 ? '+' : '-'}${formatMoney(Math.abs(dif))}</span>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Cierre antiguo sin desglose por medio.</p>
+        )}
+      </div>
+
+      {/* Cobros del turno por medio */}
+      <div>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Cobros del turno</p>
+        <div className="grid gap-1 sm:grid-cols-2">
+          {cobrosPorMedio.map(medio => (
+            <div key={medio.id} className="flex items-center justify-between rounded px-2 py-1.5 text-xs" style={{ background: 'var(--bg-card)' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>{medio.label} · {medio.cantidad}</span>
+              <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>${formatMoney(medio.total)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Movimientos del turno */}
+      <div>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+          Movimientos del turno ({movs.length})
+        </p>
+        {movs.length === 0 ? (
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sin movimientos manuales.</p>
+        ) : (
+          <div className="divide-y rounded" style={{ borderColor: 'var(--border)', border: '1px solid var(--border)' }}>
+            {movs.map(mov => {
+              const sign = tipoConfig(mov.tipo).sign
+              const color = movimientoColor(mov.tipo)
+              return (
+                <div key={mov.id} className="flex items-center justify-between gap-3 px-2 py-1.5 text-xs">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold" style={{ color: 'var(--text-primary)' }}>{mov.descripcion}</p>
+                    <p className="truncate" style={{ color: 'var(--text-muted)' }}>
+                      {tipoConfig(mov.tipo).label} · {medioLabel(mov.medio_pago)} · {timeLabel(mov.created_at)}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-bold" style={{ color }}>
+                    {sign < 0 ? '-' : sign > 0 ? '+' : ''}${formatMoney(mov.monto)}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function CierresHistorial({ turnos, movimientos, pagos }) {
+  const [abierto, setAbierto] = useState(null)
+  const cerrados = turnos.filter(turno => turno.estado === 'cerrado').slice(0, 5)
+
+  return (
+    <Panel>
+      <div className="mb-3 flex items-center gap-2">
+        <Clock3 size={16} style={{ color: 'var(--accent-lift)' }} />
+        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Ultimos cierres</p>
+      </div>
+      <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+        {cerrados.map(turno => {
+          const expanded = abierto === turno.id
+          const dif = Number(turno.diferencia || 0)
+          return (
+            <div key={turno.id} className="py-2">
+              <button
+                type="button"
+                onClick={() => setAbierto(expanded ? null : turno.id)}
+                className="grid w-full items-center gap-2 py-1 text-left text-sm sm:grid-cols-[20px_1fr_140px_140px_140px] sm:items-center"
+              >
+                <span style={{ color: 'var(--text-muted)' }}>
+                  {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                </span>
+                <div>
+                  <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{turno.caja_nombre}</p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{timeLabel(turno.apertura_at)} a {timeLabel(turno.cierre_at)}</p>
+                </div>
+                <p style={{ color: 'var(--text-secondary)' }}>Esperado ${formatMoney(turno.efectivo_esperado || 0)}</p>
+                <p style={{ color: 'var(--text-secondary)' }}>Contado ${formatMoney(turno.cierre_monto || 0)}</p>
+                <p className="font-bold" style={{ color: diferenciaColor(dif) }}>
+                  {dif >= 0 ? '+' : '-'}${formatMoney(Math.abs(dif))}
+                </p>
+              </button>
+              {expanded && <CierreDetalle turno={turno} movimientos={movimientos} pagos={pagos} />}
+            </div>
+          )
+        })}
+      </div>
+    </Panel>
+  )
+}
+
 export default function ArqueoCajaSection({ dateFrom, dateTo }) {
   const {
     turnoActual,
     turnos,
+    movimientos,
+    pagos,
     resumen,
     loading,
     error,
@@ -770,27 +930,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
       )}
 
       {turnos.filter(turno => turno.estado === 'cerrado').length > 0 && (
-        <Panel>
-          <div className="mb-3 flex items-center gap-2">
-            <Clock3 size={16} style={{ color: 'var(--accent-lift)' }} />
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Ultimos cierres</p>
-          </div>
-          <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-            {turnos.filter(turno => turno.estado === 'cerrado').slice(0, 5).map(turno => (
-              <div key={turno.id} className="grid gap-2 py-3 text-sm sm:grid-cols-[1fr_140px_140px_140px] sm:items-center">
-                <div>
-                  <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{turno.caja_nombre}</p>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{timeLabel(turno.apertura_at)} a {timeLabel(turno.cierre_at)}</p>
-                </div>
-                <p style={{ color: 'var(--text-secondary)' }}>Esperado ${formatMoney(turno.efectivo_esperado || 0)}</p>
-                <p style={{ color: 'var(--text-secondary)' }}>Contado ${formatMoney(turno.cierre_monto || 0)}</p>
-                <p className="font-bold" style={{ color: diferenciaColor(turno.diferencia || 0) }}>
-                  {(Number(turno.diferencia || 0) >= 0) ? '+' : '-'}${formatMoney(Math.abs(Number(turno.diferencia || 0)))}
-                </p>
-              </div>
-            ))}
-          </div>
-        </Panel>
+        <CierresHistorial turnos={turnos} movimientos={movimientos} pagos={pagos} />
       )}
     </section>
   )
