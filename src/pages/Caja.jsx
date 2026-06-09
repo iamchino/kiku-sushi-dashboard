@@ -838,7 +838,7 @@ export default function CajaPage() {
 
         <section className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Stat label="Pedidos" value={stats.pedidos} />
-          <Stat label="Pendientes" value={stats.pendientes} color="#fbbf24" />
+          <Stat label="Pendientes facturación" value={stats.pendientes} color="#fbbf24" />
           <Stat label="Facturados" value={stats.facturados} color="#34d399" />
           <Stat label="Notas Crédito" value={stats.notasCredito} color="#f87171" />
           <Stat label="Total facturado" value={`$${formatMoney(stats.totalFacturado)}`} color="#4f8ef7" />
