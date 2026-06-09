@@ -29,7 +29,7 @@ import FacturarModal from '../components/caja/FacturarModal'
 import NotaCreditoModal from '../components/caja/NotaCreditoModal'
 
 const FILTERS = [
-  { id: 'pendientes', label: 'Pendientes' },
+  { id: 'pendientes', label: 'Pendientes de facturación' },
   { id: 'facturados', label: 'Facturados' },
   { id: 'con_nc', label: 'Con NC' },
   { id: 'todos', label: 'Todos' },

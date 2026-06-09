@@ -2,25 +2,32 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { endOfDay, startOfDay } from 'date-fns'
 import { supabase } from '../lib/supabase'
 
+// Medios cobrados (provienen de la tabla pagos). Se usan en la conciliacion
+// y en el cierre por medio.
 export const MEDIOS_ARQUEO = [
-  { id: 'efectivo', label: 'Efectivo' },
-  { id: 'transferencia', label: 'Transferencia' },
-  { id: 'tarjeta_credito', label: 'Tarjeta credito' },
-  { id: 'tarjeta_debito', label: 'Tarjeta debito' },
+  { id: 'efectivo', label: 'Efectivo', short: 'Efectivo' },
+  { id: 'transferencia', label: 'Transferencia', short: 'Transfer.' },
+  { id: 'tarjeta_debito', label: 'Tarjeta debito', short: 'Debito' },
+  { id: 'tarjeta_credito', label: 'Tarjeta credito', short: 'Credito' },
+]
+
+// Medios disponibles al registrar un movimiento manual. Incluye nota de credito
+// (cuando queda saldo a favor de algun egreso), que no existe como pago.
+export const MEDIOS_MOVIMIENTO = [
+  { id: 'efectivo', label: 'Efectivo', short: 'Efectivo' },
+  { id: 'transferencia', label: 'Transferencia', short: 'Transfer.' },
+  { id: 'tarjeta_debito', label: 'Tarjeta debito', short: 'Debito' },
+  { id: 'tarjeta_credito', label: 'Tarjeta credito', short: 'Credito' },
+  { id: 'nota_credito', label: 'Nota de credito', short: 'NC' },
 ]
 
 export const TIPOS_MOVIMIENTO_CAJA = [
-  { id: 'ingreso', label: 'Ingreso manual', short: 'Ingreso', sign: 1 },
-  { id: 'egreso', label: 'Egreso manual', short: 'Egreso', sign: -1 },
-  { id: 'retiro', label: 'Retiro de caja', short: 'Retiro', sign: -1 },
-  { id: 'deposito', label: 'Deposito', short: 'Deposito', sign: -1 },
-  { id: 'gasto', label: 'Gasto operativo', short: 'Gasto', sign: -1 },
-  { id: 'propina', label: 'Propina retirada', short: 'Propina', sign: -1 },
+  { id: 'ingreso', label: 'Ingreso', short: 'Ingreso', sign: 1 },
+  { id: 'egreso', label: 'Egreso', short: 'Egreso', sign: -1 },
   { id: 'ajuste', label: 'Ajuste', short: 'Ajuste', sign: 1 },
-  { id: 'no_venta', label: 'Apertura no venta', short: 'No venta', sign: 0 },
 ]
 
-const NEGATIVE_TYPES = new Set(['egreso', 'retiro', 'deposito', 'gasto', 'propina'])
+const NEGATIVE_TYPES = new Set(['egreso'])
 
 function parseAmount(value) {
   const cleaned = String(value ?? '')
@@ -61,7 +68,7 @@ function belongsToTurn(row, turno, fieldName) {
 }
 
 function movimientoSign(movimiento) {
-  if (!movimiento || movimiento.tipo === 'no_venta') return 0
+  if (!movimiento) return 0
   if (movimiento.tipo === 'ajuste') {
     return movimiento.categoria === 'faltante' ? -1 : 1
   }
@@ -182,14 +189,35 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
       ? movimientos.filter(mov => belongsToTurn(mov, turnoActual, 'turno_id'))
       : []
 
-    const ventasPorMedio = MEDIOS_ARQUEO.map(medio => {
-      const rows = pagosTurno.filter(pago => pago.medio_pago === medio.id)
+    const apertura = Number(turnoActual?.apertura_monto || 0)
+
+    // Esperado por cada medio = ventas cobradas + movimientos firmados de ese medio.
+    // La apertura (fondo inicial) cuenta solo para efectivo.
+    const esperadoPorMedio = MEDIOS_ARQUEO.map(medio => {
+      const ventasRows = pagosTurno.filter(pago => pago.medio_pago === medio.id)
+      const movsRows = movimientosTurno.filter(mov => (mov.medio_pago || 'efectivo') === medio.id)
+      const ventas = sum(ventasRows, row => row.monto)
+      const movimientos = movsRows.reduce((acc, mov) => (
+        acc + movimientoSign(mov) * Number(mov.monto || 0)
+      ), 0)
+      const aperturaMedio = medio.id === 'efectivo' ? apertura : 0
       return {
         ...medio,
-        total: sum(rows, row => row.monto),
-        cantidad: rows.length,
+        ventas,
+        movimientos,
+        apertura: aperturaMedio,
+        cantidad: ventasRows.length,
+        esperado: aperturaMedio + ventas + movimientos,
       }
     })
+
+    const ventasPorMedio = esperadoPorMedio.map(medio => ({
+      id: medio.id,
+      label: medio.label,
+      short: medio.short,
+      total: medio.ventas,
+      cantidad: medio.cantidad,
+    }))
 
     const pagosEfectivo = ventasPorMedio.find(medio => medio.id === 'efectivo')?.total || 0
     const movimientosFirmados = movimientosTurno.reduce((acc, mov) => (
@@ -203,8 +231,8 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
       movimientosTurno.filter(mov => movimientoSign(mov) < 0),
       mov => mov.monto,
     )
-    const apertura = Number(turnoActual?.apertura_monto || 0)
-    const efectivoEsperado = apertura + pagosEfectivo + movimientosFirmados
+    const efectivoEsperado = esperadoPorMedio.find(medio => medio.id === 'efectivo')?.esperado || apertura
+    const totalEsperado = sum(esperadoPorMedio, medio => medio.esperado)
     const pagosByPedido = new Set(pagos.map(pago => pago.pedido_id).filter(Boolean))
     const pedidosValidos = pedidos.filter(pedido => pedido.estado !== 'cancelado')
     const pedidosSinPago = pedidosValidos.filter(pedido => !pagosByPedido.has(pedido.id))
@@ -214,6 +242,7 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
       pagosTurno,
       movimientosTurno,
       ventasPorMedio,
+      esperadoPorMedio,
       apertura,
       pagosEfectivo,
       ventasTotal: sum(pagosTurno, row => row.monto),
@@ -221,6 +250,7 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
       movimientosEgresos,
       movimientosNeto: movimientosFirmados,
       efectivoEsperado,
+      totalEsperado,
       pedidosSinPago,
       pedidosSinPagoTotal: sum(pedidosSinPago, pedido => pedido.total),
       pagosSinTurno,
@@ -257,7 +287,7 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
     descripcion,
   }) => {
     if (!turno_id) throw new Error('Primero hay que abrir un turno de caja.')
-    const amount = tipo === 'no_venta' ? 0 : parseAmount(monto)
+    const amount = parseAmount(monto)
 
     const { error: insertError } = await supabase
       .from('caja_movimientos')
@@ -276,15 +306,28 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
 
   const cerrarTurno = useCallback(async ({
     turno_id,
-    cierre_monto,
-    efectivo_esperado,
-    deposito_monto = 0,
+    contado_por_medio = {},
+    esperado_por_medio = {},
     notas_cierre,
-    denominaciones_cierre = {},
   }) => {
     if (!turno_id) throw new Error('No hay turno abierto para cerrar.')
-    const counted = parseAmount(cierre_monto)
-    const expected = parseAmount(efectivo_esperado)
+
+    // Total contado y esperado sumando TODOS los medios (no solo efectivo).
+    const counted = MEDIOS_ARQUEO.reduce(
+      (acc, medio) => acc + parseAmount(contado_por_medio[medio.id]), 0,
+    )
+    const expected = MEDIOS_ARQUEO.reduce(
+      (acc, medio) => acc + parseAmount(esperado_por_medio[medio.id]), 0,
+    )
+
+    // Detalle por medio guardado en el jsonb de cierre.
+    const detalleMedios = {}
+    MEDIOS_ARQUEO.forEach(medio => {
+      detalleMedios[medio.id] = {
+        esperado: parseAmount(esperado_por_medio[medio.id]),
+        contado: parseAmount(contado_por_medio[medio.id]),
+      }
+    })
 
     const { error: updateError } = await supabase
       .from('caja_turnos')
@@ -293,9 +336,8 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
         cierre_monto: counted,
         efectivo_esperado: expected,
         diferencia: counted - expected,
-        deposito_monto: parseAmount(deposito_monto),
         notas_cierre: notas_cierre || null,
-        denominaciones_cierre,
+        denominaciones_cierre: { medios: detalleMedios },
         cierre_at: new Date().toISOString(),
         cierre_usuario_id: (await supabase.auth.getUser()).data?.user?.id || null,
         updated_at: new Date().toISOString(),

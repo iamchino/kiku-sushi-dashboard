@@ -14,11 +14,18 @@ import {
   RefreshCw,
   WalletCards,
 } from 'lucide-react'
-import { TIPOS_MOVIMIENTO_CAJA, useCajaArqueo } from '../../hooks/useCajaArqueo'
+import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, useCajaArqueo } from '../../hooks/useCajaArqueo'
 import { formatMoney } from '../../lib/printing'
 
-const DENOMINACIONES = [20000, 10000, 2000, 1000, 500, 200, 100, 50, 20, 10]
 const TOLERANCIA_CAJA = 1000
+
+const CANAL_LABEL = {
+  salon: 'Salon',
+  delivery: 'Delivery',
+  whatsapp: 'WhatsApp',
+  pedidosya: 'PedidosYa',
+  rappi: 'Rappi',
+}
 
 function localDateISO(d = new Date()) {
   const y = d.getFullYear()
@@ -192,6 +199,7 @@ function EmptyTurnoForm({ onOpen, saving }) {
 
 function MovimientoForm({ turno, onSubmit, saving }) {
   const [tipo, setTipo] = useState('ingreso')
+  const [medio, setMedio] = useState('efectivo')
   const [monto, setMonto] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [categoria, setCategoria] = useState('')
@@ -200,11 +208,11 @@ function MovimientoForm({ turno, onSubmit, saving }) {
 
   const submit = async (e) => {
     e.preventDefault()
-    if (tipo !== 'no_venta' && parseAmount(monto) <= 0) {
+    if (parseAmount(monto) <= 0) {
       setError('Ingresa un monto mayor a cero.')
       return
     }
-    if (!descripcion.trim() && tipo !== 'no_venta') {
+    if (!descripcion.trim()) {
       setError('Agrega una descripcion corta.')
       return
     }
@@ -212,6 +220,7 @@ function MovimientoForm({ turno, onSubmit, saving }) {
     await onSubmit({
       turno_id: turno.id,
       tipo,
+      medio_pago: medio,
       monto,
       categoria: tipo === 'ajuste' ? categoria : null,
       descripcion: descripcion.trim() || selected.label,
@@ -229,35 +238,57 @@ function MovimientoForm({ turno, onSubmit, saving }) {
       </div>
 
       <form onSubmit={submit} className="space-y-3">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {TIPOS_MOVIMIENTO_CAJA.map(item => {
-            const active = tipo === item.id
-            const color = movimientoColor(item.id)
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => { setTipo(item.id); setError(null) }}
-                className="rounded-lg px-3 py-2 text-left text-xs font-semibold transition-colors"
-                style={active
-                  ? { background: 'var(--accent-soft)', color, border: `1px solid ${color}` }
-                  : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-              >
-                {item.short}
-              </button>
-            )
-          })}
-        </div>
+        <Field label="Tipo de movimiento">
+          <div className="grid grid-cols-3 gap-2">
+            {TIPOS_MOVIMIENTO_CAJA.map(item => {
+              const active = tipo === item.id
+              const color = movimientoColor(item.id)
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => { setTipo(item.id); setError(null) }}
+                  className="rounded-lg px-3 py-2 text-center text-xs font-semibold transition-colors"
+                  style={active
+                    ? { background: 'var(--accent-soft)', color, border: `1px solid ${color}` }
+                    : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                >
+                  {item.short}
+                </button>
+              )
+            })}
+          </div>
+        </Field>
+
+        <Field label="Medio">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            {MEDIOS_MOVIMIENTO.map(item => {
+              const active = medio === item.id
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setMedio(item.id)}
+                  className="rounded-lg px-3 py-2 text-center text-xs font-semibold transition-colors"
+                  style={active
+                    ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
+                    : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                >
+                  {item.short}
+                </button>
+              )
+            })}
+          </div>
+        </Field>
 
         <div className="grid gap-3 lg:grid-cols-[140px_160px_1fr_auto] lg:items-end">
           <Field label="Monto">
             <input
-              disabled={tipo === 'no_venta'}
               inputMode="decimal"
-              value={tipo === 'no_venta' ? '0' : monto}
+              value={monto}
               onChange={e => setMonto(e.target.value)}
               placeholder="$0"
-              className="w-full rounded-lg px-3 py-2 text-sm outline-none disabled:opacity-50"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
               style={inputStyle()}
             />
           </Field>
@@ -274,20 +305,13 @@ function MovimientoForm({ turno, onSubmit, saving }) {
               </select>
             </Field>
           ) : (
-            <Field label="Medio">
-              <input
-                value="Efectivo"
-                readOnly
-                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                style={inputStyle()}
-              />
-            </Field>
+            <div className="hidden lg:block" />
           )}
           <Field label="Descripcion">
             <input
               value={descripcion}
               onChange={e => setDescripcion(e.target.value)}
-              placeholder="Ej: compra urgente, retiro parcial, caja abierta"
+              placeholder="Ej: compra urgente, vuelto, saldo a favor"
               className="w-full rounded-lg px-3 py-2 text-sm outline-none"
               style={inputStyle()}
             />
@@ -309,42 +333,36 @@ function MovimientoForm({ turno, onSubmit, saving }) {
 }
 
 function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
-  const [denominaciones, setDenominaciones] = useState({})
-  const [otros, setOtros] = useState('')
-  const [deposito, setDeposito] = useState('')
+  const [contadoPorMedio, setContadoPorMedio] = useState({})
   const [notas, setNotas] = useState('')
   const [error, setError] = useState(null)
 
-  const contadoBilletes = useMemo(() => DENOMINACIONES.reduce((acc, denom) => {
-    const qty = Number(denominaciones[denom] || 0)
-    return acc + denom * qty
-  }, 0), [denominaciones])
+  const medios = resumen.esperadoPorMedio || []
 
-  const contado = contadoBilletes + parseAmount(otros)
-  const diferencia = contado - Number(resumen.efectivoEsperado || 0)
-  const color = diferenciaColor(diferencia)
+  const totalEsperado = useMemo(
+    () => medios.reduce((acc, medio) => acc + Number(medio.esperado || 0), 0),
+    [medios],
+  )
+  const totalContado = useMemo(
+    () => medios.reduce((acc, medio) => acc + parseAmount(contadoPorMedio[medio.id]), 0),
+    [medios, contadoPorMedio],
+  )
+  const diferenciaTotal = totalContado - totalEsperado
 
-  const updateDenom = (denom, value) => {
-    setDenominaciones(prev => ({
-      ...prev,
-      [denom]: Math.max(0, Number(value || 0)),
-    }))
+  const updateContado = (id, value) => {
+    setContadoPorMedio(prev => ({ ...prev, [id]: value }))
   }
 
   const submit = async (e) => {
     e.preventDefault()
-    if (contado < 0) {
-      setError('El efectivo contado no puede ser negativo.')
-      return
-    }
+    const esperadoMap = {}
+    medios.forEach(medio => { esperadoMap[medio.id] = medio.esperado })
     setError(null)
     await onClose({
       turno_id: turno.id,
-      cierre_monto: contado,
-      efectivo_esperado: resumen.efectivoEsperado,
-      deposito_monto: deposito,
+      contado_por_medio: contadoPorMedio,
+      esperado_por_medio: esperadoMap,
       notas_cierre: notas,
-      denominaciones_cierre: { billetes: denominaciones, otros: parseAmount(otros) },
     })
   }
 
@@ -354,54 +372,66 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
         <Calculator size={16} style={{ color: 'var(--accent-lift)' }} />
         <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Cierre de turno</p>
       </div>
+      <p className="mb-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+        Anota lo contado en cada medio. La diferencia se calcula contra lo esperado del turno.
+      </p>
 
       <form onSubmit={submit} className="space-y-4">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-          {DENOMINACIONES.map(denom => (
-            <label key={denom} className="rounded-lg px-3 py-2" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
-              <span className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>${formatMoney(denom)}</span>
-              <input
-                type="number"
-                min="0"
-                value={denominaciones[denom] || ''}
-                onChange={e => updateDenom(denom, e.target.value)}
-                className="mt-1 w-full bg-transparent text-sm font-semibold outline-none"
-                style={{ color: 'var(--text-primary)' }}
-              />
-            </label>
-          ))}
+        <div className="space-y-2">
+          <div className="hidden gap-3 px-3 sm:grid sm:grid-cols-[1fr_140px_140px_140px]">
+            <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Medio</span>
+            <span className="text-right text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Esperado</span>
+            <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Contado</span>
+            <span className="text-right text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Diferencia</span>
+          </div>
+          {medios.map(medio => {
+            const contado = parseAmount(contadoPorMedio[medio.id])
+            const tieneValor = String(contadoPorMedio[medio.id] ?? '').trim() !== ''
+            const diferencia = contado - Number(medio.esperado || 0)
+            return (
+              <div
+                key={medio.id}
+                className="grid items-center gap-3 rounded-lg px-3 py-2 sm:grid-cols-[1fr_140px_140px_140px]"
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}
+              >
+                <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{medio.label}</span>
+                <span className="text-sm sm:text-right" style={{ color: 'var(--text-secondary)' }}>
+                  <span className="sm:hidden text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Esperado </span>
+                  ${formatMoney(medio.esperado)}
+                </span>
+                <input
+                  inputMode="decimal"
+                  value={contadoPorMedio[medio.id] ?? ''}
+                  onChange={e => updateContado(medio.id, e.target.value)}
+                  placeholder="$0"
+                  className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                  style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                />
+                <span className="text-sm font-semibold sm:text-right" style={{ color: tieneValor ? diferenciaColor(diferencia) : 'var(--text-muted)' }}>
+                  {tieneValor ? `${diferencia >= 0 ? '+' : '-'}$${formatMoney(Math.abs(diferencia))}` : '-'}
+                </span>
+              </div>
+            )
+          })}
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[160px_160px_1fr_auto] lg:items-end">
-          <Field label="Otros / monedas">
-            <input
-              inputMode="decimal"
-              value={otros}
-              onChange={e => setOtros(e.target.value)}
-              placeholder="$0"
-              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-              style={inputStyle()}
-            />
-          </Field>
-          <Field label="Deposito">
-            <input
-              inputMode="decimal"
-              value={deposito}
-              onChange={e => setDeposito(e.target.value)}
-              placeholder="$0"
-              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-              style={inputStyle()}
-            />
-          </Field>
-          <Field label="Nota cierre">
-            <input
-              value={notas}
-              onChange={e => setNotas(e.target.value)}
-              placeholder="Responsable, sobre, observaciones"
-              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-              style={inputStyle()}
-            />
-          </Field>
+        <Field label="Nota cierre">
+          <input
+            value={notas}
+            onChange={e => setNotas(e.target.value)}
+            placeholder="Responsable, sobre, observaciones"
+            className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+            style={inputStyle()}
+          />
+        </Field>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Metric label="Total contado" value={`$${formatMoney(totalContado)}`} icon={WalletCards} color="var(--accent-lift)" />
+          <Metric label="Total esperado" value={`$${formatMoney(totalEsperado)}`} icon={Calculator} color="#4f8ef7" />
+          <Metric label="Diferencia" value={`${diferenciaTotal >= 0 ? '+' : '-'}$${formatMoney(Math.abs(diferenciaTotal))}`} detail={`Tolerancia $${formatMoney(TOLERANCIA_CAJA)}`} icon={AlertTriangle} color={diferenciaColor(diferenciaTotal)} />
+        </div>
+
+        <div className="flex justify-end">
           <button
             type="submit"
             disabled={saving}
@@ -411,12 +441,6 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
             {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
             Cerrar turno
           </button>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Metric label="Contado" value={`$${formatMoney(contado)}`} icon={WalletCards} color="var(--accent-lift)" />
-          <Metric label="Esperado" value={`$${formatMoney(resumen.efectivoEsperado)}`} icon={Calculator} color="#4f8ef7" />
-          <Metric label="Diferencia" value={`${diferencia >= 0 ? '+' : '-'}$${formatMoney(Math.abs(diferencia))}`} detail={`Tolerancia $${formatMoney(TOLERANCIA_CAJA)}`} icon={AlertTriangle} color={color} />
         </div>
         {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
       </form>
@@ -462,6 +486,120 @@ function MovimientosList({ movimientos }) {
             </div>
           )
         })}
+      </div>
+    </Panel>
+  )
+}
+
+function medioLabel(id) {
+  return MEDIOS_ARQUEO.find(medio => medio.id === id)?.label || id
+}
+
+function pagoDetalle(pago) {
+  const partes = []
+  if (pago.pedido_mesa) partes.push(`Mesa ${pago.pedido_mesa}`)
+  const canal = CANAL_LABEL[pago.pedido_canal] || pago.pedido_canal
+  if (canal) partes.push(canal)
+  if (pago.pedido_id) partes.push(`#${String(pago.pedido_id).slice(-4).toUpperCase()}`)
+  if (pago.numero_operacion) partes.push(`Op. ${pago.numero_operacion}`)
+  return partes.join(' - ')
+}
+
+function ConciliacionPanel({ ventasPorMedio, pagos }) {
+  // Set de medios seleccionados. Vacio = mostrar todos.
+  const [seleccionados, setSeleccionados] = useState(() => new Set())
+
+  const toggle = (id) => {
+    setSeleccionados(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const pagosVisibles = useMemo(() => {
+    if (seleccionados.size === 0) return pagos
+    return pagos.filter(pago => seleccionados.has(pago.medio_pago))
+  }, [pagos, seleccionados])
+
+  return (
+    <Panel>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <WalletCards size={16} style={{ color: 'var(--accent-lift)' }} />
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Conciliacion por medio</p>
+        </div>
+        {seleccionados.size > 0 && (
+          <button
+            type="button"
+            onClick={() => setSeleccionados(new Set())}
+            className="text-xs font-semibold"
+            style={{ color: 'var(--accent-lift)' }}
+          >
+            Ver todos
+          </button>
+        )}
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        {ventasPorMedio.map(medio => {
+          const active = seleccionados.has(medio.id)
+          return (
+            <button
+              key={medio.id}
+              type="button"
+              onClick={() => toggle(medio.id)}
+              className="flex items-center justify-between rounded-lg px-3 py-3 text-left transition-colors"
+              style={active
+                ? { background: 'var(--accent-soft)', border: '1px solid var(--accent-border)' }
+                : { background: 'var(--bg-input)', border: '1px solid var(--border)' }}
+            >
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{medio.label}</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{medio.cantidad} pagos</p>
+              </div>
+              <p className="text-sm font-bold" style={{ color: medio.id === 'efectivo' ? '#34d399' : 'var(--accent-lift)' }}>
+                ${formatMoney(medio.total)}
+              </p>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="mt-4">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+            {seleccionados.size === 0
+              ? 'Detalle de pagos (todos)'
+              : `Detalle: ${[...seleccionados].map(medioLabel).join(', ')}`}
+          </p>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{pagosVisibles.length} pagos</span>
+        </div>
+
+        {pagosVisibles.length === 0 ? (
+          <p className="rounded-lg px-3 py-4 text-sm" style={{ background: 'var(--bg-input)', color: 'var(--text-muted)' }}>
+            No hay pagos para este filtro.
+          </p>
+        ) : (
+          <div className="max-h-72 overflow-y-auto divide-y rounded-lg" style={{ borderColor: 'var(--border)', border: '1px solid var(--border)' }}>
+            {pagosVisibles.map(pago => (
+              <div key={pago.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    {medioLabel(pago.medio_pago)}
+                  </p>
+                  <p className="truncate text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {[pagoDetalle(pago), timeLabel(pago.created_at)].filter(Boolean).join(' - ')}
+                  </p>
+                </div>
+                <p className="shrink-0 text-sm font-bold" style={{ color: pago.medio_pago === 'efectivo' ? '#34d399' : 'var(--accent-lift)' }}>
+                  ${formatMoney(pago.monto)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </Panel>
   )
@@ -589,25 +727,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-            <Panel>
-              <div className="mb-3 flex items-center gap-2">
-                <WalletCards size={16} style={{ color: 'var(--accent-lift)' }} />
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Conciliacion por medio</p>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {resumen.ventasPorMedio.map(medio => (
-                  <div key={medio.id} className="flex items-center justify-between rounded-lg px-3 py-3" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
-                    <div>
-                      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{medio.label}</p>
-                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{medio.cantidad} pagos</p>
-                    </div>
-                    <p className="text-sm font-bold" style={{ color: medio.id === 'efectivo' ? '#34d399' : 'var(--accent-lift)' }}>
-                      ${formatMoney(medio.total)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </Panel>
+            <ConciliacionPanel ventasPorMedio={resumen.ventasPorMedio} pagos={resumen.pagosTurno} />
 
             <Panel>
               <div className="flex items-start gap-3">
