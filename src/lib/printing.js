@@ -1,6 +1,6 @@
 import QRCode from 'qrcode'
 import { buildArcaQrUrl, formatReceiptNumber, nombreComprobante } from './fiscal'
-import { calculateDiscountAmount, calculateOrderSubtotal, clampDiscount } from './orders'
+import { applyStoredDiscount } from './orders'
 import { printerClient, getPrinterFor, canPrintRemote } from './printerClient'
 import {
   buildComandaText,
@@ -232,10 +232,8 @@ function buildCustomerHtml(pedido, config, opts = {}) {
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
   const items = normalizeItems(pedido)
   const canal = CANAL_LABELS[pedido?.canal] || pedido?.canal || 'Pedido'
-  const descuento = clampDiscount(pedido?.descuento_porcentaje)
-  const subtotal = calculateOrderSubtotal(items)
-  const discountAmount = calculateDiscountAmount(subtotal, descuento)
-  const total = Number(pedido?.total ?? Math.max(0, subtotal - discountAmount))
+  const { subtotal, descuentoMonto } = applyStoredDiscount(items, pedido)
+  const total = Number(pedido?.total ?? Math.max(0, subtotal - descuentoMonto))
   const medioLabel = medioPagoLabel(opts.medioPago ?? pedido?.medio_pago)
 
   const rows = items.map(item => {
@@ -264,9 +262,9 @@ function buildCustomerHtml(pedido, config, opts = {}) {
       ${rows || '<div class="center">Sin items</div>'}
       ${pedido?.notas ? `<div class="sep"></div><div class="bold">Notas</div><div>${escapeHtml(pedido.notas)}</div>` : ''}
       <div class="sep"></div>
-      ${descuento > 0 ? `
+      ${descuentoMonto > 0 ? `
         <div class="row"><span>Subtotal</span><span>$${formatMoney(subtotal)}</span></div>
-        <div class="row"><span>Descuento ${descuento.toLocaleString('es-AR')}%</span><span>-$${formatMoney(discountAmount)}</span></div>
+        <div class="row"><span>Descuento</span><span>-$${formatMoney(descuentoMonto)}</span></div>
       ` : ''}
       <div class="row bold lg"><span>Total</span><span>$${formatMoney(total)}</span></div>
       ${medioLabel ? `<div class="row"><span>Pago</span><span class="bold">${escapeHtml(medioLabel)}</span></div>` : ''}
@@ -281,9 +279,7 @@ function buildFiscalHtml(pedido, comprobante, config, opts = {}) {
   const receiptNumber = formatReceiptNumber(comprobante?.punto_venta, comprobante?.numero)
   const cae = comprobante?.cae || ''
   const medioLabel = medioPagoLabel(opts.medioPago ?? pedido?.medio_pago)
-  const descuento = clampDiscount(pedido?.descuento_porcentaje)
-  const subtotal = calculateOrderSubtotal(items)
-  const discountAmount = calculateDiscountAmount(subtotal, descuento)
+  const { subtotal, descuentoMonto } = applyStoredDiscount(items, pedido)
   const letra = comprobante?.letra || 'B'
 
   // Bloque IVA: desglosado para Factura A, oculto para B/C
@@ -341,9 +337,9 @@ function buildFiscalHtml(pedido, comprobante, config, opts = {}) {
       <div class="sep"></div>
       ${rows}
       <div class="sep"></div>
-      ${descuento > 0 ? `
+      ${descuentoMonto > 0 ? `
         <div class="row"><span>Subtotal</span><span>$${formatMoney(subtotal)}</span></div>
-        <div class="row"><span>Descuento ${descuento.toLocaleString('es-AR')}%</span><span>-$${formatMoney(discountAmount)}</span></div>
+        <div class="row"><span>Descuento</span><span>-$${formatMoney(descuentoMonto)}</span></div>
       ` : ''}
       ${ivaDesgloseHtml}
       <div class="row bold lg"><span>Total</span><span>$${formatMoney(comprobante?.importe_total || pedido?.total)}</span></div>

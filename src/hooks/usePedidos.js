@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { startOfDay, endOfDay, subDays } from 'date-fns'
-import { calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../lib/orders'
+import { calculateOrderTotal, clampDiscount, parseCurrencyValue, effectiveDiscountAmount } from '../lib/orders'
+import { aplicarDescuentoPedido as aplicarDescLib, quitarDescuentoPedido as quitarDescLib } from '../lib/descuento'
 import { getAuthorizedComprobante } from '../lib/fiscal'
 
 export const ESTADOS = ['pendiente', 'preparando', 'listo', 'entregado']
@@ -202,12 +203,46 @@ export function usePedidos(options = {}) {
   const createPedido = async ({
     canal, mesa, notas, items, descuento_porcentaje = 0,
     cliente_nombre = null, cliente_telefono = null, cliente_direccion = null,
+    afecta_caja = true, medio_pago = null, fecha = null, cerrar = false,
   }) => {
     const normalizedItems = normalizePedidoItems(items)
     const descuento = clampDiscount(descuento_porcentaje)
     const clienteNombre    = cliente_nombre?.trim()    || null
     const clienteTelefono  = cliente_telefono?.trim()  || null
     const clienteDireccion = cliente_direccion?.trim() || null
+
+    // Aplica los "extras" de una orden ya cobrada / que no afecta caja:
+    // marca afecta_caja, guarda el medio de pago, setea la fecha real y la deja
+    // cerrada (entregada). Tolera que falten las columnas si no se aplicó la
+    // migración correspondiente.
+    const aplicarExtras = async (pedidoId) => {
+      const patch = {}
+      if (afecta_caja === false) patch.afecta_caja = false
+      if (medio_pago)            patch.medio_pago = medio_pago
+      if (fecha)                 patch.created_at = fecha
+      if (cerrar) {
+        patch.estado = 'entregado'
+        patch.cerrada_at = new Date().toISOString()
+      }
+      if (Object.keys(patch).length > 0) {
+        let { error: pErr } = await supabase.from('pedidos').update(patch).eq('id', pedidoId)
+        if (pErr && /afecta_caja|medio_pago|cerrada_at/i.test(pErr.message || '')) {
+          const safe = { ...patch }
+          for (const k of ['afecta_caja', 'medio_pago', 'cerrada_at']) {
+            if (new RegExp(k, 'i').test(pErr.message || '')) delete safe[k]
+          }
+          if (Object.keys(safe).length > 0) {
+            const retry = await supabase.from('pedidos').update(safe).eq('id', pedidoId)
+            pErr = retry.error
+          } else {
+            pErr = null
+          }
+        }
+        if (pErr) return { pedidoId, error: pErr }
+      }
+      fetchPedidos()
+      return { pedidoId }
+    }
     const { data, error } = await supabase.rpc('crear_pedido_con_items', {
       p_canal: canal,
       p_mesa: mesa ? String(mesa) : null,
@@ -263,8 +298,7 @@ export function usePedidos(options = {}) {
           if (updateError) return { error: updateError }
         }
 
-        fetchPedidos()
-        return { pedidoId: legacy.data }
+        return await aplicarExtras(legacy.data)
       }
 
       if (legacy.error && !isMissingRpcFunction(legacy.error)) return { error: legacy.error }
@@ -327,12 +361,10 @@ export function usePedidos(options = {}) {
         return { error: itemsError }
       }
 
-      fetchPedidos()
-      return { pedidoId: pedido.id }
+      return await aplicarExtras(pedido.id)
     }
 
-    fetchPedidos()
-    return { pedidoId: data }
+    return await aplicarExtras(data)
   }
 
   const descontarStockPedido = async (pedidoId) => {
@@ -540,8 +572,7 @@ export function usePedidos(options = {}) {
       (acc, i) => acc + (parseCurrencyValue(i.precio_unitario) * (parseInt(i.cantidad) || 0)),
       0
     )
-    const desc = clampDiscount(pedido?.descuento_porcentaje)
-    const tot = Math.max(0, sub - (sub * desc / 100))
+    const tot = Math.max(0, sub - effectiveDiscountAmount(sub, pedido))
     await supabase.from('pedidos').update({ total: tot }).eq('id', pedidoId)
   }
 
@@ -605,11 +636,29 @@ export function usePedidos(options = {}) {
     return delErr
   }
 
+  // Descuento tipo gift card sobre una orden (delivery / take away).
+  const aplicarDescuentoOrden = async (pedidoId, { tipo, valor, alcance, seleccionIds }) => {
+    const pedido = pedidos.find(p => p.id === pedidoId)
+    const itemsPedido = pedido?.pedido_items || []
+    const res = await aplicarDescLib({ pedidoId, items: itemsPedido, tipo, valor, alcance, seleccionIds })
+    if (!res.error) fetchPedidos()
+    return res
+  }
+
+  const quitarDescuentoOrden = async (pedidoId) => {
+    const pedido = pedidos.find(p => p.id === pedidoId)
+    const itemsPedido = pedido?.pedido_items || []
+    const res = await quitarDescLib({ pedidoId, items: itemsPedido })
+    if (!res.error) fetchPedidos()
+    return res
+  }
+
   return {
     pedidos, grouped, stats,
     loading, error,
     createPedido, avanzarEstado, cerrarPedido, cancelarPedido,
     reabrirPedido, agregarItemsPedido, updateItemCantidadPedido, removeItemPedido,
+    aplicarDescuentoOrden, quitarDescuentoOrden,
     refetch: fetchPedidos,
     isFacturado,
   }

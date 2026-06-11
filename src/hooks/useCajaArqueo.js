@@ -193,11 +193,24 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
           .order('created_at', { ascending: false }),
         supabase
           .from('pedidos')
-          .select('id, mesa, canal, estado, total, created_at')
+          .select('id, mesa, canal, estado, total, created_at, afecta_caja')
           .gte('created_at', range.start)
           .lte('created_at', range.end)
           .order('created_at', { ascending: false }),
       ])
+
+      // Si falta la columna afecta_caja (migración no aplicada), reintentamos
+      // el query de pedidos sin esa columna para no romper el arqueo.
+      if (pedidosRes.error && /afecta_caja/i.test(pedidosRes.error.message || '')) {
+        const retryPedidos = await supabase
+          .from('pedidos')
+          .select('id, mesa, canal, estado, total, created_at')
+          .gte('created_at', range.start)
+          .lte('created_at', range.end)
+          .order('created_at', { ascending: false })
+        pedidosRes.data = retryPedidos.data
+        pedidosRes.error = retryPedidos.error
+      }
 
       if (turnosRes.error && !isMissingSchema(turnosRes.error)) setError(turnosRes.error.message)
       if (movimientosRes.error && !isMissingSchema(movimientosRes.error)) setError(movimientosRes.error.message)
@@ -312,7 +325,11 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
     const efectivoEsperado = esperadoPorMedio.find(medio => medio.id === 'efectivo')?.esperado || apertura
     const totalEsperado = sum(esperadoPorMedio, medio => medio.esperado)
     const pagosByPedido = new Set(pagos.map(pago => pago.pedido_id).filter(Boolean))
-    const pedidosValidos = pedidos.filter(pedido => pedido.estado !== 'cancelado')
+    // Excluimos cancelados y las órdenes marcadas como "no afecta caja"
+    // (cobradas fuera del turno): no deben figurar como pedidos sin pago.
+    const pedidosValidos = pedidos.filter(
+      pedido => pedido.estado !== 'cancelado' && pedido.afecta_caja !== false,
+    )
     const pedidosSinPago = pedidosValidos.filter(pedido => !pagosByPedido.has(pedido.id))
     const pagosSinTurno = pagos.filter(pago => !pago.caja_turno_id)
 

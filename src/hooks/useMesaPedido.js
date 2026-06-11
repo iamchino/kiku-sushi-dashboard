@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { calculateOrderSubtotal, calculateDiscountAmount, clampDiscount, parseCurrencyValue } from '../lib/orders'
+import { calculateOrderSubtotal, clampDiscount, parseCurrencyValue, applyStoredDiscount, getDescuentoConfig, effectiveDiscountAmount } from '../lib/orders'
+import { aplicarDescuentoPedido, quitarDescuentoPedido } from '../lib/descuento'
 import { getAuthorizedComprobante } from '../lib/fiscal'
 
 /**
@@ -68,9 +69,14 @@ export function useMesaPedido({ mesaId } = {}) {
   const itemsEnviados   = useMemo(() => items.filter(i =>  i.enviado_cocina), [items])
 
   const subtotal = useMemo(() => calculateOrderSubtotal(items), [items])
-  const descuentoPct = clampDiscount(pedido?.descuento_porcentaje)
-  const descuentoMonto = calculateDiscountAmount(subtotal, descuentoPct)
-  const total = Math.max(0, subtotal - descuentoMonto)
+  const descuentoInfo = useMemo(() => applyStoredDiscount(items, pedido), [items, pedido])
+  const descuentoMonto = descuentoInfo.descuentoMonto
+  const total = descuentoInfo.total
+  const descuentoConfig = useMemo(() => getDescuentoConfig(pedido), [pedido])
+  // Compat: % efectivo solo cuando el descuento es porcentaje sobre todo.
+  const descuentoPct = (descuentoConfig.tipo === 'porcentaje' && descuentoConfig.alcance === 'todo')
+    ? clampDiscount(descuentoConfig.valor)
+    : 0
 
   const comprobanteAutorizado = pedido ? getAuthorizedComprobante(pedido) : null
   const facturada = Boolean(comprobanteAutorizado)
@@ -136,8 +142,7 @@ export function useMesaPedido({ mesaId } = {}) {
       (acc, i) => acc + (parseCurrencyValue(i.precio_unitario) * (parseInt(i.cantidad) || 0)),
       0
     )
-    const desc = clampDiscount(pedido?.descuento_porcentaje)
-    const tot = Math.max(0, sub - calculateDiscountAmount(sub, desc))
+    const tot = Math.max(0, sub - effectiveDiscountAmount(sub, pedido))
     await supabase.from('pedidos').update({ total: tot }).eq('id', pedidoId)
   }, [pedido])
 
@@ -214,6 +219,21 @@ export function useMesaPedido({ mesaId } = {}) {
     return { error: updErr }
   }
 
+  // Descuento tipo gift card (monto o %, todo el pedido o ítems elegidos).
+  const aplicarDescuento = async ({ tipo, valor, alcance, seleccionIds }) => {
+    if (!pedido) return { error: new Error('No hay pedido abierto') }
+    const res = await aplicarDescuentoPedido({ pedidoId: pedido.id, items, tipo, valor, alcance, seleccionIds })
+    if (!res.error) fetchPedido()
+    return res
+  }
+
+  const quitarDescuento = async () => {
+    if (!pedido) return { error: new Error('No hay pedido abierto') }
+    const res = await quitarDescuentoPedido({ pedidoId: pedido.id, items })
+    if (!res.error) fetchPedido()
+    return res
+  }
+
   return {
     pedido,
     items,
@@ -238,5 +258,7 @@ export function useMesaPedido({ mesaId } = {}) {
     cancelarMesa,
     updatePedidoPatch,
     setDescuento,
+    aplicarDescuento,
+    quitarDescuento,
   }
 }

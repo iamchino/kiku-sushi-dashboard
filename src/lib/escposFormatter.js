@@ -15,7 +15,7 @@ import { buildArcaQrUrl, formatReceiptNumber, nombreComprobante } from './fiscal
 // Nosotros solo dejamos un marker `{{QR}}` en el contenido y mandamos
 // la URL aparte en el campo `qr_code_data`. De esta forma evitamos el
 // problema de que JSON+Go expanden bytes > 127 a UTF-8 multi-byte.
-import { calculateDiscountAmount, calculateOrderSubtotal, clampDiscount } from './orders'
+import { applyStoredDiscount } from './orders'
 
 const CANAL_LABELS = {
   salon: 'Salon',
@@ -268,10 +268,8 @@ export function buildCustomerTicketText(pedido, config, opts = {}) {
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
   const canal = CANAL_LABELS[pedido?.canal] || pedido?.canal || 'Pedido'
 
-  const descuento = clampDiscount(pedido?.descuento_porcentaje)
-  const subtotal = calculateOrderSubtotal(items)
-  const discountAmount = calculateDiscountAmount(subtotal, descuento)
-  const total = Number(pedido?.total ?? Math.max(0, subtotal - discountAmount))
+  const { subtotal, descuentoMonto } = applyStoredDiscount(items, pedido)
+  const total = Number(pedido?.total ?? Math.max(0, subtotal - descuentoMonto))
 
   const out = []
   out.push(center((config?.nombre_fantasia || 'KIKU SUSHI').toUpperCase(), width))
@@ -308,9 +306,9 @@ export function buildCustomerTicketText(pedido, config, opts = {}) {
   }
 
   out.push(line(width))
-  if (descuento > 0) {
+  if (descuentoMonto > 0) {
     out.push(row('Subtotal', `$${formatMoney(subtotal)}`, width))
-    out.push(row(`Descuento ${descuento}%`, `-$${formatMoney(discountAmount)}`, width))
+    out.push(row('Descuento', `-$${formatMoney(descuentoMonto)}`, width))
   }
   out.push(row('TOTAL', `$${formatMoney(total)}`, width))
   const medioLabelCustomer = medioPagoLabel(opts.medioPago ?? pedido?.medio_pago)
@@ -330,9 +328,7 @@ export function buildFiscalTicketText(pedido, comprobante, config, opts = {}) {
   const receiptNumber = formatReceiptNumber(comprobante?.punto_venta, comprobante?.numero)
   const cae = comprobante?.cae || ''
 
-  const descuento = clampDiscount(pedido?.descuento_porcentaje)
-  const subtotal = calculateOrderSubtotal(items)
-  const discountAmount = calculateDiscountAmount(subtotal, descuento)
+  const { subtotal, descuentoMonto } = applyStoredDiscount(items, pedido)
 
   const out = []
   out.push(center((config?.nombre_fantasia || 'KIKU SUSHI').toUpperCase(), width))
@@ -382,9 +378,9 @@ export function buildFiscalTicketText(pedido, comprobante, config, opts = {}) {
   }
 
   out.push(line(width))
-  if (descuento > 0) {
+  if (descuentoMonto > 0) {
     out.push(row('Subtotal', `$${formatMoney(subtotal)}`, width))
-    out.push(row(`Descuento ${descuento}%`, `-$${formatMoney(discountAmount)}`, width))
+    out.push(row('Descuento', `-$${formatMoney(descuentoMonto)}`, width))
   }
   // Factura A: desglose neto + IVA. Factura B/C: precio incluye IVA, no se desglosa.
   if (comprobante?.letra === 'A') {

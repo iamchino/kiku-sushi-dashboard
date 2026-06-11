@@ -154,6 +154,7 @@ export default function PedidosPage() {
     pedidos, loading, error,
     createPedido, avanzarEstado, cerrarPedido, cancelarPedido, refetch,
     reabrirPedido, agregarItemsPedido, updateItemCantidadPedido, removeItemPedido,
+    aplicarDescuentoOrden, quitarDescuentoOrden,
   } = usePedidos({
     mode: 'range',
     dateFrom: fechaDesde || last7,
@@ -465,6 +466,8 @@ export default function PedidosPage() {
         onAgregarItems={agregarItemsPedido}
         onUpdateItemCantidad={updateItemCantidadPedido}
         onRemoveItem={removeItemPedido}
+        onAplicarDescuento={aplicarDescuentoOrden}
+        onQuitarDescuento={quitarDescuentoOrden}
       />
 
       <CerrarPedidoModal
@@ -676,15 +679,26 @@ function PedidoRow({ pedido, onSelect, onCerrarClick, onAvanzar, onCancelar }) {
         <EstadoBadgeMenu pedido={pedido} onAvanzar={onAvanzar} onCancelar={onCancelar} />
       </td>
       <td className="px-4 py-3">
-        <span
-          className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full"
-          style={facturado
-            ? { background: 'rgba(52,211,153,0.10)', color: '#34d399' }
-            : { background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)' }
-          }
-        >
-          {facturado ? 'Facturado' : 'No facturado'}
-        </span>
+        <div className="flex flex-col items-start gap-1">
+          <span
+            className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full"
+            style={facturado
+              ? { background: 'rgba(52,211,153,0.10)', color: '#34d399' }
+              : { background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)' }
+            }
+          >
+            {facturado ? 'Facturado' : 'No facturado'}
+          </span>
+          {pedido.afecta_caja === false && (
+            <span
+              className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}
+              title="Cobrada fuera de caja — no afecta el arqueo"
+            >
+              Sin caja
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-4 py-3 text-right text-sm font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
         ${formatMoney(pedido.total)}

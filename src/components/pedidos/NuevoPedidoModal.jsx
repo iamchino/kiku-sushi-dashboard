@@ -29,6 +29,10 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
   const [error,   setError]   = useState(null)
   const [printOnSave, setPrintOnSave] = useState(true)
   const [variantePopup, setVariantePopup] = useState(null) // menu item que necesita elegir variante
+  // Orden "ya cobrada / no afecta caja": se asienta con su fecha y medio, sin tocar el arqueo.
+  const [yaCobrada, setYaCobrada] = useState(false)
+  const [fechaPedido, setFechaPedido] = useState('')
+  const [medioPago, setMedioPago] = useState('efectivo')
 
   // Fetch menu items con variantes on open
   useEffect(() => {
@@ -59,6 +63,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
       setCanal(canalInicial); setMesa(''); setNotas(''); setDescuentoPorcentaje('')
       setClienteNombre(''); setClienteTelefono(''); setClienteDireccion('')
       setItems([]); setSearch(''); setError(null); setPrintOnSave(true); setVariantePopup(null)
+      setYaCobrada(false); setFechaPedido(''); setMedioPago('efectivo')
     }
   }, [open, canalInicial])
 
@@ -137,6 +142,12 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
     e.preventDefault()
     if (items.length === 0) { setError('Agrega al menos un item al pedido.'); return }
 
+    // Fecha real: si la cargan, se setea created_at a esa fecha (mediodía local
+    // para evitar correrse de día por la zona horaria).
+    const fechaISO = yaCobrada && fechaPedido
+      ? new Date(`${fechaPedido}T12:00:00`).toISOString()
+      : null
+
     const payload = {
       canal,
       mesa: mesa ? parseInt(mesa) : null,
@@ -146,6 +157,11 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
       cliente_telefono:  clienteTelefono.trim()  || null,
       cliente_direccion: clienteDireccion.trim() || null,
       items,
+      // Orden ya cobrada / sin impacto en caja.
+      afecta_caja: !yaCobrada,
+      medio_pago:  yaCobrada ? medioPago : null,
+      fecha:       fechaISO,
+      cerrar:      yaCobrada,
     }
     setSaving(true)
     setError(null)
@@ -435,6 +451,55 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Orden ya cobrada / no afecta caja */}
+          <div className="px-6 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+            <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
+              <input
+                type="checkbox"
+                checked={yaCobrada}
+                onChange={e => setYaCobrada(e.target.checked)}
+                className="h-4 w-4 accent-[var(--accent)]"
+              />
+              Ya cobrada — no afecta caja
+            </label>
+            {yaCobrada && (
+              <div className="mt-2 grid gap-3 sm:grid-cols-2 rounded-lg p-3" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
+                <div>
+                  <label className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                    Fecha del pedido
+                  </label>
+                  <input
+                    type="date"
+                    value={fechaPedido}
+                    onChange={e => setFechaPedido(e.target.value)}
+                    className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
+                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  />
+                  <p className="mt-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>Si la dejás vacía, se usa la fecha de hoy.</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                    Medio de pago
+                  </label>
+                  <select
+                    value={medioPago}
+                    onChange={e => setMedioPago(e.target.value)}
+                    className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
+                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="efectivo">Efectivo</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="tarjeta_credito">Tarjeta Crédito</option>
+                    <option value="tarjeta_debito">Tarjeta Débito</option>
+                  </select>
+                </div>
+                <p className="sm:col-span-2 text-[11px] leading-4" style={{ color: 'var(--text-muted)' }}>
+                  La orden queda asentada como cobrada y cerrada, con su monto y medio, pero no suma al turno de caja.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Footer */}

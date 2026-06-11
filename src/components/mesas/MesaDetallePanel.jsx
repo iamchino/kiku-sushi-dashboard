@@ -10,6 +10,7 @@ import { getEstadoConfig } from './mesaColors'
 import AgregarItemsModal from './AgregarItemsModal'
 import CobrarMesaModal from './CobrarMesaModal'
 import UnirMesaModal from './UnirMesaModal'
+import DescuentoModal from '../pedidos/DescuentoModal'
 
 /**
  * Panel lateral de la mesa.
@@ -29,23 +30,22 @@ export default function MesaDetallePanel({
 }) {
   const {
     pedido, items, itemsNoEnviados, itemsEnviados,
-    subtotal, descuentoPct, descuentoMonto, total,
+    subtotal, descuentoMonto, total,
     facturada, comprobanteAutorizado,
     loading, error: pedidoError,
     agregarItems, updateItemCantidad, removeItem,
     enviarACocina, cerrarMesa, cancelarMesa,
-    setDescuento,
+    aplicarDescuento, quitarDescuento,
   } = useMesaPedido({ mesaId: mesa?.id })
 
   const [showAgregar,   setShowAgregar]   = useState(false)
   const [showCobrar,    setShowCobrar]    = useState(false)
   const [showUnir,      setShowUnir]      = useState(false)
+  const [showDescuento, setShowDescuento] = useState(false)
   const [enviando,      setEnviando]      = useState(false)
   const [cancelando,    setCancelando]    = useState(false)
   const [desagrupando,  setDesagrupando]  = useState(false)
   const [actionErr,     setActionErr]     = useState(null)
-  const [editDesc,      setEditDesc]      = useState(false)
-  const [descInput,     setDescInput]     = useState('')
 
   const minutos = useMinutesSince(mesa?.pedido_abierta_at)
 
@@ -97,12 +97,6 @@ export default function MesaDetallePanel({
     const { error } = await onDesagrupar?.(mesa.id) || {}
     setDesagrupando(false)
     if (error) setActionErr(error.message || 'Error al desagrupar')
-  }
-
-  const handleSetDesc = async (e) => {
-    e.preventDefault()
-    await setDescuento(parseFloat(descInput) || 0)
-    setEditDesc(false); setDescInput('')
   }
 
   const accionPrincipal = facturada
@@ -325,44 +319,28 @@ export default function MesaDetallePanel({
               <p className="font-bold text-2xl leading-none mt-0.5" style={{ color: 'var(--accent-lift)' }}>
                 ${formatMoney(total)}
               </p>
-              {descuentoPct > 0 && (
+              {descuentoMonto > 0 && (
                 <p className="text-[10px] mt-0.5" style={{ color: '#34d399' }}>
-                  Subt ${formatMoney(subtotal)} · -{descuentoPct}% (-${formatMoney(descuentoMonto)})
+                  Subt ${formatMoney(subtotal)} · descuento -${formatMoney(descuentoMonto)}
                 </p>
               )}
             </div>
             {!facturada && (
               <button
                 type="button"
-                onClick={() => { setEditDesc(!editDesc); setDescInput(String(descuentoPct || '')) }}
+                onClick={() => setShowDescuento(true)}
                 className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors flex-shrink-0"
                 style={{
-                  background: descuentoPct > 0 ? 'rgba(52,211,153,0.1)' : 'var(--bg-input)',
-                  color: descuentoPct > 0 ? '#34d399' : 'var(--text-muted)',
+                  background: descuentoMonto > 0 ? 'rgba(52,211,153,0.1)' : 'var(--bg-input)',
+                  color: descuentoMonto > 0 ? '#34d399' : 'var(--text-muted)',
                   border: '1px solid var(--border)',
                 }}
-                title="Aplicar descuento"
+                title="Aplicar descuento / gift card"
               >
-                <Tag size={10} /> {descuentoPct > 0 ? `${descuentoPct}%` : 'Desc.'}
+                <Tag size={10} /> {descuentoMonto > 0 ? `-$${formatMoney(descuentoMonto)}` : 'Desc.'}
               </button>
             )}
           </div>
-
-          {editDesc && !facturada && (
-            <form onSubmit={handleSetDesc} className="flex gap-1.5 px-4 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
-              <input
-                type="number" min={0} max={100} step="0.01"
-                autoFocus
-                value={descInput}
-                onChange={e => setDescInput(e.target.value)}
-                placeholder="%"
-                className="flex-1 px-2 py-1.5 rounded text-xs outline-none"
-                style={{ background: 'var(--bg-input)', border: '1px solid var(--accent-border)', color: 'var(--text-primary)' }}
-              />
-              <button type="submit" className="px-3 py-1.5 rounded text-xs font-semibold text-white" style={{ background: 'var(--accent)' }}>OK</button>
-              <button type="button" onClick={() => setEditDesc(false)} className="px-2 py-1.5 rounded text-xs" style={{ color: 'var(--text-muted)' }}>×</button>
-            </form>
-          )}
 
           {actionErr && (
             <div className="mx-3 mt-2 rounded-md px-2 py-1.5 text-[11px] flex items-center gap-1.5" style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171' }}>
@@ -482,6 +460,15 @@ export default function MesaDetallePanel({
         mesasDisponibles={mesasDisponiblesParaUnir}
         onClose={() => setShowUnir(false)}
         onUnir={onUnir}
+      />
+
+      <DescuentoModal
+        open={showDescuento}
+        pedido={pedido}
+        items={items}
+        onClose={() => setShowDescuento(false)}
+        onAplicar={aplicarDescuento}
+        onQuitar={quitarDescuento}
       />
     </aside>
   )

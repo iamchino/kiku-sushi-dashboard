@@ -1,4 +1,4 @@
-import { calculateDiscountAmount, calculateOrderSubtotal, clampDiscount } from './orders'
+import { calculateOrderSubtotal, clampDiscount, effectiveDiscountAmount } from './orders'
 
 const ARCA_QR_BASE_URL = 'https://www.arca.gob.ar/fe/qr/'
 
@@ -227,6 +227,7 @@ export function buildFiscalRequest(pedido, config, options = {}) {
   const items = pedido.pedido_items || pedido.items || []
   const descuento = clampDiscount(pedido?.descuento_porcentaje)
   const subtotal = calculateOrderSubtotal(items)
+  const descuentoImporte = effectiveDiscountAmount(subtotal, pedido)
   const tax = splitTax(pedido?.total, config?.alicuota_iva)
 
   return {
@@ -248,7 +249,7 @@ export function buildFiscalRequest(pedido, config, options = {}) {
     cotizacion: Number(options.cotizacion || 1),
     descuento_porcentaje: descuento,
     subtotal,
-    descuento_importe: calculateDiscountAmount(subtotal, descuento),
+    descuento_importe: descuentoImporte,
     importes: tax,
     items: items.map(item => ({
       nombre: item.nombre,

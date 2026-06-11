@@ -3,14 +3,17 @@ import { Link } from 'react-router-dom'
 import {
   X, Printer, Ban, Receipt, User, Phone, MapPin,
   Clock, Tag, ExternalLink, AlertCircle, Loader2, Utensils, Truck,
-  ShoppingBag, CheckCircle2, Lock, Unlock, Plus, Minus, Trash2,
+  ShoppingBag, CheckCircle2, Lock, Unlock, Plus, Minus, Trash2, Banknote, Gift,
 } from 'lucide-react'
 import { getEstadoSimple, getTipoPedido } from '../../hooks/usePedidos'
 import { useFacturacion } from '../../hooks/useFacturacion'
 import { printComanda, printCustomerTicket, formatMoney } from '../../lib/printing'
+import { MEDIO_PAGO_LABELS } from '../../lib/escposFormatter'
+import { applyStoredDiscount } from '../../lib/orders'
 import { getAuthorizedComprobante } from '../../lib/fiscal'
 import FacturarModal from '../caja/FacturarModal'
 import AgregarItemsModal from '../mesas/AgregarItemsModal'
+import DescuentoModal from './DescuentoModal'
 
 const TIPO_META = {
   salon:    { label: 'Para Comer Aquí', icon: Utensils,    color: 'var(--accent-lift)' },
@@ -54,11 +57,13 @@ function formatFechaHora(value) {
 export default function PedidoDetalleModal({
   pedido, onClose, onCerrarClick, onCancelar,
   onReabrir, onAgregarItems, onUpdateItemCantidad, onRemoveItem,
+  onAplicarDescuento, onQuitarDescuento,
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [facturarOpen, setFacturarOpen] = useState(false)
   const [agregarOpen, setAgregarOpen] = useState(false)
+  const [descuentoOpen, setDescuentoOpen] = useState(false)
   const [zoomImg, setZoomImg] = useState(null)
   const { config, arcaReady, facturarEImprimir, imprimirTicket } = useFacturacion()
 
@@ -88,6 +93,7 @@ export default function PedidoDetalleModal({
   const codigo     = pedido.codigo || `KS${shortId}`
   const items      = pedido.pedido_items || []
   const facturada  = Boolean(comprobante)
+  const descuentoInfo = applyStoredDiscount(items, pedido)
   const puedeAvanzar = false
   const puedeCancelar = simple === 'activa'
 
@@ -399,12 +405,17 @@ export default function PedidoDetalleModal({
           {/* Totales */}
           <section className="rounded-lg p-3 space-y-1"
             style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
-            {Number(pedido.descuento_porcentaje) > 0 && (
-              <div className="flex justify-between text-xs items-center">
-                <span className="flex items-center gap-1" style={{ color: 'var(--accent-lift)' }}>
-                  <Tag size={11} /> Descuento {pedido.descuento_porcentaje}%
-                </span>
-              </div>
+            {descuentoInfo.descuentoMonto > 0 && (
+              <>
+                <div className="flex justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  <span>Subtotal</span>
+                  <span>${formatMoney(descuentoInfo.subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-xs items-center" style={{ color: 'var(--accent-lift)' }}>
+                  <span className="flex items-center gap-1"><Tag size={11} /> Descuento</span>
+                  <span>-${formatMoney(descuentoInfo.descuentoMonto)}</span>
+                </div>
+              </>
             )}
             <div className="flex justify-between pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
               <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Total</span>
@@ -412,6 +423,24 @@ export default function PedidoDetalleModal({
                 ${formatMoney(pedido.total)}
               </span>
             </div>
+            {editable && (
+              <button
+                type="button"
+                onClick={() => setDescuentoOpen(true)}
+                className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors"
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}
+              >
+                <Gift size={13} /> {descuentoInfo.descuentoMonto > 0 ? 'Editar descuento / gift card' : 'Aplicar descuento / gift card'}
+              </button>
+            )}
+            {pedido.afecta_caja === false && (
+              <div className="mt-1 flex items-center gap-1.5 rounded px-2 py-1.5 text-[11px]"
+                style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }}>
+                <Banknote size={12} />
+                Cobrada fuera de caja — no afecta el arqueo
+                {pedido.medio_pago ? ` · ${MEDIO_PAGO_LABELS[pedido.medio_pago] || pedido.medio_pago}` : ''}
+              </div>
+            )}
           </section>
 
           {/* Facturación */}
@@ -552,6 +581,15 @@ export default function PedidoDetalleModal({
         titulo={pedido.mesa ? null : `Orden ${codigo}`}
         onClose={() => setAgregarOpen(false)}
         onAdd={handleAgregarItems}
+      />
+
+      <DescuentoModal
+        open={descuentoOpen}
+        pedido={pedido}
+        items={items}
+        onClose={() => setDescuentoOpen(false)}
+        onAplicar={(cfg) => onAplicarDescuento?.(pedido.id, cfg)}
+        onQuitar={() => onQuitarDescuento?.(pedido.id)}
       />
 
       {/* Lightbox: imagen ampliada del producto */}
