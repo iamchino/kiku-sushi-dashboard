@@ -8,6 +8,9 @@ import {
   buildFiscalTicketText,
   getComandaDestinationLabel,
   formatMoney as escposFormatMoney,
+  medioPagoLabel,
+  TRANSFER_TITULAR,
+  TRANSFER_ALIAS,
 } from './escposFormatter'
 import { getPrinterConfig } from './printerStore'
 
@@ -79,6 +82,17 @@ function renderClienteBlock(pedido) {
     direccion && `<div class="row"><span>Direccion</span><span>${escapeHtml(direccion)}</span></div>`,
   ].filter(Boolean).join('')
   return `<div class="sep"></div>${rows}`
+}
+
+function renderTransferBlock(config) {
+  const titular = config?.transfer_titular || TRANSFER_TITULAR
+  const alias   = config?.transfer_alias   || TRANSFER_ALIAS
+  return `
+    <div class="sep"></div>
+    <div class="center bold">TRANSFERENCIAS</div>
+    <div class="center">${escapeHtml(titular)}</div>
+    <div class="center bold">Alias: ${escapeHtml(alias)}</div>
+  `
 }
 
 function normalizeItems(pedido) {
@@ -214,7 +228,7 @@ function buildComandaHtml(pedido) {
   `
 }
 
-function buildCustomerHtml(pedido, config) {
+function buildCustomerHtml(pedido, config, opts = {}) {
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
   const items = normalizeItems(pedido)
   const canal = CANAL_LABELS[pedido?.canal] || pedido?.canal || 'Pedido'
@@ -222,6 +236,7 @@ function buildCustomerHtml(pedido, config) {
   const subtotal = calculateOrderSubtotal(items)
   const discountAmount = calculateDiscountAmount(subtotal, descuento)
   const total = Number(pedido?.total ?? Math.max(0, subtotal - discountAmount))
+  const medioLabel = medioPagoLabel(opts.medioPago ?? pedido?.medio_pago)
 
   const rows = items.map(item => {
     const lineTotal = item.precio_unitario * item.cantidad
@@ -254,15 +269,18 @@ function buildCustomerHtml(pedido, config) {
         <div class="row"><span>Descuento ${descuento.toLocaleString('es-AR')}%</span><span>-$${formatMoney(discountAmount)}</span></div>
       ` : ''}
       <div class="row bold lg"><span>Total</span><span>$${formatMoney(total)}</span></div>
+      ${medioLabel ? `<div class="row"><span>Pago</span><span class="bold">${escapeHtml(medioLabel)}</span></div>` : ''}
+      ${renderTransferBlock(config)}
     </main>
   `
 }
 
-function buildFiscalHtml(pedido, comprobante, config) {
+function buildFiscalHtml(pedido, comprobante, config, opts = {}) {
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : ''
   const items = normalizeItems(pedido)
   const receiptNumber = formatReceiptNumber(comprobante?.punto_venta, comprobante?.numero)
   const cae = comprobante?.cae || ''
+  const medioLabel = medioPagoLabel(opts.medioPago ?? pedido?.medio_pago)
   const descuento = clampDiscount(pedido?.descuento_porcentaje)
   const subtotal = calculateOrderSubtotal(items)
   const discountAmount = calculateDiscountAmount(subtotal, descuento)
@@ -329,6 +347,7 @@ function buildFiscalHtml(pedido, comprobante, config) {
       ` : ''}
       ${ivaDesgloseHtml}
       <div class="row bold lg"><span>Total</span><span>$${formatMoney(comprobante?.importe_total || pedido?.total)}</span></div>
+      ${medioLabel ? `<div class="row"><span>Forma de pago</span><span class="bold">${escapeHtml(medioLabel)}</span></div>` : ''}
       ${transparenciaHtml}
       <div class="sep"></div>
       <div class="row"><span>CAE</span><span>${escapeHtml(cae)}</span></div>
@@ -337,6 +356,7 @@ function buildFiscalHtml(pedido, comprobante, config) {
         ? `<img class="qr" alt="QR ARCA" src="${escapeHtml(comprobante.qr_data_url)}" />`
         : ''
       }
+      ${renderTransferBlock(config)}
       <div class="sep"></div>
       <div class="center sm">Comprobante autorizado por ARCA</div>
     </main>
@@ -393,18 +413,20 @@ export async function printComanda(pedido) {
   )
 }
 
-export async function printCustomerTicket(pedido, config) {
+export async function printCustomerTicket(pedido, config, opts = {}) {
   const cfg = getPrinterConfig()
-  const text = buildCustomerTicketText(pedido, config, { width: cfg.chars_per_line })
+  const medioPago = opts.medioPago ?? null
+  const text = buildCustomerTicketText(pedido, config, { width: cfg.chars_per_line, medioPago })
   const ok = await tryRemotePrint('ticket', text)
   if (ok) return
 
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
-  printDocumentBrowser(`Ticket cliente ${shortId}`, buildCustomerHtml(pedido, config))
+  printDocumentBrowser(`Ticket cliente ${shortId}`, buildCustomerHtml(pedido, config, { medioPago }))
 }
 
-export async function printFiscalTicket(pedido, comprobante, config) {
+export async function printFiscalTicket(pedido, comprobante, config, opts = {}) {
   const cfg = getPrinterConfig()
+  const medioPago = opts.medioPago ?? null
 
   // Enriquecemos el comprobante con el QR como imagen (data URL) si todavía no lo tiene.
   let enrichedComprobante = comprobante
@@ -416,7 +438,7 @@ export async function printFiscalTicket(pedido, comprobante, config) {
     }
   }
 
-  const text = buildFiscalTicketText(pedido, enrichedComprobante, config, { width: cfg.chars_per_line })
+  const text = buildFiscalTicketText(pedido, enrichedComprobante, config, { width: cfg.chars_per_line, medioPago })
   // Pasamos la URL del QR al servicio de impresión para que la renderice
   // server-side como bitmap raster (en Go los bytes no se mangle por UTF-8).
   const qrCodeData = enrichedComprobante?.qr_url || buildArcaQrUrl(enrichedComprobante, config) || ''
@@ -432,5 +454,5 @@ export async function printFiscalTicket(pedido, comprobante, config) {
   if (ok) return
 
   const receiptNumber = formatReceiptNumber(enrichedComprobante?.punto_venta, enrichedComprobante?.numero)
-  printDocumentBrowser(`Factura ${receiptNumber}`, buildFiscalHtml(pedido, enrichedComprobante, config))
+  printDocumentBrowser(`Factura ${receiptNumber}`, buildFiscalHtml(pedido, enrichedComprobante, config, { medioPago }))
 }

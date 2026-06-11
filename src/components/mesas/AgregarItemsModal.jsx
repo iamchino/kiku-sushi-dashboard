@@ -13,7 +13,7 @@ import { formatMoney } from '../../lib/printing'
  *  - Carrito con cantidad +/-, notas inline editable, precio editable, eliminar
  *  - Footer fijo con total y botones Cancelar / Confirmar
  */
-export default function AgregarItemsModal({ open, mesa, onClose, onAdd }) {
+export default function AgregarItemsModal({ open, mesa, onClose, onAdd, titulo = null }) {
   const [items,         setItems]         = useState([])
   const [search,        setSearch]        = useState('')
   const [menuItems,     setMenuItems]     = useState([])
@@ -156,8 +156,14 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd }) {
           }}
         >
           <p className="font-semibold text-base flex items-center gap-2">
-            Mesa <span style={{ color: 'var(--accent-lift)' }}>{mesa?.numero ?? '—'}</span>
-            {mesa?.nombre && <span className="text-xs font-normal opacity-80">({mesa.nombre})</span>}
+            {titulo ? (
+              <span style={{ color: 'var(--accent-lift)' }}>{titulo}</span>
+            ) : (
+              <>
+                Mesa <span style={{ color: 'var(--accent-lift)' }}>{mesa?.numero ?? '—'}</span>
+                {mesa?.nombre && <span className="text-xs font-normal opacity-80">({mesa.nombre})</span>}
+              </>
+            )}
             <span className="ml-2 text-xs font-medium opacity-80">· Adicionar productos</span>
           </p>
           <button

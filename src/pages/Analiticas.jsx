@@ -8,6 +8,12 @@ import {
   XCircle, Clock, BarChart2, Calendar, AlertTriangle
 } from 'lucide-react'
 import { useAnaliticas, PRESETS, CANAL_CFG } from '../hooks/useAnaliticas'
+import { useDashboard } from '../hooks/useDashboard'
+import { KpiCard as KpiCardHoy } from '../components/dashboard/KpiCard'
+import { PlatosChart } from '../components/dashboard/PlatosChart'
+import { CanalDonut as CanalDonutHoy } from '../components/dashboard/CanalDonut'
+import { HeatmapHoras } from '../components/dashboard/HeatmapHoras'
+import { AlertasStock } from '../components/dashboard/AlertasStock'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -246,34 +252,91 @@ function Insight({ icon: Icon, color, title, value, sub }) {
   )
 }
 
+// ── Encabezado de sección ───────────────────────────────────────────────────
+function SectionTitle({ children, hint }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 pt-1">
+      <h2 className="text-sm font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>{children}</h2>
+      {hint && <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{hint}</span>}
+    </div>
+  )
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function AnaliticasPage() {
   const [customMode, setCustomMode] = useState(false)
   const { data, loading, error, desde, hasta, preset, setDesde, setHasta, applyPreset, refetch } = useAnaliticas()
 
+  // Sección "Hoy en vivo" (lo que antes vivía en Dashboard)
+  const {
+    kpis, platosTop, pedidosPorHora, alertasStock,
+    loading: loadingHoy, refetch: refetchHoy, delta,
+  } = useDashboard()
+
   const dias = Math.round((new Date(hasta) - new Date(desde)) / 86400000) + 1
 
   const mejorCanal = data?.porCanal?.filter(c => c.pedidos > 0).sort((a, b) => b.ticket - a.ticket)[0]
   const peorCanal  = data?.porCanal?.filter(c => c.pedidos > 0).sort((a, b) => a.ticket - b.ticket)[0]
+
+  const refetchAll = () => { refetch(); refetchHoy() }
+
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-7xl mx-auto">
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Analíticas & Histórico</h1>
+          <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Analíticas</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            {desde} → {hasta} · {dias} {dias === 1 ? 'día' : 'días'}
+            Hoy en vivo + histórico, todo en un solo lugar
           </p>
         </div>
-        <button onClick={refetch} disabled={loading}
-          className="p-2 rounded-lg disabled:opacity-50 transition-all"
-          style={{ border: '1px solid var(--border)' }}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} style={{ color: 'var(--text-muted)' }} />
-        </button>
+        <div className="flex items-center gap-3">
+          <span
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--accent)' }} />
+            En vivo
+          </span>
+          <button onClick={refetchAll} disabled={loading || loadingHoy}
+            className="p-2 rounded-lg disabled:opacity-50 transition-all"
+            style={{ border: '1px solid var(--border)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+            <RefreshCw size={14} className={(loading || loadingHoy) ? 'animate-spin' : ''} style={{ color: 'var(--text-muted)' }} />
+          </button>
+        </div>
       </div>
+
+      {/* ════════════ HOY EN VIVO ════════════ */}
+      <SectionTitle hint={format(new Date(), "EEEE d 'de' MMMM", { locale: es })}>Hoy en vivo</SectionTitle>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCardHoy label="Ventas del día"      valor={loadingHoy ? null : `$${Number(kpis?.ventas_total || 0).toLocaleString('es-AR')}`}        delta={delta('ventas_total', 'ventas_total')}       loading={loadingHoy} />
+        <KpiCardHoy label="Ticket promedio"     valor={loadingHoy ? null : `$${Math.round(kpis?.ticket_promedio || 0).toLocaleString('es-AR')}`} delta={delta('ticket_promedio', 'ticket_promedio')} loading={loadingHoy} />
+        <KpiCardHoy label="Pedidos salón"       valor={loadingHoy ? null : kpis?.pedidos_salon ?? 0}                                              delta={delta('pedidos_salon', 'pedidos_salon')}     loading={loadingHoy} />
+        <KpiCardHoy label="Delivery/take away"  valor={loadingHoy ? null : kpis?.pedidos_delivery ?? 0}                                           delta={delta('pedidos_delivery', 'pedidos_delivery')} loading={loadingHoy} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <PlatosChart data={platosTop} loading={loadingHoy} />
+        </div>
+        <div>
+          <CanalDonutHoy kpis={kpis} loading={loadingHoy} />
+        </div>
+      </div>
+
+      <HeatmapHoras data={pedidosPorHora} loading={loadingHoy} />
+
+      {alertasStock.length > 0 && (
+        <AlertasStock alertas={alertasStock} />
+      )}
+
+      {/* ════════════ HISTÓRICO ════════════ */}
+      <div className="pt-2" style={{ borderTop: '1px solid var(--border)' }} />
+      <SectionTitle hint={`${desde} → ${hasta} · ${dias} ${dias === 1 ? 'día' : 'días'}`}>Histórico</SectionTitle>
 
       {/* Date selector */}
       <div className="flex flex-wrap gap-2 items-center">

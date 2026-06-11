@@ -5,7 +5,6 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { Sidebar } from './components/layout/Sidebar'
 import { BottomNav } from './components/layout/BottomNav'
 import Inicio from './pages/Inicio'
-import Dashboard from './pages/Dashboard'
 import OperacionesPage from './pages/Operaciones'
 import MenuPage from './pages/Menu'
 import PedidosPage from './pages/Pedidos'
@@ -58,7 +57,7 @@ function AppRoutes() {
       <RoleGuard>
         <Routes>
           <Route path="/" element={<Inicio />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Navigate to="/analiticas" replace />} />
           <Route path="/operaciones" element={<OperacionesPage />} />
           <Route path="/analiticas" element={<AnaliticasPage />} />
           <Route path="/pedidos" element={<PedidosPage />} />

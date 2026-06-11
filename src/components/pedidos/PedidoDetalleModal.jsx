@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom'
 import {
   X, Printer, Ban, Receipt, User, Phone, MapPin,
   Clock, Tag, ExternalLink, AlertCircle, Loader2, Utensils, Truck,
-  ShoppingBag, CheckCircle2, Lock,
+  ShoppingBag, CheckCircle2, Lock, Unlock, Plus, Minus, Trash2,
 } from 'lucide-react'
 import { getEstadoSimple, getTipoPedido } from '../../hooks/usePedidos'
 import { useFacturacion } from '../../hooks/useFacturacion'
 import { printComanda, printCustomerTicket, formatMoney } from '../../lib/printing'
 import { getAuthorizedComprobante } from '../../lib/fiscal'
 import FacturarModal from '../caja/FacturarModal'
+import AgregarItemsModal from '../mesas/AgregarItemsModal'
 
 const TIPO_META = {
   salon:    { label: 'Para Comer Aquí', icon: Utensils,    color: 'var(--accent-lift)' },
@@ -50,10 +51,14 @@ function formatFechaHora(value) {
  *  - Cancelar pedido (cuando el pedido está activo)
  *  - Para pedidos de salón: link a la mesa para editar items / cobrar
  */
-export default function PedidoDetalleModal({ pedido, onClose, onCerrarClick, onCancelar }) {
+export default function PedidoDetalleModal({
+  pedido, onClose, onCerrarClick, onCancelar,
+  onReabrir, onAgregarItems, onUpdateItemCantidad, onRemoveItem,
+}) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [facturarOpen, setFacturarOpen] = useState(false)
+  const [agregarOpen, setAgregarOpen] = useState(false)
   const [zoomImg, setZoomImg] = useState(null)
   const { config, arcaReady, facturarEImprimir, imprimirTicket } = useFacturacion()
 
@@ -86,6 +91,35 @@ export default function PedidoDetalleModal({ pedido, onClose, onCerrarClick, onC
   const puedeAvanzar = false
   const puedeCancelar = simple === 'activa'
 
+  // Edición de items: solo para pedidos activos y NO facturados.
+  const editable      = simple === 'activa' && !facturada
+  // Reabrir: pedidos completados (entregados) que todavía no se facturaron.
+  const puedeReabrir  = simple === 'completada' && !facturada
+
+  const handleReabrir = async () => {
+    setBusy(true); setError(null)
+    const err = await onReabrir?.(pedido.id)
+    setBusy(false)
+    if (err) { setError(err.message || 'No se pudo reabrir el pedido'); return }
+    // El pedido queda activo; el modal se sincroniza solo (realtime en la página).
+  }
+
+  const handleAgregarItems = async (newItems) => {
+    const err = await onAgregarItems?.(pedido.id, newItems)
+    return { error: err || null }
+  }
+
+  const handleItemCantidad = async (itemId, nuevaCantidad) => {
+    setError(null)
+    const err = await onUpdateItemCantidad?.(pedido.id, itemId, nuevaCantidad)
+    if (err) setError(err.message || 'No se pudo actualizar el item')
+  }
+
+  const handleItemRemove = async (itemId) => {
+    setError(null)
+    const err = await onRemoveItem?.(pedido.id, itemId)
+    if (err) setError(err.message || 'No se pudo quitar el item')
+  }
 
   const handleCancelar = async () => {
     if (!confirm('¿Cancelar este pedido? Esta acción no se puede deshacer.')) return
@@ -123,6 +157,7 @@ export default function PedidoDetalleModal({ pedido, onClose, onCerrarClick, onC
   }
 
   return (
+    <>
     <div
       className="fixed inset-0 z-[60] flex items-end md:items-center justify-center p-0 md:p-4"
       style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
@@ -243,6 +278,17 @@ export default function PedidoDetalleModal({ pedido, onClose, onCerrarClick, onC
               )}
             </div>
 
+            {editable && (
+              <button
+                type="button"
+                onClick={() => setAgregarOpen(true)}
+                className="w-full mb-2 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '2px dashed var(--accent-border)' }}
+              >
+                <Plus size={15} /> Agregar productos
+              </button>
+            )}
+
             {items.length === 0 ? (
               <p className="text-xs italic py-3" style={{ color: 'var(--text-xmuted)' }}>
                 Sin productos cargados.
@@ -274,12 +320,38 @@ export default function PedidoDetalleModal({ pedido, onClose, onCerrarClick, onC
                           />
                         </button>
                       )}
-                      <span
-                        className="text-xs font-bold w-7 text-center flex-shrink-0 pt-0.5"
-                        style={{ color: 'var(--accent-lift)' }}
-                      >
-                        {item.cantidad}×
-                      </span>
+                      {editable ? (
+                        <div className="flex items-center rounded-md flex-shrink-0" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleItemCantidad(item.id, Number(item.cantidad) - 1)}
+                            className="w-6 h-7 flex items-center justify-center"
+                            style={{ color: 'var(--text-muted)' }}
+                            title="Restar"
+                          >
+                            <Minus size={11} />
+                          </button>
+                          <span className="text-xs font-bold w-6 text-center" style={{ color: 'var(--text-primary)' }}>
+                            {item.cantidad}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleItemCantidad(item.id, Number(item.cantidad) + 1)}
+                            className="w-6 h-7 flex items-center justify-center"
+                            style={{ color: 'var(--text-muted)' }}
+                            title="Sumar"
+                          >
+                            <Plus size={11} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span
+                          className="text-xs font-bold w-7 text-center flex-shrink-0 pt-0.5"
+                          style={{ color: 'var(--accent-lift)' }}
+                        >
+                          {item.cantidad}×
+                        </span>
+                      )}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs leading-snug" style={{ color: 'var(--text-primary)' }}>
                           {item.nombre}
@@ -293,6 +365,17 @@ export default function PedidoDetalleModal({ pedido, onClose, onCerrarClick, onC
                       <span className="text-xs font-medium tabular-nums flex-shrink-0" style={{ color: 'var(--text-secondary)' }}>
                         ${formatMoney(linea)}
                       </span>
+                      {editable && (
+                        <button
+                          type="button"
+                          onClick={() => handleItemRemove(item.id)}
+                          className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
+                          style={{ color: '#f87171' }}
+                          title="Quitar producto"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   )
                 })}
@@ -393,6 +476,20 @@ export default function PedidoDetalleModal({ pedido, onClose, onCerrarClick, onC
             </div>
           )}
 
+          {/* Reabrir: vuelve el pedido a activo para editar items o cambiar el cobro */}
+          {puedeReabrir && (
+            <button
+              type="button"
+              onClick={handleReabrir}
+              disabled={busy}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all hover:scale-[1.01] disabled:opacity-60"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}
+            >
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
+              Reabrir pedido
+            </button>
+          )}
+
           {pedido.mesa_id && (
             <Link
               to="/mesas"
@@ -438,6 +535,7 @@ export default function PedidoDetalleModal({ pedido, onClose, onCerrarClick, onC
           )}
         </div>
       </div>
+    </div>
 
       <FacturarModal
         open={facturarOpen}
@@ -446,6 +544,14 @@ export default function PedidoDetalleModal({ pedido, onClose, onCerrarClick, onC
         permiteFacturaA={Boolean(config?.permite_factura_a)}
         onClose={() => setFacturarOpen(false)}
         onConfirm={handleConfirmarFactura}
+      />
+
+      <AgregarItemsModal
+        open={agregarOpen}
+        mesa={pedido.mesa ? { numero: pedido.mesa } : null}
+        titulo={pedido.mesa ? null : `Orden ${codigo}`}
+        onClose={() => setAgregarOpen(false)}
+        onAdd={handleAgregarItems}
       />
 
       {/* Lightbox: imagen ampliada del producto */}
@@ -472,6 +578,6 @@ export default function PedidoDetalleModal({ pedido, onClose, onCerrarClick, onC
           />
         </div>
       )}
-    </div>
+    </>
   )
 }

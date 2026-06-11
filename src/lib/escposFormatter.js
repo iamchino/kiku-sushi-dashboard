@@ -32,6 +32,28 @@ const TAKEAWAY_CHANNELS = new Set(['llevar', 'takeaway', 'take_away', 'take-away
 
 const DEFAULT_WIDTH = 32
 
+// Datos de transferencia que se imprimen al pie de los tickets de cliente
+// (pre-cuenta) y fiscal. NO se imprimen en la comanda de cocina.
+// Se pueden sobreescribir desde facturacion_config si algún día se agregan
+// las columnas correspondientes.
+export const TRANSFER_TITULAR = 'Kiku Sushi S.A.S'
+export const TRANSFER_ALIAS = 'kiku.sushi.galicia'
+
+// Etiquetas legibles de los medios de pago para imprimir en los tickets.
+export const MEDIO_PAGO_LABELS = {
+  efectivo:        'Efectivo',
+  tarjeta_credito: 'Tarjeta Credito',
+  tarjeta_debito:  'Tarjeta Debito',
+  transferencia:   'Transferencia',
+  sin_pago:        'Sin pago',
+}
+
+/** Devuelve la etiqueta legible de un medio de pago (o null si no aplica). */
+export function medioPagoLabel(medio) {
+  if (!medio || medio === 'sin_pago') return null
+  return MEDIO_PAGO_LABELS[medio] || String(medio)
+}
+
 // --------- helpers de formato ----------
 
 export function formatMoney(value) {
@@ -163,6 +185,18 @@ function clienteBlock(pedido, width) {
   return out
 }
 
+/** Bloque de datos de transferencia para el pie de ticket cliente/fiscal. */
+function transferBlock(width, config) {
+  const titular = config?.transfer_titular || TRANSFER_TITULAR
+  const alias   = config?.transfer_alias   || TRANSFER_ALIAS
+  return [
+    line(width),
+    center('TRANSFERENCIAS', width),
+    center(titular, width),
+    center(`Alias: ${alias}`, width),
+  ]
+}
+
 // --------- builders publicos ----------
 
 export function buildComandaText(pedido, opts = {}) {
@@ -279,6 +313,9 @@ export function buildCustomerTicketText(pedido, config, opts = {}) {
     out.push(row(`Descuento ${descuento}%`, `-$${formatMoney(discountAmount)}`, width))
   }
   out.push(row('TOTAL', `$${formatMoney(total)}`, width))
+  const medioLabelCustomer = medioPagoLabel(opts.medioPago ?? pedido?.medio_pago)
+  if (medioLabelCustomer) out.push(row('Pago', medioLabelCustomer, width))
+  out.push(...transferBlock(width, config))
   out.push('')
   out.push(center('Gracias por su compra!', width))
 
@@ -355,6 +392,8 @@ export function buildFiscalTicketText(pedido, comprobante, config, opts = {}) {
     out.push(row('IVA 21%', `$${formatMoney(comprobante?.importe_iva)}`, width))
   }
   out.push(row('TOTAL', `$${formatMoney(comprobante?.importe_total || pedido?.total)}`, width))
+  const medioLabelFiscal = medioPagoLabel(opts.medioPago ?? pedido?.medio_pago)
+  if (medioLabelFiscal) out.push(row('Forma de pago', medioLabelFiscal, width))
 
   // Ley 27.743 - Transparencia Fiscal al Consumidor (sólo Factura/NC B y C)
   if (comprobante?.letra === 'B' || comprobante?.letra === 'C') {
@@ -377,6 +416,7 @@ export function buildFiscalTicketText(pedido, comprobante, config, opts = {}) {
     out.push('{{QR}}')
   }
 
+  out.push(...transferBlock(width, config))
   out.push(line(width))
   out.push(center('Comprobante autorizado', width))
   out.push(center('por ARCA', width))

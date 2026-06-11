@@ -153,11 +153,20 @@ export default function PedidosPage() {
   const {
     pedidos, loading, error,
     createPedido, avanzarEstado, cerrarPedido, cancelarPedido, refetch,
+    reabrirPedido, agregarItemsPedido, updateItemCantidadPedido, removeItemPedido,
   } = usePedidos({
     mode: 'range',
     dateFrom: fechaDesde || last7,
     dateTo:   fechaHasta || today,
   })
+
+  // Mantener el pedido abierto en el modal sincronizado con la lista en vivo
+  // (realtime): al agregar/quitar items o reabrir, el modal refleja los cambios.
+  useEffect(() => {
+    if (!pedidoSel) return
+    const fresh = pedidos.find(p => p.id === pedidoSel.id)
+    if (fresh && fresh !== pedidoSel) setPedidoSel(fresh)
+  }, [pedidos, pedidoSel])
 
   // Si venimos de una notificación con ?focus=<id>, abrimos automáticamente
   // el detalle de ese pedido cuando termina de cargar.
@@ -452,6 +461,10 @@ export default function PedidosPage() {
         onCerrarClick={() => setCerrarTarget(pedidoSel)}
         onAvanzar={avanzarEstado}
         onCancelar={cancelarPedido}
+        onReabrir={reabrirPedido}
+        onAgregarItems={agregarItemsPedido}
+        onUpdateItemCantidad={updateItemCantidadPedido}
+        onRemoveItem={removeItemPedido}
       />
 
       <CerrarPedidoModal

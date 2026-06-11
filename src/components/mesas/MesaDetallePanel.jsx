@@ -22,6 +22,7 @@ import UnirMesaModal from './UnirMesaModal'
  */
 export default function MesaDetallePanel({
   mesa, onClose, onAbrirMesa,
+  onMesaChanged,  // () => void — refresca la lista de mesas del salón (canvas)
   mesasDisponiblesParaUnir = [],
   onUnir,        // (leaderId, memberId) => { error }
   onDesagrupar,  // (leaderId) => { error }
@@ -86,6 +87,7 @@ export default function MesaDetallePanel({
     const { error } = await cancelarMesa()
     setCancelando(false)
     if (error) { setActionErr(error.message || 'Error al cancelar'); return }
+    onMesaChanged?.()
     onClose?.()
   }
 
@@ -469,7 +471,7 @@ export default function MesaDetallePanel({
             await onDesagrupar?.(mesa.id)
           }
           const { error } = await cerrarMesa()
-          if (!error) onClose?.()
+          if (!error) { onMesaChanged?.(); onClose?.() }
           return { error }
         }}
       />

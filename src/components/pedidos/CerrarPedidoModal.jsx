@@ -86,12 +86,12 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
 
       if (ticket === 'fiscal') {
         if (comprobanteAutorizado) {
-          await imprimirTicket(pedido, comprobanteAutorizado)
+          await imprimirTicket(pedido, comprobanteAutorizado, medio)
         } else {
-          comprobanteUsado = await facturarEImprimir(pedido)
+          comprobanteUsado = await facturarEImprimir(pedido, { medio_pago: medio })
         }
       } else if (ticket === 'no_fiscal') {
-        await imprimirTicketNoFiscal(pedido)
+        await imprimirTicketNoFiscal(pedido, medio)
       }
 
       if (medio !== 'sin_pago') {

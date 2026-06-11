@@ -111,16 +111,16 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
   }
 
   const handleTicketNoFiscal = () => runAction('ticket', async () => {
-    await imprimirTicketNoFiscal(pedido)
+    await imprimirTicketNoFiscal(pedido, medio)
     return null
   })
 
   const handleFacturar = () => runAction('factura', async () => {
     if (comprobanteAutorizado) {
-      await imprimirTicket(pedido, comprobanteAutorizado)
+      await imprimirTicket(pedido, comprobanteAutorizado, medio)
       return comprobanteAutorizado
     }
-    return await facturarEImprimir(pedido)
+    return await facturarEImprimir(pedido, { medio_pago: medio })
   })
 
   const handleCerrarSinImprimir = () => runAction('cerrar', async () => null)

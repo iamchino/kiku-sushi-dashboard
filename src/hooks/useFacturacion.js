@@ -171,13 +171,13 @@ export function useFacturacion(options = {}) {
     await registrarImpresion({ pedido, tipo: 'comanda' }).catch(() => null)
   }, [registrarImpresion])
 
-  const imprimirTicket = useCallback(async (pedido, comprobante) => {
-    printFiscalTicket(pedido, comprobante, config)
+  const imprimirTicket = useCallback(async (pedido, comprobante, medioPago = null) => {
+    printFiscalTicket(pedido, comprobante, config, { medioPago })
     await registrarImpresion({ pedido, comprobante, tipo: 'ticket_fiscal' }).catch(() => null)
   }, [config, registrarImpresion])
 
-  const imprimirTicketNoFiscal = useCallback(async (pedido) => {
-    printCustomerTicket(pedido, config)
+  const imprimirTicketNoFiscal = useCallback(async (pedido, medioPago = null) => {
+    printCustomerTicket(pedido, config, { medioPago })
     await registrarImpresion({ pedido, tipo: 'ticket_no_fiscal' }).catch(() => null)
   }, [config, registrarImpresion])
 
@@ -349,9 +349,10 @@ export function useFacturacion(options = {}) {
    * @param {object} [opts.receptor]   Default Consumidor Final
    */
   const facturarEImprimir = useCallback(async (pedido, opts = {}) => {
+    const medioPago = opts.medio_pago ?? null
     const existing = getAuthorizedComprobante(pedido)
     if (existing && !opts.forceNew) {
-      await imprimirTicket(pedido, existing)
+      await imprimirTicket(pedido, existing, medioPago)
       return existing
     }
 
@@ -362,7 +363,7 @@ export function useFacturacion(options = {}) {
     })
 
     const { comprobante } = await llamarArca(pedido, payload)
-    await imprimirTicket(pedido, comprobante)
+    await imprimirTicket(pedido, comprobante, medioPago)
     await fetchData()
     return comprobante
   }, [config, fetchData, imprimirTicket, llamarArca])

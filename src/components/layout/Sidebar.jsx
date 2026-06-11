@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   Home, ClipboardList, Package, Receipt, ListChecks,
   Users, ChefHat, LogOut, UtensilsCrossed, X, Menu,
-  Sun, Moon, BookOpen, LayoutGrid, CalendarDays, Inbox
+  Sun, Moon, BookOpen, LayoutGrid, CalendarDays, Inbox, BarChart2
 } from 'lucide-react'
 import clsx from 'clsx'
 import { auth } from '../../lib/supabase'
@@ -15,9 +15,8 @@ import { canAccessRoute } from '../../context/role'
 const NAV_ITEMS = [
   { to: '/',           icon: Home,            label: 'Inicio'       },
   { to: '/operaciones', icon: ChefHat,        label: 'Operaciones'  },
-  // Dashboard y Analíticas ocultos del menú; las rutas siguen disponibles si se quiere reactivar.
-  // { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard'    },
-  // { to: '/analiticas', icon: BarChart2,       label: 'Analíticas'   },
+  // Dashboard fue unificado dentro de Analíticas (sección "Hoy en vivo").
+  { to: '/analiticas', icon: BarChart2,       label: 'Analíticas'   },
   { to: '/menu',       icon: UtensilsCrossed, label: 'Menú & Carta' },
   { to: '/mesas',      icon: LayoutGrid,      label: 'Mesas'        },
   { to: '/reservas',   icon: CalendarDays,    label: 'Reservas'     },

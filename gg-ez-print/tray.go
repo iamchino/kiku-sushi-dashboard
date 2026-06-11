@@ -68,7 +68,11 @@ func onReady() {
 	mAddr := systray.AddMenuItem(serverAddr, "Dirección WSS del servidor")
 	mAddr.Disable()
 
-	mTrustCert := systray.AddMenuItem("Instalar certificado CA", "Instala la CA local en el almacén de confianza de Windows")
+	certURL := fmt.Sprintf("Cert móvil: http://%s:%s", localIP, certServerPort)
+	mCertURL := systray.AddMenuItem(certURL, "Abrí esta URL en el celu para instalar el certificado CA")
+	mCertURL.Disable()
+
+	mTrustCert := systray.AddMenuItem("Instalar certificado CA (esta PC)", "Instala la CA local en el almacén de confianza de Windows")
 
 	systray.AddSeparator()
 
@@ -83,6 +87,7 @@ func onReady() {
 
 	// Start the web server in a separate goroutine
 	go startServer()
+	go startCertServer()
 
 	// Monitor connection status changes
 	go func() {

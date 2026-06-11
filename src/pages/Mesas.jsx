@@ -203,6 +203,7 @@ export default function MesasPage() {
             <MesaDetallePanel
               mesa={selectedMesa}
               onClose={() => setSelectedMesaId(null)}
+              onMesaChanged={refetch}
               onAbrirMesa={(m) => setMesaAbrir(m)}
               mesasDisponiblesParaUnir={mesasDisponiblesParaUnir}
               onUnir={async (leaderId, memberId) => {

@@ -483,10 +483,133 @@ export function usePedidos(options = {}) {
 
   const isFacturado = useCallback((pedido) => Boolean(getAuthorizedComprobante(pedido)), [])
 
+  /**
+   * Reabre un pedido cerrado (entregado) para poder editarlo / cobrarlo de nuevo.
+   * Vuelve el estado a 'preparando' y limpia cerrada_at.
+   * Bloqueado si el pedido ya tiene un comprobante fiscal autorizado.
+   */
+  const reabrirPedido = async (id) => {
+    const pedido = pedidos.find(p => p.id === id)
+    if (!pedido) return new Error('Pedido no encontrado')
+    // Chequeo en cliente (la RPC lo vuelve a validar en el servidor).
+    if (getAuthorizedComprobante(pedido)) {
+      return new Error('No se puede reabrir un pedido ya facturado.')
+    }
+    if (pedido.estado === 'cancelado') {
+      return new Error('No se puede reabrir un pedido cancelado.')
+    }
+
+    // Preferimos la RPC reabrir_pedido (valida no-facturado del lado del server).
+    const { error: rpcErr } = await supabase.rpc('reabrir_pedido', { p_pedido_id: id })
+
+    if (rpcErr && !isMissingRpcFunction(rpcErr)) {
+      // La RPC existe pero rechazó (p.ej. facturado / cancelado / permisos).
+      return rpcErr
+    }
+
+    if (rpcErr && isMissingRpcFunction(rpcErr)) {
+      // Fallback: si la RPC no está aplicada, UPDATE directo (respeta RLS).
+      let { error: updateError } = await supabase
+        .from('pedidos')
+        .update({ estado: 'preparando', cerrada_at: null })
+        .eq('id', id)
+
+      if (updateError && /cerrada_at/i.test(updateError.message || '')) {
+        const retry = await supabase
+          .from('pedidos')
+          .update({ estado: 'preparando' })
+          .eq('id', id)
+        updateError = retry.error
+      }
+
+      if (updateError) return updateError
+    }
+
+    fetchPedidos()
+    return null
+  }
+
+  // Recalcula el total del pedido a partir de sus items y su descuento.
+  const recalcularTotalPedido = async (pedidoId) => {
+    const pedido = pedidos.find(p => p.id === pedidoId)
+    const { data: itemsActuales } = await supabase
+      .from('pedido_items')
+      .select('precio_unitario, cantidad')
+      .eq('pedido_id', pedidoId)
+    const sub = (itemsActuales || []).reduce(
+      (acc, i) => acc + (parseCurrencyValue(i.precio_unitario) * (parseInt(i.cantidad) || 0)),
+      0
+    )
+    const desc = clampDiscount(pedido?.descuento_porcentaje)
+    const tot = Math.max(0, sub - (sub * desc / 100))
+    await supabase.from('pedidos').update({ total: tot }).eq('id', pedidoId)
+  }
+
+  /** Agrega items a un pedido existente (órdenes web / para llevar / salón). */
+  const agregarItemsPedido = async (pedidoId, newItems) => {
+    const normalized = (newItems || [])
+      .filter(i => i.nombre && (parseInt(i.cantidad) || 0) > 0)
+      .map(i => ({
+        nombre:          String(i.nombre).trim(),
+        cantidad:        Math.max(1, parseInt(i.cantidad) || 1),
+        precio_unitario: parseCurrencyValue(i.precio_unitario),
+        notas:           i.notas || null,
+        menu_item_id:    i.menu_item_id || null,
+        variante_id:     i.variante_id  || null,
+      }))
+    if (normalized.length === 0) return new Error('Sin items para agregar')
+
+    let { error: rpcErr } = await supabase.rpc('agregar_items_pedido', {
+      p_pedido_id: pedidoId,
+      p_items:     normalized,
+    })
+
+    // Fallback: si la RPC no existe o falla por variante_id, insertamos directo.
+    if (rpcErr) {
+      const rows = normalized.map(i => ({ ...i, pedido_id: pedidoId }))
+      let ins = await supabase.from('pedido_items').insert(rows)
+      if (ins.error && /variante_id/i.test(ins.error.message || '')) {
+        const legacyRows = rows.map(({ variante_id, ...rest }) => rest)
+        ins = await supabase.from('pedido_items').insert(legacyRows)
+      }
+      if (ins.error) return ins.error
+      rpcErr = null
+    }
+
+    // Auto-envío a cocina (mismo comportamiento que las mesas).
+    await supabase.rpc('enviar_a_cocina', { p_pedido_id: pedidoId }).catch(() => null)
+
+    await recalcularTotalPedido(pedidoId)
+    fetchPedidos()
+    return null
+  }
+
+  const updateItemCantidadPedido = async (pedidoId, itemId, nuevaCantidad) => {
+    const cant = parseInt(nuevaCantidad) || 0
+    const result = cant <= 0
+      ? await supabase.from('pedido_items').delete().eq('id', itemId)
+      : await supabase.from('pedido_items').update({ cantidad: cant }).eq('id', itemId)
+    if (!result.error) {
+      await recalcularTotalPedido(pedidoId)
+      fetchPedidos()
+    }
+    return result.error
+  }
+
+  const removeItemPedido = async (pedidoId, itemId) => {
+    const { error: delErr } = await supabase.from('pedido_items').delete().eq('id', itemId)
+    if (!delErr) {
+      await recalcularTotalPedido(pedidoId)
+      fetchPedidos()
+    }
+    return delErr
+  }
+
   return {
     pedidos, grouped, stats,
     loading, error,
     createPedido, avanzarEstado, cerrarPedido, cancelarPedido,
+    reabrirPedido, agregarItemsPedido, updateItemCantidadPedido, removeItemPedido,
     refetch: fetchPedidos,
     isFacturado,
   }
