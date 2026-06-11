@@ -9,12 +9,16 @@ import {
   ChevronDown,
   ChevronRight,
   Clock3,
+  History,
   Link2,
   Loader2,
   LockKeyhole,
   PlusCircle,
   RefreshCw,
+  Trash2,
+  Unlock,
   WalletCards,
+  X,
 } from 'lucide-react'
 import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, useCajaArqueo } from '../../hooks/useCajaArqueo'
 import { formatMoney } from '../../lib/printing'
@@ -720,7 +724,7 @@ function CierreDetalle({ turno, movimientos, pagos }) {
   )
 }
 
-function CierresHistorial({ turnos, movimientos, pagos }) {
+function CierresHistorial({ turnos, movimientos, pagos, onReabrir }) {
   const [abierto, setAbierto] = useState(null)
   const cerrados = turnos.filter(turno => turno.estado === 'cerrado').slice(0, 5)
 
@@ -754,10 +758,304 @@ function CierresHistorial({ turnos, movimientos, pagos }) {
                   {dif >= 0 ? '+' : '-'}${formatMoney(Math.abs(dif))}
                 </p>
               </button>
-              {expanded && <CierreDetalle turno={turno} movimientos={movimientos} pagos={pagos} />}
+              {expanded && (
+                <>
+                  <CierreDetalle turno={turno} movimientos={movimientos} pagos={pagos} />
+                  {onReabrir && (
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => onReabrir(turno)}
+                        className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
+                        style={{ color: 'var(--accent-lift)', border: '1px solid var(--accent-border)', background: 'var(--accent-soft)' }}
+                      >
+                        <Unlock size={13} /> Reabrir turno
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )
         })}
+      </div>
+    </Panel>
+  )
+}
+
+// ── Reapertura de turnos ──────────────────────────────────────────────────────
+
+const EVENTO_LABEL = {
+  reapertura: 'Reapertura',
+  recierre: 'Re-cierre',
+  cierre_editado: 'Cierre editado',
+  movimiento_creado: 'Movimiento agregado',
+  movimiento_editado: 'Movimiento editado',
+  movimiento_eliminado: 'Movimiento eliminado',
+  pago_reasignado: 'Pago reasignado',
+}
+
+function ReabrirMotivoModal({ turno, saving, onClose, onConfirm }) {
+  const [motivo, setMotivo] = useState('')
+  const [error, setError] = useState(null)
+
+  if (!turno) return null
+
+  const confirmar = async () => {
+    if (!motivo.trim()) { setError('El motivo es obligatorio.'); return }
+    setError(null)
+    await onConfirm(motivo.trim())
+    setMotivo('')
+  }
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={saving ? undefined : onClose} />
+      <div
+        className="relative w-full max-w-md rounded-2xl overflow-hidden"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 32px 64px rgba(0,0,0,0.4)' }}
+      >
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-2">
+            <Unlock size={16} style={{ color: 'var(--accent-lift)' }} />
+            <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>Reabrir turno</p>
+          </div>
+          <button type="button" onClick={onClose} disabled={saving} className="flex h-8 w-8 items-center justify-center rounded-lg disabled:opacity-50" style={{ color: 'var(--text-muted)' }}>
+            <X size={16} />
+          </button>
+        </div>
+        <div className="space-y-3 p-5">
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {turno.caja_nombre} · {timeLabel(turno.apertura_at)} a {timeLabel(turno.cierre_at)}
+          </p>
+          <Field label="Motivo de la reapertura (obligatorio)">
+            <textarea
+              autoFocus
+              rows={3}
+              value={motivo}
+              onChange={e => { setMotivo(e.target.value); setError(null) }}
+              placeholder="Ej: faltó registrar un retiro de efectivo; se cargó mal un gasto"
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none"
+              style={inputStyle()}
+            />
+          </Field>
+          {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+          <p className="text-[11px] leading-4" style={{ color: 'var(--text-muted)' }}>
+            Queda registrado quién reabre, cuándo y el motivo. Cada cambio que hagas mientras el turno esté reabierto se audita automáticamente.
+          </p>
+        </div>
+        <div className="flex justify-end gap-2 p-5 pt-0">
+          <button type="button" onClick={onClose} disabled={saving} className="rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+            Cancelar
+          </button>
+          <button type="button" onClick={confirmar} disabled={saving} className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
+            Reabrir
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AuditoriaList({ auditoria }) {
+  if (!auditoria || auditoria.length === 0) {
+    return <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sin eventos registrados todavía.</p>
+  }
+  return (
+    <div className="divide-y rounded" style={{ borderColor: 'var(--border)', border: '1px solid var(--border)' }}>
+      {auditoria.map(ev => (
+        <div key={ev.id} className="px-2 py-1.5 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {EVENTO_LABEL[ev.evento] || ev.evento}
+            </span>
+            <span style={{ color: 'var(--text-muted)' }}>{timeLabel(ev.created_at)}</span>
+          </div>
+          {ev.motivo && (
+            <p className="mt-0.5 italic" style={{ color: 'var(--text-secondary)' }}>Motivo: {ev.motivo}</p>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MovimientoEditableRow({ mov, busy, onEdit, onDelete }) {
+  const [editando, setEditando] = useState(false)
+  const [monto, setMonto] = useState(String(mov.monto ?? ''))
+  const [descripcion, setDescripcion] = useState(mov.descripcion || '')
+  const sign = tipoConfig(mov.tipo).sign
+  const color = movimientoColor(mov.tipo)
+  const guardando = busy === `editmov-${mov.id}`
+  const eliminando = busy === `delmov-${mov.id}`
+
+  const guardar = async () => {
+    await onEdit({ id: mov.id, monto, descripcion: descripcion.trim() || mov.descripcion })
+    setEditando(false)
+  }
+
+  return (
+    <div className="px-2 py-1.5 text-xs">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-semibold" style={{ color: 'var(--text-primary)' }}>{mov.descripcion}</p>
+          <p className="truncate" style={{ color: 'var(--text-muted)' }}>
+            {tipoConfig(mov.tipo).label} · {medioLabel(mov.medio_pago)} · {timeLabel(mov.created_at)}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="font-bold" style={{ color }}>
+            {sign < 0 ? '-' : sign > 0 ? '+' : ''}${formatMoney(mov.monto)}
+          </span>
+          <button type="button" onClick={() => setEditando(v => !v)} className="rounded p-1" style={{ color: 'var(--text-muted)' }} title="Editar">
+            <RefreshCw size={13} />
+          </button>
+          <button type="button" onClick={() => onDelete(mov.id)} disabled={eliminando} className="rounded p-1 disabled:opacity-50" style={{ color: '#f87171' }} title="Eliminar">
+            {eliminando ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+          </button>
+        </div>
+      </div>
+      {editando && (
+        <div className="mt-2 grid gap-2 sm:grid-cols-[120px_1fr_auto]">
+          <input inputMode="decimal" value={monto} onChange={e => setMonto(e.target.value)} placeholder="Monto" className="rounded-lg px-2 py-1.5 text-xs outline-none" style={inputStyle()} />
+          <input value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Descripción" className="rounded-lg px-2 py-1.5 text-xs outline-none" style={inputStyle()} />
+          <button type="button" onClick={guardar} disabled={guardando} className="inline-flex items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50" style={{ background: 'var(--accent)' }}>
+            {guardando ? <Loader2 size={12} className="animate-spin" /> : 'Guardar'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TurnoReabiertoPanel({
+  turno, resumen, pagosSinTurno, auditoria, busy,
+  onAddMovimiento, onEditMovimiento, onDeleteMovimiento,
+  onReasignarPago, onQuitarPago, onRecerrar,
+}) {
+  const movs = resumen.movimientosTurno || []
+  const pagosTurno = resumen.pagosTurno || []
+
+  return (
+    <Panel className="space-y-4" >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: 'rgba(251,191,36,0.14)', color: '#fbbf24' }}>
+            <Unlock size={13} /> Turno reabierto
+          </span>
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{turno.caja_nombre}</span>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {timeLabel(turno.apertura_at)} a {turno.cierre_at ? timeLabel(turno.cierre_at) : '—'}
+          </span>
+        </div>
+      </div>
+      <p className="text-xs leading-5" style={{ color: 'var(--text-secondary)' }}>
+        Corregí lo que necesites y volvé a cerrar el turno. Todos los cambios quedan auditados.
+      </p>
+
+      {/* Agregar movimiento */}
+      <MovimientoForm
+        turno={turno}
+        saving={busy === 'movimiento'}
+        onSubmit={onAddMovimiento}
+      />
+
+      {/* Movimientos editables */}
+      <div>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+          Movimientos del turno ({movs.length})
+        </p>
+        {movs.length === 0 ? (
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sin movimientos manuales.</p>
+        ) : (
+          <div className="divide-y rounded" style={{ borderColor: 'var(--border)', border: '1px solid var(--border)' }}>
+            {movs.map(mov => (
+              <MovimientoEditableRow
+                key={mov.id}
+                mov={mov}
+                busy={busy}
+                onEdit={onEditMovimiento}
+                onDelete={onDeleteMovimiento}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Reasignación de pagos */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+            Pagos del turno ({pagosTurno.length})
+          </p>
+          {pagosTurno.length === 0 ? (
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sin pagos asignados.</p>
+          ) : (
+            <div className="divide-y rounded" style={{ borderColor: 'var(--border)', border: '1px solid var(--border)' }}>
+              {pagosTurno.map(pago => (
+                <div key={pago.id} className="flex items-center justify-between gap-2 px-2 py-1.5 text-xs">
+                  <span className="truncate" style={{ color: 'var(--text-secondary)' }}>
+                    {medioLabel(pago.medio_pago)} · ${formatMoney(pago.monto)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onQuitarPago(pago.id)}
+                    disabled={busy === `pago-${pago.id}`}
+                    className="rounded px-2 py-1 font-semibold disabled:opacity-50"
+                    style={{ color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}
+                  >
+                    {busy === `pago-${pago.id}` ? <Loader2 size={12} className="animate-spin" /> : 'Quitar'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+            Pagos sin turno ({pagosSinTurno.length})
+          </p>
+          {pagosSinTurno.length === 0 ? (
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No hay pagos sueltos para asignar.</p>
+          ) : (
+            <div className="divide-y rounded" style={{ borderColor: 'var(--border)', border: '1px solid var(--border)' }}>
+              {pagosSinTurno.map(pago => (
+                <div key={pago.id} className="flex items-center justify-between gap-2 px-2 py-1.5 text-xs">
+                  <span className="truncate" style={{ color: 'var(--text-secondary)' }}>
+                    {medioLabel(pago.medio_pago)} · ${formatMoney(pago.monto)} · {timeLabel(pago.created_at)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onReasignarPago(pago.id)}
+                    disabled={busy === `pago-${pago.id}`}
+                    className="rounded px-2 py-1 font-semibold disabled:opacity-50"
+                    style={{ color: 'var(--accent-lift)', border: '1px solid var(--accent-border)', background: 'var(--accent-soft)' }}
+                  >
+                    {busy === `pago-${pago.id}` ? <Loader2 size={12} className="animate-spin" /> : 'Asignar'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Volver a cerrar */}
+      <CierreTurnoPanel
+        turno={turno}
+        resumen={resumen}
+        saving={busy === 'cerrar'}
+        onClose={onRecerrar}
+      />
+
+      {/* Auditoría */}
+      <div>
+        <div className="mb-2 flex items-center gap-2">
+          <History size={15} style={{ color: 'var(--accent-lift)' }} />
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Auditoría del turno</p>
+        </div>
+        <AuditoriaList auditoria={auditoria} />
       </div>
     </Panel>
   )
@@ -778,10 +1076,22 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
     registrarMovimiento,
     cerrarTurno,
     vincularPagosAlTurno,
+    reabrirTurno,
+    editarMovimiento,
+    eliminarMovimiento,
+    reasignarPago,
+    calcularResumenTurno,
+    auditoriaDeTurno,
   } = useCajaArqueo({ dateFrom, dateTo })
 
   const [busy, setBusy] = useState(null)
   const [notice, setNotice] = useState(null)
+  const [reabrirTarget, setReabrirTarget] = useState(null)
+
+  const turnosReabiertos = useMemo(
+    () => turnos.filter(turno => turno.estado === 'reabierto'),
+    [turnos],
+  )
 
   const run = async (key, action, okText) => {
     setBusy(key)
@@ -929,9 +1239,41 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
         </>
       )}
 
+      {turnosReabiertos.map(turno => (
+        <TurnoReabiertoPanel
+          key={turno.id}
+          turno={turno}
+          resumen={calcularResumenTurno(turno)}
+          pagosSinTurno={pagos.filter(p => !p.caja_turno_id)}
+          auditoria={auditoriaDeTurno(turno.id)}
+          busy={busy}
+          onAddMovimiento={(values) => run('movimiento', () => registrarMovimiento(values), 'Movimiento agregado.')}
+          onEditMovimiento={(values) => run(`editmov-${values.id}`, () => editarMovimiento(values), 'Movimiento editado.')}
+          onDeleteMovimiento={(id) => run(`delmov-${id}`, () => eliminarMovimiento(id), 'Movimiento eliminado.')}
+          onReasignarPago={(pagoId) => run(`pago-${pagoId}`, () => reasignarPago({ pago_id: pagoId, turno_id: turno.id }), 'Pago reasignado.')}
+          onQuitarPago={(pagoId) => run(`pago-${pagoId}`, () => reasignarPago({ pago_id: pagoId, turno_id: null }), 'Pago quitado del turno.')}
+          onRecerrar={(values) => run('cerrar', () => cerrarTurno(values), 'Turno cerrado nuevamente.')}
+        />
+      ))}
+
       {turnos.filter(turno => turno.estado === 'cerrado').length > 0 && (
-        <CierresHistorial turnos={turnos} movimientos={movimientos} pagos={pagos} />
+        <CierresHistorial
+          turnos={turnos}
+          movimientos={movimientos}
+          pagos={pagos}
+          onReabrir={(turno) => setReabrirTarget(turno)}
+        />
       )}
+
+      <ReabrirMotivoModal
+        turno={reabrirTarget}
+        saving={busy === 'reabrir'}
+        onClose={() => setReabrirTarget(null)}
+        onConfirm={async (motivo) => {
+          await run('reabrir', () => reabrirTurno({ turno_id: reabrirTarget.id, motivo }), 'Turno reabierto.')
+          setReabrirTarget(null)
+        }}
+      />
     </section>
   )
 }
