@@ -724,7 +724,7 @@ function CierreDetalle({ turno, movimientos, pagos }) {
   )
 }
 
-function CierresHistorial({ turnos, movimientos, pagos, onReabrir }) {
+function CierresHistorial({ turnos, movimientos, pagos, onReabrir, auditoriaDeTurno }) {
   const [abierto, setAbierto] = useState(null)
   const cerrados = turnos.filter(turno => turno.estado === 'cerrado').slice(0, 5)
 
@@ -738,6 +738,8 @@ function CierresHistorial({ turnos, movimientos, pagos, onReabrir }) {
         {cerrados.map(turno => {
           const expanded = abierto === turno.id
           const dif = Number(turno.diferencia || 0)
+          const eventos = auditoriaDeTurno ? auditoriaDeTurno(turno.id) : []
+          const fueReabierto = eventos.some(e => e.evento === 'reapertura')
           return (
             <div key={turno.id} className="py-2">
               <button
@@ -749,7 +751,14 @@ function CierresHistorial({ turnos, movimientos, pagos, onReabrir }) {
                   {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                 </span>
                 <div>
-                  <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{turno.caja_nombre}</p>
+                  <p className="font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                    {turno.caja_nombre}
+                    {fueReabierto && (
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'rgba(251,191,36,0.14)', color: '#fbbf24' }}>
+                        <Unlock size={10} /> Reabierto
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{timeLabel(turno.apertura_at)} a {timeLabel(turno.cierre_at)}</p>
                 </div>
                 <p style={{ color: 'var(--text-secondary)' }}>Esperado ${formatMoney(turno.efectivo_esperado || 0)}</p>
@@ -761,6 +770,15 @@ function CierresHistorial({ turnos, movimientos, pagos, onReabrir }) {
               {expanded && (
                 <>
                   <CierreDetalle turno={turno} movimientos={movimientos} pagos={pagos} />
+                  {eventos.length > 0 && (
+                    <div className="mt-3">
+                      <div className="mb-2 flex items-center gap-2">
+                        <History size={14} style={{ color: 'var(--accent-lift)' }} />
+                        <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Auditoría (reaperturas y cambios)</p>
+                      </div>
+                      <AuditoriaList auditoria={eventos} />
+                    </div>
+                  )}
                   {onReabrir && (
                     <div className="mt-2 flex justify-end">
                       <button
@@ -936,6 +954,8 @@ function TurnoReabiertoPanel({
 }) {
   const movs = resumen.movimientosTurno || []
   const pagosTurno = resumen.pagosTurno || []
+  // Última reapertura registrada (para mostrar el motivo bien visible arriba).
+  const ultimaReapertura = (auditoria || []).find(a => a.evento === 'reapertura')
 
   return (
     <Panel className="space-y-4" >
@@ -950,6 +970,16 @@ function TurnoReabiertoPanel({
           </span>
         </div>
       </div>
+
+      {/* Motivo de la reapertura, bien visible */}
+      {ultimaReapertura?.motivo && (
+        <div className="rounded-lg px-3 py-2 text-xs" style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)', color: '#fbbf24' }}>
+          <span className="font-semibold">Motivo de reapertura: </span>
+          <span style={{ color: 'var(--text-secondary)' }}>{ultimaReapertura.motivo}</span>
+          <span style={{ color: 'var(--text-muted)' }}> · {timeLabel(ultimaReapertura.created_at)}</span>
+        </div>
+      )}
+
       <p className="text-xs leading-5" style={{ color: 'var(--text-secondary)' }}>
         Corregí lo que necesites y volvé a cerrar el turno. Todos los cambios quedan auditados.
       </p>
@@ -1261,6 +1291,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
           turnos={turnos}
           movimientos={movimientos}
           pagos={pagos}
+          auditoriaDeTurno={auditoriaDeTurno}
           onReabrir={(turno) => setReabrirTarget(turno)}
         />
       )}
