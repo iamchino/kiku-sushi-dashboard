@@ -456,6 +456,24 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
     await fetchData()
   }, [fetchData, turnoActual])
 
+  /**
+   * Adjudica pagos puntuales (por id) al turno abierto. A diferencia de
+   * vincularPagosAlTurno, NO filtra por fecha: sirve para enganchar pedidos
+   * que se cobraron ANTES de abrir el turno (cuando no había ninguno abierto).
+   * Recibe un id o un array de ids.
+   */
+  const asignarPagosAlTurno = useCallback(async (pagoIds) => {
+    if (!turnoActual?.id) throw new Error('No hay turno abierto.')
+    const ids = (Array.isArray(pagoIds) ? pagoIds : [pagoIds]).filter(Boolean)
+    if (ids.length === 0) throw new Error('No hay pagos para asignar.')
+    const { error: updateError } = await supabase
+      .from('pagos')
+      .update({ caja_turno_id: turnoActual.id })
+      .in('id', ids)
+    if (updateError) throw updateError
+    await fetchData()
+  }, [fetchData, turnoActual])
+
   // ── Reapertura de turnos cerrados ──────────────────────────────────────────
 
   /** Reabre un turno cerrado (RPC: valida admin + motivo, deja auditoría). */
@@ -547,6 +565,7 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
     registrarMovimiento,
     cerrarTurno,
     vincularPagosAlTurno,
+    asignarPagosAlTurno,
     reabrirTurno,
     editarMovimiento,
     eliminarMovimiento,

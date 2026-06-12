@@ -1091,12 +1091,81 @@ function TurnoReabiertoPanel({
   )
 }
 
+// ── Panel: pedidos cobrados sin turno (adjudicación al turno abierto) ─────────
+function PagosSinTurnoPanel({ pagos, pedidosById, busy, onAsignarUno, onAsignarTodos }) {
+  if (!pagos || pagos.length === 0) return null
+  const total = pagos.reduce((acc, p) => acc + Number(p.monto || 0), 0)
+
+  const refPedido = (pago) => {
+    const pedido = pedidosById.get(pago.pedido_id)
+    if (!pedido) return 'Pedido suelto'
+    const canal = CANAL_LABEL[pedido.canal] || pedido.canal || 'Pedido'
+    return pedido.mesa ? `${canal} · Mesa ${pedido.mesa}` : canal
+  }
+
+  return (
+    <Panel className="space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)' }}>
+            <Link2 size={17} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Pedidos cobrados sin turno
+            </p>
+            <p className="mt-0.5 text-xs leading-5" style={{ color: 'var(--text-secondary)' }}>
+              {pagos.length} pago{pagos.length !== 1 ? 's' : ''} por ${formatMoney(total)} se cobraron sin un turno abierto.
+              Asignalos a este turno para que entren en el arqueo y la conciliación.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onAsignarTodos}
+          disabled={Boolean(busy)}
+          className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+          style={{ background: 'var(--accent)' }}
+        >
+          {busy === 'asignar-todos' ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
+          Asignar todos al turno
+        </button>
+      </div>
+
+      <div className="divide-y rounded" style={{ borderColor: 'var(--border)', border: '1px solid var(--border)' }}>
+        {pagos.map(pago => (
+          <div key={pago.id} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
+            <div className="min-w-0">
+              <p className="truncate font-medium" style={{ color: 'var(--text-secondary)' }}>
+                {refPedido(pago)} · ${formatMoney(pago.monto)}
+              </p>
+              <p style={{ color: 'var(--text-muted)' }}>
+                {medioLabel(pago.medio_pago)} · {timeLabel(pago.created_at)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onAsignarUno(pago.id)}
+              disabled={busy === `pago-${pago.id}`}
+              className="shrink-0 rounded px-2.5 py-1 font-semibold disabled:opacity-50"
+              style={{ color: 'var(--accent-lift)', border: '1px solid var(--accent-border)', background: 'var(--accent-soft)' }}
+            >
+              {busy === `pago-${pago.id}` ? <Loader2 size={12} className="animate-spin" /> : 'Asignar'}
+            </button>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  )
+}
+
 export default function ArqueoCajaSection({ dateFrom, dateTo }) {
   const {
     turnoActual,
     turnos,
     movimientos,
     pagos,
+    pedidos,
     resumen,
     loading,
     error,
@@ -1106,6 +1175,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
     registrarMovimiento,
     cerrarTurno,
     vincularPagosAlTurno,
+    asignarPagosAlTurno,
     reabrirTurno,
     editarMovimiento,
     eliminarMovimiento,
@@ -1121,6 +1191,17 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
   const turnosReabiertos = useMemo(
     () => turnos.filter(turno => turno.estado === 'reabierto'),
     [turnos],
+  )
+
+  // Mapa id→pedido para mostrar mesa/canal de cada pago sin turno.
+  const pedidosById = useMemo(
+    () => new Map((pedidos || []).map(p => [p.id, p])),
+    [pedidos],
+  )
+
+  const idsPagosSinTurno = useMemo(
+    () => resumen.pagosSinTurno.map(p => p.id),
+    [resumen.pagosSinTurno],
   )
 
   const run = async (key, action, okText) => {
@@ -1207,13 +1288,13 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
               </div>
               {resumen.pagosSinTurno.length > 0 && (
                 <button
-                  onClick={() => run('vincular', vincularPagosAlTurno, 'Pagos vinculados al turno.')}
+                  onClick={() => run('vincular', () => asignarPagosAlTurno(idsPagosSinTurno), 'Pagos asignados al turno.')}
                   disabled={Boolean(busy)}
                   className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-50"
                   style={{ color: 'var(--accent-lift)', border: '1px solid var(--accent-border)', background: 'var(--accent-soft)' }}
                 >
                   {busy === 'vincular' ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
-                  Vincular {resumen.pagosSinTurno.length} pagos
+                  Asignar {resumen.pagosSinTurno.length} pagos
                 </button>
               )}
             </div>
@@ -1250,6 +1331,14 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
               </div>
             </Panel>
           </div>
+
+          <PagosSinTurnoPanel
+            pagos={resumen.pagosSinTurno}
+            pedidosById={pedidosById}
+            busy={busy}
+            onAsignarUno={(pagoId) => run(`pago-${pagoId}`, () => asignarPagosAlTurno(pagoId), 'Pedido asignado al turno.')}
+            onAsignarTodos={() => run('asignar-todos', () => asignarPagosAlTurno(idsPagosSinTurno), 'Pedidos asignados al turno.')}
+          />
 
           <MovimientoForm
             turno={turnoActual}
