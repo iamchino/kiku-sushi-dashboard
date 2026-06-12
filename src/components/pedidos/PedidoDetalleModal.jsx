@@ -7,13 +7,14 @@ import {
 } from 'lucide-react'
 import { getEstadoSimple, getTipoPedido } from '../../hooks/usePedidos'
 import { useFacturacion } from '../../hooks/useFacturacion'
-import { printComanda, printCustomerTicket, formatMoney } from '../../lib/printing'
+import { printCustomerTicket, formatMoney } from '../../lib/printing'
 import { MEDIO_PAGO_LABELS } from '../../lib/escposFormatter'
 import { applyStoredDiscount } from '../../lib/orders'
 import { getAuthorizedComprobante } from '../../lib/fiscal'
 import FacturarModal from '../caja/FacturarModal'
 import AgregarItemsModal from '../mesas/AgregarItemsModal'
 import DescuentoModal from './DescuentoModal'
+import ComandaModal from './ComandaModal'
 
 const TIPO_META = {
   salon:    { label: 'Para Comer Aquí', icon: Utensils,    color: 'var(--accent-lift)' },
@@ -64,6 +65,7 @@ export default function PedidoDetalleModal({
   const [facturarOpen, setFacturarOpen] = useState(false)
   const [agregarOpen, setAgregarOpen] = useState(false)
   const [descuentoOpen, setDescuentoOpen] = useState(false)
+  const [comandaOpen, setComandaOpen] = useState(false)
   const [zoomImg, setZoomImg] = useState(null)
   const { config, arcaReady, facturarEImprimir, imprimirTicket } = useFacturacion()
 
@@ -559,7 +561,7 @@ export default function PedidoDetalleModal({
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => printComanda(pedido)}
+              onClick={() => setComandaOpen(true)}
               className="py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
               style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
             >
@@ -615,6 +617,13 @@ export default function PedidoDetalleModal({
         onClose={() => setDescuentoOpen(false)}
         onAplicar={(cfg) => onAplicarDescuento?.(pedido.id, cfg)}
         onQuitar={() => onQuitarDescuento?.(pedido.id)}
+      />
+
+      <ComandaModal
+        open={comandaOpen}
+        pedido={pedido}
+        items={items}
+        onClose={() => setComandaOpen(false)}
       />
 
       {/* Lightbox: imagen ampliada del producto */}

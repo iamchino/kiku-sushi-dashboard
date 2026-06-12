@@ -11,6 +11,7 @@ import AgregarItemsModal from './AgregarItemsModal'
 import CobrarMesaModal from './CobrarMesaModal'
 import UnirMesaModal from './UnirMesaModal'
 import DescuentoModal from '../pedidos/DescuentoModal'
+import ComandaModal from '../pedidos/ComandaModal'
 
 /**
  * Panel lateral de la mesa.
@@ -43,6 +44,7 @@ export default function MesaDetallePanel({
   const [showCobrar,    setShowCobrar]    = useState(false)
   const [showUnir,      setShowUnir]      = useState(false)
   const [showDescuento, setShowDescuento] = useState(false)
+  const [showComanda,   setShowComanda]   = useState(false)
   const [enviando,      setEnviando]      = useState(false)
   const [cancelando,    setCancelando]    = useState(false)
   const [desagrupando,  setDesagrupando]  = useState(false)
@@ -75,11 +77,12 @@ export default function MesaDetallePanel({
     if (error) { setActionErr(error.message || 'Error con el contador'); return }
     // Solo imprimimos al sumar una ronda (no al corregir hacia abajo).
     if (delta > 0) {
-      printComanda({
+      const res = await printComanda({
         ...pedido,
         pedido_items: [{ nombre: nombreLibre.toUpperCase(), cantidad: 1, notas: entry?.nota || null }],
         _ronda_label: `${nombreLibre.toUpperCase()} - RONDA ${value}`,
       })
+      if (!res?.ok) setActionErr('Ronda registrada, pero la comanda no se imprimió. Revisá la impresora.')
       setRondaNota('')
     }
   }
@@ -100,11 +103,12 @@ export default function MesaDetallePanel({
     setEnviando(false)
     if (error) { setActionErr(error.message || 'Error al enviar'); return }
     if (aImprimir.length > 0) {
-      printComanda({
+      const res = await printComanda({
         ...pedido,
         pedido_items: aImprimir,
         _ronda_label: itemsEnviados.length > 0 ? 'RONDA ADICIONAL' : null,
       })
+      if (!res?.ok) setActionErr('Se envió a cocina, pero la comanda no se imprimió. Revisá la impresora.')
     }
   }
 
@@ -472,7 +476,7 @@ export default function MesaDetallePanel({
             <IconButton
               icon={Printer}
               label="Comanda"
-              onClick={() => printComanda(pedido)}
+              onClick={() => setShowComanda(true)}
             />
             <IconButton
               icon={FileText}
@@ -569,6 +573,13 @@ export default function MesaDetallePanel({
         onClose={() => setShowDescuento(false)}
         onAplicar={aplicarDescuento}
         onQuitar={quitarDescuento}
+      />
+
+      <ComandaModal
+        open={showComanda}
+        pedido={pedido}
+        items={items}
+        onClose={() => setShowComanda(false)}
       />
     </aside>
   )

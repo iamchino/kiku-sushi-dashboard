@@ -394,19 +394,42 @@ function charsForFontSize(charsPerLine, fontSize) {
 // API publica - mantiene las mismas firmas que la version anterior.
 // ============================================================
 
+/**
+ * Imprime una comanda de cocina.
+ * Devuelve { ok, via } donde via es 'remote' (GG EZ Print) o 'browser' (diálogo
+ * del navegador). Si el remoto está configurado pero falla, remoteFailed=true.
+ * Si no hay items, no imprime y devuelve { ok:false, reason:'sin_items' }.
+ */
 export async function printComanda(pedido) {
+  const items = pedido?.pedido_items || pedido?.items || []
+  if (items.length === 0) {
+    return { ok: false, reason: 'sin_items' }
+  }
+
   const cfg = getPrinterConfig()
   const fontSize = Number(cfg.font_size) || 1
   const text = buildComandaText(pedido, { width: charsForFontSize(cfg.chars_per_line, fontSize) })
-  const ok = await tryRemotePrint('comanda', text, { fontSize })
-  if (ok) return
+  const remoteConfigured = canPrintRemote('comanda')
 
+  try {
+    const ok = await tryRemotePrint('comanda', text, { fontSize })
+    if (ok) return { ok: true, via: 'remote' }
+  } catch (err) {
+    console.warn('[printing] error inesperado en impresión remota de comanda:', err?.message)
+  }
+
+  // Fallback al diálogo del navegador.
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
   const rondaLabel = pedido?._ronda_label || ''
-  printDocumentBrowser(
-    `Comanda ${shortId}${rondaLabel ? ' - ' + rondaLabel : ''}`,
-    buildComandaHtml(pedido)
-  )
+  try {
+    printDocumentBrowser(
+      `Comanda ${shortId}${rondaLabel ? ' - ' + rondaLabel : ''}`,
+      buildComandaHtml(pedido)
+    )
+    return { ok: true, via: 'browser', remoteFailed: remoteConfigured }
+  } catch (err) {
+    return { ok: false, error: err, remoteFailed: remoteConfigured }
+  }
 }
 
 export async function printCustomerTicket(pedido, config, opts = {}) {
