@@ -193,14 +193,30 @@ export function useFacturacion(options = {}) {
    * @param {number} [args.monto] - Default total del pedido.
    * @param {string} [args.notas]
    */
-  const registrarPago = useCallback(async ({ pedido, comprobante, medio_pago, numero_operacion, monto, notas }) => {
+  const registrarPago = useCallback(async ({ pedido, comprobante, medio_pago, numero_operacion, monto, notas, pagos }) => {
     if (!pedido?.id) throw new Error('Falta pedido_id para registrar el pago.')
-    if (!medio_pago) throw new Error('Falta medio de pago.')
-    if (medio_pago === 'sin_pago') return null
 
-    const requiereNroOp = medio_pago === 'tarjeta_credito' || medio_pago === 'tarjeta_debito'
-    if (requiereNroOp && !String(numero_operacion || '').trim()) {
-      throw new Error('Ingresá el número de operación del posnet.')
+    // Normalizamos a una lista de líneas de pago (soporta pago único o dividido).
+    const lista = (Array.isArray(pagos) && pagos.length > 0
+      ? pagos
+      : (medio_pago && medio_pago !== 'sin_pago'
+          ? [{ medio_pago, numero_operacion, monto: monto ?? pedido.total }]
+          : [])
+    )
+      .map(p => ({
+        medio_pago: p.medio_pago,
+        numero_operacion: p.numero_operacion,
+        monto: Number(p.monto || 0),
+      }))
+      .filter(p => p.medio_pago && p.medio_pago !== 'sin_pago' && p.monto > 0)
+
+    if (lista.length === 0) return null
+
+    for (const p of lista) {
+      const reqOp = p.medio_pago === 'tarjeta_credito' || p.medio_pago === 'tarjeta_debito'
+      if (reqOp && !String(p.numero_operacion || '').trim()) {
+        throw new Error('Ingresá el número de operación de la tarjeta.')
+      }
     }
 
     let turnoAbierto = null
@@ -213,22 +229,27 @@ export function useFacturacion(options = {}) {
       .maybeSingle()
     if (!turnoResult.error) turnoAbierto = turnoResult.data
 
-    const row = {
+    // Borramos los pagos previos del pedido (re-cobro / cambio de medio / split)
+    // e insertamos las líneas nuevas.
+    await supabase.from('pagos').delete().eq('pedido_id', pedido.id)
+
+    const rows = lista.map(p => ({
       pedido_id: pedido.id,
       comprobante_id: comprobante?.id || null,
-      medio_pago,
-      numero_operacion: numero_operacion ? String(numero_operacion).trim() : null,
-      monto: Number(monto ?? pedido.total ?? 0),
+      medio_pago: p.medio_pago,
+      numero_operacion: p.numero_operacion ? String(p.numero_operacion).trim() : null,
+      monto: p.monto,
       notas: notas ? String(notas).trim() : null,
+      ...(turnoAbierto?.id ? { caja_turno_id: turnoAbierto.id } : {}),
+    }))
+
+    let { data, error: insertErr } = await supabase.from('pagos').insert(rows).select()
+
+    // Si todavía existe el índice único (migración de split no aplicada) y se
+    // intentó dividir, avisamos con un mensaje claro.
+    if (insertErr && insertErr.code === '23505' && rows.length > 1) {
+      throw new Error('Para dividir el pago falta aplicar la migración de pago dividido en Supabase.')
     }
-    if (turnoAbierto?.id) row.caja_turno_id = turnoAbierto.id
-
-    const { data, error: insertErr } = await supabase
-      .from('pagos')
-      .upsert(row, { onConflict: 'pedido_id' })
-      .select()
-      .single()
-
     if (insertErr) throw insertErr
     return data
   }, [])

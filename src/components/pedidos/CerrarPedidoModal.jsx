@@ -16,6 +16,7 @@ import {
 import { useFacturacion } from '../../hooks/useFacturacion'
 import { getAuthorizedComprobante } from '../../lib/fiscal'
 import { formatMoney } from '../../lib/printing'
+import SplitPagoLines, { nuevaLinea, lineasValidas, lineasAPagos, resumenMedios } from './SplitPagoLines'
 
 const MEDIOS_PAGO = [
   { id: 'efectivo',         label: 'Efectivo',          icon: Banknote,   color: '#34d399' },
@@ -47,6 +48,8 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
   const [nroOp, setNroOp] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [dividir, setDividir] = useState(false)
+  const [lineas, setLineas] = useState([])
 
   const comprobanteAutorizado = useMemo(
     () => (pedido ? getAuthorizedComprobante(pedido) : null),
@@ -60,18 +63,24 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
     setNroOp('')
     setLoading(false)
     setError(null)
-  }, [open, pedido?.id])
+    setDividir(false)
+    setLineas([nuevaLinea('efectivo', Math.round(Number(pedido?.total || 0)))])
+  }, [open, pedido?.id, pedido?.total])
 
   if (!open || !pedido) return null
 
   const needsNroOp = TARJETAS.has(medio)
   const nroOpOk = needsNroOp ? String(nroOp).trim().length > 0 : true
   const fiscalDisponible = Boolean(arcaReady || comprobanteAutorizado)
-  const canSubmit = !loading && nroOpOk && (ticket !== 'fiscal' || fiscalDisponible)
+  const pagoOk = dividir ? lineasValidas(lineas, pedido.total) : nroOpOk
+  const canSubmit = !loading && pagoOk && (ticket !== 'fiscal' || fiscalDisponible)
+  const medioTicket = dividir ? resumenMedios(lineas) : medio
 
   const submit = async () => {
-    if (!nroOpOk) {
-      setError('Ingresa el numero de operacion del posnet.')
+    if (!pagoOk) {
+      setError(dividir
+        ? 'El total dividido tiene que coincidir con el monto a cobrar.'
+        : 'Ingresa el numero de operacion del posnet.')
       return
     }
     if (ticket === 'fiscal' && !fiscalDisponible) {
@@ -86,15 +95,21 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
 
       if (ticket === 'fiscal') {
         if (comprobanteAutorizado) {
-          await imprimirTicket(pedido, comprobanteAutorizado, medio)
+          await imprimirTicket(pedido, comprobanteAutorizado, medioTicket)
         } else {
-          comprobanteUsado = await facturarEImprimir(pedido, { medio_pago: medio })
+          comprobanteUsado = await facturarEImprimir(pedido, { medio_pago: medioTicket })
         }
       } else if (ticket === 'no_fiscal') {
-        await imprimirTicketNoFiscal(pedido, medio)
+        await imprimirTicketNoFiscal(pedido, medioTicket)
       }
 
-      if (medio !== 'sin_pago') {
+      if (dividir) {
+        await registrarPago({
+          pedido,
+          comprobante: comprobanteUsado,
+          pagos: lineasAPagos(lineas),
+        })
+      } else if (medio !== 'sin_pago') {
         await registrarPago({
           pedido,
           comprobante: comprobanteUsado,
@@ -154,56 +169,69 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
           )}
 
           <section>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-              Medio de pago
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {MEDIOS_PAGO.map(opt => {
-                const Icon = opt.icon
-                const active = medio === opt.id
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => { setMedio(opt.id); setError(null) }}
-                    disabled={loading}
-                    className="flex items-center gap-2 rounded-lg px-3 py-3 text-left transition-colors disabled:opacity-50"
-                    style={active
-                      ? { background: 'var(--accent-soft)', border: `1px solid ${opt.color}`, color: opt.color }
-                      : { background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-                  >
-                    <Icon size={16} style={{ color: opt.color }} />
-                    <span className="text-xs font-semibold">{opt.label}</span>
-                  </button>
-                )
-              })}
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                Medio de pago
+              </p>
+              <label className="flex items-center gap-1.5 text-[11px] font-semibold cursor-pointer" style={{ color: dividir ? 'var(--accent-lift)' : 'var(--text-muted)' }}>
+                <input type="checkbox" checked={dividir} onChange={e => { setDividir(e.target.checked); setError(null) }} disabled={loading} className="h-3.5 w-3.5 accent-[var(--accent)]" />
+                Dividir pago
+              </label>
             </div>
 
-            {medio === 'sin_pago' && (
-              <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                Cierra el pedido sin sumar importes al arqueo.
-              </p>
-            )}
+            {dividir ? (
+              <SplitPagoLines total={pedido.total} lineas={lineas} setLineas={setLineas} />
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  {MEDIOS_PAGO.map(opt => {
+                    const Icon = opt.icon
+                    const active = medio === opt.id
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => { setMedio(opt.id); setError(null) }}
+                        disabled={loading}
+                        className="flex items-center gap-2 rounded-lg px-3 py-3 text-left transition-colors disabled:opacity-50"
+                        style={active
+                          ? { background: 'var(--accent-soft)', border: `1px solid ${opt.color}`, color: opt.color }
+                          : { background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                      >
+                        <Icon size={16} style={{ color: opt.color }} />
+                        <span className="text-xs font-semibold">{opt.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
 
-            {needsNroOp && (
-              <label className="mt-3 block">
-                <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-                  Nro. operacion
-                </span>
-                <input
-                  inputMode="numeric"
-                  autoFocus
-                  value={nroOp}
-                  onChange={e => setNroOp(e.target.value)}
-                  placeholder="Ej: 0123456789"
-                  className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
-                  style={{
-                    background: 'var(--bg-input)',
-                    border: `1px solid ${nroOpOk ? 'var(--border)' : '#f87171'}`,
-                    color: 'var(--text-primary)',
-                  }}
-                />
-              </label>
+                {medio === 'sin_pago' && (
+                  <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                    Cierra el pedido sin sumar importes al arqueo.
+                  </p>
+                )}
+
+                {needsNroOp && (
+                  <label className="mt-3 block">
+                    <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                      Nro. operacion
+                    </span>
+                    <input
+                      inputMode="numeric"
+                      autoFocus
+                      value={nroOp}
+                      onChange={e => setNroOp(e.target.value)}
+                      placeholder="Ej: 0123456789"
+                      className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
+                      style={{
+                        background: 'var(--bg-input)',
+                        border: `1px solid ${nroOpOk ? 'var(--border)' : '#f87171'}`,
+                        color: 'var(--text-primary)',
+                      }}
+                    />
+                  </label>
+                )}
+              </>
             )}
           </section>
 
