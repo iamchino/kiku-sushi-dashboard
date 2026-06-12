@@ -269,7 +269,8 @@ export function buildCustomerTicketText(pedido, config, opts = {}) {
   const canal = CANAL_LABELS[pedido?.canal] || pedido?.canal || 'Pedido'
 
   const { subtotal, descuentoMonto } = applyStoredDiscount(items, pedido)
-  const total = Number(pedido?.total ?? Math.max(0, subtotal - descuentoMonto))
+  const envio = Number(pedido?.costo_envio || 0)
+  const total = Number(pedido?.total ?? Math.max(0, subtotal - descuentoMonto + envio))
 
   const out = []
   out.push(center((config?.nombre_fantasia || 'KIKU SUSHI').toUpperCase(), width))
@@ -306,10 +307,11 @@ export function buildCustomerTicketText(pedido, config, opts = {}) {
   }
 
   out.push(line(width))
-  if (descuentoMonto > 0) {
+  if (descuentoMonto > 0 || envio > 0) {
     out.push(row('Subtotal', `$${formatMoney(subtotal)}`, width))
-    out.push(row('Descuento', `-$${formatMoney(descuentoMonto)}`, width))
   }
+  if (descuentoMonto > 0) out.push(row('Descuento', `-$${formatMoney(descuentoMonto)}`, width))
+  if (envio > 0) out.push(row('Envio', `$${formatMoney(envio)}`, width))
   out.push(row('TOTAL', `$${formatMoney(total)}`, width))
   const medioLabelCustomer = medioPagoLabel(opts.medioPago ?? pedido?.medio_pago)
   if (medioLabelCustomer) out.push(row('Pago', medioLabelCustomer, width))
@@ -329,6 +331,7 @@ export function buildFiscalTicketText(pedido, comprobante, config, opts = {}) {
   const cae = comprobante?.cae || ''
 
   const { subtotal, descuentoMonto } = applyStoredDiscount(items, pedido)
+  const envio = Number(pedido?.costo_envio || 0)
 
   const out = []
   out.push(center((config?.nombre_fantasia || 'KIKU SUSHI').toUpperCase(), width))
@@ -378,10 +381,11 @@ export function buildFiscalTicketText(pedido, comprobante, config, opts = {}) {
   }
 
   out.push(line(width))
-  if (descuentoMonto > 0) {
+  if (descuentoMonto > 0 || envio > 0) {
     out.push(row('Subtotal', `$${formatMoney(subtotal)}`, width))
-    out.push(row('Descuento', `-$${formatMoney(descuentoMonto)}`, width))
   }
+  if (descuentoMonto > 0) out.push(row('Descuento', `-$${formatMoney(descuentoMonto)}`, width))
+  if (envio > 0) out.push(row('Envio', `$${formatMoney(envio)}`, width))
   // Factura A: desglose neto + IVA. Factura B/C: precio incluye IVA, no se desglosa.
   if (comprobante?.letra === 'A') {
     out.push(row('Neto gravado', `$${formatMoney(comprobante?.importe_neto)}`, width))

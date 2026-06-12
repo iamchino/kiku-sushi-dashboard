@@ -18,6 +18,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
   const [mesa,    setMesa]    = useState('')
   const [notas,   setNotas]   = useState('')
   const [descuentoPorcentaje, setDescuentoPorcentaje] = useState('')
+  const [costoEnvio, setCostoEnvio] = useState('')
   const [clienteNombre,    setClienteNombre]    = useState('')
   const [clienteTelefono,  setClienteTelefono]  = useState('')
   const [clienteDireccion, setClienteDireccion] = useState('')
@@ -70,7 +71,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
     if (open) {
       setCanal(canalInicial)
     } else {
-      setCanal(canalInicial); setMesa(''); setNotas(''); setDescuentoPorcentaje('')
+      setCanal(canalInicial); setMesa(''); setNotas(''); setDescuentoPorcentaje(''); setCostoEnvio('')
       setClienteNombre(''); setClienteTelefono(''); setClienteDireccion('')
       setItems([]); setSearch(''); setError(null); setPrintOnSave(true); setVariantePopup(null)
       setYaCobrada(false); setFechaPedido(''); setMedioPago('efectivo')
@@ -146,7 +147,9 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
   const descuento = clampDiscount(descuentoPorcentaje)
   const subtotal = calculateOrderSubtotal(items)
   const descuentoMonto = calculateDiscountAmount(subtotal, descuento)
-  const total = calculateOrderTotal(items, descuento)
+  // El envío solo aplica a delivery y se suma al total.
+  const envio = canal === 'delivery' ? Math.max(0, Math.round(parseCurrencyValue(costoEnvio))) : 0
+  const total = calculateOrderTotal(items, descuento) + envio
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -163,6 +166,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
       mesa: mesa ? parseInt(mesa) : null,
       notas,
       descuento_porcentaje: descuento,
+      costo_envio: envio,
       cliente_nombre:    clienteNombre.trim()    || null,
       cliente_telefono:  clienteTelefono.trim()  || null,
       cliente_direccion: clienteDireccion.trim() || null,
@@ -320,6 +324,26 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
                     placeholder="0"
                   />
                 </div>
+
+                {/* Costo de envío (solo delivery). Se suma al total y sale en el ticket. */}
+                {canal === 'delivery' && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Costo de envío</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--text-xmuted)' }}>$</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={costoEnvio}
+                        onChange={e => setCostoEnvio(e.target.value)}
+                        className="w-full pl-7 pr-3 py-2.5 rounded-lg text-sm outline-none"
+                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                        placeholder="0"
+                      />
+                    </div>
+                    <p className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>Se suma al total y aparece en el ticket.</p>
+                  </div>
+                )}
               </div>
 
               {/* RIGHT — Product search + cart */}
@@ -447,6 +471,14 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
                           <span className="text-xs" style={{ color: '#34d399' }}>Descuento {descuento.toLocaleString('es-AR')}%</span>
                           <span className="text-xs" style={{ color: '#34d399' }}>
                             -${descuentoMonto.toLocaleString('es-AR')}
+                          </span>
+                        </div>
+                      )}
+                      {envio > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Envío</span>
+                          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                            +${envio.toLocaleString('es-AR')}
                           </span>
                         </div>
                       )}

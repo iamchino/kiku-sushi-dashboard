@@ -204,9 +204,11 @@ export function usePedidos(options = {}) {
     canal, mesa, notas, items, descuento_porcentaje = 0,
     cliente_nombre = null, cliente_telefono = null, cliente_direccion = null,
     afecta_caja = true, medio_pago = null, fecha = null, cerrar = false,
+    costo_envio = 0,
   }) => {
     const normalizedItems = normalizePedidoItems(items)
     const descuento = clampDiscount(descuento_porcentaje)
+    const costoEnvio = Math.max(0, Math.round(parseCurrencyValue(costo_envio)))
     const clienteNombre    = cliente_nombre?.trim()    || null
     const clienteTelefono  = cliente_telefono?.trim()  || null
     const clienteDireccion = cliente_direccion?.trim() || null
@@ -240,6 +242,27 @@ export function usePedidos(options = {}) {
         }
         if (pErr) return { pedidoId, error: pErr }
       }
+
+      // Costo de envío: lo guardamos y lo SUMAMOS al total ya calculado del
+      // pedido (el RPC lo dejó en subtotal - descuento). Leemos el total actual
+      // para no depender de cómo lo calculó el backend.
+      if (costoEnvio > 0) {
+        const { data: cur } = await supabase
+          .from('pedidos').select('total').eq('id', pedidoId).single()
+        const nuevoTotal = Number(cur?.total || 0) + costoEnvio
+        let { error: envErr } = await supabase
+          .from('pedidos')
+          .update({ costo_envio: costoEnvio, total: nuevoTotal })
+          .eq('id', pedidoId)
+        // Si falta la columna costo_envio (migración no aplicada), al menos
+        // sumamos el envío al total para no perder el cobro.
+        if (envErr && /costo_envio/i.test(envErr.message || '')) {
+          await supabase.from('pedidos').update({ total: nuevoTotal }).eq('id', pedidoId)
+        } else if (envErr) {
+          return { pedidoId, error: envErr }
+        }
+      }
+
       fetchPedidos()
       return { pedidoId }
     }
