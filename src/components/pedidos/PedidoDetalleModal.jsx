@@ -402,6 +402,31 @@ export default function PedidoDetalleModal({
             </section>
           )}
 
+          {/* Historial de rondas de "libre" */}
+          {Array.isArray(pedido.kiku_libre_historial) && pedido.kiku_libre_historial.length > 0 && (
+            <section className="rounded-lg p-3"
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>
+                Rondas de libre ({pedido.kiku_libre_historial.length})
+              </p>
+              <div className="space-y-1">
+                {[...pedido.kiku_libre_historial].reverse().map((h, idx) => (
+                  <div key={idx} className="flex items-start gap-2 px-2 py-1 rounded" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                    <span className="text-[11px] font-extrabold tabular-nums flex-shrink-0" style={{ color: '#f59e0b' }}>x{h.ronda}</span>
+                    <div className="flex-1 min-w-0">
+                      {h.nota && <p className="text-[11px] leading-snug" style={{ color: 'var(--text-primary)' }}>{h.nota}</p>}
+                      <p className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                        {h.at ? new Date(h.at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                        {h.mozo ? ` · ${h.mozo}` : ''}
+                        {!h.nota ? ' · sin nota' : ''}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Totales */}
           <section className="rounded-lg p-3 space-y-1"
             style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>

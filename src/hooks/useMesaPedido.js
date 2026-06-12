@@ -83,6 +83,7 @@ export function useMesaPedido({ mesaId } = {}) {
 
   // Contador interno de repeticiones (rondas) de Kiku libre — total de la mesa.
   const rondasKiku = pedido?.kiku_libre_rondas || 0
+  const rondasHistorial = Array.isArray(pedido?.kiku_libre_historial) ? pedido.kiku_libre_historial : []
 
   // ── Acciones ────────────────────────────────────────────────────────────
   const abrirMesa = async ({ personas, mozoId = null, clienteNombre = null, clienteTelefono = null }) => {
@@ -237,19 +238,45 @@ export function useMesaPedido({ mesaId } = {}) {
     return res
   }
 
-  // Setea el contador de rondas de Kiku libre. Tolera que falte la columna.
-  const setRondasKiku = async (n) => {
+  // Ajusta el contador de rondas de "libre" y mantiene el historial.
+  //  delta > 0: suma una ronda y agrega una entrada { ronda, nota, mozo, at }.
+  //  delta < 0: resta una ronda y quita la última entrada del historial.
+  // Tolera que falten las columnas (migración no aplicada).
+  const ajustarRondaKiku = async ({ delta, nota = null, mozo = null } = {}) => {
     if (!pedido) return { error: new Error('No hay pedido abierto') }
-    const val = Math.max(0, parseInt(n) || 0)
+    const actual = pedido.kiku_libre_rondas || 0
+    const next = Math.max(0, actual + (parseInt(delta) || 0))
+    const historial = Array.isArray(pedido.kiku_libre_historial) ? pedido.kiku_libre_historial : []
+
+    let nuevoHistorial = historial
+    let entry = null
+    if (delta > 0) {
+      entry = {
+        ronda: next,
+        nota: (nota && String(nota).trim()) || null,
+        mozo: mozo || null,
+        at: new Date().toISOString(),
+      }
+      nuevoHistorial = [...historial, entry]
+    } else if (delta < 0) {
+      nuevoHistorial = historial.slice(0, Math.max(0, historial.length - 1))
+    }
+
     let { error: updErr } = await supabase
       .from('pedidos')
-      .update({ kiku_libre_rondas: val })
+      .update({ kiku_libre_rondas: next, kiku_libre_historial: nuevoHistorial })
       .eq('id', pedido.id)
+
+    // Si falta la columna del historial, al menos actualizamos el contador.
+    if (updErr && /kiku_libre_historial/i.test(updErr.message || '')) {
+      const retry = await supabase.from('pedidos').update({ kiku_libre_rondas: next }).eq('id', pedido.id)
+      updErr = retry.error
+    }
     if (updErr && /kiku_libre_rondas/i.test(updErr.message || '')) {
       updErr = new Error('Falta aplicar la migración de Kiku libre en Supabase.')
     }
     if (!updErr) fetchPedido()
-    return { error: updErr, value: val }
+    return { error: updErr, value: next, entry }
   }
 
   return {
@@ -262,6 +289,7 @@ export function useMesaPedido({ mesaId } = {}) {
     descuentoMonto,
     total,
     rondasKiku,
+    rondasHistorial,
     facturada,
     comprobanteAutorizado,
     loading,
@@ -279,6 +307,6 @@ export function useMesaPedido({ mesaId } = {}) {
     setDescuento,
     aplicarDescuento,
     quitarDescuento,
-    setRondasKiku,
+    ajustarRondaKiku,
   }
 }

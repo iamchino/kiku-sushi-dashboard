@@ -36,7 +36,7 @@ export default function MesaDetallePanel({
     agregarItems, updateItemCantidad, removeItem,
     enviarACocina, cerrarMesa, cancelarMesa,
     aplicarDescuento, quitarDescuento,
-    rondasKiku, setRondasKiku,
+    rondasKiku, rondasHistorial, ajustarRondaKiku,
   } = useMesaPedido({ mesaId: mesa?.id })
 
   const [showAgregar,   setShowAgregar]   = useState(false)
@@ -48,6 +48,7 @@ export default function MesaDetallePanel({
   const [desagrupando,  setDesagrupando]  = useState(false)
   const [actionErr,     setActionErr]     = useState(null)
   const [rondaBusy,     setRondaBusy]     = useState(false)
+  const [rondaNota,     setRondaNota]     = useState('')
 
   const minutos = useMinutesSince(mesa?.pedido_abierta_at)
 
@@ -62,20 +63,24 @@ export default function MesaDetallePanel({
   const tieneLibre = Boolean(itemLibre)
   const nombreLibre = itemLibre?.nombre || 'Libre'
 
-  // +1 ronda: incrementa el contador interno e imprime una comanda de cocina.
+  // +1 ronda: incrementa el contador, guarda en el historial e imprime comanda.
   const handleRondaKiku = async (delta) => {
     setRondaBusy(true); setActionErr(null)
-    const next = Math.max(0, rondasKiku + delta)
-    const { error } = await setRondasKiku(next)
+    const { error, value, entry } = await ajustarRondaKiku({
+      delta,
+      nota: rondaNota,
+      mozo: mesa.mozo_nombre || null,
+    })
     setRondaBusy(false)
     if (error) { setActionErr(error.message || 'Error con el contador'); return }
     // Solo imprimimos al sumar una ronda (no al corregir hacia abajo).
     if (delta > 0) {
       printComanda({
         ...pedido,
-        pedido_items: [{ nombre: nombreLibre.toUpperCase(), cantidad: 1 }],
-        _ronda_label: `${nombreLibre.toUpperCase()} - RONDA ${next}`,
+        pedido_items: [{ nombre: nombreLibre.toUpperCase(), cantidad: 1, notas: entry?.nota || null }],
+        _ronda_label: `${nombreLibre.toUpperCase()} - RONDA ${value}`,
       })
+      setRondaNota('')
     }
   }
 
@@ -207,37 +212,71 @@ export default function MesaDetallePanel({
 
       {/* Contador interno de rondas de "libre" (tenedor libre / sushi libre) */}
       {pedido && !facturada && tieneLibre && (
-        <div className="flex-shrink-0 px-3 py-2.5 flex items-center justify-between gap-2"
+        <div className="flex-shrink-0 px-3 py-2.5 space-y-2"
           style={{ borderBottom: '1px solid var(--border)', background: 'rgba(251,191,36,0.06)' }}>
-          <div className="min-w-0">
-            <p className="text-xs font-bold truncate" style={{ color: 'var(--text-primary)' }}>{nombreLibre} · Rondas</p>
-            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Contador interno · imprime comanda por ronda</p>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-bold truncate" style={{ color: 'var(--text-primary)' }}>{nombreLibre} · Rondas</p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Contador interno · imprime comanda por ronda</p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => handleRondaKiku(-1)}
+                disabled={rondaBusy || rondasKiku === 0}
+                className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-40"
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                title="Restar ronda (no imprime)"
+              >
+                <Minus size={14} />
+              </button>
+              <span className="text-lg font-extrabold tabular-nums w-9 text-center" style={{ color: '#f59e0b' }}>
+                x{rondasKiku}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleRondaKiku(1)}
+                disabled={rondaBusy}
+                className="h-8 px-3 rounded-lg flex items-center justify-center gap-1 text-xs font-bold text-white disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+                title="Sumar ronda e imprimir comanda"
+              >
+                {rondaBusy ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />} Ronda
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => handleRondaKiku(-1)}
-              disabled={rondaBusy || rondasKiku === 0}
-              className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-40"
-              style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-              title="Restar ronda (no imprime)"
-            >
-              <Minus size={14} />
-            </button>
-            <span className="text-lg font-extrabold tabular-nums w-9 text-center" style={{ color: '#f59e0b' }}>
-              x{rondasKiku}
-            </span>
-            <button
-              type="button"
-              onClick={() => handleRondaKiku(1)}
-              disabled={rondaBusy}
-              className="h-8 px-3 rounded-lg flex items-center justify-center gap-1 text-xs font-bold text-white disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
-              title="Sumar ronda e imprimir comanda"
-            >
-              {rondaBusy ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />} Ronda
-            </button>
-          </div>
+          <input
+            type="text"
+            value={rondaNota}
+            onChange={e => setRondaNota(e.target.value)}
+            placeholder="Nota para cocina (opcional): ej. 2 salmón, 1 sin palta…"
+            className="w-full rounded-lg px-3 py-2 text-xs outline-none"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+          />
+
+          {/* Historial de rondas */}
+          {rondasHistorial.length > 0 && (
+            <div className="rounded-lg p-1.5 max-h-40 overflow-y-auto space-y-1" style={{ border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-wider px-1" style={{ color: 'var(--text-muted)' }}>
+                Historial de rondas
+              </p>
+              {[...rondasHistorial].reverse().map((h, idx) => (
+                <div key={idx} className="flex items-start gap-2 px-1.5 py-1 rounded" style={{ background: 'var(--bg-input)' }}>
+                  <span className="text-[11px] font-extrabold tabular-nums flex-shrink-0" style={{ color: '#f59e0b' }}>
+                    x{h.ronda}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    {h.nota && <p className="text-[11px] leading-snug" style={{ color: 'var(--text-primary)' }}>{h.nota}</p>}
+                    <p className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                      {h.at ? new Date(h.at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                      {h.mozo ? ` · ${h.mozo}` : ''}
+                      {!h.nota ? ' · sin nota' : ''}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
