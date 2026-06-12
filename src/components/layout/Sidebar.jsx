@@ -4,7 +4,7 @@ import {
   Home, ClipboardList, Package, Receipt, ListChecks,
   Users, ChefHat, LogOut, UtensilsCrossed, X, Menu,
   Sun, Moon, BookOpen, LayoutGrid, CalendarDays, Inbox, BarChart2,
-  ConciergeBell
+  ConciergeBell, Truck
 } from 'lucide-react'
 import clsx from 'clsx'
 import { auth } from '../../lib/supabase'
@@ -31,6 +31,7 @@ const NAV_ITEMS = [
   { to: '/caja',       icon: Receipt,         label: 'Caja y ARCA'  },
   { to: '/clientes',   icon: Users,           label: 'Clientes'     },
   { to: '/notificaciones', icon: Inbox,       label: 'Notificaciones' },
+  { to: '/proveedores',   icon: Truck,        label: 'Proveedores',  adminOnly: true },
 ]
 
 function useAutoClose(setOpen) {
@@ -81,7 +82,10 @@ function ThemeToggle() {
 function SidebarContent({ onClose, showBell = false }) {
   useAutoClose(onClose ?? (() => {}))
   const role = useRole()
-  const navItems = NAV_ITEMS.filter(({ to }) => canAccessRoute(role, to))
+  const navItems = NAV_ITEMS.filter(({ to, adminOnly }) => {
+    if (adminOnly && role !== 'admin') return false
+    return canAccessRoute(role, to)
+  })
 
   return (
     <div

@@ -8,7 +8,7 @@ export const COCINA_DEFAULT_ROUTE = '/operaciones'
 export const COCINA_BLOCKED_ROUTES = new Set([
   '/', '/dashboard', '/analiticas', '/caja', '/clientes',
   '/mesas', '/reservas', '/configuracion/salon', '/notificaciones',
-  '/platos',
+  '/platos', '/proveedores',
 ])
 
 // Mozo: lista blanca. Mesas (abrir/cerrar/cobrar), platos de cocina y stock.

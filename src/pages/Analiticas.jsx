@@ -13,7 +13,6 @@ import { KpiCard as KpiCardHoy } from '../components/dashboard/KpiCard'
 import { PlatosChart } from '../components/dashboard/PlatosChart'
 import { CanalDonut as CanalDonutHoy } from '../components/dashboard/CanalDonut'
 import { HeatmapHoras } from '../components/dashboard/HeatmapHoras'
-import { AlertasStock } from '../components/dashboard/AlertasStock'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -269,7 +268,7 @@ export default function AnaliticasPage() {
 
   // Sección "Hoy en vivo" (lo que antes vivía en Dashboard)
   const {
-    kpis, platosTop, pedidosPorHora, alertasStock,
+    kpis, platosTop, pedidosPorHora,
     loading: loadingHoy, refetch: refetchHoy, delta,
   } = useDashboard()
 
@@ -329,10 +328,6 @@ export default function AnaliticasPage() {
       </div>
 
       <HeatmapHoras data={pedidosPorHora} loading={loadingHoy} />
-
-      {alertasStock.length > 0 && (
-        <AlertasStock alertas={alertasStock} />
-      )}
 
       {/* ════════════ HISTÓRICO ════════════ */}
       <div className="pt-2" style={{ borderTop: '1px solid var(--border)' }} />

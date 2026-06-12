@@ -62,11 +62,13 @@ function process(pedidos, pedidosAnt, desde, hasta) {
   const porDia = eachDayOfInterval({ start: parseISO(desde), end: parseISO(hasta) })
     .map(d => { const k = fmt(d); return dMap[k] || { fecha: k, ventas: 0, pedidos: 0 } })
 
-  // Top productos
+  // Top productos (se excluyen cubiertos — no son productos vendidos)
+  const EXCLUIR_PRODUCTOS = ['cubierto', 'cubiertos']
   const pMap = {}
   ok.forEach(p => {
     ;(p.pedido_items || []).forEach(i => {
       if (!i.nombre) return
+      if (EXCLUIR_PRODUCTOS.includes(i.nombre.toLowerCase().trim())) return
       pMap[i.nombre] = pMap[i.nombre] || { nombre: i.nombre, unidades: 0, ventas: 0 }
       pMap[i.nombre].unidades += i.cantidad || 1
       pMap[i.nombre].ventas   += +(i.precio_unitario || 0) * (i.cantidad || 1)
