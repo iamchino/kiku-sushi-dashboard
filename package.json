@@ -8,8 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "android:sync": "vite build && cap sync android",
-    "android:open": "vite build && cap sync android && cap open android"
+    "android:sync": "vite build && npx cap sync android",
+    "android:open": "vite build && npx cap sync android && npx cap open android"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",

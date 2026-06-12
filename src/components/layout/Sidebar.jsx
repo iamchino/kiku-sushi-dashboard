@@ -145,7 +145,13 @@ function SidebarContent({ onClose, showBell = false }) {
         ))}
       </nav>
 
-      <div className="px-3 pb-4 space-y-2" style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+      {/* pb extra en mobile para que "Cerrar sesión" no quede tapado por la
+          barra inferior (BottomNav ~58px + safe-area). En desktop (lg) no hay
+          barra inferior, así que va el padding normal. */}
+      <div
+        className="px-3 space-y-2 pb-[calc(58px+env(safe-area-inset-bottom,0px)+12px)] lg:pb-4"
+        style={{ borderTop: '1px solid var(--border)', paddingTop: '12px' }}
+      >
         <ThemeToggle />
 
         <button
@@ -193,13 +199,13 @@ export function Sidebar() {
 
       {mobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          className="lg:hidden fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm"
           onClick={close}
         />
       )}
 
       <aside
-        className="lg:hidden fixed top-0 left-0 z-50 h-full w-64 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out"
+        className="lg:hidden fixed top-0 left-0 z-[60] h-full w-64 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out"
         style={{
           transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
           borderRight: '1px solid var(--border)',
