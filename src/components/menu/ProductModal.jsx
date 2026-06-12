@@ -11,6 +11,7 @@ const EMPTY = {
   precio: '',
   etiqueta: '',
   activo: true,
+  solo_salon: false,
   orden: 0,
   imagen_url: '',
 }
@@ -36,6 +37,7 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
         precio: item.precio || '',
         etiqueta: item.etiqueta || '',
         activo: item.activo ?? true,
+        solo_salon: item.solo_salon ?? false,
         orden: item.orden ?? 0,
         imagen_url: item.imagen_url || '',
       })
@@ -317,9 +319,33 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
                   />
                 </div>
                 <span className="text-sm" style={{ color: form.activo ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
-                  {form.activo ? 'Visible en el menú' : 'Oculto del menú'}
+                  {form.activo ? 'Visible en la carta web' : 'Oculto de la carta web'}
                 </span>
               </label>
+
+              {/* Solo salón: disponible en mesas/órdenes aunque esté oculto en web */}
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <div className="relative">
+                  <input
+                    type="checkbox" name="solo_salon" checked={form.solo_salon} onChange={handleField}
+                    className="sr-only peer"
+                  />
+                  <div
+                    className="w-9 h-5 rounded-full transition-colors"
+                    style={{ background: form.solo_salon ? 'var(--accent)' : 'var(--border)' }}
+                  />
+                  <div
+                    className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                    style={{ transform: form.solo_salon ? 'translateX(16px)' : 'translateX(0)' }}
+                  />
+                </div>
+                <span className="text-sm" style={{ color: form.solo_salon ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                  Disponible en salón/mesas {form.solo_salon ? '(aunque esté oculto en web)' : ''}
+                </span>
+              </label>
+              <p className="text-[11px] -mt-2" style={{ color: 'var(--text-muted)' }}>
+                Para un cubierto o Kiku libre: dejá "Oculto de la carta web" y activá "Disponible en salón".
+              </p>
             </div>
 
             {/* ── RIGHT: Image upload ── */}

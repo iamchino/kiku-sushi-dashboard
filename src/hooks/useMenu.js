@@ -38,11 +38,19 @@ export function useMenu(tipo) {
       ...itemPayload,
       precio: itemPayload.precio ? parseCurrencyValue(itemPayload.precio) : null,
     }
-    const { data: created, error: e1 } = await supabase
+    let { data: created, error: e1 } = await supabase
       .from('menu_items')
       .insert({ ...itemToInsert, tipo })
       .select()
       .single()
+    // Tolerancia: si falta la columna solo_salon (migración no aplicada), reintenta sin ella.
+    if (e1 && /solo_salon/i.test(e1.message || '')) {
+      const { solo_salon, ...sinSoloSalon } = itemToInsert
+      void solo_salon
+      const retry = await supabase.from('menu_items').insert({ ...sinSoloSalon, tipo }).select().single()
+      created = retry.data
+      e1 = retry.error
+    }
     if (e1) return e1
 
     // Crear variantes si las hay
@@ -68,7 +76,13 @@ export function useMenu(tipo) {
       ...itemPayload,
       precio: itemPayload.precio ? parseCurrencyValue(itemPayload.precio) : null,
     }
-    const { error: e1 } = await supabase.from('menu_items').update(itemToUpdate).eq('id', id)
+    let { error: e1 } = await supabase.from('menu_items').update(itemToUpdate).eq('id', id)
+    if (e1 && /solo_salon/i.test(e1.message || '')) {
+      const { solo_salon, ...sinSoloSalon } = itemToUpdate
+      void solo_salon
+      const retry = await supabase.from('menu_items').update(sinSoloSalon).eq('id', id)
+      e1 = retry.error
+    }
     if (e1) return e1
 
     // Si se enviaron variantes, reemplazar todas

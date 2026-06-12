@@ -308,6 +308,14 @@ export default function MenuPage() {
                               {item.etiqueta}
                             </span>
                           )}
+                          {item.solo_salon && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                              style={{ background: 'rgba(79,142,247,0.12)', color: '#4f8ef7' }}
+                              title="Disponible en salón/mesas, oculto en la carta web"
+                            >
+                              Solo salón
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
                           {item.descripcion || '—'}
@@ -316,7 +324,7 @@ export default function MenuPage() {
 
                       {/* Price */}
                       {item.precio && (
-                        <span className="text-xs font-semibold flex-shrink-0 text-right" style={{ color: 'var(--accent-lift)', minWidth: '80px' }}>
+                        <span className="text-sm font-semibold flex-shrink-0 text-right" style={{ color: 'var(--accent-lift)', minWidth: '80px' }}>
                           {item.precio}
                         </span>
                       )}

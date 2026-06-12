@@ -36,6 +36,7 @@ export default function MesaDetallePanel({
     agregarItems, updateItemCantidad, removeItem,
     enviarACocina, cerrarMesa, cancelarMesa,
     aplicarDescuento, quitarDescuento,
+    rondasKiku, setRondasKiku,
   } = useMesaPedido({ mesaId: mesa?.id })
 
   const [showAgregar,   setShowAgregar]   = useState(false)
@@ -46,6 +47,7 @@ export default function MesaDetallePanel({
   const [cancelando,    setCancelando]    = useState(false)
   const [desagrupando,  setDesagrupando]  = useState(false)
   const [actionErr,     setActionErr]     = useState(null)
+  const [rondaBusy,     setRondaBusy]     = useState(false)
 
   const minutos = useMinutesSince(mesa?.pedido_abierta_at)
 
@@ -53,6 +55,26 @@ export default function MesaDetallePanel({
 
   const cfg = getEstadoConfig(mesa.estado_mesa)
   const todoEnviado = items.length > 0 && itemsNoEnviados.length === 0
+
+  // Kiku libre: si el pedido tiene ese producto, mostramos el contador de rondas.
+  const tieneKikuLibre = items.some(i => String(i.nombre || '').toLowerCase().includes('kiku libre'))
+
+  // +1 ronda: incrementa el contador interno e imprime una comanda de cocina.
+  const handleRondaKiku = async (delta) => {
+    setRondaBusy(true); setActionErr(null)
+    const next = Math.max(0, rondasKiku + delta)
+    const { error } = await setRondasKiku(next)
+    setRondaBusy(false)
+    if (error) { setActionErr(error.message || 'Error con el contador'); return }
+    // Solo imprimimos al sumar una ronda (no al corregir hacia abajo).
+    if (delta > 0) {
+      printComanda({
+        ...pedido,
+        pedido_items: [{ nombre: 'KIKU LIBRE', cantidad: 1 }],
+        _ronda_label: `KIKU LIBRE - RONDA ${next}`,
+      })
+    }
+  }
 
   // ── Grupo info ──────────────────────────────────────────────────────
   const esLider    = Boolean(mesa.es_lider_grupo)
@@ -177,6 +199,42 @@ export default function MesaDetallePanel({
           >
             <Plus size={18} /> Agregar productos
           </button>
+        </div>
+      )}
+
+      {/* Contador interno de rondas de Kiku libre */}
+      {pedido && !facturada && tieneKikuLibre && (
+        <div className="flex-shrink-0 px-3 py-2.5 flex items-center justify-between gap-2"
+          style={{ borderBottom: '1px solid var(--border)', background: 'rgba(251,191,36,0.06)' }}>
+          <div className="min-w-0">
+            <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Kiku libre · Rondas</p>
+            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Contador interno · imprime comanda por ronda</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => handleRondaKiku(-1)}
+              disabled={rondaBusy || rondasKiku === 0}
+              className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-40"
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+              title="Restar ronda (no imprime)"
+            >
+              <Minus size={14} />
+            </button>
+            <span className="text-lg font-extrabold tabular-nums w-9 text-center" style={{ color: '#f59e0b' }}>
+              x{rondasKiku}
+            </span>
+            <button
+              type="button"
+              onClick={() => handleRondaKiku(1)}
+              disabled={rondaBusy}
+              className="h-8 px-3 rounded-lg flex items-center justify-center gap-1 text-xs font-bold text-white disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+              title="Sumar ronda e imprimir comanda"
+            >
+              {rondaBusy ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />} Ronda
+            </button>
+          </div>
         </div>
       )}
 

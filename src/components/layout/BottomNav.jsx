@@ -1,14 +1,26 @@
 import { NavLink } from 'react-router-dom'
-import { ClipboardList, LayoutGrid } from 'lucide-react'
+import { ClipboardList, LayoutGrid, Package, ConciergeBell } from 'lucide-react'
+import { useRole } from '../../context/useRole'
 
-const TABS = [
-  { to: '/operaciones', icon: LayoutGrid, label: 'Inicio' },
-  // KDS oculto temporalmente.
-  // { to: '/cocina', icon: ChefHat, label: 'Cocina' },
-  { to: '/produccion', icon: ClipboardList, label: 'Produccion' },
-]
+const TABS_BY_ROLE = {
+  cocina: [
+    { to: '/operaciones', icon: LayoutGrid, label: 'Inicio' },
+    // KDS oculto temporalmente.
+    // { to: '/cocina', icon: ChefHat, label: 'Cocina' },
+    { to: '/produccion', icon: ClipboardList, label: 'Produccion' },
+  ],
+  mozo: [
+    { to: '/mesas',  icon: LayoutGrid,    label: 'Mesas'  },
+    { to: '/platos', icon: ConciergeBell, label: 'Platos' },
+    { to: '/stock',  icon: Package,       label: 'Stock'  },
+  ],
+}
 
 export function BottomNav() {
+  const role = useRole()
+  const tabs = TABS_BY_ROLE[role]
+  if (!tabs) return null
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 flex items-stretch"
@@ -19,7 +31,7 @@ export function BottomNav() {
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
-      {TABS.map(({ to, icon: Icon, label }) => (
+      {tabs.map(({ to, icon: Icon, label }) => (
         <NavLink
           key={to}
           to={to}

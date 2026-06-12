@@ -1,11 +1,22 @@
 import { createContext } from 'react'
 
-export const VALID_ROLES = new Set(['admin', 'cocina'])
+export const VALID_ROLES = new Set(['admin', 'cocina', 'mozo'])
 export const DEFAULT_ROLE = 'cocina'
+
+// Cocina: bloqueo por lista negra (todo lo operativo de cocina permitido).
 export const COCINA_DEFAULT_ROUTE = '/operaciones'
 export const COCINA_BLOCKED_ROUTES = new Set([
   '/', '/dashboard', '/analiticas', '/caja', '/clientes',
   '/mesas', '/reservas', '/configuracion/salon', '/notificaciones',
+  '/platos',
+])
+
+// Mozo: lista blanca. Mesas (abrir/cerrar/cobrar), platos de cocina y stock.
+export const MOZO_DEFAULT_ROUTE = '/mesas'
+export const MOZO_ALLOWED_ROUTES = new Set([
+  '/mesas',
+  '/platos',
+  '/stock',
 ])
 
 export const RoleContext = createContext(DEFAULT_ROLE)
@@ -18,12 +29,15 @@ export function getRoleFromUser(user) {
 }
 
 export function getDefaultRoute(role) {
-  return role === 'cocina' ? COCINA_DEFAULT_ROUTE : '/'
+  if (role === 'cocina') return COCINA_DEFAULT_ROUTE
+  if (role === 'mozo') return MOZO_DEFAULT_ROUTE
+  return '/'
 }
 
 export function canAccessRoute(role, pathname) {
-  if (role !== 'cocina') return true
-
   const normalizedPath = pathname === '' ? '/' : pathname
-  return !COCINA_BLOCKED_ROUTES.has(normalizedPath)
+
+  if (role === 'mozo') return MOZO_ALLOWED_ROUTES.has(normalizedPath)
+  if (role === 'cocina') return !COCINA_BLOCKED_ROUTES.has(normalizedPath)
+  return true
 }

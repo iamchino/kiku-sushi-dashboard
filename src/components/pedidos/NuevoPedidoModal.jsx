@@ -38,20 +38,30 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
   useEffect(() => {
     if (!open) return
     setLoadingMenu(true)
+    const cols = 'id, nombre, precio, categoria, tipo, menu_item_variantes(*)'
+    const aplicar = (data) => {
+      const sorted = (data || []).map(item => ({
+        ...item,
+        menu_item_variantes: (item.menu_item_variantes || [])
+          .sort((a, b) => (a.orden || 0) - (b.orden || 0)),
+      }))
+      setMenuItems(sorted)
+      setLoadingMenu(false)
+    }
+    // Activos (visibles en web) + "solo salón" (ocultos en web, usables por admin).
     supabase
       .from('menu_items')
-      .select('id, nombre, precio, categoria, tipo, menu_item_variantes(*)')
-      .eq('activo', true)
+      .select(cols)
+      .or('activo.eq.true,solo_salon.eq.true')
       .order('categoria')
       .order('orden')
-      .then(({ data }) => {
-        const sorted = (data || []).map(item => ({
-          ...item,
-          menu_item_variantes: (item.menu_item_variantes || [])
-            .sort((a, b) => (a.orden || 0) - (b.orden || 0)),
-        }))
-        setMenuItems(sorted)
-        setLoadingMenu(false)
+      .then(async ({ data, error }) => {
+        if (error && /solo_salon/i.test(error.message || '')) {
+          const fb = await supabase.from('menu_items').select(cols).eq('activo', true).order('categoria').order('orden')
+          aplicar(fb.data)
+        } else {
+          aplicar(data)
+        }
       })
   }, [open])
 

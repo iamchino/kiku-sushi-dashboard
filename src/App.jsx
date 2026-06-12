@@ -12,6 +12,7 @@ import MesasPage from './pages/Mesas'
 import ReservasPage from './pages/Reservas'
 import ConfigSalonPage from './pages/ConfigSalon'
 import CocinaKDS from './pages/Cocina'
+import PlatosPage from './pages/Platos'
 import ProduccionPage from './pages/Produccion'
 import ClientesPage from './pages/Clientes'
 import StockPage from './pages/Stock'
@@ -24,14 +25,16 @@ import { ThemeProvider } from './context/ThemeContext'
 import { RoleContext, DEFAULT_ROLE, getRoleFromUser, canAccessRoute, getDefaultRoute } from './context/role'
 import { useRole } from './context/useRole'
 import { usePrinterStore } from './lib/printerStore'
+import { initNative } from './lib/native'
 
 function AdminLayout({ children }) {
   const role = useRole()
+  const conBottomNav = role === 'cocina' || role === 'mozo'
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-app)' }}>
       <Sidebar />
-      <main className={`flex-1 overflow-y-auto pt-14 lg:pt-0 ${role === 'cocina' ? 'pb-20 lg:pb-0' : ''}`}>
+      <main className={`flex-1 overflow-y-auto pt-14 lg:pt-0 ${conBottomNav ? 'pb-20 lg:pb-0' : ''}`}>
         {children}
       </main>
     </div>
@@ -66,6 +69,7 @@ function AppRoutes() {
           <Route path="/configuracion/salon" element={<ConfigSalonPage />} />
           <Route path="/menu" element={<MenuPage />} />
           <Route path="/cocina" element={<CocinaKDS />} />
+          <Route path="/platos" element={<PlatosPage />} />
           <Route path="/produccion" element={<ProduccionPage />} />
           <Route path="/stock" element={<StockPage />} />
           <Route path="/recetas" element={<RecetasPage />} />
@@ -75,7 +79,7 @@ function AppRoutes() {
           <Route path="*" element={<Navigate to={defaultRoute} replace />} />
         </Routes>
       </RoleGuard>
-      {role === 'cocina' && <BottomNav />}
+      {(role === 'cocina' || role === 'mozo') && <BottomNav />}
     </AdminLayout>
   )
 }
@@ -101,6 +105,12 @@ export default function App() {
   useEffect(() => {
     if (session) loadPrinterConfig()
   }, [session, loadPrinterConfig])
+
+  // Inicializa integraciones nativas (Capacitor): status bar, push, etc.
+  // En navegador es un no-op.
+  useEffect(() => {
+    if (session) initNative(session)
+  }, [session])
 
   if (session === undefined) {
     return (

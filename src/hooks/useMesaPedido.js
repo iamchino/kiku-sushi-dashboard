@@ -81,6 +81,9 @@ export function useMesaPedido({ mesaId } = {}) {
   const comprobanteAutorizado = pedido ? getAuthorizedComprobante(pedido) : null
   const facturada = Boolean(comprobanteAutorizado)
 
+  // Contador interno de repeticiones (rondas) de Kiku libre — total de la mesa.
+  const rondasKiku = pedido?.kiku_libre_rondas || 0
+
   // ── Acciones ────────────────────────────────────────────────────────────
   const abrirMesa = async ({ personas, mozoId = null, clienteNombre = null, clienteTelefono = null }) => {
     if (!mesaId) return { error: new Error('mesaId requerido') }
@@ -234,6 +237,21 @@ export function useMesaPedido({ mesaId } = {}) {
     return res
   }
 
+  // Setea el contador de rondas de Kiku libre. Tolera que falte la columna.
+  const setRondasKiku = async (n) => {
+    if (!pedido) return { error: new Error('No hay pedido abierto') }
+    const val = Math.max(0, parseInt(n) || 0)
+    let { error: updErr } = await supabase
+      .from('pedidos')
+      .update({ kiku_libre_rondas: val })
+      .eq('id', pedido.id)
+    if (updErr && /kiku_libre_rondas/i.test(updErr.message || '')) {
+      updErr = new Error('Falta aplicar la migración de Kiku libre en Supabase.')
+    }
+    if (!updErr) fetchPedido()
+    return { error: updErr, value: val }
+  }
+
   return {
     pedido,
     items,
@@ -243,6 +261,7 @@ export function useMesaPedido({ mesaId } = {}) {
     descuentoPct,
     descuentoMonto,
     total,
+    rondasKiku,
     facturada,
     comprobanteAutorizado,
     loading,
@@ -260,5 +279,6 @@ export function useMesaPedido({ mesaId } = {}) {
     setDescuento,
     aplicarDescuento,
     quitarDescuento,
+    setRondasKiku,
   }
 }

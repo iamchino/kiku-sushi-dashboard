@@ -26,20 +26,32 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd, titulo =
   useEffect(() => {
     if (!open) return
     setLoadingMenu(true)
+    const cols = 'id, nombre, precio, categoria, tipo, menu_item_variantes(*)'
+    const aplicar = (data) => {
+      const sorted = (data || []).map(it => ({
+        ...it,
+        menu_item_variantes: (it.menu_item_variantes || [])
+          .sort((a, b) => (a.orden || 0) - (b.orden || 0)),
+      }))
+      setMenuItems(sorted)
+      setLoadingMenu(false)
+    }
+    // Mostramos los activos (visibles en web) y también los "solo salón"
+    // (ocultos en la web pero disponibles para cargar en mesa).
     supabase
       .from('menu_items')
-      .select('id, nombre, precio, categoria, tipo, menu_item_variantes(*)')
-      .eq('activo', true)
+      .select(cols)
+      .or('activo.eq.true,solo_salon.eq.true')
       .order('categoria')
       .order('orden')
-      .then(({ data }) => {
-        const sorted = (data || []).map(it => ({
-          ...it,
-          menu_item_variantes: (it.menu_item_variantes || [])
-            .sort((a, b) => (a.orden || 0) - (b.orden || 0)),
-        }))
-        setMenuItems(sorted)
-        setLoadingMenu(false)
+      .then(async ({ data, error }) => {
+        if (error && /solo_salon/i.test(error.message || '')) {
+          // Migración no aplicada: caemos al filtro clásico por activo.
+          const fb = await supabase.from('menu_items').select(cols).eq('activo', true).order('categoria').order('orden')
+          aplicar(fb.data)
+        } else {
+          aplicar(data)
+        }
       })
   }, [open])
 

@@ -3,7 +3,8 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   Home, ClipboardList, Package, Receipt, ListChecks,
   Users, ChefHat, LogOut, UtensilsCrossed, X, Menu,
-  Sun, Moon, BookOpen, LayoutGrid, CalendarDays, Inbox, BarChart2
+  Sun, Moon, BookOpen, LayoutGrid, CalendarDays, Inbox, BarChart2,
+  ConciergeBell
 } from 'lucide-react'
 import clsx from 'clsx'
 import { auth } from '../../lib/supabase'
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { to: '/mesas',      icon: LayoutGrid,      label: 'Mesas'        },
   { to: '/reservas',   icon: CalendarDays,    label: 'Reservas'     },
   { to: '/pedidos',    icon: ClipboardList,   label: 'Ordenes'      },
+  { to: '/platos',     icon: ConciergeBell,   label: 'Platos'       },
   // KDS oculto del menú; la ruta y la lógica se mantienen disponibles si se quiere reactivar.
   // { to: '/cocina',     icon: ChefHat,         label: 'Cocina (KDS)' },
   { to: '/produccion', icon: ListChecks,      label: 'Producción'   },
