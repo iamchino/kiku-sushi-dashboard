@@ -56,8 +56,11 @@ export default function MesaDetallePanel({
   const cfg = getEstadoConfig(mesa.estado_mesa)
   const todoEnviado = items.length > 0 && itemsNoEnviados.length === 0
 
-  // Kiku libre: si el pedido tiene ese producto, mostramos el contador de rondas.
-  const tieneKikuLibre = items.some(i => String(i.nombre || '').toLowerCase().includes('kiku libre'))
+  // "Libre" (tenedor libre): cualquier producto cuyo nombre contenga "libre"
+  // habilita el contador de rondas. Usamos el nombre real del producto.
+  const itemLibre = items.find(i => String(i.nombre || '').toLowerCase().includes('libre'))
+  const tieneLibre = Boolean(itemLibre)
+  const nombreLibre = itemLibre?.nombre || 'Libre'
 
   // +1 ronda: incrementa el contador interno e imprime una comanda de cocina.
   const handleRondaKiku = async (delta) => {
@@ -70,8 +73,8 @@ export default function MesaDetallePanel({
     if (delta > 0) {
       printComanda({
         ...pedido,
-        pedido_items: [{ nombre: 'KIKU LIBRE', cantidad: 1 }],
-        _ronda_label: `KIKU LIBRE - RONDA ${next}`,
+        pedido_items: [{ nombre: nombreLibre.toUpperCase(), cantidad: 1 }],
+        _ronda_label: `${nombreLibre.toUpperCase()} - RONDA ${next}`,
       })
     }
   }
@@ -202,12 +205,12 @@ export default function MesaDetallePanel({
         </div>
       )}
 
-      {/* Contador interno de rondas de Kiku libre */}
-      {pedido && !facturada && tieneKikuLibre && (
+      {/* Contador interno de rondas de "libre" (tenedor libre / sushi libre) */}
+      {pedido && !facturada && tieneLibre && (
         <div className="flex-shrink-0 px-3 py-2.5 flex items-center justify-between gap-2"
           style={{ borderBottom: '1px solid var(--border)', background: 'rgba(251,191,36,0.06)' }}>
           <div className="min-w-0">
-            <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Kiku libre · Rondas</p>
+            <p className="text-xs font-bold truncate" style={{ color: 'var(--text-primary)' }}>{nombreLibre} · Rondas</p>
             <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Contador interno · imprime comanda por ronda</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
