@@ -1,15 +1,17 @@
 import { useState, useMemo } from 'react'
 import {
   Plus, Search, Edit2, Trash2, Eye, EyeOff,
-  UtensilsCrossed, Truck, RefreshCw, AlertCircle, Package
+  UtensilsCrossed, Truck, RefreshCw, AlertCircle, Package, Sparkles
 } from 'lucide-react'
 import { useMenu } from '../hooks/useMenu'
 import { normalizeSearch } from '../utils/normalize'
 import ProductModal from '../components/menu/ProductModal'
+import EspecialesTab from '../components/menu/EspecialesTab'
 
 const TABS = [
-  { id: 'carta',    label: 'Carta Salón',       icon: UtensilsCrossed },
-  { id: 'delivery', label: 'Delivery / Pedidos', icon: Truck },
+  { id: 'carta',      label: 'Carta Salón',        icon: UtensilsCrossed },
+  { id: 'delivery',   label: 'Delivery / Pedidos', icon: Truck },
+  { id: 'especiales', label: 'Especiales Web',     icon: Sparkles },
 ]
 
 const BADGE_COLORS = {
@@ -28,12 +30,16 @@ export default function MenuPage() {
   const [deletingId,  setDeletingId]  = useState(null)
   const [notice,      setNotice]      = useState(null)
 
+  // El tab "Especiales Web" usa su propio hook (tablas especiales/especial_pasos);
+  // pasamos null a useMenu para que no consulte menu_items innecesariamente.
+  const esEspeciales = activeTab === 'especiales'
+
   const {
     grouped, categories, stats,
     loading, error,
     createItem, updateItem, deleteItem, toggleActive, uploadImage,
     refetch,
-  } = useMenu(activeTab)
+  } = useMenu(esEspeciales ? null : activeTab)
 
   // ── Filtered view ──────────────────────────────────────────────────────
   const filteredGrouped = useMemo(() => {
@@ -133,7 +139,7 @@ export default function MenuPage() {
             Gestioná los productos de cada sección
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        {!esEspeciales && <div className="flex items-center gap-3">
           <button
             onClick={refetch} disabled={loading}
             className="p-2 rounded-lg transition-all disabled:opacity-50"
@@ -151,7 +157,7 @@ export default function MenuPage() {
             <Plus size={15} />
             Nuevo producto
           </button>
-        </div>
+        </div>}
       </div>
 
       {/* ── Tabs ── */}
@@ -172,8 +178,11 @@ export default function MenuPage() {
         ))}
       </div>
 
+      {/* ── Tab Especiales Web (autocontenido) ── */}
+      {esEspeciales && <EspecialesTab />}
+
       {/* ── Stats bar ── */}
-      {!loading && (
+      {!esEspeciales && !loading && (
         <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
           <span className="flex items-center gap-1.5">
             <Package size={12} />
@@ -193,7 +202,7 @@ export default function MenuPage() {
       )}
 
       {/* ── Search ── */}
-      <div className="relative max-w-sm">
+      {!esEspeciales && <div className="relative max-w-sm">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-xmuted)' }} />
         <input
           value={search} onChange={e => setSearch(e.target.value)}
@@ -203,10 +212,10 @@ export default function MenuPage() {
           onFocus={e => e.target.style.border = '1px solid rgba(var(--accent-rgb),0.4)'}
           onBlur={e => e.target.style.border = '1px solid var(--border)'}
         />
-      </div>
+      </div>}
 
       {/* ── Error ── */}
-      {error && (
+      {!esEspeciales && error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
           style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}
         >
@@ -216,7 +225,7 @@ export default function MenuPage() {
       )}
 
       {/* ── Loading skeleton ── */}
-      {loading && (
+      {!esEspeciales && loading && (
         <div className="space-y-3">
           {[1, 2, 3].map(i => (
             <div key={i} className="rounded-xl p-4 space-y-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
@@ -237,7 +246,7 @@ export default function MenuPage() {
       )}
 
       {/* ── Empty state ── */}
-      {!loading && isEmpty && (
+      {!esEspeciales && !loading && isEmpty && (
         <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
             <UtensilsCrossed size={24} style={{ color: 'var(--text-xmuted)' }} />
@@ -256,7 +265,7 @@ export default function MenuPage() {
       )}
 
       {/* ── Products grouped by category ── */}
-      {!loading && !isEmpty && (
+      {!esEspeciales && !loading && !isEmpty && (
         <div className="space-y-4">
           {Object.entries(filteredGrouped).map(([cat, { subtitle, items }]) => (
             <div key={cat} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}>

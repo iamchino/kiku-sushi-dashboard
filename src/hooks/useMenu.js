@@ -8,6 +8,13 @@ export function useMenu(tipo) {
   const [error, setError] = useState(null)
 
   const fetchItems = useCallback(async () => {
+    // Sin tipo (ej: el tab Especiales usa su propio hook) → no consultar.
+    if (!tipo) {
+      setItems([])
+      setLoading(false)
+      setError(null)
+      return
+    }
     setLoading(true)
     setError(null)
     const { data, error } = await supabase
