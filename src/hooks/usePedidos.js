@@ -584,8 +584,9 @@ export function usePedidos(options = {}) {
     return null
   }
 
-  // Recalcula el total del pedido a partir de sus items y su descuento.
-  const recalcularTotalPedido = async (pedidoId) => {
+  // Recalcula el total del pedido a partir de sus items, su descuento y su envío.
+  // envioOverride permite forzar un envío nuevo (al editarlo) sin esperar al estado.
+  const recalcularTotalPedido = async (pedidoId, envioOverride) => {
     const pedido = pedidos.find(p => p.id === pedidoId)
     const { data: itemsActuales } = await supabase
       .from('pedido_items')
@@ -595,8 +596,23 @@ export function usePedidos(options = {}) {
       (acc, i) => acc + (parseCurrencyValue(i.precio_unitario) * (parseInt(i.cantidad) || 0)),
       0
     )
-    const tot = Math.max(0, sub - effectiveDiscountAmount(sub, pedido))
+    const envio = envioOverride != null
+      ? Math.max(0, Math.round(Number(envioOverride) || 0))
+      : Math.max(0, Number(pedido?.costo_envio || 0))
+    const tot = Math.max(0, sub - effectiveDiscountAmount(sub, pedido)) + envio
     await supabase.from('pedidos').update({ total: tot }).eq('id', pedidoId)
+  }
+
+  // Setea el costo de envío de un pedido existente y recalcula el total.
+  const actualizarEnvioPedido = async (pedidoId, costoEnvio) => {
+    const envio = Math.max(0, Math.round(parseCurrencyValue(costoEnvio)))
+    let { error } = await supabase.from('pedidos').update({ costo_envio: envio }).eq('id', pedidoId)
+    // Si falta la columna costo_envio (migración no aplicada), igual recalculamos
+    // el total con el envío para no perder el cobro.
+    if (error && !/costo_envio/i.test(error.message || '')) return error
+    await recalcularTotalPedido(pedidoId, envio)
+    fetchPedidos()
+    return null
   }
 
   /** Agrega items a un pedido existente (órdenes web / para llevar / salón). */
@@ -663,7 +679,8 @@ export function usePedidos(options = {}) {
   const aplicarDescuentoOrden = async (pedidoId, { tipo, valor, alcance, seleccionIds }) => {
     const pedido = pedidos.find(p => p.id === pedidoId)
     const itemsPedido = pedido?.pedido_items || []
-    const res = await aplicarDescLib({ pedidoId, items: itemsPedido, tipo, valor, alcance, seleccionIds })
+    const costoEnvio = Number(pedido?.costo_envio || 0)
+    const res = await aplicarDescLib({ pedidoId, items: itemsPedido, tipo, valor, alcance, seleccionIds, costoEnvio })
     if (!res.error) fetchPedidos()
     return res
   }
@@ -671,7 +688,8 @@ export function usePedidos(options = {}) {
   const quitarDescuentoOrden = async (pedidoId) => {
     const pedido = pedidos.find(p => p.id === pedidoId)
     const itemsPedido = pedido?.pedido_items || []
-    const res = await quitarDescLib({ pedidoId, items: itemsPedido })
+    const costoEnvio = Number(pedido?.costo_envio || 0)
+    const res = await quitarDescLib({ pedidoId, items: itemsPedido, costoEnvio })
     if (!res.error) fetchPedidos()
     return res
   }
@@ -681,7 +699,7 @@ export function usePedidos(options = {}) {
     loading, error,
     createPedido, avanzarEstado, cerrarPedido, cancelarPedido,
     reabrirPedido, agregarItemsPedido, updateItemCantidadPedido, removeItemPedido,
-    aplicarDescuentoOrden, quitarDescuentoOrden,
+    aplicarDescuentoOrden, quitarDescuentoOrden, actualizarEnvioPedido,
     refetch: fetchPedidos,
     isFacturado,
   }

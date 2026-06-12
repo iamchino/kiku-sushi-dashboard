@@ -259,7 +259,15 @@ export function useFacturacion(options = {}) {
     if (items.length === 0) throw new Error('El pedido debe tener al menos un item.')
 
     const descuento = clampDiscount(values.descuento_porcentaje)
-    const total = calculateOrderTotal(items, descuento)
+    // Preservamos el costo de envío al recalcular el total (no se pierde al editar).
+    let envio = Number(values.costo_envio ?? NaN)
+    if (!Number.isFinite(envio)) {
+      const { data: actual } = await supabase
+        .from('pedidos').select('costo_envio').eq('id', pedidoId).maybeSingle()
+      envio = Number(actual?.costo_envio || 0)
+    }
+    envio = Math.max(0, Math.round(envio))
+    const total = calculateOrderTotal(items, descuento) + envio
 
     let { error: pedidoError } = await supabase
       .from('pedidos')

@@ -154,7 +154,7 @@ export default function PedidosPage() {
     pedidos, loading, error,
     createPedido, avanzarEstado, cerrarPedido, cancelarPedido, refetch,
     reabrirPedido, agregarItemsPedido, updateItemCantidadPedido, removeItemPedido,
-    aplicarDescuentoOrden, quitarDescuentoOrden,
+    aplicarDescuentoOrden, quitarDescuentoOrden, actualizarEnvioPedido,
   } = usePedidos({
     mode: 'range',
     dateFrom: fechaDesde || last7,
@@ -468,6 +468,7 @@ export default function PedidosPage() {
         onRemoveItem={removeItemPedido}
         onAplicarDescuento={aplicarDescuentoOrden}
         onQuitarDescuento={quitarDescuentoOrden}
+        onSetEnvio={actualizarEnvioPedido}
       />
 
       <CerrarPedidoModal

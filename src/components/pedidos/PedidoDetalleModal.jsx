@@ -9,7 +9,7 @@ import { getEstadoSimple, getTipoPedido } from '../../hooks/usePedidos'
 import { useFacturacion } from '../../hooks/useFacturacion'
 import { printCustomerTicket, formatMoney } from '../../lib/printing'
 import { MEDIO_PAGO_LABELS } from '../../lib/escposFormatter'
-import { applyStoredDiscount } from '../../lib/orders'
+import { applyStoredDiscount, parseCurrencyValue } from '../../lib/orders'
 import { getAuthorizedComprobante } from '../../lib/fiscal'
 import FacturarModal from '../caja/FacturarModal'
 import AgregarItemsModal from '../mesas/AgregarItemsModal'
@@ -58,7 +58,7 @@ function formatFechaHora(value) {
 export default function PedidoDetalleModal({
   pedido, onClose, onCerrarClick, onCancelar,
   onReabrir, onAgregarItems, onUpdateItemCantidad, onRemoveItem,
-  onAplicarDescuento, onQuitarDescuento,
+  onAplicarDescuento, onQuitarDescuento, onSetEnvio,
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -67,6 +67,9 @@ export default function PedidoDetalleModal({
   const [descuentoOpen, setDescuentoOpen] = useState(false)
   const [comandaOpen, setComandaOpen] = useState(false)
   const [zoomImg, setZoomImg] = useState(null)
+  const [envioOpen, setEnvioOpen] = useState(false)
+  const [envioInput, setEnvioInput] = useState('')
+  const [envioBusy, setEnvioBusy] = useState(false)
   const { config, arcaReady, facturarEImprimir, imprimirTicket } = useFacturacion()
 
   useEffect(() => {
@@ -96,6 +99,8 @@ export default function PedidoDetalleModal({
   const items      = pedido.pedido_items || []
   const facturada  = Boolean(comprobante)
   const descuentoInfo = applyStoredDiscount(items, pedido)
+  const envio = Number(pedido?.costo_envio || 0)
+  const esDelivery = pedido?.canal === 'delivery'
   const puedeAvanzar = false
   const puedeCancelar = simple === 'activa'
 
@@ -121,6 +126,19 @@ export default function PedidoDetalleModal({
     setError(null)
     const err = await onUpdateItemCantidad?.(pedido.id, itemId, nuevaCantidad)
     if (err) setError(err.message || 'No se pudo actualizar el item')
+  }
+
+  const abrirEnvio = () => {
+    setEnvioInput(envio > 0 ? String(envio) : '')
+    setEnvioOpen(true)
+  }
+
+  const handleSetEnvio = async () => {
+    setEnvioBusy(true); setError(null)
+    const err = await onSetEnvio?.(pedido.id, envioInput)
+    setEnvioBusy(false)
+    if (err) { setError(err.message || 'No se pudo actualizar el envío'); return }
+    setEnvioOpen(false)
   }
 
   const handleItemRemove = async (itemId) => {
@@ -432,17 +450,23 @@ export default function PedidoDetalleModal({
           {/* Totales */}
           <section className="rounded-lg p-3 space-y-1"
             style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
+            {(descuentoInfo.descuentoMonto > 0 || envio > 0) && (
+              <div className="flex justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
+                <span>Subtotal</span>
+                <span>${formatMoney(descuentoInfo.subtotal)}</span>
+              </div>
+            )}
             {descuentoInfo.descuentoMonto > 0 && (
-              <>
-                <div className="flex justify-between text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  <span>Subtotal</span>
-                  <span>${formatMoney(descuentoInfo.subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-xs items-center" style={{ color: 'var(--accent-lift)' }}>
-                  <span className="flex items-center gap-1"><Tag size={11} /> Descuento</span>
-                  <span>-${formatMoney(descuentoInfo.descuentoMonto)}</span>
-                </div>
-              </>
+              <div className="flex justify-between text-xs items-center" style={{ color: 'var(--accent-lift)' }}>
+                <span className="flex items-center gap-1"><Tag size={11} /> Descuento</span>
+                <span>-${formatMoney(descuentoInfo.descuentoMonto)}</span>
+              </div>
+            )}
+            {envio > 0 && (
+              <div className="flex justify-between text-xs items-center" style={{ color: 'var(--text-secondary)' }}>
+                <span className="flex items-center gap-1"><Truck size={11} /> Envío</span>
+                <span>${formatMoney(envio)}</span>
+              </div>
             )}
             <div className="flex justify-between pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
               <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Total</span>
@@ -459,6 +483,47 @@ export default function PedidoDetalleModal({
               >
                 <Gift size={13} /> {descuentoInfo.descuentoMonto > 0 ? 'Editar descuento / gift card' : 'Aplicar descuento / gift card'}
               </button>
+            )}
+
+            {/* Costo de envío: editable solo para delivery activo y no facturado */}
+            {editable && esDelivery && (
+              envioOpen ? (
+                <div className="mt-2 rounded-lg p-2 space-y-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                  <label className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>Costo de envío</label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--text-xmuted)' }}>$</span>
+                      <input
+                        type="text" inputMode="numeric" autoFocus
+                        value={envioInput}
+                        onChange={e => setEnvioInput(e.target.value)}
+                        placeholder="0"
+                        className="w-full pl-6 pr-2 py-1.5 rounded-lg text-sm outline-none"
+                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <button type="button" onClick={handleSetEnvio} disabled={envioBusy}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50"
+                      style={{ background: 'var(--accent)' }}>
+                      {envioBusy ? <Loader2 size={13} className="animate-spin" /> : 'Guardar'}
+                    </button>
+                    <button type="button" onClick={() => setEnvioOpen(false)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                      style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={abrirEnvio}
+                  className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors"
+                  style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                >
+                  <Truck size={13} /> {envio > 0 ? `Editar envío ($${formatMoney(envio)})` : 'Agregar costo de envío'}
+                </button>
+              )
             )}
             {pedido.afecta_caja === false && (
               <div className="mt-1 flex items-center gap-1.5 rounded px-2 py-1.5 text-[11px]"

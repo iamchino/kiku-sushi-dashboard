@@ -13,10 +13,14 @@ import { previewDescuento, calculateOrderSubtotal, effectiveDiscountAmount, clam
  * @param {'todo'|'seleccion'} args.alcance
  * @param {string[]} [args.seleccionIds]  ids de items a los que aplica (si alcance='seleccion')
  */
-export async function aplicarDescuentoPedido({ pedidoId, items, tipo, valor, alcance, seleccionIds = [] }) {
+export async function aplicarDescuentoPedido({ pedidoId, items, tipo, valor, alcance, seleccionIds = [], costoEnvio = 0 }) {
   if (!pedidoId) return { error: new Error('Falta el pedido.') }
 
-  const { subtotal, descuentoMonto, total } = previewDescuento({ items, tipo, valor, alcance, seleccionIds })
+  const envio = Math.max(0, Math.round(Number(costoEnvio) || 0))
+  const prev = previewDescuento({ items, tipo, valor, alcance, seleccionIds })
+  const { subtotal, descuentoMonto } = prev
+  // El envío se suma al total (no se descuenta).
+  const total = prev.total + envio
 
   const patchCompleto = {
     descuento_tipo:    tipo,
@@ -46,10 +50,12 @@ export async function aplicarDescuentoPedido({ pedidoId, items, tipo, valor, alc
   return { error, total, descuentoMonto, subtotal }
 }
 
-/** Quita el descuento de un pedido y recalcula el total (= subtotal). */
-export async function quitarDescuentoPedido({ pedidoId, items }) {
+/** Quita el descuento de un pedido y recalcula el total (= subtotal + envío). */
+export async function quitarDescuentoPedido({ pedidoId, items, costoEnvio = 0 }) {
   if (!pedidoId) return { error: new Error('Falta el pedido.') }
   const subtotal = calculateOrderSubtotal(items)
+  const envio = Math.max(0, Math.round(Number(costoEnvio) || 0))
+  const total = subtotal + envio
 
   const patch = {
     descuento_tipo: 'porcentaje',
@@ -58,25 +64,26 @@ export async function quitarDescuentoPedido({ pedidoId, items }) {
     descuento_monto: 0,
     descuento_items: [],
     descuento_porcentaje: 0,
-    total: subtotal,
+    total,
   }
   let { error } = await supabase.from('pedidos').update(patch).eq('id', pedidoId)
   if (error && /descuento_(tipo|valor|alcance|monto|items)/i.test(error.message || '')) {
-    const retry = await supabase.from('pedidos').update({ descuento_porcentaje: 0, total: subtotal }).eq('id', pedidoId)
+    const retry = await supabase.from('pedidos').update({ descuento_porcentaje: 0, total }).eq('id', pedidoId)
     error = retry.error
   }
-  return { error, total: subtotal }
+  return { error, total }
 }
 
-/** Recalcula el total guardado de un pedido respetando su descuento actual. */
+/** Recalcula el total guardado de un pedido respetando su descuento y envío actuales. */
 export async function recomputarTotalPedido(pedidoId) {
   const [{ data: pedido }, { data: items }] = await Promise.all([
-    supabase.from('pedidos').select('descuento_monto, descuento_porcentaje').eq('id', pedidoId).maybeSingle(),
+    supabase.from('pedidos').select('descuento_monto, descuento_porcentaje, costo_envio').eq('id', pedidoId).maybeSingle(),
     supabase.from('pedido_items').select('precio_unitario, cantidad').eq('pedido_id', pedidoId),
   ])
   const subtotal = calculateOrderSubtotal(items || [])
   const descuentoMonto = effectiveDiscountAmount(subtotal, pedido || {})
-  const total = Math.max(0, subtotal - descuentoMonto)
+  const envio = Math.max(0, Number(pedido?.costo_envio || 0))
+  const total = Math.max(0, subtotal - descuentoMonto) + envio
   await supabase.from('pedidos').update({ total }).eq('id', pedidoId)
   return total
 }
