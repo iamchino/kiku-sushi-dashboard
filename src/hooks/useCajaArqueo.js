@@ -466,12 +466,40 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
     if (!turnoActual?.id) throw new Error('No hay turno abierto.')
     const ids = (Array.isArray(pagoIds) ? pagoIds : [pagoIds]).filter(Boolean)
     if (ids.length === 0) throw new Error('No hay pagos para asignar.')
-    const { error: updateError } = await supabase
-      .from('pagos')
-      .update({ caja_turno_id: turnoActual.id })
-      .in('id', ids)
-    if (updateError) throw updateError
-    await fetchData()
+
+    // 1) Vía preferida: RPC security definer. Valida admin y hace el update
+    //    server-side, evitando el desfase vista(sin RLS)/tabla(con RLS) que hacía
+    //    que un no-admin "asignara" sin que cambiara nada.
+    const rpc = await supabase.rpc('asignar_pagos_a_turno', {
+      p_turno_id: turnoActual.id,
+      p_pago_ids: ids,
+    })
+
+    if (!rpc.error) {
+      if (Number(rpc.data) === 0) {
+        throw new Error('No se asignó ningún pago. Es posible que ya estén asignados o que no se encuentren.')
+      }
+      await fetchData()
+      return
+    }
+
+    // 2) Si la RPC no está deployada todavía, caemos al update directo y
+    //    verificamos cuántas filas cambiaron para no fallar en silencio.
+    if (isMissingSchema(rpc.error)) {
+      const { data, error: updateError } = await supabase
+        .from('pagos')
+        .update({ caja_turno_id: turnoActual.id })
+        .in('id', ids)
+        .select('id')
+      if (updateError) throw updateError
+      if (!data || data.length === 0) {
+        throw new Error('No se pudo asignar ningún pago. Verificá que tu usuario tenga permisos de administrador de caja.')
+      }
+      await fetchData()
+      return
+    }
+
+    throw rpc.error
   }, [fetchData, turnoActual])
 
   // ── Reapertura de turnos cerrados ──────────────────────────────────────────
