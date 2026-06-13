@@ -461,11 +461,15 @@ export async function printFiscalTicket(pedido, comprobante, config, opts = {}) 
     }
   }
 
-  const text = buildFiscalTicketText(pedido, enrichedComprobante, config, { width: cfg.chars_per_line, medioPago })
   // Pasamos la URL del QR al servicio de impresión para que la renderice
   // server-side como bitmap raster (en Go los bytes no se mangle por UTF-8).
   const qrCodeData = enrichedComprobante?.qr_url || buildArcaQrUrl(enrichedComprobante, config) || ''
+
+  let text = buildFiscalTicketText(pedido, enrichedComprobante, config, { width: cfg.chars_per_line, medioPago })
+  // Red de seguridad: si NO hay datos de QR, removemos el marcador {{QR}} del
+  // texto para que el servicio nunca imprima el literal "{{QR}}" ni texto crudo.
   if (!qrCodeData) {
+    text = text.split('{{QR}}').join('')
     console.warn('[printing] qr_code_data vacío — el QR no se va a imprimir. Comprobante:', {
       tipo_cbte: enrichedComprobante?.tipo_cbte,
       numero:    enrichedComprobante?.numero,

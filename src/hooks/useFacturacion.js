@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import {
   RECEPTOR_CONSUMIDOR_FINAL,
   TIPO_CBTE,
+  buildArcaQrUrl,
   buildFiscalRequest,
   esNotaCredito,
   getAuthorizedComprobante,
@@ -391,7 +392,23 @@ export function useFacturacion(options = {}) {
       receptor: opts.receptor || RECEPTOR_CONSUMIDOR_FINAL,
     })
 
-    const { comprobante } = await llamarArca(pedido, payload)
+    let { comprobante } = await llamarArca(pedido, payload)
+
+    // Aseguramos que el comprobante tenga su qr_url guardada: si el backend no
+    // la devolvió, la calculamos y la persistimos (no bloqueante). Así las
+    // reimpresiones futuras usan SIEMPRE la URL exacta del QR de ARCA.
+    if (comprobante && !comprobante.qr_url) {
+      const qr = buildArcaQrUrl(comprobante, config)
+      if (qr) {
+        comprobante = { ...comprobante, qr_url: qr }
+        if (comprobante.id) {
+          supabase.from('comprobantes_fiscales')
+            .update({ qr_url: qr }).eq('id', comprobante.id)
+            .then(() => {}, () => {})
+        }
+      }
+    }
+
     await imprimirTicket(pedido, comprobante, medioPago)
     await fetchData()
     return comprobante
