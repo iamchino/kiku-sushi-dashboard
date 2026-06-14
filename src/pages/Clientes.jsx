@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Plus, Search, Download, RefreshCw, Users, Star, TrendingUp,
-  Edit2, Trash2, Phone, Mail, Calendar, AlertCircle
+  Edit2, Trash2, Phone, Mail, Calendar, AlertCircle, Send
 } from 'lucide-react'
 import { useClientes, TAGS_CONFIG, ALL_TAGS } from '../hooks/useClientes'
 import { normalizeSearch } from '../utils/normalize'
@@ -53,8 +53,15 @@ export default function ClientesPage() {
     clientes, stats,
     loading, error,
     createCliente, updateCliente, deleteCliente,
-    exportCSV, refetch,
+    exportCSV, exportMarketingCSV, refetch,
   } = useClientes()
+
+  const handleExportMarketing = () => {
+    const n = exportMarketingCSV()
+    if (n === 0) {
+      alert('Todavía no hay clientes con consentimiento de promos y email cargado.')
+    }
+  }
 
   // ── Filtros ───────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -115,6 +122,14 @@ export default function ClientesPage() {
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
             <Download size={14} /> Exportar CSV
           </button>
+          <button onClick={handleExportMarketing}
+            title="Exporta solo los clientes con consentimiento y email — listo para email marketing"
+            className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{ color: '#22d3ee', border: '1px solid rgba(34,211,238,0.3)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(34,211,238,0.08)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+            <Send size={14} /> Base promos
+          </button>
           <button onClick={openNew}
             className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
             style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}>
@@ -128,7 +143,7 @@ export default function ClientesPage() {
       {/* ── Stats ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard icon={Users}      label="Total clientes"    value={stats.total}        color="#a1a1aa" />
-        <StatCard icon={Star}       label="VIP"               value={stats.vip}          color="#fbbf24" />
+        <StatCard icon={Send}       label="Aptos para promos" value={stats.promos}       color="#22d3ee" />
         <StatCard icon={TrendingUp} label="Nuevos este mes"   value={stats.nuevos}       color="#34d399" />
         <StatCard icon={Star}       label="Puntos emitidos"   value={stats.totalPuntos.toLocaleString('es-AR')} color="var(--accent-lift)" />
       </div>

@@ -180,6 +180,22 @@ class PrinterClient {
     })
   }
 
+  /**
+   * Consulta la versión del servicio GG EZ Print en ejecución.
+   * Útil para diagnosticar de qué versión es el .exe instalado en cada local
+   * (p. ej. si soporta la impresión de QR fiscal).
+   * Devuelve { version, qr_supported } o lanza si el server es muy viejo.
+   */
+  async getVersion(hostOverride) {
+    const cfg = getPrinterConfig()
+    const host = hostOverride || cfg.server_host
+    await this.ensureConnected(host)
+    return this.send(
+      { action: 'version' },
+      msg => msg.type === 'version' && typeof msg.version === 'string'
+    )
+  }
+
   /** Lista impresoras detectadas por el servicio. */
   async listPrinters(hostOverride) {
     const cfg = getPrinterConfig()

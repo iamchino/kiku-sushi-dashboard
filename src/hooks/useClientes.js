@@ -6,6 +6,7 @@ export const TAGS_CONFIG = {
   Recurrente: { color: '#4f8ef7', bg: 'rgba(79,142,247,0.12)', border: 'rgba(79,142,247,0.3)'  },
   Nuevo:      { color: '#34d399', bg: 'rgba(52,211,153,0.12)', border: 'rgba(52,211,153,0.3)'  },
   Alérgico:   { color: '#f87171', bg: 'rgba(248,113,113,0.12)',border: 'rgba(248,113,113,0.3)' },
+  Web:        { color: '#22d3ee', bg: 'rgba(34,211,238,0.12)', border: 'rgba(34,211,238,0.3)'  },
 }
 
 export const ALL_TAGS = Object.keys(TAGS_CONFIG)
@@ -41,6 +42,7 @@ export function useClientes() {
       total:       clientes.length,
       vip:         clientes.filter(c => (c.tags || '').includes('VIP')).length,
       nuevos:      clientes.filter(c => new Date(c.created_at) >= inicioMes).length,
+      promos:      clientes.filter(c => c.acepta_marketing && (c.email || '').trim()).length,
       totalPuntos,
     }
   }, [clientes])
@@ -73,11 +75,14 @@ export function useClientes() {
 
   // Export CSV
   const exportCSV = () => {
-    const headers = ['Nombre','Teléfono','Email','Puntos','Visitas','Gasto total','Tags','Notas']
+    const headers = ['Nombre','Teléfono','Email','Cumpleaños','Acepta promos','Origen','Puntos','Visitas','Gasto total','Tags','Notas']
     const rows = enriched.map(c => [
       c.nombre || '',
       c.telefono || '',
       c.email || '',
+      c.cumpleanos || '',
+      c.acepta_marketing ? 'Sí' : 'No',
+      c.origen || '',
       c.puntos || 0,
       c._visitas,
       `$${c._totalGastado.toLocaleString('es-AR')}`,
@@ -92,10 +97,31 @@ export function useClientes() {
     a.click(); URL.revokeObjectURL(url)
   }
 
+  // Export de la base de EMAIL MARKETING: solo quienes dieron consentimiento
+  // (acepta_marketing) y tienen email. Listo para importar en Mailchimp/Brevo.
+  // Devuelve la cantidad exportada para feedback en la UI.
+  const exportMarketingCSV = () => {
+    const headers = ['Email','Nombre','Cumpleaños','Origen']
+    const list = enriched.filter(c => c.acepta_marketing && (c.email || '').trim())
+    const rows = list.map(c => [
+      c.email.trim(),
+      (c.nombre || '').replace(/,/g, ';'),
+      c.cumpleanos || '',
+      c.origen || '',
+    ])
+    const csv  = [headers, ...rows].map(r => r.join(',')).join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href = url; a.download = `marketing_kiku_${new Date().toISOString().slice(0,10)}.csv`
+    a.click(); URL.revokeObjectURL(url)
+    return list.length
+  }
+
   return {
     clientes: enriched, stats,
     loading, error,
     createCliente, updateCliente, deleteCliente,
-    exportCSV, refetch: fetchClientes,
+    exportCSV, exportMarketingCSV, refetch: fetchClientes,
   }
 }

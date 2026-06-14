@@ -84,6 +84,16 @@ export function useMesaPedido({ mesaId } = {}) {
   // Contador interno de repeticiones (rondas) de Kiku libre — total de la mesa.
   const rondasKiku = pedido?.kiku_libre_rondas || 0
   const rondasHistorial = Array.isArray(pedido?.kiku_libre_historial) ? pedido.kiku_libre_historial : []
+  // Platos por ronda (la "x" que prepara cocina). Si no se personalizó todavía,
+  // arranca igual a la cantidad de personas de la mesa.
+  const platosKiku = (pedido?.kiku_libre_platos && pedido.kiku_libre_platos > 0)
+    ? pedido.kiku_libre_platos
+    : Math.max(1, parseInt(pedido?.personas) || 1)
+  // Total de platos servidos acumulando todas las rondas del historial.
+  const totalPlatosKiku = rondasHistorial.reduce(
+    (acc, h) => acc + (parseInt(h?.platos) || 0),
+    0
+  )
 
   // ── Acciones ────────────────────────────────────────────────────────────
   const abrirMesa = async ({ personas, mozoId = null, clienteNombre = null, clienteTelefono = null }) => {
@@ -238,21 +248,57 @@ export function useMesaPedido({ mesaId } = {}) {
     return res
   }
 
+  // Update tolerante: intenta actualizar el pedido y, si Postgres se queja de
+  // que falta alguna columna de Kiku libre (migración no aplicada), reintenta
+  // sin esa columna. Devuelve el último error que no sea por columna faltante.
+  const updatePedidoTolerante = async (patch) => {
+    let payload = { ...patch }
+    const columnasKiku = ['kiku_libre_historial', 'kiku_libre_platos', 'kiku_libre_rondas']
+    for (let i = 0; i < columnasKiku.length + 1; i++) {
+      const { error: updErr } = await supabase.from('pedidos').update(payload).eq('id', pedido.id)
+      if (!updErr) return { error: null }
+      const faltante = columnasKiku.find(c => new RegExp(c, 'i').test(updErr.message || ''))
+      // Si la columna que falta sigue en el payload, la quitamos y reintentamos.
+      if (faltante && faltante in payload && Object.keys(payload).length > 1) {
+        const { [faltante]: _drop, ...rest } = payload
+        payload = rest
+        continue
+      }
+      if (faltante) {
+        return { error: new Error('Falta aplicar la migración de Kiku libre en Supabase.') }
+      }
+      return { error: updErr }
+    }
+    return { error: null }
+  }
+
+  // Fija los platos por ronda (la "x" que prepara cocina) para la mesa.
+  const setPlatosKiku = async (platos) => {
+    if (!pedido) return { error: new Error('No hay pedido abierto') }
+    const val = Math.max(1, parseInt(platos) || 1)
+    const { error: updErr } = await updatePedidoTolerante({ kiku_libre_platos: val })
+    if (!updErr) fetchPedido()
+    return { error: updErr, value: val }
+  }
+
   // Ajusta el contador de rondas de "libre" y mantiene el historial.
-  //  delta > 0: suma una ronda y agrega una entrada { ronda, nota, mozo, at }.
+  //  delta > 0: suma una ronda y agrega una entrada { ronda, platos, nota, mozo, at }.
   //  delta < 0: resta una ronda y quita la última entrada del historial.
-  // Tolera que falten las columnas (migración no aplicada).
-  const ajustarRondaKiku = async ({ delta, nota = null, mozo = null } = {}) => {
+  // `platos` = cantidad de platos de ESTA ronda; queda guardado por ronda y
+  // como default (kiku_libre_platos) para la próxima. Tolera columnas faltantes.
+  const ajustarRondaKiku = async ({ delta, platos = null, nota = null, mozo = null } = {}) => {
     if (!pedido) return { error: new Error('No hay pedido abierto') }
     const actual = pedido.kiku_libre_rondas || 0
     const next = Math.max(0, actual + (parseInt(delta) || 0))
     const historial = Array.isArray(pedido.kiku_libre_historial) ? pedido.kiku_libre_historial : []
+    const platosRonda = Math.max(1, parseInt(platos) || platosKiku || 1)
 
     let nuevoHistorial = historial
     let entry = null
     if (delta > 0) {
       entry = {
         ronda: next,
+        platos: platosRonda,
         nota: (nota && String(nota).trim()) || null,
         mozo: mozo || null,
         at: new Date().toISOString(),
@@ -262,21 +308,13 @@ export function useMesaPedido({ mesaId } = {}) {
       nuevoHistorial = historial.slice(0, Math.max(0, historial.length - 1))
     }
 
-    let { error: updErr } = await supabase
-      .from('pedidos')
-      .update({ kiku_libre_rondas: next, kiku_libre_historial: nuevoHistorial })
-      .eq('id', pedido.id)
+    const patch = { kiku_libre_rondas: next, kiku_libre_historial: nuevoHistorial }
+    // Al sumar ronda persistimos el último valor de platos como default.
+    if (delta > 0) patch.kiku_libre_platos = platosRonda
 
-    // Si falta la columna del historial, al menos actualizamos el contador.
-    if (updErr && /kiku_libre_historial/i.test(updErr.message || '')) {
-      const retry = await supabase.from('pedidos').update({ kiku_libre_rondas: next }).eq('id', pedido.id)
-      updErr = retry.error
-    }
-    if (updErr && /kiku_libre_rondas/i.test(updErr.message || '')) {
-      updErr = new Error('Falta aplicar la migración de Kiku libre en Supabase.')
-    }
+    const { error: updErr } = await updatePedidoTolerante(patch)
     if (!updErr) fetchPedido()
-    return { error: updErr, value: next, entry }
+    return { error: updErr, value: next, entry, platos: platosRonda }
   }
 
   return {
@@ -290,6 +328,8 @@ export function useMesaPedido({ mesaId } = {}) {
     total,
     rondasKiku,
     rondasHistorial,
+    platosKiku,
+    totalPlatosKiku,
     facturada,
     comprobanteAutorizado,
     loading,
@@ -308,5 +348,6 @@ export function useMesaPedido({ mesaId } = {}) {
     aplicarDescuento,
     quitarDescuento,
     ajustarRondaKiku,
+    setPlatosKiku,
   }
 }

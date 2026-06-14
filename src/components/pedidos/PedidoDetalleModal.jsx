@@ -427,14 +427,20 @@ export default function PedidoDetalleModal({
             <section className="rounded-lg p-3"
               style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
               <p className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>
-                Rondas de libre ({pedido.kiku_libre_historial.length})
+                Repes de libre ({pedido.kiku_libre_historial.length}
+                {(() => {
+                  const tot = pedido.kiku_libre_historial.reduce((a, h) => a + (parseInt(h?.platos) || 0), 0)
+                  return tot > 0 ? ` · ${tot} platos` : ''
+                })()})
               </p>
               <div className="space-y-1">
                 {[...pedido.kiku_libre_historial].reverse().map((h, idx) => (
                   <div key={idx} className="flex items-start gap-2 px-2 py-1 rounded" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-                    <span className="text-[11px] font-extrabold tabular-nums flex-shrink-0" style={{ color: '#f59e0b' }}>x{h.ronda}</span>
+                    <span className="text-[11px] font-extrabold tabular-nums flex-shrink-0 px-1 rounded"
+                      style={{ color: '#f59e0b', background: 'rgba(251,191,36,0.12)' }} title={`Repe ${h.ronda}`}>#{h.ronda}</span>
                     <div className="flex-1 min-w-0">
-                      {h.nota && <p className="text-[11px] leading-snug" style={{ color: 'var(--text-primary)' }}>{h.nota}</p>}
+                      <p className="text-[11px] font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>Kiku libre x{h.platos || 1}</p>
+                      {h.nota && <p className="text-[11px] leading-snug" style={{ color: 'var(--text-secondary)' }}>{h.nota}</p>}
                       <p className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
                         {h.at ? new Date(h.at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''}
                         {h.mozo ? ` · ${h.mozo}` : ''}

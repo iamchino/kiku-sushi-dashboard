@@ -1,0 +1,7 @@
+{
+  "version": "1.1.0",
+  "url": "https://sepyieuxsmxhzobtmzxb.supabase.co/storage/v1/object/public/gg-ez-print/gg-ez-print-1.1.0.exe",
+  "sha256": "REEMPLAZAR_POR_EL_HASH_SHA256_DEL_EXE",
+  "notes": "Auto-update + impresion de QR fiscal",
+  "mandatory": false
+}

@@ -188,7 +188,7 @@ export default function MesasPage() {
         </div>
       ) : (
         <div className="flex-1 flex overflow-hidden">
-          <div className={`flex-1 flex flex-col ${selectedMesa ? 'hidden lg:flex' : 'flex'}`}>
+          <div className="flex-1 flex flex-col">
             <SalonCanvas
               salon={salones.find(s => s.id === activeSalonId)}
               mesas={mesas}
@@ -198,25 +198,25 @@ export default function MesasPage() {
               emptyHint="Salón vacío. Agregá mesas desde el editor de plano."
             />
           </div>
-
-          {selectedMesa && (
-            <MesaDetallePanel
-              mesa={selectedMesa}
-              onClose={() => setSelectedMesaId(null)}
-              onMesaChanged={refetch}
-              onAbrirMesa={(m) => setMesaAbrir(m)}
-              mesasDisponiblesParaUnir={mesasDisponiblesParaUnir}
-              onUnir={async (leaderId, memberId) => {
-                const res = await agruparMesa(leaderId, memberId)
-                return res || {}
-              }}
-              onDesagrupar={async (leaderId) => {
-                const res = await desagruparGrupo(leaderId)
-                return res || {}
-              }}
-            />
-          )}
         </div>
+      )}
+
+      {selectedMesa && (
+        <MesaDetallePanel
+          mesa={selectedMesa}
+          onClose={() => setSelectedMesaId(null)}
+          onMesaChanged={refetch}
+          onAbrirMesa={(m) => setMesaAbrir(m)}
+          mesasDisponiblesParaUnir={mesasDisponiblesParaUnir}
+          onUnir={async (leaderId, memberId) => {
+            const res = await agruparMesa(leaderId, memberId)
+            return res || {}
+          }}
+          onDesagrupar={async (leaderId) => {
+            const res = await desagruparGrupo(leaderId)
+            return res || {}
+          }}
+        />
       )}
 
       <AbrirMesaModal

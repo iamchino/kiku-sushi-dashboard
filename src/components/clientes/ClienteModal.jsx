@@ -9,7 +9,7 @@ const CANAL_LABEL = {
   pedidosya: 'PedidosYa',
 }
 
-const EMPTY = { nombre: '', telefono: '', email: '', cumpleanos: '', notas: '', tags: '' }
+const EMPTY = { nombre: '', telefono: '', email: '', cumpleanos: '', notas: '', tags: '', acepta_marketing: false }
 
 export default function ClienteModal({ open, onClose, cliente, onSave }) {
   const [tab,    setTab]    = useState('datos')
@@ -27,6 +27,7 @@ export default function ClienteModal({ open, onClose, cliente, onSave }) {
             cumpleanos: cliente.cumpleanos || '',
             notas:      cliente.notas      || '',
             tags:       cliente.tags       || '',
+            acepta_marketing: cliente.acepta_marketing ?? false,
           }
         : EMPTY)
       setTab('datos')
@@ -140,6 +141,24 @@ export default function ClienteModal({ open, onClose, cliente, onSave }) {
               <input name="cumpleanos" value={form.cumpleanos} onChange={handleField} type="date"
                 className="input-crm" />
             </Field>
+
+            {/* Consentimiento de marketing (opt-in) */}
+            <label className="flex items-start gap-3 px-4 py-3 rounded-xl cursor-pointer"
+              style={{ background: 'rgba(34,211,238,0.06)', border: '1px solid rgba(34,211,238,0.18)' }}>
+              <input
+                type="checkbox"
+                checked={!!form.acepta_marketing}
+                onChange={e => setForm(f => ({ ...f, acepta_marketing: e.target.checked }))}
+                className="mt-0.5 h-4 w-4 flex-shrink-0 cursor-pointer"
+                style={{ accentColor: '#22d3ee' }}
+              />
+              <span className="text-xs leading-relaxed" style={{ color: '#a1a1aa' }}>
+                <span className="font-semibold text-white">Acepta promos y novedades</span>
+                <span className="block mt-0.5" style={{ color: '#52525b' }}>
+                  Habilita a este cliente para la base de email marketing (consentimiento).
+                </span>
+              </span>
+            </label>
 
             {/* Tags */}
             <div className="space-y-2">

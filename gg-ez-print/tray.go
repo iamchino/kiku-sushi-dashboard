@@ -76,6 +76,13 @@ func onReady() {
 
 	systray.AddSeparator()
 
+	// Versión actual del binario (informativo) + chequeo manual de updates.
+	mVersion := systray.AddMenuItem(fmt.Sprintf("Versión: %s", appVersion), "Versión instalada de GG EZ Print")
+	mVersion.Disable()
+	mCheckUpdate := systray.AddMenuItem("Buscar actualizaciones", "Chequea si hay una versión nueva y la instala")
+
+	systray.AddSeparator()
+
 	mToggleConsole := systray.AddMenuItem(getConsoleMenuText(), "Mostrar/ocultar la consola")
 
 	systray.AddSeparator()
@@ -88,6 +95,9 @@ func onReady() {
 	// Start the web server in a separate goroutine
 	go startServer()
 	go startCertServer()
+
+	// Auto-updater: chequea el manifiesto al arrancar y cada N horas.
+	go startUpdater()
 
 	// Monitor connection status changes
 	go func() {
@@ -118,6 +128,9 @@ func onReady() {
 				} else {
 					logToConsole("CA instalada correctamente")
 				}
+			case <-mCheckUpdate.ClickedCh:
+				logToConsole("Buscando actualizaciones manualmente...")
+				go checkAndApplyUpdate(true)
 			case <-mToggleConsole.ClickedCh:
 				if isConsoleVisible() {
 					hideConsole()

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   X, Users, Clock, User, Plus, Minus, Trash2, Printer,
-  Receipt, AlertCircle, Loader2, Ban, Tag, FileText, Link2, Unlink,
+  Receipt, AlertCircle, Loader2, Ban, Tag, FileText, Link2, Unlink, ChevronDown,
 } from 'lucide-react'
 import { useMesaPedido } from '../../hooks/useMesaPedido'
 import { useMinutesSince } from '../../hooks/useNowTick'
@@ -37,7 +37,8 @@ export default function MesaDetallePanel({
     agregarItems, updateItemCantidad, removeItem,
     enviarACocina, cerrarMesa, cancelarMesa,
     aplicarDescuento, quitarDescuento,
-    rondasKiku, rondasHistorial, ajustarRondaKiku,
+    rondasKiku, rondasHistorial, platosKiku, totalPlatosKiku,
+    ajustarRondaKiku, setPlatosKiku,
   } = useMesaPedido({ mesaId: mesa?.id })
 
   const [showAgregar,   setShowAgregar]   = useState(false)
@@ -51,6 +52,23 @@ export default function MesaDetallePanel({
   const [actionErr,     setActionErr]     = useState(null)
   const [rondaBusy,     setRondaBusy]     = useState(false)
   const [rondaNota,     setRondaNota]     = useState('')
+  const [showHistorial, setShowHistorial] = useState(false)
+  // Anti "ghost click": en teléfono el tap que abre la mesa puede disparar un
+  // click fantasma sobre el fondo y cerrar la ventana al instante. Ignoramos
+  // los cierres por fondo durante los primeros ms tras abrir.
+  const openedAtRef = useRef(Date.now())
+  const handleBackdropClose = (e) => {
+    if (e.target !== e.currentTarget) return
+    if (Date.now() - openedAtRef.current < 400) return
+    onClose?.()
+  }
+  // Platos por ronda editable (la "x" que prepara cocina). Se sincroniza con el
+  // valor guardado del pedido (default = personas) cuando cambia la mesa/pedido.
+  const [platos,        setPlatos]        = useState(1)
+
+  useEffect(() => {
+    setPlatos(platosKiku)
+  }, [platosKiku])
 
   const minutos = useMinutesSince(mesa?.pedido_abierta_at)
 
@@ -65,11 +83,22 @@ export default function MesaDetallePanel({
   const tieneLibre = Boolean(itemLibre)
   const nombreLibre = itemLibre?.nombre || 'Libre'
 
-  // +1 ronda: incrementa el contador, guarda en el historial e imprime comanda.
+  // Platos por ronda: límites razonables (1..40) y cambio del default persistido.
+  const platosNum = Math.max(1, Math.min(40, parseInt(platos) || 1))
+  const cambiarPlatos = async (nuevo) => {
+    const val = Math.max(1, Math.min(40, parseInt(nuevo) || 1))
+    setPlatos(val)
+    // Persistimos el default para que sobreviva recargas / otros dispositivos.
+    await setPlatosKiku(val)
+  }
+
+  // +1 ronda: incrementa el contador, guarda platos+nota en el historial e
+  // imprime la comanda con "KIKU LIBRE x{platos} · RONDA N".
   const handleRondaKiku = async (delta) => {
     setRondaBusy(true); setActionErr(null)
-    const { error, value, entry } = await ajustarRondaKiku({
+    const { error, value, entry, platos: platosRonda } = await ajustarRondaKiku({
       delta,
+      platos: platosNum,
       nota: rondaNota,
       mozo: mesa.mozo_nombre || null,
     })
@@ -77,10 +106,11 @@ export default function MesaDetallePanel({
     if (error) { setActionErr(error.message || 'Error con el contador'); return }
     // Solo imprimimos al sumar una ronda (no al corregir hacia abajo).
     if (delta > 0) {
+      const cant = platosRonda || platosNum
       const res = await printComanda({
         ...pedido,
-        pedido_items: [{ nombre: nombreLibre.toUpperCase(), cantidad: 1, notas: entry?.nota || null }],
-        _ronda_label: `${nombreLibre.toUpperCase()} - RONDA ${value}`,
+        pedido_items: [{ nombre: nombreLibre.toUpperCase(), cantidad: cant, notas: entry?.nota || null }],
+        _ronda_label: `${nombreLibre.toUpperCase()} x${cant} - REPE ${value}`,
       })
       if (!res?.ok) setActionErr('Ronda registrada, pero la comanda no se imprimió. Revisá la impresora.')
       setRondaNota('')
@@ -140,9 +170,16 @@ export default function MesaDetallePanel({
   void todoEnviado; void enviando; void handleEnviar
 
   return (
+    <>
+    <div
+      className="fixed inset-0 z-[55] flex items-end md:items-center justify-center p-0 md:p-4"
+      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+      onClick={handleBackdropClose}
+    >
     <aside
-      className="flex flex-col h-full w-full lg:w-[400px] xl:w-[420px] flex-shrink-0"
-      style={{ background: 'var(--bg-card)', borderLeft: '1px solid var(--border)' }}
+      className="flex flex-col w-full md:max-w-2xl max-h-[100dvh] md:max-h-[92vh] rounded-t-2xl md:rounded-2xl overflow-hidden shadow-2xl"
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+      onClick={e => e.stopPropagation()}
     >
       <div
         className="flex-shrink-0 px-4 py-3"
@@ -218,67 +255,136 @@ export default function MesaDetallePanel({
       {pedido && !facturada && tieneLibre && (
         <div className="flex-shrink-0 px-3 py-2.5 space-y-2"
           style={{ borderBottom: '1px solid var(--border)', background: 'rgba(251,191,36,0.06)' }}>
-          <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{nombreLibre} · Repes</p>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Cada repe imprime una comanda con los platos que prepara cocina</p>
+          </div>
+
+          {/* Platos por repe (la "x" que prepara la sushi woman) */}
+          <div className="flex items-center justify-between gap-2 rounded-xl px-3 py-2"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
             <div className="min-w-0">
-              <p className="text-xs font-bold truncate" style={{ color: 'var(--text-primary)' }}>{nombreLibre} · Rondas</p>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Contador interno · imprime comanda por ronda</p>
+              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Platos por repe</p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Sale en comanda como {nombreLibre} x{platosNum}</p>
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => cambiarPlatos(platosNum - 1)}
+                disabled={rondaBusy || platosNum <= 1}
+                className="w-12 h-12 rounded-xl flex items-center justify-center disabled:opacity-40 active:scale-95 transition-transform"
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                title="Menos platos"
+              >
+                <Minus size={20} />
+              </button>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={40}
+                value={platos}
+                onChange={e => setPlatos(e.target.value)}
+                onBlur={e => cambiarPlatos(e.target.value)}
+                className="w-14 h-12 rounded-xl text-center text-xl font-extrabold tabular-nums outline-none"
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: '#f59e0b' }}
+              />
+              <button
+                type="button"
+                onClick={() => cambiarPlatos(platosNum + 1)}
+                disabled={rondaBusy || platosNum >= 40}
+                className="w-12 h-12 rounded-xl flex items-center justify-center disabled:opacity-40 active:scale-95 transition-transform"
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                title="Más platos"
+              >
+                <Plus size={20} />
+              </button>
+            </div>
+          </div>
+
+          <input
+            type="text"
+            value={rondaNota}
+            onChange={e => setRondaNota(e.target.value)}
+            placeholder="Nota para cocina (opcional): ej. 2 salmón, 1 sin palta…"
+            className="w-full rounded-xl px-3 py-3 text-sm outline-none"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+          />
+
+          {/* Sumar / corregir repe */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-baseline gap-1.5 min-w-0">
+              <span className="text-2xl font-extrabold tabular-nums" style={{ color: '#f59e0b' }}>x{rondasKiku}</span>
+              <span className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                {rondasKiku === 1 ? 'repe' : 'repes'}{totalPlatosKiku > 0 ? ` · ${totalPlatosKiku} platos` : ''}
+              </span>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => handleRondaKiku(-1)}
                 disabled={rondaBusy || rondasKiku === 0}
-                className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-40"
+                className="w-12 h-12 rounded-xl flex items-center justify-center disabled:opacity-40 active:scale-95 transition-transform"
                 style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-                title="Restar ronda (no imprime)"
+                title="Restar repe (no imprime)"
               >
-                <Minus size={14} />
+                <Minus size={20} />
               </button>
-              <span className="text-lg font-extrabold tabular-nums w-9 text-center" style={{ color: '#f59e0b' }}>
-                x{rondasKiku}
-              </span>
               <button
                 type="button"
                 onClick={() => handleRondaKiku(1)}
                 disabled={rondaBusy}
-                className="h-8 px-3 rounded-lg flex items-center justify-center gap-1 text-xs font-bold text-white disabled:opacity-50"
+                className="h-12 px-6 rounded-xl flex items-center justify-center gap-2 text-base font-extrabold text-white disabled:opacity-50 active:scale-95 transition-transform"
                 style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
-                title="Sumar ronda e imprimir comanda"
+                title="Sumar repe e imprimir comanda"
               >
-                {rondaBusy ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />} Ronda
+                {rondaBusy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Repe
               </button>
             </div>
           </div>
-          <input
-            type="text"
-            value={rondaNota}
-            onChange={e => setRondaNota(e.target.value)}
-            placeholder="Nota para cocina (opcional): ej. 2 salmón, 1 sin palta…"
-            className="w-full rounded-lg px-3 py-2 text-xs outline-none"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-          />
 
-          {/* Historial de rondas */}
+          {/* Historial de repes — desplegable para no ocupar espacio */}
           {rondasHistorial.length > 0 && (
-            <div className="rounded-lg p-1.5 max-h-40 overflow-y-auto space-y-1" style={{ border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-wider px-1" style={{ color: 'var(--text-muted)' }}>
-                Historial de rondas
-              </p>
-              {[...rondasHistorial].reverse().map((h, idx) => (
-                <div key={idx} className="flex items-start gap-2 px-1.5 py-1 rounded" style={{ background: 'var(--bg-input)' }}>
-                  <span className="text-[11px] font-extrabold tabular-nums flex-shrink-0" style={{ color: '#f59e0b' }}>
-                    x{h.ronda}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    {h.nota && <p className="text-[11px] leading-snug" style={{ color: 'var(--text-primary)' }}>{h.nota}</p>}
-                    <p className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                      {h.at ? new Date(h.at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''}
-                      {h.mozo ? ` · ${h.mozo}` : ''}
-                      {!h.nota ? ' · sin nota' : ''}
-                    </p>
-                  </div>
+            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+              <button
+                type="button"
+                onClick={() => setShowHistorial(v => !v)}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <span className="text-[11px] font-bold uppercase tracking-wider">
+                  Historial de repes ({rondasHistorial.length})
+                </span>
+                <ChevronDown
+                  size={16}
+                  className="transition-transform"
+                  style={{ transform: showHistorial ? 'rotate(180deg)' : 'none' }}
+                />
+              </button>
+              {showHistorial && (
+                <div className="px-1.5 pb-1.5 max-h-44 overflow-y-auto space-y-1">
+                  {[...rondasHistorial].reverse().map((h, idx) => (
+                    <div key={idx} className="flex items-start gap-2 px-1.5 py-1 rounded" style={{ background: 'var(--bg-input)' }}>
+                      <span className="text-[11px] font-extrabold tabular-nums flex-shrink-0 px-1 rounded"
+                        style={{ color: '#f59e0b', background: 'rgba(251,191,36,0.12)' }}
+                        title={`Repe ${h.ronda}`}>
+                        #{h.ronda}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
+                          {nombreLibre} x{h.platos || 1}
+                        </p>
+                        {h.nota && <p className="text-[11px] leading-snug" style={{ color: 'var(--text-secondary)' }}>{h.nota}</p>}
+                        <p className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                          {h.at ? new Date(h.at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                          {h.mozo ? ` · ${h.mozo}` : ''}
+                          {!h.nota ? ' · sin nota' : ''}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
@@ -533,6 +639,8 @@ export default function MesaDetallePanel({
           )}
         </div>
       )}
+    </aside>
+    </div>
 
       <AgregarItemsModal
         open={showAgregar}
@@ -581,7 +689,7 @@ export default function MesaDetallePanel({
         items={items}
         onClose={() => setShowComanda(false)}
       />
-    </aside>
+    </>
   )
 }
 
