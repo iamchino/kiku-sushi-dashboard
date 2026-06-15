@@ -64,6 +64,8 @@ export function useEspeciales() {
       ? null
       : Number(payload.precio),
     orden: Number(payload.orden) || 0,
+    // Grupo de carrusel: string vacío → null.
+    ...(payload.grupo !== undefined && { grupo: payload.grupo?.trim() || null }),
     // Acción del botón (CTA). Coerción defensiva de strings vacíos → null.
     ...(payload.cta_tipo !== undefined && {
       cta_tipo: payload.cta_tipo || 'reservar',

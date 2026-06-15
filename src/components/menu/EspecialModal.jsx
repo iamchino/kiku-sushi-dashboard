@@ -25,6 +25,7 @@ const EMPTY = {
   titulo_acento: '',
   overline: '',
   numero: '',
+  grupo: '',
   experiencia: 'umami_del_sur',
   cta_tipo: 'reservar',
   cta_producto_id: '',
@@ -81,6 +82,7 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
         titulo_acento: item.titulo_acento || '',
         overline: item.overline || '',
         numero: item.numero || '',
+        grupo: item.grupo || '',
         experiencia: item.experiencia || 'umami_del_sur',
         cta_tipo: item.cta_tipo || 'reservar',
         cta_producto_id: item.cta_producto_id || '',
@@ -397,6 +399,16 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
                   />
                 </Field>
               </div>
+
+              <Field
+                label="Grupo de carrusel (opcional)"
+                hint="Poné la misma etiqueta en dos o más especiales para que se muestren JUNTOS como carrusel (ej: mundial). Vacío = se muestra solo, en su sección."
+              >
+                <input
+                  name="grupo" value={form.grupo} onChange={handleField}
+                  className="input-modal" placeholder="ej: mundial"
+                />
+              </Field>
 
               {/* Activo */}
               <label className="flex items-center gap-3 cursor-pointer select-none">
