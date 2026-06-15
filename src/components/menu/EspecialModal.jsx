@@ -279,11 +279,14 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
                 />
               </Field>
 
-              <Field label="Descripción">
+              <Field
+                label="Descripción"
+                hint="Apretá Enter para hacer saltos de línea — se ven igual en la web."
+              >
                 <textarea
                   name="descripcion" value={form.descripcion} onChange={handleField}
-                  className="input-modal resize-none" rows={3}
-                  placeholder="Texto que aparece bajo el título…"
+                  className="input-modal resize-y" rows={5}
+                  placeholder={"Texto que aparece bajo el título…\nPodés usar varias líneas."}
                 />
               </Field>
 
