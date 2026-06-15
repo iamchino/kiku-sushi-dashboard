@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, Trash2, Loader2, ImageIcon, Plus, ChevronUp, ChevronDown } from 'lucide-react'
+import { X, Trash2, Loader2, ImageIcon, Plus, ChevronUp, ChevronDown, CalendarCheck, ShoppingBag, Link2 } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 
 // Experiencias del form de reservas de la web (ReservationFormV2)
 const EXPERIENCIAS = [
@@ -11,6 +12,13 @@ const EXPERIENCIAS = [
   { id: 'carta_abierta',        label: 'Carta abierta' },
 ]
 
+// Acciones posibles del botón del especial en la web pública.
+const CTA_TIPOS = [
+  { id: 'reservar', label: 'Reservar', icon: CalendarCheck, hint: 'El botón lleva al formulario de reservas.' },
+  { id: 'pedir',    label: 'Pedir',    icon: ShoppingBag,   hint: 'El botón lleva a pedir online un producto de deli / take away.' },
+  { id: 'link',     label: 'Link',     icon: Link2,         hint: 'El botón lleva a una URL libre (WhatsApp, promo, etc.).' },
+]
+
 const EMPTY = {
   slug: '',
   titulo: '',
@@ -18,6 +26,10 @@ const EMPTY = {
   overline: '',
   numero: '',
   experiencia: 'umami_del_sur',
+  cta_tipo: 'reservar',
+  cta_producto_id: '',
+  cta_url: '',
+  cta_label: '',
   descripcion: '',
   precio: '',
   precio_nota: 'por persona',
@@ -43,7 +55,23 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState(null)
   const [dragOver, setDragOver] = useState(false)
+  const [productos, setProductos] = useState([])
   const fileInputRef = useRef(null)
+
+  // Productos de deli / take away para el botón "Pedir".
+  useEffect(() => {
+    if (!open) return
+    let alive = true
+    supabase
+      .from('menu_items')
+      .select('id, nombre, categoria, precio')
+      .eq('tipo', 'delivery')
+      .eq('activo', true)
+      .order('categoria', { ascending: true })
+      .order('orden', { ascending: true })
+      .then(({ data }) => { if (alive) setProductos(data || []) })
+    return () => { alive = false }
+  }, [open])
 
   useEffect(() => {
     if (item) {
@@ -54,6 +82,10 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
         overline: item.overline || '',
         numero: item.numero || '',
         experiencia: item.experiencia || 'umami_del_sur',
+        cta_tipo: item.cta_tipo || 'reservar',
+        cta_producto_id: item.cta_producto_id || '',
+        cta_url: item.cta_url || '',
+        cta_label: item.cta_label || '',
         descripcion: item.descripcion || '',
         precio: item.precio ?? '',
         precio_nota: item.precio_nota || '',
@@ -146,6 +178,16 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
       return
     }
 
+    // Validación de la acción del botón
+    if (form.cta_tipo === 'pedir' && !form.cta_producto_id) {
+      setErrorMsg('Elegí el producto de deli / take away al que lleva el botón "Pedir".')
+      return
+    }
+    if (form.cta_tipo === 'link' && !form.cta_url.trim()) {
+      setErrorMsg('Pegá la URL a la que lleva el botón.')
+      return
+    }
+
     const validPasos = pasos
       .filter(p => p.etiqueta.trim() && p.texto.trim())
       .map(p => ({ ...p, items: p.items.filter(it => it.roll.trim()) }))
@@ -153,7 +195,15 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
     setSaving(true)
     setErrorMsg(null)
 
-    const payload = { ...form, slug, pasos: validPasos }
+    // Limpiar los campos de CTA que no apliquen según el tipo elegido.
+    const ctaFields = {
+      cta_tipo: form.cta_tipo,
+      cta_producto_id: form.cta_tipo === 'pedir' ? form.cta_producto_id : null,
+      cta_url: form.cta_tipo === 'link' ? form.cta_url.trim() : null,
+      cta_label: form.cta_label.trim() || null,
+    }
+
+    const payload = { ...form, ...ctaFields, slug, pasos: validPasos }
     const err = await onSave(payload, imageFile)
     setSaving(false)
     if (err) {
@@ -235,13 +285,79 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
                 />
               </Field>
 
-              <Field label="Experiencia (link del botón Reservar)">
-                <select name="experiencia" value={form.experiencia} onChange={handleField} className="input-modal">
-                  {EXPERIENCIAS.map(x => (
-                    <option key={x.id} value={x.id} style={{ background: 'var(--bg-input)' }}>{x.label}</option>
+              {/* ── Acción del botón ── */}
+              <div className="space-y-2.5 rounded-xl p-3.5" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
+                <label className="block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  Acción del botón
+                </label>
+                <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                  {CTA_TIPOS.map(({ id, label, icon: Ic }) => (
+                    <button
+                      key={id} type="button"
+                      onClick={() => setForm(f => ({ ...f, cta_tipo: id }))}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-all"
+                      style={form.cta_tipo === id
+                        ? { background: 'var(--accent)', color: '#fff' }
+                        : { background: 'var(--bg-card)', color: 'var(--text-muted)' }}
+                    >
+                      <Ic size={13} />
+                      {label}
+                    </button>
                   ))}
-                </select>
-              </Field>
+                </div>
+                <p className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
+                  {CTA_TIPOS.find(c => c.id === form.cta_tipo)?.hint}
+                </p>
+
+                {/* Reservar → experiencia del form */}
+                {form.cta_tipo === 'reservar' && (
+                  <Field label="Experiencia (form de reservas)">
+                    <select name="experiencia" value={form.experiencia} onChange={handleField} className="input-modal">
+                      {EXPERIENCIAS.map(x => (
+                        <option key={x.id} value={x.id} style={{ background: 'var(--bg-input)' }}>{x.label}</option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
+
+                {/* Pedir → producto de deli / take away */}
+                {form.cta_tipo === 'pedir' && (
+                  <Field label="Producto de deli / take away">
+                    <select name="cta_producto_id" value={form.cta_producto_id} onChange={handleField} className="input-modal">
+                      <option value="" style={{ background: 'var(--bg-input)' }}>— Elegí un producto —</option>
+                      {productos.map(p => (
+                        <option key={p.id} value={p.id} style={{ background: 'var(--bg-input)' }}>
+                          {p.categoria ? `${p.categoria} · ` : ''}{p.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    {productos.length === 0 && (
+                      <p className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
+                        No hay productos de delivery activos. Cargalos en la tab "Delivery / Pedidos".
+                      </p>
+                    )}
+                  </Field>
+                )}
+
+                {/* Link → URL libre */}
+                {form.cta_tipo === 'link' && (
+                  <Field label="URL del botón" hint="Ej: https://wa.me/549... o https://...">
+                    <input
+                      name="cta_url" value={form.cta_url} onChange={handleField}
+                      className="input-modal text-xs" placeholder="https://..."
+                    />
+                  </Field>
+                )}
+
+                {/* Texto opcional del botón */}
+                <Field label="Texto del botón (opcional)">
+                  <input
+                    name="cta_label" value={form.cta_label} onChange={handleField}
+                    className="input-modal text-xs"
+                    placeholder={form.cta_tipo === 'reservar' ? 'Reservar' : form.cta_tipo === 'pedir' ? 'Pedir ahora' : 'Ver más'}
+                  />
+                </Field>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Precio">

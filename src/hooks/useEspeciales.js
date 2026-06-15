@@ -64,6 +64,13 @@ export function useEspeciales() {
       ? null
       : Number(payload.precio),
     orden: Number(payload.orden) || 0,
+    // Acción del botón (CTA). Coerción defensiva de strings vacíos → null.
+    ...(payload.cta_tipo !== undefined && {
+      cta_tipo: payload.cta_tipo || 'reservar',
+      cta_producto_id: payload.cta_producto_id || null,
+      cta_url: payload.cta_url || null,
+      cta_label: payload.cta_label || null,
+    }),
   })
 
   const createItem = async (payload) => {

@@ -217,7 +217,11 @@ export default function EspecialesTab() {
                     </p>
                     <p className="text-[10px] mt-1 flex items-center gap-1" style={{ color: 'var(--text-xmuted)' }}>
                       <LinkIcon size={9} />
-                      /reservar?experiencia={item.experiencia}
+                      {item.cta_tipo === 'pedir'
+                        ? 'Botón: Pedir (deli / take away)'
+                        : item.cta_tipo === 'link'
+                          ? `Botón: ${item.cta_url || 'link'}`
+                          : `/reservar?experiencia=${item.experiencia}`}
                     </p>
                   </div>
 
