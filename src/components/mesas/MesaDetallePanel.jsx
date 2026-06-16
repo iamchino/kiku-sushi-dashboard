@@ -111,6 +111,10 @@ export default function MesaDetallePanel({
         ...pedido,
         pedido_items: [{ nombre: nombreLibre.toUpperCase(), cantidad: cant, notas: entry?.nota || null }],
         _ronda_label: `${nombreLibre.toUpperCase()} x${cant} - REPE ${value}`,
+        // Banner estructurado para que la comanda diga claramente la repe.
+        _repe_num: value,
+        _repe_platos: cant,
+        _repe_nombre: nombreLibre.toUpperCase(),
       })
       if (!res?.ok) setActionErr('Ronda registrada, pero la comanda no se imprimió. Revisá la impresora.')
       setRondaNota('')

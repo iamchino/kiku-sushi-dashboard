@@ -204,6 +204,9 @@ export function buildComandaText(pedido, opts = {}) {
   const items = normalizeItems(pedido)
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
   const rondaLabel = pedido?._ronda_label || null
+  const repeNum = pedido?._repe_num || null
+  const repePlatos = pedido?._repe_platos || null
+  const repeNombre = pedido?._repe_nombre || null
   const destinationLabel = getComandaDestinationLabel(pedido)
 
   // Para que la fecha y hora se vean separadas como en el ticket de referencia
@@ -220,8 +223,17 @@ export function buildComandaText(pedido, opts = {}) {
   out.push(line(width, '='))
   out.push('')
 
-  // Ronda: se destaca cuando se reimprime solo una tanda adicional.
-  if (rondaLabel) {
+  // Repe (tenedor/sushi libre): banner grande y claro con el número de repe.
+  if (repeNum) {
+    out.push(line(width, '*'))
+    out.push(center(`>>> REPE #${repeNum} <<<`, width))
+    if (repeNombre && repePlatos) {
+      out.push(center(`${ascii(repeNombre)} x${repePlatos}`, width))
+    }
+    out.push(line(width, '*'))
+    out.push('')
+  } else if (rondaLabel) {
+    // Otras reimpresiones parciales (ronda adicional genérica).
     out.push(center(`*** ${ascii(rondaLabel).toUpperCase()} ***`, width))
     out.push('')
   }

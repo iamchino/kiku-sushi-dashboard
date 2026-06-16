@@ -183,6 +183,9 @@ function buildComandaHtml(pedido) {
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
   const items = normalizeItems(pedido)
   const rondaLabel = pedido?._ronda_label || null
+  const repeNum = pedido?._repe_num || null
+  const repePlatos = pedido?._repe_platos || null
+  const repeNombre = pedido?._repe_nombre || null
   const destinationLabel = getComandaDestinationLabel(pedido)
 
   const dt = pedido?.created_at ? new Date(pedido.created_at) : new Date()
@@ -212,7 +215,12 @@ function buildComandaHtml(pedido) {
       </style>
       <div class="cmd-header">ORDEN</div>
       <div class="cmd-destination">${escapeHtml(destinationLabel)}</div>
-      ${rondaLabel ? `<div class="center bold" style="background:#000;color:#fff;padding:4px 0;margin:6px 0;">${escapeHtml(rondaLabel)}</div>` : ''}
+      ${repeNum
+        ? `<div style="border:3px solid #000;border-radius:6px;padding:6px 4px;margin:8px 0;text-align:center;">
+             <div style="font-size:30px;font-weight:900;line-height:1;">REPE N° ${escapeHtml(repeNum)}</div>
+             ${repeNombre && repePlatos ? `<div style="font-size:18px;font-weight:800;margin-top:4px;">${escapeHtml(repeNombre)} x${escapeHtml(repePlatos)}</div>` : ''}
+           </div>`
+        : (rondaLabel ? `<div class="center bold" style="background:#000;color:#fff;padding:4px 0;margin:6px 0;">${escapeHtml(rondaLabel)}</div>` : '')}
       <div class="cmd-info"><span>Orden:</span><span class="bold">#${escapeHtml(shortId)}</span></div>
       <div class="cmd-info"><span>Fecha:</span><span>${escapeHtml(fecha)}</span></div>
       <div class="cmd-info"><span>Hora:</span><span>${escapeHtml(hora)}</span></div>
