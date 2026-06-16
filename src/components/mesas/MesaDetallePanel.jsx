@@ -53,6 +53,7 @@ export default function MesaDetallePanel({
   const [rondaBusy,     setRondaBusy]     = useState(false)
   const [rondaNota,     setRondaNota]     = useState('')
   const [showHistorial, setShowHistorial] = useState(false)
+  const [repesOpen,     setRepesOpen]     = useState(false)
   // Anti "ghost click": en teléfono el tap que abre la mesa puede disparar un
   // click fantasma sobre el fondo y cerrar la ventana al instante. Ignoramos
   // los cierres por fondo durante los primeros ms tras abrir.
@@ -110,11 +111,12 @@ export default function MesaDetallePanel({
       const res = await printComanda({
         ...pedido,
         pedido_items: [{ nombre: nombreLibre.toUpperCase(), cantidad: cant, notas: entry?.nota || null }],
-        _ronda_label: `${nombreLibre.toUpperCase()} x${cant} - REPE ${value}`,
+        _ronda_label: `x${value} REPE ${nombreLibre.toUpperCase()}`,
         // Banner estructurado para que la comanda diga claramente la repe.
         _repe_num: value,
         _repe_platos: cant,
         _repe_nombre: nombreLibre.toUpperCase(),
+        _repe_nota: entry?.nota || null,
       })
       if (!res?.ok) setActionErr('Ronda registrada, pero la comanda no se imprimió. Revisá la impresora.')
       setRondaNota('')
@@ -255,138 +257,153 @@ export default function MesaDetallePanel({
         </div>
       )}
 
-      {/* Contador interno de rondas de "libre" (tenedor libre / sushi libre) */}
+      {/* Contador de "repes" de libre — compacto y colapsable para no comerse
+          el espacio de los productos de la mesa. */}
       {pedido && !facturada && tieneLibre && (
-        <div className="flex-shrink-0 px-3 py-2.5 space-y-2"
+        <div className="flex-shrink-0 px-3 py-2 space-y-2"
           style={{ borderBottom: '1px solid var(--border)', background: 'rgba(251,191,36,0.06)' }}>
-          <div className="min-w-0">
-            <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{nombreLibre} · Repes</p>
-            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Cada repe imprime una comanda con los platos que prepara cocina</p>
-          </div>
 
-          {/* Platos por repe (la "x" que prepara la sushi woman) */}
-          <div className="flex items-center justify-between gap-2 rounded-xl px-3 py-2"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-            <div className="min-w-0">
-              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Platos por repe</p>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Sale en comanda como {nombreLibre} x{platosNum}</p>
-            </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => cambiarPlatos(platosNum - 1)}
-                disabled={rondaBusy || platosNum <= 1}
-                className="w-12 h-12 rounded-xl flex items-center justify-center disabled:opacity-40 active:scale-95 transition-transform"
-                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-                title="Menos platos"
-              >
-                <Minus size={20} />
-              </button>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={40}
-                value={platos}
-                onChange={e => setPlatos(e.target.value)}
-                onBlur={e => cambiarPlatos(e.target.value)}
-                className="w-14 h-12 rounded-xl text-center text-xl font-extrabold tabular-nums outline-none"
-                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: '#f59e0b' }}
+          {/* Barra compacta — siempre visible: contador + botón Repe */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setRepesOpen(v => !v)}
+              className="flex items-center gap-2 min-w-0 flex-1 text-left"
+              title={repesOpen ? 'Ocultar opciones' : 'Ver opciones de repe'}
+            >
+              <ChevronDown
+                size={18}
+                className="flex-shrink-0 transition-transform"
+                style={{ color: 'var(--text-muted)', transform: repesOpen ? 'rotate(180deg)' : 'none' }}
               />
-              <button
-                type="button"
-                onClick={() => cambiarPlatos(platosNum + 1)}
-                disabled={rondaBusy || platosNum >= 40}
-                className="w-12 h-12 rounded-xl flex items-center justify-center disabled:opacity-40 active:scale-95 transition-transform"
-                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-                title="Más platos"
-              >
-                <Plus size={20} />
-              </button>
-            </div>
-          </div>
-
-          <input
-            type="text"
-            value={rondaNota}
-            onChange={e => setRondaNota(e.target.value)}
-            placeholder="Nota para cocina (opcional): ej. 2 salmón, 1 sin palta…"
-            className="w-full rounded-xl px-3 py-3 text-sm outline-none"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-          />
-
-          {/* Sumar / corregir repe */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-baseline gap-1.5 min-w-0">
-              <span className="text-2xl font-extrabold tabular-nums" style={{ color: '#f59e0b' }}>x{rondasKiku}</span>
-              <span className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-                {rondasKiku === 1 ? 'repe' : 'repes'}{totalPlatosKiku > 0 ? ` · ${totalPlatosKiku} platos` : ''}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => handleRondaKiku(-1)}
-                disabled={rondaBusy || rondasKiku === 0}
-                className="w-12 h-12 rounded-xl flex items-center justify-center disabled:opacity-40 active:scale-95 transition-transform"
-                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-                title="Restar repe (no imprime)"
-              >
-                <Minus size={20} />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleRondaKiku(1)}
-                disabled={rondaBusy}
-                className="h-12 px-6 rounded-xl flex items-center justify-center gap-2 text-base font-extrabold text-white disabled:opacity-50 active:scale-95 transition-transform"
-                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
-                title="Sumar repe e imprimir comanda"
-              >
-                {rondaBusy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Repe
-              </button>
-            </div>
-          </div>
-
-          {/* Historial de repes — desplegable para no ocupar espacio */}
-          {rondasHistorial.length > 0 && (
-            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
-              <button
-                type="button"
-                onClick={() => setShowHistorial(v => !v)}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2"
-                style={{ color: 'var(--text-secondary)' }}
-              >
-                <span className="text-[11px] font-bold uppercase tracking-wider">
-                  Historial de repes ({rondasHistorial.length})
+              <span className="text-2xl font-extrabold tabular-nums flex-shrink-0" style={{ color: '#f59e0b' }}>x{rondasKiku}</span>
+              <span className="min-w-0">
+                <span className="block text-xs font-bold truncate" style={{ color: 'var(--text-primary)' }}>{nombreLibre} · Repes</span>
+                <span className="block text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
+                  {platosNum} platos/repe{totalPlatosKiku > 0 ? ` · ${totalPlatosKiku} en total` : ''}
                 </span>
-                <ChevronDown
-                  size={16}
-                  className="transition-transform"
-                  style={{ transform: showHistorial ? 'rotate(180deg)' : 'none' }}
-                />
-              </button>
-              {showHistorial && (
-                <div className="px-1.5 pb-1.5 max-h-44 overflow-y-auto space-y-1">
-                  {[...rondasHistorial].reverse().map((h, idx) => (
-                    <div key={idx} className="flex items-start gap-2 px-1.5 py-1 rounded" style={{ background: 'var(--bg-input)' }}>
-                      <span className="text-[11px] font-extrabold tabular-nums flex-shrink-0 px-1 rounded"
-                        style={{ color: '#f59e0b', background: 'rgba(251,191,36,0.12)' }}
-                        title={`Repe ${h.ronda}`}>
-                        #{h.ronda}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
-                          {nombreLibre} x{h.platos || 1}
-                        </p>
-                        {h.nota && <p className="text-[11px] leading-snug" style={{ color: 'var(--text-secondary)' }}>{h.nota}</p>}
-                        <p className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                          {h.at ? new Date(h.at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''}
-                          {h.mozo ? ` · ${h.mozo}` : ''}
-                          {!h.nota ? ' · sin nota' : ''}
-                        </p>
-                      </div>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRondaKiku(-1)}
+              disabled={rondaBusy || rondasKiku === 0}
+              className="w-11 h-11 rounded-xl flex items-center justify-center disabled:opacity-40 active:scale-95 transition-transform flex-shrink-0"
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+              title="Restar repe (no imprime)"
+            >
+              <Minus size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRondaKiku(1)}
+              disabled={rondaBusy}
+              className="h-11 px-5 rounded-xl flex items-center justify-center gap-1.5 text-base font-extrabold text-white disabled:opacity-50 active:scale-95 transition-transform flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+              title="Sumar repe e imprimir comanda"
+            >
+              {rondaBusy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Repe
+            </button>
+          </div>
+
+          {/* Opciones (desplegable): platos por repe + nota + historial */}
+          {repesOpen && (
+            <div className="space-y-2 pt-1">
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Cada repe imprime una comanda con los platos que prepara cocina</p>
+
+              {/* Platos por repe (la "x" que prepara la sushi woman) */}
+              <div className="flex items-center justify-between gap-2 rounded-xl px-3 py-2"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Platos por repe</p>
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Sale en comanda como {nombreLibre} x{platosNum}</p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => cambiarPlatos(platosNum - 1)}
+                    disabled={rondaBusy || platosNum <= 1}
+                    className="w-11 h-11 rounded-xl flex items-center justify-center disabled:opacity-40 active:scale-95 transition-transform"
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                    title="Menos platos"
+                  >
+                    <Minus size={18} />
+                  </button>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={40}
+                    value={platos}
+                    onChange={e => setPlatos(e.target.value)}
+                    onBlur={e => cambiarPlatos(e.target.value)}
+                    className="w-14 h-11 rounded-xl text-center text-xl font-extrabold tabular-nums outline-none"
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: '#f59e0b' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => cambiarPlatos(platosNum + 1)}
+                    disabled={rondaBusy || platosNum >= 40}
+                    className="w-11 h-11 rounded-xl flex items-center justify-center disabled:opacity-40 active:scale-95 transition-transform"
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                    title="Más platos"
+                  >
+                    <Plus size={18} />
+                  </button>
+                </div>
+              </div>
+
+              <input
+                type="text"
+                value={rondaNota}
+                onChange={e => setRondaNota(e.target.value)}
+                placeholder="Nota para cocina (opcional): ej. 2 salmón, 1 sin palta…"
+                className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              />
+
+              {/* Historial de repes — desplegable */}
+              {rondasHistorial.length > 0 && (
+                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowHistorial(v => !v)}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    <span className="text-[11px] font-bold uppercase tracking-wider">
+                      Historial de repes ({rondasHistorial.length})
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      className="transition-transform"
+                      style={{ transform: showHistorial ? 'rotate(180deg)' : 'none' }}
+                    />
+                  </button>
+                  {showHistorial && (
+                    <div className="px-1.5 pb-1.5 max-h-44 overflow-y-auto space-y-1">
+                      {[...rondasHistorial].reverse().map((h, idx) => (
+                        <div key={idx} className="flex items-start gap-2 px-1.5 py-1 rounded" style={{ background: 'var(--bg-input)' }}>
+                          <span className="text-[11px] font-extrabold tabular-nums flex-shrink-0 px-1 rounded"
+                            style={{ color: '#f59e0b', background: 'rgba(251,191,36,0.12)' }}
+                            title={`Repe ${h.ronda}`}>
+                            #{h.ronda}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
+                              {nombreLibre} x{h.platos || 1}
+                            </p>
+                            {h.nota && <p className="text-[11px] leading-snug" style={{ color: 'var(--text-secondary)' }}>{h.nota}</p>}
+                            <p className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                              {h.at ? new Date(h.at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                              {h.mozo ? ` · ${h.mozo}` : ''}
+                              {!h.nota ? ' · sin nota' : ''}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>

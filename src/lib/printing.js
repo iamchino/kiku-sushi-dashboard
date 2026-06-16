@@ -186,6 +186,7 @@ function buildComandaHtml(pedido) {
   const repeNum = pedido?._repe_num || null
   const repePlatos = pedido?._repe_platos || null
   const repeNombre = pedido?._repe_nombre || null
+  const repeNota = pedido?._repe_nota || null
   const destinationLabel = getComandaDestinationLabel(pedido)
 
   const dt = pedido?.created_at ? new Date(pedido.created_at) : new Date()
@@ -217,8 +218,10 @@ function buildComandaHtml(pedido) {
       <div class="cmd-destination">${escapeHtml(destinationLabel)}</div>
       ${repeNum
         ? `<div style="border:3px solid #000;border-radius:6px;padding:6px 4px;margin:8px 0;text-align:center;">
-             <div style="font-size:30px;font-weight:900;line-height:1;">REPE N° ${escapeHtml(repeNum)}</div>
-             ${repeNombre && repePlatos ? `<div style="font-size:18px;font-weight:800;margin-top:4px;">${escapeHtml(repeNombre)} x${escapeHtml(repePlatos)}</div>` : ''}
+             <div style="font-size:30px;font-weight:900;line-height:1.1;">x${escapeHtml(repeNum)} REPE</div>
+             ${repeNombre ? `<div style="font-size:18px;font-weight:800;margin-top:3px;">${escapeHtml(repeNombre)}</div>` : ''}
+             ${repePlatos ? `<div style="font-size:16px;font-weight:700;margin-top:2px;">${escapeHtml(repePlatos)} platos</div>` : ''}
+             ${repeNota ? `<div style="font-size:15px;font-weight:700;margin-top:4px;">Nota: ${escapeHtml(repeNota)}</div>` : ''}
            </div>`
         : (rondaLabel ? `<div class="center bold" style="background:#000;color:#fff;padding:4px 0;margin:6px 0;">${escapeHtml(rondaLabel)}</div>` : '')}
       <div class="cmd-info"><span>Orden:</span><span class="bold">#${escapeHtml(shortId)}</span></div>
@@ -226,9 +229,8 @@ function buildComandaHtml(pedido) {
       <div class="cmd-info"><span>Hora:</span><span>${escapeHtml(hora)}</span></div>
       ${pedido?.personas ? `<div class="cmd-info"><span>Personas:</span><span>${escapeHtml(pedido.personas)}</span></div>` : ''}
 
-      <div class="cmd-section">ITEMS</div>
-
-      ${rows || '<div class="center">Sin items</div>'}
+      ${repeNum ? '' : `<div class="cmd-section">ITEMS</div>
+      ${rows || '<div class="center">Sin items</div>'}`}
 
       ${pedido?.notas ? `<div class="cmd-section">NOTAS</div><div style="font-size:12px">${escapeHtml(pedido.notas)}</div>` : ''}
       <div class="cmd-foot"></div>

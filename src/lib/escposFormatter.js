@@ -207,6 +207,7 @@ export function buildComandaText(pedido, opts = {}) {
   const repeNum = pedido?._repe_num || null
   const repePlatos = pedido?._repe_platos || null
   const repeNombre = pedido?._repe_nombre || null
+  const repeNota = pedido?._repe_nota || null
   const destinationLabel = getComandaDestinationLabel(pedido)
 
   // Para que la fecha y hora se vean separadas como en el ticket de referencia
@@ -223,14 +224,15 @@ export function buildComandaText(pedido, opts = {}) {
   out.push(line(width, '='))
   out.push('')
 
-  // Repe (tenedor/sushi libre): banner grande y claro con el número de repe.
+  // Repe (tenedor/sushi libre): banner corto y claro. Líneas separadas para que
+  // NUNCA se corten en el papel (el número de repe arriba siempre visible).
   if (repeNum) {
     out.push(line(width, '*'))
-    out.push(center(`>>> REPE #${repeNum} <<<`, width))
-    if (repeNombre && repePlatos) {
-      out.push(center(`${ascii(repeNombre)} x${repePlatos}`, width))
-    }
+    out.push(center(`x${repeNum} REPE`, width))
+    if (repeNombre) out.push(center(ascii(repeNombre), width))
+    if (repePlatos) out.push(center(`${repePlatos} platos`, width))
     out.push(line(width, '*'))
+    if (repeNota) out.push(...wrap(`Nota: ${repeNota}`, width))
     out.push('')
   } else if (rondaLabel) {
     // Otras reimpresiones parciales (ronda adicional genérica).
@@ -244,22 +246,26 @@ export function buildComandaText(pedido, opts = {}) {
   out.push(row('Hora:', hora, width))
   if (pedido?.personas) out.push(row('Personas:', String(pedido.personas), width))
 
-  out.push('')
-  out.push(line(width))
-  out.push(center('ITEMS', width))
-  out.push(line(width))
-  out.push('')
+  // En las comandas de "repe" el banner de arriba ya muestra producto, platos y
+  // nota, así que NO repetimos la sección ITEMS (sería redundante).
+  if (!repeNum) {
+    out.push('')
+    out.push(line(width))
+    out.push(center('ITEMS', width))
+    out.push(line(width))
+    out.push('')
 
-  if (items.length === 0) {
-    out.push(center('Sin items', width))
-  } else {
-    for (const item of items) {
-      const head = `  ${item.cantidad}x ${ascii(item.nombre).toUpperCase()}`
-      out.push(...wrap(head, width))
-      if (item.notas) {
-        out.push(...wrap(`    Nota: ${item.notas}`, width))
+    if (items.length === 0) {
+      out.push(center('Sin items', width))
+    } else {
+      for (const item of items) {
+        const head = `  ${item.cantidad}x ${ascii(item.nombre).toUpperCase()}`
+        out.push(...wrap(head, width))
+        if (item.notas) {
+          out.push(...wrap(`    Nota: ${item.notas}`, width))
+        }
+        out.push('') // línea en blanco entre items para que respiren
       }
-      out.push('') // línea en blanco entre items para que respiren
     }
   }
 
