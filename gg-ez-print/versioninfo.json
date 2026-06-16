@@ -2,13 +2,13 @@
   "FixedFileInfo": {
     "FileVersion": {
       "Major": 1,
-      "Minor": 1,
+      "Minor": 0,
       "Patch": 0,
       "Build": 0
     },
     "ProductVersion": {
       "Major": 1,
-      "Minor": 1,
+      "Minor": 0,
       "Patch": 0,
       "Build": 0
     },
@@ -22,14 +22,14 @@
     "Comments": "Servidor de impresoras para WebSocket",
     "CompanyName": "Renzo Costarelli",
     "FileDescription": "GG EZ Print",
-    "FileVersion": "1.1.0.0",
+    "FileVersion": "1.0.0.0",
     "InternalName": "gg-ez-print",
     "LegalCopyright": "Copyright © 2026 Renzo Costarelli",
     "LegalTrademarks": "",
     "OriginalFilename": "gg-ez-print.exe",
     "PrivateBuild": "",
     "ProductName": "GG EZ Print",
-    "ProductVersion": "1.1.0",
+    "ProductVersion": "1.0.0",
     "SpecialBuild": ""
   },
   "VarFileInfo": {

@@ -141,10 +141,13 @@ export default function PrinterConfig() {
       if (kind === 'comanda') await printComanda(samplePedido)
       else if (kind === 'ticket') await printCustomerTicket(samplePedido, {})
       else if (kind === 'fiscal') await printFiscalTicket(samplePedido, {
-        punto_venta: 1, numero: 1, cae: '00000000000000', fecha_emision: new Date().toISOString().slice(0, 10),
+        tipo_cbte: 6, letra: 'B', punto_venta: 1, numero: 1,
+        cae: '70000000000000', cae_vto: new Date().toISOString().slice(0, 10),
+        fecha_emision: new Date().toISOString().slice(0, 10),
         importe_neto: 4545.45, importe_iva: 954.55, importe_total: 5500,
+        moneda: 'PES', cotizacion: 1, doc_tipo: 99, doc_nro: '0',
         receptor_nombre: 'Consumidor Final',
-      }, {})
+      }, { nombre_fantasia: 'KIKU SUSHI', cuit: '20111111112' })
       setTestState(s => ({ ...s, [kind]: 'ok' }))
       setTimeout(() => setTestState(s => ({ ...s, [kind]: 'idle' })), 1800)
     } catch (err) {

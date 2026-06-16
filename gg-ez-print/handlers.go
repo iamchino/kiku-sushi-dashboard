@@ -79,8 +79,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			handleListPrinters(conn)
 		case "print":
 			handlePrint(conn, msg.Data)
-		case "version":
-			handleVersion(conn)
 		}
 	}
 }
@@ -93,17 +91,6 @@ func handleListPrinters(conn *websocket.Conn) {
 	conn.WriteJSON(map[string]interface{}{
 		"type":     "printer_list",
 		"printers": printers,
-	})
-}
-
-// handleVersion responde con la versión del binario en ejecución. Sirve para
-// diagnosticar de forma remota qué versión corre cada local (sin tener que ir
-// físicamente). El dashboard puede mandar { action: "version" }.
-func handleVersion(conn *websocket.Conn) {
-	conn.WriteJSON(map[string]interface{}{
-		"type":         "version",
-		"version":      appVersion,
-		"qr_supported": true,
 	})
 }
 
