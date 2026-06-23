@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, LayoutGrid, Users, Printer } from 'lucide-react'
+import { ArrowLeft, LayoutGrid, Users, Printer, Truck } from 'lucide-react'
 import SalonEditor from '../components/mesas/SalonEditor'
 import MozosManager from '../components/mesas/MozosManager'
 import PrinterConfig from '../components/config/PrinterConfig'
+import EnvioConfig from '../components/config/EnvioConfig'
 
 const TABS = [
   { id: 'plano',       label: 'Plano del salón', Icon: LayoutGrid },
   { id: 'mozos',       label: 'Camareros',       Icon: Users },
   { id: 'impresoras',  label: 'Impresoras',      Icon: Printer },
+  { id: 'envio',       label: 'Envío',           Icon: Truck },
 ]
 
 /**
@@ -84,6 +86,14 @@ export default function ConfigSalonPage() {
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="max-w-3xl mx-auto">
             <PrinterConfig />
+          </div>
+        </div>
+      )}
+
+      {tab === 'envio' && (
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="max-w-3xl mx-auto">
+            <EnvioConfig />
           </div>
         </div>
       )}

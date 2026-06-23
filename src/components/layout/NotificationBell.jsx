@@ -27,6 +27,8 @@ function getNotifTarget(notif) {
       return refId ? `/pedidos?focus=${refId}` : '/pedidos'
     case 'reservas':
       return refId ? `/reservas?focus=${refId}` : '/reservas'
+    case 'lista_espera':
+      return '/reservas?espera=1'
     case 'stock':
       return refId ? `/stock?focus=${refId}` : '/stock'
     case 'mesas':

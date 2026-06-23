@@ -141,6 +141,18 @@ export function useReservas(options = {}) {
     return { pedidoId: data, error: rpcErr }
   }
 
+  /**
+   * Restablece una reserva cancelada (o no-show) por accidente: la vuelve a
+   * 'confirmada'. El backend revalida el cupo del día y rechaza si ya no hay lugar.
+   */
+  const reactivarReserva = async (id) => {
+    const { error: rpcErr } = await supabase.rpc('reactivar_reserva', {
+      p_reserva_id: id,
+    })
+    if (!rpcErr) fetchReservas()
+    return { error: rpcErr }
+  }
+
   const eliminarReserva = async (id) => {
     const { error: delErr } = await supabase.from('reservas').delete().eq('id', id)
     if (!delErr) fetchReservas()
@@ -160,6 +172,6 @@ export function useReservas(options = {}) {
     reservas, stats,
     loading, error,
     refetch: fetchReservas,
-    crearReserva, actualizarEstado, sentarReserva, eliminarReserva, updateReserva,
+    crearReserva, actualizarEstado, sentarReserva, reactivarReserva, eliminarReserva, updateReserva,
   }
 }

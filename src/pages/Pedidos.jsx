@@ -153,7 +153,7 @@ export default function PedidosPage() {
   const {
     pedidos, loading, error,
     createPedido, avanzarEstado, cerrarPedido, cancelarPedido, refetch,
-    reabrirPedido, agregarItemsPedido, updateItemCantidadPedido, removeItemPedido,
+    reabrirPedido, reactivarPedido, agregarItemsPedido, updateItemCantidadPedido, removeItemPedido,
     aplicarDescuentoOrden, quitarDescuentoOrden, actualizarEnvioPedido,
   } = usePedidos({
     mode: 'range',
@@ -463,6 +463,7 @@ export default function PedidosPage() {
         onAvanzar={avanzarEstado}
         onCancelar={cancelarPedido}
         onReabrir={reabrirPedido}
+        onReactivar={reactivarPedido}
         onAgregarItems={agregarItemsPedido}
         onUpdateItemCantidad={updateItemCantidadPedido}
         onRemoveItem={removeItemPedido}

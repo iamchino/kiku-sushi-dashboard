@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Plus, Edit2, Trash2, Eye, EyeOff,
-  RefreshCw, AlertCircle, Sparkles, Link as LinkIcon,
+  RefreshCw, AlertCircle, Sparkles, Link as LinkIcon, GripVertical,
 } from 'lucide-react'
 import { useEspeciales } from '../../hooks/useEspeciales'
 import EspecialModal from './EspecialModal'
@@ -24,11 +24,48 @@ export default function EspecialesTab() {
   const [deleting, setDeleting] = useState(false)
   const [notice, setNotice] = useState(null)
 
+  // Drag & drop (HTML5 nativo, sin librerías)
+  const [dragIndex, setDragIndex] = useState(null)
+  const [overIndex, setOverIndex] = useState(null)
+  const [canDrag, setCanDrag] = useState(false)
+
   const {
     items, stats, loading, error,
-    createItem, updateItem, deleteItem, toggleActive, uploadImage,
+    createItem, updateItem, deleteItem, toggleActive, reorderItems, uploadImage,
     refetch,
   } = useEspeciales()
+
+  const resetDrag = () => { setDragIndex(null); setOverIndex(null); setCanDrag(false) }
+
+  const handleDragStart = (e, idx) => {
+    setDragIndex(idx)
+    e.dataTransfer.effectAllowed = 'move'
+    // Algunos navegadores exigen setData para iniciar el arrastre.
+    try { e.dataTransfer.setData('text/plain', String(idx)) } catch { /* noop */ }
+  }
+
+  const handleDragOver = (e, idx) => {
+    if (dragIndex === null) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (idx !== overIndex) setOverIndex(idx)
+  }
+
+  const handleDrop = async (e, idx) => {
+    e.preventDefault()
+    const from = dragIndex
+    resetDrag()
+    if (from === null || from === idx) return
+
+    const reordered = [...items]
+    const [moved] = reordered.splice(from, 1)
+    reordered.splice(idx, 0, moved)
+
+    const err = await reorderItems(reordered)
+    if (err) {
+      setNotice({ type: 'error', text: `No se pudo guardar el orden: ${err.message || 'error desconocido'}` })
+    }
+  }
 
   const openNew = () => { setEditItem(null); setModalOpen(true) }
   const openEdit = (item) => { setEditItem(item); setModalOpen(true) }
@@ -177,18 +214,40 @@ export default function EspecialesTab() {
               return (
                 <div
                   key={item.id}
-                  className="flex items-center gap-4 px-5 py-4 transition-colors"
+                  draggable={canDrag}
+                  onDragStart={e => handleDragStart(e, idx)}
+                  onDragOver={e => handleDragOver(e, idx)}
+                  onDrop={e => handleDrop(e, idx)}
+                  onDragEnd={resetDrag}
+                  className="flex items-center gap-3 px-5 py-4 transition-colors"
                   style={{
-                    opacity: item.activo ? 1 : 0.5,
+                    opacity: dragIndex === idx ? 0.4 : (item.activo ? 1 : 0.5),
                     borderBottom: idx < items.length - 1 ? '1px solid var(--border)' : 'none',
+                    borderTop: overIndex === idx && dragIndex !== null && dragIndex !== idx
+                      ? '2px solid var(--accent)' : '2px solid transparent',
+                    background: overIndex === idx && dragIndex !== null && dragIndex !== idx
+                      ? 'var(--bg-hover)' : 'transparent',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  onMouseEnter={e => { if (dragIndex === null) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                  onMouseLeave={e => { if (dragIndex === null) e.currentTarget.style.background = 'transparent' }}
                 >
+                  {/* Asa de arrastre */}
+                  <button
+                    onMouseDown={() => setCanDrag(true)}
+                    onMouseUp={() => setCanDrag(false)}
+                    title="Arrastrar para reordenar"
+                    className="flex items-center justify-center flex-shrink-0 cursor-grab active:cursor-grabbing touch-none"
+                    style={{ color: 'var(--text-xmuted)' }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}
+                  >
+                    <GripVertical size={16} />
+                  </button>
+
                   {/* Thumbnail 4:5 */}
                   <div className="w-14 h-[70px] rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid var(--border)' }}>
                     {item.imagen_url
-                      ? <img src={item.imagen_url} alt={item.titulo} className="w-full h-full object-cover" />
+                      ? <img src={item.imagen_url} alt={item.titulo} draggable={false} className="w-full h-full object-cover" />
                       : <div className="w-full h-full flex items-center justify-center text-lg" style={{ background: 'var(--bg-input)' }}>✨</div>
                     }
                   </div>
@@ -273,8 +332,9 @@ export default function EspecialesTab() {
       {/* Tip */}
       {!loading && items.length > 0 && (
         <p className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>
-          💡 Los cambios se reflejan en la web pública al instante, sin redeploy. El ojito
-          oculta/muestra un especial sin borrarlo (ideal para los que rotan por temporada).
+          💡 Arrastrá desde el ⠿ para reordenar: ese orden es el que se ve en la web pública,
+          al instante y sin redeploy. El ojito oculta/muestra un especial sin borrarlo (ideal
+          para los que rotan por temporada).
         </p>
       )}
 

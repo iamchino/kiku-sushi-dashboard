@@ -204,7 +204,7 @@ export function usePedidos(options = {}) {
     canal, mesa, notas, items, descuento_porcentaje = 0,
     cliente_nombre = null, cliente_telefono = null, cliente_direccion = null,
     afecta_caja = true, medio_pago = null, fecha = null, cerrar = false,
-    costo_envio = 0,
+    costo_envio = 0, envio_zona = null,
   }) => {
     const normalizedItems = normalizePedidoItems(items)
     const descuento = clampDiscount(descuento_porcentaje)
@@ -250,10 +250,20 @@ export function usePedidos(options = {}) {
         const { data: cur } = await supabase
           .from('pedidos').select('total').eq('id', pedidoId).single()
         const nuevoTotal = Number(cur?.total || 0) + costoEnvio
+        const envioPatch = { costo_envio: costoEnvio, total: nuevoTotal }
+        if (envio_zona) envioPatch.envio_zona = envio_zona
         let { error: envErr } = await supabase
           .from('pedidos')
-          .update({ costo_envio: costoEnvio, total: nuevoTotal })
+          .update(envioPatch)
           .eq('id', pedidoId)
+        // Si falta la columna envio_zona (migración no aplicada), reintentamos sin ella.
+        if (envErr && /envio_zona/i.test(envErr.message || '')) {
+          const retry = await supabase
+            .from('pedidos')
+            .update({ costo_envio: costoEnvio, total: nuevoTotal })
+            .eq('id', pedidoId)
+          envErr = retry.error
+        }
         // Si falta la columna costo_envio (migración no aplicada), al menos
         // sumamos el envío al total para no perder el cobro.
         if (envErr && /costo_envio/i.test(envErr.message || '')) {
@@ -584,6 +594,45 @@ export function usePedidos(options = {}) {
     return null
   }
 
+  /**
+   * Restablece un pedido CANCELADO por accidente: lo vuelve a 'pendiente'.
+   * Bloqueado si el pedido ya tiene un comprobante fiscal autorizado.
+   */
+  const reactivarPedido = async (id) => {
+    const pedido = pedidos.find(p => p.id === id)
+    if (pedido && getAuthorizedComprobante(pedido)) {
+      return new Error('No se puede restablecer un pedido ya facturado.')
+    }
+
+    const { error: rpcErr } = await supabase.rpc('reactivar_pedido', { p_pedido_id: id })
+
+    if (rpcErr && !isMissingRpcFunction(rpcErr)) {
+      // La RPC existe pero rechazó (facturado / no cancelado / permisos).
+      return rpcErr
+    }
+
+    if (rpcErr && isMissingRpcFunction(rpcErr)) {
+      // Fallback: si la RPC no está aplicada, UPDATE directo (respeta RLS).
+      let { error: updateError } = await supabase
+        .from('pedidos')
+        .update({ estado: 'pendiente', cerrada_at: null })
+        .eq('id', id)
+
+      if (updateError && /cerrada_at/i.test(updateError.message || '')) {
+        const retry = await supabase
+          .from('pedidos')
+          .update({ estado: 'pendiente' })
+          .eq('id', id)
+        updateError = retry.error
+      }
+
+      if (updateError) return updateError
+    }
+
+    fetchPedidos()
+    return null
+  }
+
   // Recalcula el total del pedido a partir de sus items, su descuento y su envío.
   // envioOverride permite forzar un envío nuevo (al editarlo) sin esperar al estado.
   const recalcularTotalPedido = async (pedidoId, envioOverride) => {
@@ -604,9 +653,17 @@ export function usePedidos(options = {}) {
   }
 
   // Setea el costo de envío de un pedido existente y recalcula el total.
-  const actualizarEnvioPedido = async (pedidoId, costoEnvio) => {
+  // `zona` (opcional) deja registrada la zona elegida.
+  const actualizarEnvioPedido = async (pedidoId, costoEnvio, zona = null) => {
     const envio = Math.max(0, Math.round(parseCurrencyValue(costoEnvio)))
-    let { error } = await supabase.from('pedidos').update({ costo_envio: envio }).eq('id', pedidoId)
+    const patch = { costo_envio: envio }
+    if (zona !== undefined) patch.envio_zona = zona || null
+    let { error } = await supabase.from('pedidos').update(patch).eq('id', pedidoId)
+    // Si falta envio_zona (migración no aplicada), reintentamos solo con costo_envio.
+    if (error && /envio_zona/i.test(error.message || '')) {
+      const retry = await supabase.from('pedidos').update({ costo_envio: envio }).eq('id', pedidoId)
+      error = retry.error
+    }
     // Si falta la columna costo_envio (migración no aplicada), igual recalculamos
     // el total con el envío para no perder el cobro.
     if (error && !/costo_envio/i.test(error.message || '')) return error
@@ -698,7 +755,7 @@ export function usePedidos(options = {}) {
     pedidos, grouped, stats,
     loading, error,
     createPedido, avanzarEstado, cerrarPedido, cancelarPedido,
-    reabrirPedido, agregarItemsPedido, updateItemCantidadPedido, removeItemPedido,
+    reabrirPedido, reactivarPedido, agregarItemsPedido, updateItemCantidadPedido, removeItemPedido,
     aplicarDescuentoOrden, quitarDescuentoOrden, actualizarEnvioPedido,
     refetch: fetchPedidos,
     isFacturado,

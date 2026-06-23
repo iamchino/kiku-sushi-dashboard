@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   X, Calendar, Clock, Users, Phone, Mail, FileText,
   Loader2, AlertCircle, Check, XCircle, UserMinus, Utensils,
-  Salad, Accessibility, Sparkles,
+  Salad, Accessibility, Sparkles, RotateCcw,
 } from 'lucide-react'
 import {
   RESERVA_ESTADO_LABEL, RESERVA_ESTADO_COLOR,
@@ -26,7 +26,7 @@ const ORIGEN_META = {
  */
 export default function ReservaDetalleModal({
   reserva, mesasLibres = [],
-  onClose, onActualizarEstado, onSentar, onEliminar,
+  onClose, onActualizarEstado, onSentar, onEliminar, onReactivar,
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -42,6 +42,7 @@ export default function ReservaDetalleModal({
   const puedeSentar    = ['pendiente', 'confirmada'].includes(reserva.estado)
   const puedeMarcarNo  = ['pendiente', 'confirmada'].includes(reserva.estado)
   const puedeCancelar  = !['cancelada', 'sentada'].includes(reserva.estado)
+  const puedeReactivar = ['cancelada', 'no_show'].includes(reserva.estado)
 
   const handleEstado = async (nuevoEstado) => {
     setBusy(true); setError(null)
@@ -57,6 +58,14 @@ export default function ReservaDetalleModal({
     const { error: err } = await onSentar?.(reserva.id, mesaSeleccionada) || {}
     setBusy(false)
     if (err) { setError(err.message || 'Error al sentar la reserva'); return }
+    onClose?.()
+  }
+
+  const handleReactivar = async () => {
+    setBusy(true); setError(null)
+    const { error: err } = await onReactivar?.(reserva.id) || {}
+    setBusy(false)
+    if (err) { setError(err.message || 'No se pudo restablecer la reserva'); return }
     onClose?.()
   }
 
@@ -270,6 +279,19 @@ export default function ReservaDetalleModal({
             </div>
           ) : (
             <>
+              {puedeReactivar && (
+                <button
+                  type="button"
+                  onClick={handleReactivar}
+                  disabled={busy}
+                  className="w-full py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}
+                >
+                  {busy ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                  Restablecer reserva
+                </button>
+              )}
+
               {puedeSentar && (
                 <button
                   type="button"

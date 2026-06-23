@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, RefreshCw, Search, Calendar, ChevronRight, Users, Clock } from 'lucide-react'
+import { Plus, RefreshCw, Search, Calendar, ChevronRight, Users, Clock, Hourglass } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
   useReservas, RESERVA_ESTADO_LABEL, RESERVA_ESTADO_COLOR,
   TIPO_EXPERIENCIA_OPCIONES, TIPO_EXPERIENCIA_LABEL, TIPO_EXPERIENCIA_COLOR,
 } from '../hooks/useReservas'
+import { useListaEspera } from '../hooks/useListaEspera'
 import { normalizeSearch } from '../utils/normalize'
 import NuevaReservaModal from '../components/reservas/NuevaReservaModal'
 import ReservaDetalleModal from '../components/reservas/ReservaDetalleModal'
+import ListaEsperaPanel from '../components/reservas/ListaEsperaPanel'
 
 const ORIGEN_META = {
   web:       { label: 'Web',       color: '#4f8ef7' },
@@ -70,6 +72,10 @@ export default function ReservasPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const focusId = searchParams.get('focus')
 
+  // Vista: reservas | espera (la notificación de lista de espera entra con ?espera=1)
+  const [vista, setVista] = useState(searchParams.get('espera') ? 'espera' : 'reservas')
+  const listaEspera = useListaEspera()
+
   const { from, to } = useMemo(
     () => rangoToDates(rango, customFrom, customTo),
     [rango, customFrom, customTo]
@@ -77,7 +83,7 @@ export default function ReservasPage() {
 
   const {
     reservas, stats, loading, error,
-    crearReserva, actualizarEstado, sentarReserva, eliminarReserva, refetch,
+    crearReserva, actualizarEstado, sentarReserva, reactivarReserva, eliminarReserva, refetch,
   } = useReservas({ mode: 'range', dateFrom: from, dateTo: to })
 
   // Si venimos de una notificación con ?focus=<id>, abrimos automáticamente
@@ -150,13 +156,46 @@ export default function ReservasPage() {
             Reservas
           </h1>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            Reservas del salón · {stats.total} en el rango
+            {vista === 'reservas'
+              ? `Reservas del salón · ${stats.total} en el rango`
+              : `Lista de espera · ${listaEspera.stats.total} anotados`}
           </p>
+
+          {/* Switch de vista */}
+          <div className="inline-flex items-center gap-1 mt-2 p-0.5 rounded-lg" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
+            <button
+              type="button"
+              onClick={() => setVista('reservas')}
+              className="px-3 py-1 rounded-md text-xs font-medium transition-colors"
+              style={vista === 'reservas'
+                ? { background: 'var(--bg-card)', color: 'var(--accent-lift)' }
+                : { background: 'transparent', color: 'var(--text-muted)' }}
+            >
+              Reservas
+            </button>
+            <button
+              type="button"
+              onClick={() => setVista('espera')}
+              className="px-3 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5"
+              style={vista === 'espera'
+                ? { background: 'var(--bg-card)', color: 'var(--accent-lift)' }
+                : { background: 'transparent', color: 'var(--text-muted)' }}
+            >
+              <Hourglass size={12} />
+              Lista de espera
+              {listaEspera.pendientes > 0 && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>
+                  {listaEspera.pendientes}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={refetch}
+            onClick={vista === 'reservas' ? refetch : listaEspera.refetch}
             disabled={loading}
             className="p-2 rounded-lg transition-all disabled:opacity-50"
             style={{ border: '1px solid var(--border)' }}
@@ -165,20 +204,27 @@ export default function ReservasPage() {
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} style={{ color: 'var(--text-muted)' }} />
           </button>
 
-          <button
-            onClick={() => setNuevaOpen(true)}
-            className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
-            style={{
-              background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-              boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)',
-            }}
-          >
-            <Plus size={15} />
-            <span className="hidden sm:inline">Nueva reserva</span>
-            <span className="sm:hidden">Nueva</span>
-          </button>
+          {vista === 'reservas' && (
+            <button
+              onClick={() => setNuevaOpen(true)}
+              className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
+              style={{
+                background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
+                boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)',
+              }}
+            >
+              <Plus size={15} />
+              <span className="hidden sm:inline">Nueva reserva</span>
+              <span className="sm:hidden">Nueva</span>
+            </button>
+          )}
         </div>
       </div>
+
+      {vista === 'espera' && <ListaEsperaPanel controller={listaEspera} />}
+
+      {vista === 'reservas' && (
+      <>
 
       {/* Filtros */}
       <div
@@ -309,6 +355,9 @@ export default function ReservasPage() {
         )}
       </div>
 
+      </>
+      )}
+
       <NuevaReservaModal
         open={nuevaOpen}
         onClose={() => setNuevaOpen(false)}
@@ -321,6 +370,7 @@ export default function ReservasPage() {
         onClose={() => { setSelected(null); setMesasLibres([]) }}
         onActualizarEstado={actualizarEstado}
         onSentar={sentarReserva}
+        onReactivar={reactivarReserva}
         onEliminar={eliminarReserva}
       />
     </div>

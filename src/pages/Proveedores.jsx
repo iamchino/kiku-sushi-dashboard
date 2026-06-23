@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Search, Edit2, Trash2, X, RefreshCw, Truck, Phone, CreditCard, FileText, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, X, RefreshCw, Truck, Phone, CreditCard, FileText, AlertTriangle, ChevronDown, ChevronUp, Calendar } from 'lucide-react'
 import { useProveedores } from '../hooks/useProveedores'
 
 const EMPTY_FORM = {
@@ -9,6 +9,7 @@ const EMPTY_FORM = {
   cbu: '',
   alias: '',
   telefono: '',
+  fecha_pago: '',
   notas: '',
 }
 
@@ -16,7 +17,7 @@ const EMPTY_FORM = {
 // IMPORTANTE: este componente NO debe definirse dentro de ProveedorModal.
 // Si se define adentro, React lo recrea en cada tecla, remonta el <input> y se
 // pierde el foco (había que volver a hacer clic tras escribir un solo carácter).
-function Field({ label, value, onChange, placeholder, icon: Icon, inputMode, maxLength, autoCapitalize = 'none' }) {
+function Field({ label, value, onChange, placeholder, icon: Icon, inputMode, maxLength, autoCapitalize = 'none', type = 'text' }) {
   return (
     <div>
       <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
@@ -28,7 +29,7 @@ function Field({ label, value, onChange, placeholder, icon: Icon, inputMode, max
             style={{ color: 'var(--text-xmuted)' }} />
         )}
         <input
-          type="text"
+          type={type}
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
@@ -56,6 +57,13 @@ function Field({ label, value, onChange, placeholder, icon: Icon, inputMode, max
 // Solo dígitos (para CBU)
 const onlyDigits = (s) => s.replace(/\D/g, '')
 
+// Formatea 'YYYY-MM-DD' a 'DD/MM/YYYY' sin problemas de zona horaria
+const formatFecha = (s) => {
+  if (!s) return ''
+  const [y, m, d] = s.slice(0, 10).split('-')
+  return (y && m && d) ? `${d}/${m}/${y}` : s
+}
+
 // ── Modal alta/edición ────────────────────────────────────────────────────────
 function ProveedorModal({ initial, onClose, onSave }) {
   const [form, setForm]   = useState(initial || EMPTY_FORM)
@@ -76,6 +84,8 @@ function ProveedorModal({ initial, onClose, onSave }) {
     const payload = Object.fromEntries(
       Object.entries(form).map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v])
     )
+    // Postgres rechaza '' en columnas date: enviar null si está vacío
+    if (!payload.fecha_pago) payload.fecha_pago = null
     try {
       await onSave(payload)
       onClose()
@@ -137,8 +147,12 @@ function ProveedorModal({ initial, onClose, onSave }) {
               placeholder="mi.alias.banco" />
           </div>
 
-          <Field label="Teléfono" value={form.telefono} onChange={v => set('telefono', v)}
-            placeholder="+54 9 11 1234-5678" icon={Phone} inputMode="tel" />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Teléfono" value={form.telefono} onChange={v => set('telefono', v)}
+              placeholder="+54 9 11 1234-5678" icon={Phone} inputMode="tel" />
+            <Field label="Fecha de pago" value={form.fecha_pago || ''} onChange={v => set('fecha_pago', v)}
+              type="date" icon={Calendar} />
+          </div>
 
           <div>
             <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
@@ -209,6 +223,11 @@ function ProveedorCard({ prov, onEdit, onDelete }) {
                   <Phone size={9} /> {prov.telefono}
                 </span>
               )}
+              {prov.fecha_pago && (
+                <span className="text-[11px] flex items-center gap-1 font-medium" style={{ color: 'var(--accent-lift)' }}>
+                  <Calendar size={9} /> Pago {formatFecha(prov.fecha_pago)}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -246,6 +265,7 @@ function ProveedorCard({ prov, onEdit, onDelete }) {
               { label: 'CBU',            value: prov.cbu        },
               { label: 'Alias',          value: prov.alias      },
               { label: 'Teléfono',       value: prov.telefono   },
+              { label: 'Fecha de pago',  value: formatFecha(prov.fecha_pago) },
             ].map(({ label, value }) => value ? (
               <div key={label}>
                 <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: 'var(--text-muted)' }}>{label}</p>

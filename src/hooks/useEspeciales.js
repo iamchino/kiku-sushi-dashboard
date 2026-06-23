@@ -117,6 +117,28 @@ export function useEspeciales() {
     return { ok: true, error: null }
   }
 
+  // Reordena los especiales: recibe el array YA ordenado y persiste la columna
+  // `orden` (0,1,2…). Actualiza el estado local de inmediato (optimista) para que
+  // el arrastre se sienta instantáneo; si Supabase falla, revierte y devuelve el error.
+  const reorderItems = async (orderedItems) => {
+    const previous = items
+    // Optimista: reflejamos el nuevo orden + reasignamos `orden` localmente.
+    const reindexed = orderedItems.map((it, i) => ({ ...it, orden: i }))
+    setItems(reindexed)
+
+    const results = await Promise.all(
+      reindexed.map((it) =>
+        supabase.from('especiales').update({ orden: it.orden }).eq('id', it.id)
+      )
+    )
+    const firstError = results.find((r) => r.error)?.error
+    if (firstError) {
+      setItems(previous) // revertir
+      return firstError
+    }
+    return null
+  }
+
   const toggleActive = async (id, currentValue) => {
     const { error } = await supabase
       .from('especiales')
@@ -152,7 +174,7 @@ export function useEspeciales() {
 
   return {
     items, stats, loading, error,
-    createItem, updateItem, deleteItem, toggleActive, uploadImage,
+    createItem, updateItem, deleteItem, toggleActive, reorderItems, uploadImage,
     refetch: fetchItems,
   }
 }

@@ -288,7 +288,9 @@ export function buildCustomerTicketText(pedido, config, opts = {}) {
 
   const { subtotal, descuentoMonto } = applyStoredDiscount(items, pedido)
   const envio = Number(pedido?.costo_envio || 0)
-  const total = Number(pedido?.total ?? Math.max(0, subtotal - descuentoMonto + envio))
+  // El total se recalcula SIEMPRE a partir de los items + descuento + envío para
+  // que el descuento se refleje aunque pedido.total haya quedado desactualizado.
+  const total = Math.max(0, subtotal - descuentoMonto) + envio
 
   const out = []
   out.push(center((config?.nombre_fantasia || 'KIKU SUSHI').toUpperCase(), width))
@@ -329,7 +331,7 @@ export function buildCustomerTicketText(pedido, config, opts = {}) {
     out.push(row('Subtotal', `$${formatMoney(subtotal)}`, width))
   }
   if (descuentoMonto > 0) out.push(row('Descuento', `-$${formatMoney(descuentoMonto)}`, width))
-  if (envio > 0) out.push(row('Envio', `$${formatMoney(envio)}`, width))
+  if (envio > 0) out.push(row(pedido?.envio_zona ? `Envio (${pedido.envio_zona})` : 'Envio', `$${formatMoney(envio)}`, width))
   out.push(row('TOTAL', `$${formatMoney(total)}`, width))
   const medioLabelCustomer = medioPagoLabel(opts.medioPago ?? pedido?.medio_pago)
   if (medioLabelCustomer) out.push(row('Pago', medioLabelCustomer, width))
@@ -403,13 +405,13 @@ export function buildFiscalTicketText(pedido, comprobante, config, opts = {}) {
     out.push(row('Subtotal', `$${formatMoney(subtotal)}`, width))
   }
   if (descuentoMonto > 0) out.push(row('Descuento', `-$${formatMoney(descuentoMonto)}`, width))
-  if (envio > 0) out.push(row('Envio', `$${formatMoney(envio)}`, width))
+  if (envio > 0) out.push(row(pedido?.envio_zona ? `Envio (${pedido.envio_zona})` : 'Envio', `$${formatMoney(envio)}`, width))
   // Factura A: desglose neto + IVA. Factura B/C: precio incluye IVA, no se desglosa.
   if (comprobante?.letra === 'A') {
     out.push(row('Neto gravado', `$${formatMoney(comprobante?.importe_neto)}`, width))
     out.push(row('IVA 21%', `$${formatMoney(comprobante?.importe_iva)}`, width))
   }
-  out.push(row('TOTAL', `$${formatMoney(comprobante?.importe_total || pedido?.total)}`, width))
+  out.push(row('TOTAL', `$${formatMoney(comprobante?.importe_total || (Math.max(0, subtotal - descuentoMonto) + envio))}`, width))
   const medioLabelFiscal = medioPagoLabel(opts.medioPago ?? pedido?.medio_pago)
   if (medioLabelFiscal) out.push(row('Forma de pago', medioLabelFiscal, width))
 

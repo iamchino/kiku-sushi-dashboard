@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { normalizeSearch } from '../../utils/normalize'
 import { printComanda } from '../../lib/printing'
 import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../../lib/orders'
+import { fetchEnvioConfig, costoDeZona } from '../../lib/envio'
 
 // El canal "salón" se gestiona ahora desde /mesas (mesa abierta → pedido vinculado).
 // Solo dejamos canales de takeaway / delivery aquí.
@@ -19,6 +20,9 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
   const [notas,   setNotas]   = useState('')
   const [descuentoPorcentaje, setDescuentoPorcentaje] = useState('')
   const [costoEnvio, setCostoEnvio] = useState('')
+  const [baseEnvio, setBaseEnvio] = useState(0)
+  const [zonas, setZonas] = useState([])
+  const [zonaSel, setZonaSel] = useState('') // id de zona elegida ('' = manual)
   const [clienteNombre,    setClienteNombre]    = useState('')
   const [clienteTelefono,  setClienteTelefono]  = useState('')
   const [clienteDireccion, setClienteDireccion] = useState('')
@@ -34,6 +38,29 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
   const [yaCobrada, setYaCobrada] = useState(false)
   const [fechaPedido, setFechaPedido] = useState('')
   const [medioPago, setMedioPago] = useState('efectivo')
+
+  // Carga la config de envío (base + zonas) al abrir. Si es delivery y todavía
+  // no se cargó un costo, lo prellena con la base.
+  useEffect(() => {
+    if (!open) return
+    let activo = true
+    fetchEnvioConfig().then(({ base, zonas: zs }) => {
+      if (!activo) return
+      setBaseEnvio(base)
+      setZonas(zs)
+      setCostoEnvio(prev => (canal === 'delivery' && !prev) ? String(base) : prev)
+    })
+    return () => { activo = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  // Cuando se elige una zona, el envío = base + recargo de la zona.
+  const handleZonaChange = (id) => {
+    setZonaSel(id)
+    if (!id) return
+    const zona = zonas.find(z => z.id === id)
+    if (zona) setCostoEnvio(String(costoDeZona(baseEnvio, zona)))
+  }
 
   // Fetch menu items con variantes on open
   useEffect(() => {
@@ -167,6 +194,9 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
       notas,
       descuento_porcentaje: descuento,
       costo_envio: envio,
+      envio_zona: canal === 'delivery' && zonaSel
+        ? (zonas.find(z => z.id === zonaSel)?.nombre || null)
+        : null,
       cliente_nombre:    clienteNombre.trim()    || null,
       cliente_telefono:  clienteTelefono.trim()  || null,
       cliente_direccion: clienteDireccion.trim() || null,
@@ -325,6 +355,26 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
                   />
                 </div>
 
+                {/* Zona de envío (solo delivery): autocompleta el costo (base + recargo). */}
+                {canal === 'delivery' && zonas.length > 0 && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Zona de envío</label>
+                    <select
+                      value={zonaSel}
+                      onChange={e => handleZonaChange(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+                      style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                    >
+                      <option value="">Manual / sin zona (base ${baseEnvio.toLocaleString('es-AR')})</option>
+                      {zonas.map(z => (
+                        <option key={z.id} value={z.id}>
+                          {z.nombre} — ${costoDeZona(baseEnvio, z).toLocaleString('es-AR')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 {/* Costo de envío (solo delivery). Se suma al total y sale en el ticket. */}
                 {canal === 'delivery' && (
                   <div className="space-y-1.5">
@@ -335,7 +385,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
                         type="text"
                         inputMode="numeric"
                         value={costoEnvio}
-                        onChange={e => setCostoEnvio(e.target.value)}
+                        onChange={e => { setCostoEnvio(e.target.value); setZonaSel('') }}
                         className="w-full pl-7 pr-3 py-2.5 rounded-lg text-sm outline-none"
                         style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                         placeholder="0"

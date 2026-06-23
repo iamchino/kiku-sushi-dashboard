@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom'
 import {
   X, Printer, Ban, Receipt, User, Phone, MapPin,
   Clock, Tag, ExternalLink, AlertCircle, Loader2, Utensils, Truck,
-  ShoppingBag, CheckCircle2, Lock, Unlock, Plus, Minus, Trash2, Banknote, Gift,
+  ShoppingBag, CheckCircle2, Lock, Unlock, Plus, Minus, Trash2, Banknote, Gift, RotateCcw,
 } from 'lucide-react'
 import { getEstadoSimple, getTipoPedido } from '../../hooks/usePedidos'
 import { useFacturacion } from '../../hooks/useFacturacion'
 import { printCustomerTicket, formatMoney } from '../../lib/printing'
 import { MEDIO_PAGO_LABELS } from '../../lib/escposFormatter'
 import { applyStoredDiscount, parseCurrencyValue } from '../../lib/orders'
+import { fetchEnvioConfig, costoDeZona } from '../../lib/envio'
 import { getAuthorizedComprobante } from '../../lib/fiscal'
 import FacturarModal from '../caja/FacturarModal'
 import AgregarItemsModal from '../mesas/AgregarItemsModal'
@@ -57,7 +58,7 @@ function formatFechaHora(value) {
  */
 export default function PedidoDetalleModal({
   pedido, onClose, onCerrarClick, onCancelar,
-  onReabrir, onAgregarItems, onUpdateItemCantidad, onRemoveItem,
+  onReabrir, onReactivar, onAgregarItems, onUpdateItemCantidad, onRemoveItem,
   onAplicarDescuento, onQuitarDescuento, onSetEnvio,
 }) {
   const [busy, setBusy] = useState(false)
@@ -70,6 +71,9 @@ export default function PedidoDetalleModal({
   const [envioOpen, setEnvioOpen] = useState(false)
   const [envioInput, setEnvioInput] = useState('')
   const [envioBusy, setEnvioBusy] = useState(false)
+  const [baseEnvio, setBaseEnvio] = useState(0)
+  const [zonasEnvio, setZonasEnvio] = useState([])
+  const [zonaSel, setZonaSel] = useState('')
   const { config, arcaReady, facturarEImprimir, imprimirTicket } = useFacturacion()
 
   useEffect(() => {
@@ -84,6 +88,17 @@ export default function PedidoDetalleModal({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [pedido, onClose, zoomImg])
+
+  // Carga la config de envío (base + zonas) para el selector de zona.
+  useEffect(() => {
+    let activo = true
+    fetchEnvioConfig().then(({ base, zonas }) => {
+      if (!activo) return
+      setBaseEnvio(base)
+      setZonasEnvio(zonas)
+    })
+    return () => { activo = false }
+  }, [])
 
   const tipo       = useMemo(() => pedido ? getTipoPedido(pedido) : null, [pedido])
   const simple     = useMemo(() => pedido ? getEstadoSimple(pedido) : null, [pedido])
@@ -108,6 +123,8 @@ export default function PedidoDetalleModal({
   const editable      = simple === 'activa' && !facturada
   // Reabrir: pedidos completados (entregados) que todavía no se facturaron.
   const puedeReabrir  = simple === 'completada' && !facturada
+  // Restablecer: pedidos cancelados por accidente (no facturados).
+  const puedeReactivar = simple === 'cancelada' && !facturada
 
   const handleReabrir = async () => {
     setBusy(true); setError(null)
@@ -115,6 +132,15 @@ export default function PedidoDetalleModal({
     setBusy(false)
     if (err) { setError(err.message || 'No se pudo reabrir el pedido'); return }
     // El pedido queda activo; el modal se sincroniza solo (realtime en la página).
+  }
+
+  const handleReactivar = async () => {
+    if (!confirm('¿Restablecer este pedido cancelado? Volverá a estar pendiente.')) return
+    setBusy(true); setError(null)
+    const err = await onReactivar?.(pedido.id)
+    setBusy(false)
+    if (err) { setError(err.message || 'No se pudo restablecer el pedido'); return }
+    onClose?.()
   }
 
   const handleAgregarItems = async (newItems) => {
@@ -129,13 +155,24 @@ export default function PedidoDetalleModal({
   }
 
   const abrirEnvio = () => {
-    setEnvioInput(envio > 0 ? String(envio) : '')
+    setEnvioInput(envio > 0 ? String(envio) : (baseEnvio ? String(baseEnvio) : ''))
+    // Si el pedido ya tenía una zona guardada, la preseleccionamos.
+    const z = zonasEnvio.find(z => z.nombre === pedido?.envio_zona)
+    setZonaSel(z ? z.id : '')
     setEnvioOpen(true)
+  }
+
+  const handleZonaChange = (id) => {
+    setZonaSel(id)
+    if (!id) return
+    const zona = zonasEnvio.find(z => z.id === id)
+    if (zona) setEnvioInput(String(costoDeZona(baseEnvio, zona)))
   }
 
   const handleSetEnvio = async () => {
     setEnvioBusy(true); setError(null)
-    const err = await onSetEnvio?.(pedido.id, envioInput)
+    const zonaNombre = zonaSel ? (zonasEnvio.find(z => z.id === zonaSel)?.nombre || null) : null
+    const err = await onSetEnvio?.(pedido.id, envioInput, zonaNombre)
     setEnvioBusy(false)
     if (err) { setError(err.message || 'No se pudo actualizar el envío'); return }
     setEnvioOpen(false)
@@ -470,14 +507,14 @@ export default function PedidoDetalleModal({
             )}
             {envio > 0 && (
               <div className="flex justify-between text-xs items-center" style={{ color: 'var(--text-secondary)' }}>
-                <span className="flex items-center gap-1"><Truck size={11} /> Envío</span>
+                <span className="flex items-center gap-1"><Truck size={11} /> Envío{pedido.envio_zona ? ` · ${pedido.envio_zona}` : ''}</span>
                 <span>${formatMoney(envio)}</span>
               </div>
             )}
             <div className="flex justify-between pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
               <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Total</span>
               <span className="text-base font-bold" style={{ color: 'var(--accent-lift)' }}>
-                ${formatMoney(pedido.total)}
+                ${formatMoney(descuentoInfo.total + envio)}
               </span>
             </div>
             {editable && (
@@ -496,13 +533,28 @@ export default function PedidoDetalleModal({
               envioOpen ? (
                 <div className="mt-2 rounded-lg p-2 space-y-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                   <label className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>Costo de envío</label>
+                  {zonasEnvio.length > 0 && (
+                    <select
+                      value={zonaSel}
+                      onChange={e => handleZonaChange(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg text-sm outline-none"
+                      style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                    >
+                      <option value="">Manual / sin zona (base ${baseEnvio.toLocaleString('es-AR')})</option>
+                      {zonasEnvio.map(z => (
+                        <option key={z.id} value={z.id}>
+                          {z.nombre} — ${costoDeZona(baseEnvio, z).toLocaleString('es-AR')}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--text-xmuted)' }}>$</span>
                       <input
                         type="text" inputMode="numeric" autoFocus
                         value={envioInput}
-                        onChange={e => setEnvioInput(e.target.value)}
+                        onChange={e => { setEnvioInput(e.target.value); setZonaSel('') }}
                         placeholder="0"
                         className="w-full pl-6 pr-2 py-1.5 rounded-lg text-sm outline-none"
                         style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
@@ -614,6 +666,20 @@ export default function PedidoDetalleModal({
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
               Reabrir pedido
+            </button>
+          )}
+
+          {/* Restablecer: revierte una cancelación accidental (vuelve a pendiente) */}
+          {puedeReactivar && (
+            <button
+              type="button"
+              onClick={handleReactivar}
+              disabled={busy}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all hover:scale-[1.01] disabled:opacity-60"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}
+            >
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+              Restablecer pedido
             </button>
           )}
 
