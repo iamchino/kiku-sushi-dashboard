@@ -342,6 +342,11 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
   const [contadoPorMedio, setContadoPorMedio] = useState({})
   const [notas, setNotas] = useState('')
   const [error, setError] = useState(null)
+  // Paso de confirmación. Cerrar un turno es delicado: una vez cerrado, los
+  // cobros nuevos quedan sin turno hasta abrir otro. Antes se cerraba con un
+  // único submit, y cualquier Enter dentro del formulario lo disparaba sin
+  // querer ("se cerró solo"). Ahora exige una confirmación explícita.
+  const [confirmando, setConfirmando] = useState(false)
 
   const medios = resumen.esperadoPorMedio || []
 
@@ -359,11 +364,19 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
     setContadoPorMedio(prev => ({ ...prev, [id]: value }))
   }
 
-  const submit = async (e) => {
+  // El submit del formulario ya NO cierra el turno: solo abre la confirmación.
+  const pedirConfirmacion = (e) => {
     e.preventDefault()
+    setError(null)
+    setConfirmando(true)
+  }
+
+  // Cierre real, disparado únicamente desde el botón de la confirmación.
+  const confirmarCierre = async () => {
     const esperadoMap = {}
     medios.forEach(medio => { esperadoMap[medio.id] = medio.esperado })
     setError(null)
+    setConfirmando(false)
     await onClose({
       turno_id: turno.id,
       contado_por_medio: contadoPorMedio,
@@ -382,7 +395,11 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
         Anota lo contado en cada medio. La diferencia se calcula contra lo esperado del turno.
       </p>
 
-      <form onSubmit={submit} className="space-y-4">
+      <form
+        onSubmit={pedirConfirmacion}
+        onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
+        className="space-y-4"
+      >
         <div className="space-y-2">
           <div className="hidden gap-3 px-3 sm:grid sm:grid-cols-[1fr_140px_140px_140px]">
             <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Medio</span>
@@ -450,6 +467,59 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
         </div>
         {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
       </form>
+
+      {confirmando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={saving ? undefined : () => setConfirmando(false)}
+          />
+          <div
+            className="relative w-full max-w-md rounded-2xl p-5"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+          >
+            <div className="mb-3 flex items-center gap-2">
+              <AlertTriangle size={18} style={{ color: '#fbbf24' }} />
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Confirmar cierre de turno</p>
+            </div>
+            <p className="text-xs leading-5" style={{ color: 'var(--text-secondary)' }}>
+              Vas a cerrar el turno. Después del cierre, los cobros nuevos quedan sin turno hasta abrir uno nuevo.
+            </p>
+            {resumen.pedidosSinPago?.length > 0 && (
+              <p className="mt-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
+                Atención: {resumen.pedidosSinPago.length} pedido(s) del turno todavía no tienen pago registrado (${formatMoney(resumen.pedidosSinPagoTotal)}).
+              </p>
+            )}
+            <div className="mt-3 flex items-center justify-between text-sm">
+              <span style={{ color: 'var(--text-muted)' }}>Diferencia total</span>
+              <span className="font-semibold" style={{ color: diferenciaColor(diferenciaTotal) }}>
+                {diferenciaTotal >= 0 ? '+' : '-'}${formatMoney(Math.abs(diferenciaTotal))}
+              </span>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmando(false)}
+                disabled={saving}
+                className="rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                style={{ background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarCierre}
+                disabled={saving}
+                className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+              >
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                Confirmar cierre
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Panel>
   )
 }

@@ -220,11 +220,19 @@ export function useFacturacion(options = {}) {
       }
     }
 
+    // Buscamos el turno vigente para ligarle el pago. Incluimos 'reabierto'
+    // (no solo 'abierto'): si se reabrió el turno para corregir y se sigue
+    // cobrando, esos pagos también deben quedar ligados. Ordenado por apertura
+    // descendente para tomar el turno más reciente cuando hay más de uno.
+    // NOTA: aunque acá llegue null, un trigger BEFORE INSERT en `pagos`
+    // (migración 20260627000000_pago_caja_turno_trigger.sql) reintenta la
+    // asignación del lado del servidor, evitando que un desfase de timing o de
+    // multi-dispositivo deje el pago sin turno.
     let turnoAbierto = null
     const turnoResult = await supabase
       .from('caja_turnos')
       .select('id')
-      .eq('estado', 'abierto')
+      .in('estado', ['abierto', 'reabierto'])
       .order('apertura_at', { ascending: false })
       .limit(1)
       .maybeSingle()

@@ -6,6 +6,7 @@ const ETIQUETAS = ['', 'Popular', 'Premium', 'Nuevo', 'Limitado']
 const EMPTY = {
   nombre: '',
   descripcion: '',
+  descripcion_destacada: '',
   categoria: '',
   subtitulo: '',
   precio: '',
@@ -32,6 +33,7 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
       setForm({
         nombre: item.nombre || '',
         descripcion: item.descripcion || '',
+        descripcion_destacada: item.descripcion_destacada || '',
         categoria: item.categoria || '',
         subtitulo: item.subtitulo || '',
         precio: item.precio || '',
@@ -178,9 +180,24 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
               <Field label="Descripción">
                 <textarea
                   name="descripcion" value={form.descripcion} onChange={handleField}
-                  className="input-modal resize-none" rows={2}
-                  placeholder="Ingredientes, preparación…"
+                  className="input-modal resize-y" rows={4}
+                  placeholder={"Ingredientes, preparación…\nApretá Enter para hacer saltos de línea."}
                 />
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-xmuted)' }}>
+                  💡 Apretá Enter para separar en líneas — se ve igual en la carta web.
+                </p>
+              </Field>
+
+              {/* Descripción destacada */}
+              <Field label="Descripción destacada">
+                <textarea
+                  name="descripcion_destacada" value={form.descripcion_destacada} onChange={handleField}
+                  className="input-modal resize-y" rows={2}
+                  placeholder={"Ej: Consultar opción sin bebida\nDescuento en efectivo / transferencia"}
+                />
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-xmuted)' }}>
+                  ✨ Se muestra en un recuadro destacado debajo de la descripción. Dejalo vacío si no querés mostrar nada.
+                </p>
               </Field>
 
               {/* Categoría */}

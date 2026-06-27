@@ -92,6 +92,11 @@ export function useMenu(tipo) {
     }
     if (e1) return e1
 
+    // La sincronización de precio con los especiales vinculados (botón "Pedir")
+    // la resuelven los triggers de Supabase (migración
+    // 20260627000000_sync_precio_especial_producto.sql), que manejan bien el
+    // tipo TEXT del precio y cubren todos los caminos (incluido el ajuste masivo).
+
     // Si se enviaron variantes, reemplazar todas
     if (variantes !== undefined) {
       // Borrar las anteriores

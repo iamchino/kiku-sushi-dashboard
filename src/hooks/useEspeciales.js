@@ -75,6 +75,12 @@ export function useEspeciales() {
     }),
   })
 
+  // Nota: la sincronización de precio con el producto de delivery vinculado
+  // (botón "Pedir") la resuelven los triggers de Supabase (migración
+  // 20260627000000_sync_precio_especial_producto.sql). Como el precio del
+  // producto es TEXT y el del especial es numeric, conviene que el casteo y el
+  // formateo vivan en la base, no acá.
+
   const createItem = async (payload) => {
     const { pasos, ...rest } = payload
     const { data: created, error: e1 } = await supabase

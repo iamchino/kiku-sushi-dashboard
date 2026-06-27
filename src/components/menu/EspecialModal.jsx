@@ -32,6 +32,7 @@ const EMPTY = {
   cta_url: '',
   cta_label: '',
   descripcion: '',
+  descripcion_destacada: '',
   precio: '',
   precio_nota: 'por persona',
   firma: '',
@@ -89,6 +90,7 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
         cta_url: item.cta_url || '',
         cta_label: item.cta_label || '',
         descripcion: item.descripcion || '',
+        descripcion_destacada: item.descripcion_destacada || '',
         precio: item.precio ?? '',
         precio_nota: item.precio_nota || '',
         firma: item.firma || '',
@@ -287,6 +289,17 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
                   name="descripcion" value={form.descripcion} onChange={handleField}
                   className="input-modal resize-y" rows={5}
                   placeholder={"Texto que aparece bajo el título…\nPodés usar varias líneas."}
+                />
+              </Field>
+
+              <Field
+                label="Descripción destacada"
+                hint="✨ Se muestra en un recuadro destacado debajo de la descripción. Ej: Consultar opción sin bebida · Descuento efectivo/transferencia. Vacío = no se muestra."
+              >
+                <textarea
+                  name="descripcion_destacada" value={form.descripcion_destacada} onChange={handleField}
+                  className="input-modal resize-y" rows={2}
+                  placeholder={"Ej: Consultar opción sin bebida\nDescuento en efectivo / transferencia"}
                 />
               </Field>
 
