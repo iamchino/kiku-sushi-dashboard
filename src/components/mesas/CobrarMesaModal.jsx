@@ -15,7 +15,9 @@ import {
 import { useFacturacion } from '../../hooks/useFacturacion'
 import { getAuthorizedComprobante } from '../../lib/fiscal'
 import { formatMoney } from '../../lib/printing'
+import { applyStoredDiscount } from '../../lib/orders'
 import SplitPagoLines, { nuevaLinea, lineasValidas, lineasAPagos, resumenMedios } from '../pedidos/SplitPagoLines'
+import CobroPorConsumo, { nuevaCuenta, cuentasAPagos, desgloseFromCuentas } from './CobroPorConsumo'
 
 /**
  * Modal de cobro de mesa.
@@ -51,8 +53,11 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
   const [nroOp, setNroOp] = useState('')
   const [loadingAction, setLoadingAction] = useState(null) // 'ticket' | 'factura' | 'cerrar' | null
   const [error, setError] = useState(null)
-  const [dividir, setDividir] = useState(false)
+  const [modo, setModo] = useState('simple') // 'simple' | 'medio' | 'consumo'
   const [lineas, setLineas] = useState([])
+  const [cuentas, setCuentas] = useState([])
+  const [asignacion, setAsignacion] = useState({})
+  const [consumoResult, setConsumoResult] = useState({ computed: [], valido: false })
 
   // Reset al abrir
   useEffect(() => {
@@ -61,9 +66,13 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
     setNroOp('')
     setError(null)
     setLoadingAction(null)
-    setDividir(false)
+    setModo('simple')
     setLineas([nuevaLinea('efectivo', Math.round(Number(pedido?.total || 0)))])
-  }, [open, pedido?.id, pedido?.total])
+    const n = Math.max(1, parseInt(pedido?.personas) || 1)
+    setCuentas(Array.from({ length: n }, (_, i) => nuevaCuenta(i + 1)))
+    setAsignacion({})
+    setConsumoResult({ computed: [], valido: false })
+  }, [open, pedido?.id, pedido?.total, pedido?.personas])
 
   const comprobanteAutorizado = useMemo(
     () => (pedido ? getAuthorizedComprobante(pedido) : null),
@@ -74,16 +83,26 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
 
   const needsNroOp = medio && TARJETAS.has(medio)
   const nroOpOk = needsNroOp ? String(nroOp).trim().length > 0 : true
-  const medioOk = dividir ? lineasValidas(lineas, pedido.total) : (Boolean(medio) && nroOpOk)
-  // Medio que se imprime en el ticket (resumen si es dividido).
-  const medioTicket = dividir ? resumenMedios(lineas) : medio
+  const itemsPedido = pedido?.pedido_items || pedido?.items || []
+  const { subtotal, descuentoMonto } = applyStoredDiscount(itemsPedido, pedido)
+  const desgloseConsumo = modo === 'consumo' ? desgloseFromCuentas(consumoResult.computed) : undefined
+  const medioOk = modo === 'medio'
+    ? lineasValidas(lineas, pedido.total)
+    : modo === 'consumo'
+      ? consumoResult.valido
+      : (Boolean(medio) && nroOpOk)
+  // Medio que se imprime en el ticket (resumen si se divide por importe; en modo
+  // consumo el desglose por persona se imprime aparte).
+  const medioTicket = modo === 'medio' ? resumenMedios(lineas) : modo === 'consumo' ? null : medio
 
   // Wrapper para correr una acción con loading + error + cierre mesa + cierre modal.
   const runAction = async (kind, fn) => {
     if (!medioOk) {
-      setError(dividir
-        ? 'El total dividido tiene que coincidir con el monto a cobrar.'
-        : 'Elegí un medio de pago antes de continuar.')
+      setError(modo === 'consumo'
+        ? 'Revisá la división por persona: asigná todos los ítems y elegí medio de pago en cada cuenta.'
+        : modo === 'medio'
+          ? 'El total dividido tiene que coincidir con el monto a cobrar.'
+          : 'Elegí un medio de pago antes de continuar.')
       return
     }
     setError(null)
@@ -92,7 +111,13 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
       const comprobanteUsado = await fn()
 
       // 1) Registrar el pago en la BD (para arqueo). "Sin pago" cierra sin sumar caja.
-      if (dividir) {
+      if (modo === 'consumo') {
+        await registrarPago({
+          pedido,
+          comprobante: comprobanteUsado || comprobanteAutorizado,
+          pagos: cuentasAPagos(consumoResult.computed),
+        })
+      } else if (modo === 'medio') {
         await registrarPago({
           pedido,
           comprobante: comprobanteUsado || comprobanteAutorizado,
@@ -126,16 +151,16 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
   }
 
   const handleTicketNoFiscal = () => runAction('ticket', async () => {
-    await imprimirTicketNoFiscal(pedido, medioTicket)
+    await imprimirTicketNoFiscal(pedido, medioTicket, { desglose: desgloseConsumo })
     return null
   })
 
   const handleFacturar = () => runAction('factura', async () => {
     if (comprobanteAutorizado) {
-      await imprimirTicket(pedido, comprobanteAutorizado, medioTicket)
+      await imprimirTicket(pedido, comprobanteAutorizado, medioTicket, { desglose: desgloseConsumo })
       return comprobanteAutorizado
     }
-    return await facturarEImprimir(pedido, { medio_pago: medioTicket })
+    return await facturarEImprimir(pedido, { medio_pago: medioTicket, desglose: desgloseConsumo })
   })
 
   const handleCerrarSinImprimir = () => runAction('cerrar', async () => null)
@@ -213,17 +238,40 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
 
           {/* Selector de medio de pago */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: 'var(--text-muted)' }}>
-                Medio de pago *
-              </p>
-              <label className="flex items-center gap-1.5 text-[11px] font-semibold cursor-pointer" style={{ color: dividir ? 'var(--accent-lift)' : 'var(--text-muted)' }}>
-                <input type="checkbox" checked={dividir} onChange={e => { setDividir(e.target.checked); setError(null) }} disabled={Boolean(loadingAction)} className="h-3.5 w-3.5 accent-[var(--accent)]" />
-                Dividir pago
-              </label>
+            <p className="text-[10px] uppercase tracking-widest font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>
+              Cómo cobrar *
+            </p>
+            <div className="flex rounded-lg overflow-hidden mb-3" style={{ border: '1px solid var(--border)' }}>
+              {[
+                { id: 'simple',  label: 'Un medio' },
+                { id: 'medio',   label: 'Dividir importe' },
+                { id: 'consumo', label: 'Por consumo' },
+              ].map(m => (
+                <button
+                  key={m.id} type="button"
+                  onClick={() => { setModo(m.id); setError(null) }}
+                  disabled={Boolean(loadingAction)}
+                  className="flex-1 py-2 text-[11px] font-semibold transition-colors disabled:opacity-50"
+                  style={modo === m.id
+                    ? { background: 'var(--accent)', color: '#fff' }
+                    : { background: 'var(--bg-input)', color: 'var(--text-muted)' }}
+                >
+                  {m.label}
+                </button>
+              ))}
             </div>
 
-            {dividir ? (
+            {modo === 'consumo' ? (
+              <CobroPorConsumo
+                items={itemsPedido}
+                subtotal={subtotal}
+                descuentoMonto={descuentoMonto}
+                total={pedido.total}
+                cuentas={cuentas} setCuentas={setCuentas}
+                asignacion={asignacion} setAsignacion={setAsignacion}
+                onChange={(computed, valido) => setConsumoResult({ computed, valido })}
+              />
+            ) : modo === 'medio' ? (
               <SplitPagoLines total={pedido.total} lineas={lineas} setLineas={setLineas} />
             ) : (
               <>

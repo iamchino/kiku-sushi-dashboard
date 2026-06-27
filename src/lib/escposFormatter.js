@@ -280,6 +280,22 @@ export function buildComandaText(pedido, opts = {}) {
   return out.join('\n')
 }
 
+// Desglose por persona (cobro por consumo). Aditivo: sin desglose devuelve []
+// y el ticket queda igual que siempre.
+function desgloseBlock(desglose, width) {
+  if (!Array.isArray(desglose) || desglose.length === 0) return []
+  const out = [line(width), center('DESGLOSE POR PERSONA', width)]
+  desglose.forEach((c, idx) => {
+    if (idx > 0) out.push('')
+    out.push(c.medioLabel ? `${ascii(c.label)} (${ascii(c.medioLabel)})` : ascii(c.label))
+    for (const it of (c.items || [])) {
+      out.push(...wrap(`  ${it.cantidad}x ${ascii(it.nombre)}${it.compartido ? ' (comp.)' : ''}`, width))
+    }
+    out.push(row(`Total ${ascii(c.label)}`, `$${formatMoney(c.total)}`, width))
+  })
+  return out
+}
+
 export function buildCustomerTicketText(pedido, config, opts = {}) {
   const width = opts.width || DEFAULT_WIDTH
   const items = normalizeItems(pedido)
@@ -335,6 +351,7 @@ export function buildCustomerTicketText(pedido, config, opts = {}) {
   out.push(row('TOTAL', `$${formatMoney(total)}`, width))
   const medioLabelCustomer = medioPagoLabel(opts.medioPago ?? pedido?.medio_pago)
   if (medioLabelCustomer) out.push(row('Pago', medioLabelCustomer, width))
+  out.push(...desgloseBlock(opts.desglose, width))
   out.push(...transferBlock(width, config))
   out.push('')
   out.push(center('Gracias por su compra!', width))
@@ -414,6 +431,7 @@ export function buildFiscalTicketText(pedido, comprobante, config, opts = {}) {
   out.push(row('TOTAL', `$${formatMoney(comprobante?.importe_total || (Math.max(0, subtotal - descuentoMonto) + envio))}`, width))
   const medioLabelFiscal = medioPagoLabel(opts.medioPago ?? pedido?.medio_pago)
   if (medioLabelFiscal) out.push(row('Forma de pago', medioLabelFiscal, width))
+  out.push(...desgloseBlock(opts.desglose, width))
 
   // Ley 27.743 - Transparencia Fiscal al Consumidor (sólo Factura/NC B y C)
   if (comprobante?.letra === 'B' || comprobante?.letra === 'C') {

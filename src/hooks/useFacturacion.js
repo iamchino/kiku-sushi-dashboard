@@ -172,13 +172,13 @@ export function useFacturacion(options = {}) {
     await registrarImpresion({ pedido, tipo: 'comanda' }).catch(() => null)
   }, [registrarImpresion])
 
-  const imprimirTicket = useCallback(async (pedido, comprobante, medioPago = null) => {
-    printFiscalTicket(pedido, comprobante, config, { medioPago })
+  const imprimirTicket = useCallback(async (pedido, comprobante, medioPago = null, opts = {}) => {
+    printFiscalTicket(pedido, comprobante, config, { medioPago, desglose: opts.desglose })
     await registrarImpresion({ pedido, comprobante, tipo: 'ticket_fiscal' }).catch(() => null)
   }, [config, registrarImpresion])
 
-  const imprimirTicketNoFiscal = useCallback(async (pedido, medioPago = null) => {
-    printCustomerTicket(pedido, config, { medioPago })
+  const imprimirTicketNoFiscal = useCallback(async (pedido, medioPago = null, opts = {}) => {
+    printCustomerTicket(pedido, config, { medioPago, desglose: opts.desglose })
     await registrarImpresion({ pedido, tipo: 'ticket_no_fiscal' }).catch(() => null)
   }, [config, registrarImpresion])
 
@@ -208,6 +208,7 @@ export function useFacturacion(options = {}) {
         medio_pago: p.medio_pago,
         numero_operacion: p.numero_operacion,
         monto: Number(p.monto || 0),
+        notas: p.notas ?? null,
       }))
       .filter(p => p.medio_pago && p.medio_pago !== 'sin_pago' && p.monto > 0)
 
@@ -248,7 +249,7 @@ export function useFacturacion(options = {}) {
       medio_pago: p.medio_pago,
       numero_operacion: p.numero_operacion ? String(p.numero_operacion).trim() : null,
       monto: p.monto,
-      notas: notas ? String(notas).trim() : null,
+      notas: (p.notas ?? notas) ? String(p.notas ?? notas).trim() : null,
       ...(turnoAbierto?.id ? { caja_turno_id: turnoAbierto.id } : {}),
     }))
 
@@ -388,9 +389,10 @@ export function useFacturacion(options = {}) {
    */
   const facturarEImprimir = useCallback(async (pedido, opts = {}) => {
     const medioPago = opts.medio_pago ?? null
+    const desglose = opts.desglose
     const existing = getAuthorizedComprobante(pedido)
     if (existing && !opts.forceNew) {
-      await imprimirTicket(pedido, existing, medioPago)
+      await imprimirTicket(pedido, existing, medioPago, { desglose })
       return existing
     }
 
@@ -417,7 +419,7 @@ export function useFacturacion(options = {}) {
       }
     }
 
-    await imprimirTicket(pedido, comprobante, medioPago)
+    await imprimirTicket(pedido, comprobante, medioPago, { desglose })
     await fetchData()
     return comprobante
   }, [config, fetchData, imprimirTicket, llamarArca])

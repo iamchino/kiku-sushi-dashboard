@@ -238,6 +238,27 @@ function buildComandaHtml(pedido) {
   `
 }
 
+// Bloque de desglose por persona (cobro por consumo). Aditivo: si no hay
+// desglose, no renderiza nada y el ticket queda igual que siempre.
+function renderDesgloseBlock(desglose) {
+  if (!Array.isArray(desglose) || desglose.length === 0) return ''
+  const cuentas = desglose.map(c => {
+    const items = (c.items || []).map(i =>
+      `<div class="row sm"><span>${escapeHtml(i.cantidad)}x ${escapeHtml(i.nombre)}${i.compartido ? ' (comp.)' : ''}</span><span>$${formatMoney(i.monto)}</span></div>`
+    ).join('')
+    return `
+      <div class="bold">${escapeHtml(c.label)}${c.medioLabel ? ` · ${escapeHtml(c.medioLabel)}` : ''}</div>
+      ${items}
+      <div class="row bold"><span>Total ${escapeHtml(c.label)}</span><span>$${formatMoney(c.total)}</span></div>
+    `
+  }).join('<div class="sep"></div>')
+  return `
+    <div class="sep"></div>
+    <div class="center bold">DESGLOSE POR PERSONA</div>
+    ${cuentas}
+  `
+}
+
 function buildCustomerHtml(pedido, config, opts = {}) {
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
   const items = normalizeItems(pedido)
@@ -280,6 +301,7 @@ function buildCustomerHtml(pedido, config, opts = {}) {
       ${envio > 0 ? `<div class="row"><span>Envio</span><span>$${formatMoney(envio)}</span></div>` : ''}
       <div class="row bold lg"><span>Total</span><span>$${formatMoney(total)}</span></div>
       ${medioLabel ? `<div class="row"><span>Pago</span><span class="bold">${escapeHtml(medioLabel)}</span></div>` : ''}
+      ${renderDesgloseBlock(opts.desglose)}
       ${renderTransferBlock(config)}
     </main>
   `
@@ -358,6 +380,7 @@ function buildFiscalHtml(pedido, comprobante, config, opts = {}) {
       ${ivaDesgloseHtml}
       <div class="row bold lg"><span>Total</span><span>$${formatMoney(comprobante?.importe_total || pedido?.total)}</span></div>
       ${medioLabel ? `<div class="row"><span>Forma de pago</span><span class="bold">${escapeHtml(medioLabel)}</span></div>` : ''}
+      ${renderDesgloseBlock(opts.desglose)}
       ${transparenciaHtml}
       <div class="sep"></div>
       <div class="row"><span>CAE</span><span>${escapeHtml(cae)}</span></div>
@@ -449,12 +472,13 @@ export async function printComanda(pedido) {
 export async function printCustomerTicket(pedido, config, opts = {}) {
   const cfg = getPrinterConfig()
   const medioPago = opts.medioPago ?? null
-  const text = buildCustomerTicketText(pedido, config, { width: cfg.chars_per_line, medioPago })
+  const desglose = opts.desglose ?? null
+  const text = buildCustomerTicketText(pedido, config, { width: cfg.chars_per_line, medioPago, desglose })
   const ok = await tryRemotePrint('ticket', text)
   if (ok) return
 
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
-  printDocumentBrowser(`Ticket cliente ${shortId}`, buildCustomerHtml(pedido, config, { medioPago }))
+  printDocumentBrowser(`Ticket cliente ${shortId}`, buildCustomerHtml(pedido, config, { medioPago, desglose }))
 }
 
 export async function printFiscalTicket(pedido, comprobante, config, opts = {}) {
@@ -475,7 +499,7 @@ export async function printFiscalTicket(pedido, comprobante, config, opts = {}) 
   // server-side como bitmap raster (en Go los bytes no se mangle por UTF-8).
   const qrCodeData = enrichedComprobante?.qr_url || buildArcaQrUrl(enrichedComprobante, config) || ''
 
-  let text = buildFiscalTicketText(pedido, enrichedComprobante, config, { width: cfg.chars_per_line, medioPago })
+  let text = buildFiscalTicketText(pedido, enrichedComprobante, config, { width: cfg.chars_per_line, medioPago, desglose: opts.desglose ?? null })
   // Red de seguridad: si NO hay datos de QR, removemos el marcador {{QR}} del
   // texto para que el servicio nunca imprima el literal "{{QR}}" ni texto crudo.
   if (!qrCodeData) {
@@ -491,5 +515,5 @@ export async function printFiscalTicket(pedido, comprobante, config, opts = {}) 
   if (ok) return
 
   const receiptNumber = formatReceiptNumber(enrichedComprobante?.punto_venta, enrichedComprobante?.numero)
-  printDocumentBrowser(`Factura ${receiptNumber}`, buildFiscalHtml(pedido, enrichedComprobante, config, { medioPago }))
+  printDocumentBrowser(`Factura ${receiptNumber}`, buildFiscalHtml(pedido, enrichedComprobante, config, { medioPago, desglose: opts.desglose ?? null }))
 }
