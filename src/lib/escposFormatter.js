@@ -214,6 +214,9 @@ export function buildComandaText(pedido, opts = {}) {
   const dt = pedido?.created_at ? new Date(pedido.created_at) : new Date()
   const fecha = dt.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
   const hora = dt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+  const salida = pedido?.programado_para
+    ? new Date(pedido.programado_para).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : null
 
   const out = []
 
@@ -244,6 +247,7 @@ export function buildComandaText(pedido, opts = {}) {
   out.push(row('Orden:', `#${shortId}`, width))
   out.push(row('Fecha:', fecha, width))
   out.push(row('Hora:', hora, width))
+  if (salida) out.push(row('SALIDA:', salida, width))
   if (pedido?.personas) out.push(row('Personas:', String(pedido.personas), width))
 
   // En las comandas de "repe" el banner de arriba ya muestra producto, platos y

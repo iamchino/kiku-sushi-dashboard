@@ -24,6 +24,10 @@ export default function PedidoCard({ pedido, onAvanzar, onCancelar, onPrintComan
   const shortId  = pedido.id.slice(-4).toUpperCase()
   const elapsed  = formatDistanceToNow(new Date(pedido.created_at), { locale: es, addSuffix: false })
   const items    = pedido.pedido_items || []
+  const salida   = pedido.programado_para ? new Date(pedido.programado_para) : null
+  const salidaTxt = salida
+    ? salida.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : null
   const urgente  = pedido.estado === 'pendiente' &&
     now > 0 &&
     (now - new Date(pedido.created_at).getTime()) > 10 * 60 * 1000 // > 10 min
@@ -61,9 +65,20 @@ export default function PedidoCard({ pedido, onAvanzar, onCancelar, onPrintComan
           )}
         </div>
 
-        <div className="flex items-center gap-1.5" style={{ color: urgente ? '#f87171' : '#52525b' }}>
-          <Clock size={10} />
-          <span className="text-[10px]">{elapsed}</span>
+        <div className="flex items-center gap-2">
+          {salidaTxt && (
+            <span
+              className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded"
+              style={{ background: 'rgba(251,191,36,0.14)', color: '#fbbf24' }}
+              title="Horario de salida programado"
+            >
+              <Clock size={10} /> Salida {salidaTxt}
+            </span>
+          )}
+          <div className="flex items-center gap-1.5" style={{ color: urgente ? '#f87171' : '#52525b' }}>
+            <Clock size={10} />
+            <span className="text-[10px]">{elapsed}</span>
+          </div>
         </div>
       </div>
 

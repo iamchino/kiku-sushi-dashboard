@@ -204,7 +204,7 @@ export function usePedidos(options = {}) {
     canal, mesa, notas, items, descuento_porcentaje = 0,
     cliente_nombre = null, cliente_telefono = null, cliente_direccion = null,
     afecta_caja = true, medio_pago = null, fecha = null, cerrar = false,
-    costo_envio = 0, envio_zona = null,
+    costo_envio = 0, envio_zona = null, programado_para = null,
   }) => {
     const normalizedItems = normalizePedidoItems(items)
     const descuento = clampDiscount(descuento_porcentaje)
@@ -222,15 +222,16 @@ export function usePedidos(options = {}) {
       if (afecta_caja === false) patch.afecta_caja = false
       if (medio_pago)            patch.medio_pago = medio_pago
       if (fecha)                 patch.created_at = fecha
+      if (programado_para)       patch.programado_para = programado_para
       if (cerrar) {
         patch.estado = 'entregado'
         patch.cerrada_at = new Date().toISOString()
       }
       if (Object.keys(patch).length > 0) {
         let { error: pErr } = await supabase.from('pedidos').update(patch).eq('id', pedidoId)
-        if (pErr && /afecta_caja|medio_pago|cerrada_at/i.test(pErr.message || '')) {
+        if (pErr && /afecta_caja|medio_pago|cerrada_at|programado_para/i.test(pErr.message || '')) {
           const safe = { ...patch }
-          for (const k of ['afecta_caja', 'medio_pago', 'cerrada_at']) {
+          for (const k of ['afecta_caja', 'medio_pago', 'cerrada_at', 'programado_para']) {
             if (new RegExp(k, 'i').test(pErr.message || '')) delete safe[k]
           }
           if (Object.keys(safe).length > 0) {

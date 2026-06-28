@@ -18,6 +18,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
   const [canal,   setCanal]   = useState(canalInicial)
   const [mesa,    setMesa]    = useState('')
   const [notas,   setNotas]   = useState('')
+  const [programadoPara, setProgramadoPara] = useState('') // horario de salida del pedido (opcional)
   const [descuentoPorcentaje, setDescuentoPorcentaje] = useState('')
   const [costoEnvio, setCostoEnvio] = useState('')
   const [baseEnvio, setBaseEnvio] = useState(0)
@@ -98,7 +99,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
     if (open) {
       setCanal(canalInicial)
     } else {
-      setCanal(canalInicial); setMesa(''); setNotas(''); setDescuentoPorcentaje(''); setCostoEnvio('')
+      setCanal(canalInicial); setMesa(''); setNotas(''); setProgramadoPara(''); setDescuentoPorcentaje(''); setCostoEnvio('')
       setClienteNombre(''); setClienteTelefono(''); setClienteDireccion('')
       setItems([]); setSearch(''); setError(null); setPrintOnSave(true); setVariantePopup(null)
       setYaCobrada(false); setFechaPedido(''); setMedioPago('efectivo')
@@ -188,10 +189,17 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
       ? new Date(`${fechaPedido}T12:00:00`).toISOString()
       : null
 
+    // Horario de salida programado: el input datetime-local viene en hora local;
+    // lo pasamos a ISO. Vacío = inmediato (null).
+    const programadoISO = programadoPara
+      ? new Date(programadoPara).toISOString()
+      : null
+
     const payload = {
       canal,
       mesa: mesa ? parseInt(mesa) : null,
       notas,
+      programado_para: programadoISO,
       descuento_porcentaje: descuento,
       costo_envio: envio,
       envio_zona: canal === 'delivery' && zonaSel
@@ -225,6 +233,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
         canal: payload.canal,
         mesa: payload.mesa,
         notas: payload.notas,
+        programado_para: payload.programado_para,
         descuento_porcentaje: payload.descuento_porcentaje,
         pedido_items: payload.items,
       })
@@ -305,6 +314,25 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
                     onFocus={e => e.target.style.border = '1px solid rgba(var(--accent-rgb),0.5)'}
                     onBlur={e => e.target.style.border = '1px solid var(--border)'}
                   />
+                </div>
+
+                {/* Horario de salida (opcional) */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                    Horario de salida <span style={{ color: 'var(--text-xmuted)' }}>(opcional)</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={programadoPara}
+                    onChange={e => setProgramadoPara(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                    onFocus={e => e.target.style.border = '1px solid rgba(var(--accent-rgb),0.5)'}
+                    onBlur={e => e.target.style.border = '1px solid var(--border)'}
+                  />
+                  <p className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
+                    Cuándo tiene que salir el pedido. Si lo dejás vacío, es inmediato.
+                  </p>
                 </div>
 
                 {/* Cliente (opcional) */}

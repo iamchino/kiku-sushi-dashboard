@@ -192,6 +192,9 @@ function buildComandaHtml(pedido) {
   const dt = pedido?.created_at ? new Date(pedido.created_at) : new Date()
   const fecha = dt.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
   const hora = dt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+  const salida = pedido?.programado_para
+    ? new Date(pedido.programado_para).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : null
 
   const rows = items.map(item => `
     <div class="cmd-item">
@@ -227,6 +230,7 @@ function buildComandaHtml(pedido) {
       <div class="cmd-info"><span>Orden:</span><span class="bold">#${escapeHtml(shortId)}</span></div>
       <div class="cmd-info"><span>Fecha:</span><span>${escapeHtml(fecha)}</span></div>
       <div class="cmd-info"><span>Hora:</span><span>${escapeHtml(hora)}</span></div>
+      ${salida ? `<div class="cmd-info" style="font-weight:800"><span>SALIDA:</span><span>${escapeHtml(salida)}</span></div>` : ''}
       ${pedido?.personas ? `<div class="cmd-info"><span>Personas:</span><span>${escapeHtml(pedido.personas)}</span></div>` : ''}
 
       ${repeNum ? '' : `<div class="cmd-section">ITEMS</div>
