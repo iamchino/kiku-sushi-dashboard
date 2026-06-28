@@ -4,13 +4,14 @@ import {
   Home, ClipboardList, Package, Receipt, ListChecks,
   Users, ChefHat, LogOut, UtensilsCrossed, X, Menu,
   Sun, Moon, BookOpen, LayoutGrid, CalendarDays, Inbox, BarChart2,
-  ConciergeBell, Truck
+  ConciergeBell, Truck, Wallet
 } from 'lucide-react'
 import clsx from 'clsx'
 import { auth } from '../../lib/supabase'
 import { NotificationBell } from './NotificationBell'
 import { useTheme } from '../../context/useTheme'
 import { useRole } from '../../context/useRole'
+import { useFinanzasAccess } from '../../context/useFinanzasAccess'
 import { canAccessRoute } from '../../context/role'
 
 const NAV_ITEMS = [
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { to: '/stock',      icon: Package,         label: 'Inventario'   },
   { to: '/recetas',    icon: BookOpen,        label: 'Recetas'      },
   { to: '/caja',       icon: Receipt,         label: 'Caja y ARCA'  },
+  { to: '/finanzas',   icon: Wallet,          label: 'Finanzas',     finanzasOnly: true },
   { to: '/clientes',   icon: Users,           label: 'Clientes'     },
   { to: '/notificaciones', icon: Inbox,       label: 'Notificaciones' },
   { to: '/proveedores',   icon: Truck,        label: 'Proveedores',  adminOnly: true },
@@ -82,8 +84,10 @@ function ThemeToggle() {
 function SidebarContent({ onClose, showBell = false }) {
   useAutoClose(onClose ?? (() => {}))
   const role = useRole()
-  const navItems = NAV_ITEMS.filter(({ to, adminOnly }) => {
+  const finanzasOk = useFinanzasAccess()
+  const navItems = NAV_ITEMS.filter(({ to, adminOnly, finanzasOnly }) => {
     if (adminOnly && role !== 'admin') return false
+    if (finanzasOnly && !finanzasOk) return false
     return canAccessRoute(role, to)
   })
 

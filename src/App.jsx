@@ -21,10 +21,12 @@ import RecetasPage from './pages/Recetas'
 import CajaPage from './pages/Caja'
 import NotificacionesPage from './pages/Notificaciones'
 import ProveedoresPage from './pages/Proveedores'
+import FinanzasPage from './pages/Finanzas'
 import Login from './pages/Login'
 import { ThemeProvider } from './context/ThemeContext'
-import { RoleContext, DEFAULT_ROLE, getRoleFromUser, canAccessRoute, getDefaultRoute } from './context/role'
+import { RoleContext, FinanzasAccessContext, DEFAULT_ROLE, getRoleFromUser, canAccessRoute, getDefaultRoute, canAccessFinanzas } from './context/role'
 import { useRole } from './context/useRole'
+import { useFinanzasAccess } from './context/useFinanzasAccess'
 import { usePrinterStore } from './lib/printerStore'
 import { initNative } from './lib/native'
 
@@ -44,9 +46,14 @@ function AdminLayout({ children }) {
 
 function RoleGuard({ children }) {
   const role = useRole()
+  const finanzasOk = useFinanzasAccess()
   const location = useLocation()
 
   if (!canAccessRoute(role, location.pathname)) {
+    return <Navigate to={getDefaultRoute(role)} replace />
+  }
+  // Finanzas: exclusivo de los emails habilitados (ni siquiera otros admin entran).
+  if (location.pathname.startsWith('/finanzas') && !finanzasOk) {
     return <Navigate to={getDefaultRoute(role)} replace />
   }
   return children
@@ -78,6 +85,7 @@ function AppRoutes() {
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="/notificaciones" element={<NotificacionesPage />} />
           <Route path="/proveedores" element={<ProveedoresPage />} />
+          <Route path="/finanzas" element={<FinanzasPage />} />
           <Route path="*" element={<Navigate to={defaultRoute} replace />} />
         </Routes>
       </RoleGuard>
@@ -124,13 +132,17 @@ export default function App() {
 
   if (!session) return <Login />
 
+  const finanzasOk = canAccessFinanzas(session?.user)
+
   return (
     <ThemeProvider>
       <ErrorBoundary>
         <RoleContext.Provider value={role}>
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
+          <FinanzasAccessContext.Provider value={finanzasOk}>
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </FinanzasAccessContext.Provider>
         </RoleContext.Provider>
       </ErrorBoundary>
     </ThemeProvider>
