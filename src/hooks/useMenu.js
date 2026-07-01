@@ -41,8 +41,32 @@ export function useMenu(tipo) {
   // CRUD items
   const createItem = async (payload) => {
     const { variantes, ...itemPayload } = payload
+
+    // ── Auto-orden ───────────────────────────────────────────────────────
+    // Un producto nuevo va al FINAL de su propia categoria (no arriba de todo).
+    // - Si la categoria ya existe: orden = (ultimo de la categoria) + 1, y se
+    //   empuja +1 a todo lo que venga despues para hacerle lugar.
+    // - Si es una categoria nueva: va al final de toda la carta.
+    let ordenFinal = Number(itemPayload.orden) || 0
+    const cat = itemPayload.categoria
+    const enCategoria = items.filter(i => i.categoria === cat)
+    if (enCategoria.length > 0) {
+      const ultimoEnCat = Math.max(...enCategoria.map(i => i.orden ?? 0))
+      ordenFinal = ultimoEnCat + 1
+      const aEmpujar = items.filter(i => (i.orden ?? 0) >= ordenFinal)
+      if (aEmpujar.length) {
+        await Promise.all(aEmpujar.map(i =>
+          supabase.from('menu_items').update({ orden: (i.orden ?? 0) + 1 }).eq('id', i.id)
+        ))
+      }
+    } else {
+      const maxAll = items.length ? Math.max(...items.map(i => i.orden ?? 0)) : -1
+      ordenFinal = maxAll + 1
+    }
+
     const itemToInsert = {
       ...itemPayload,
+      orden: ordenFinal,
       precio: itemPayload.precio ? parseCurrencyValue(itemPayload.precio) : null,
     }
     let { data: created, error: e1 } = await supabase
@@ -179,6 +203,37 @@ export function useMenu(tipo) {
     return { url: publicUrl, error: null }
   }
 
+  // ── Reordenamiento (drag & drop) ─────────────────────────────────────────
+  // Recibe TODOS los items en el orden visual deseado y renumera el campo
+  // orden de 0 a N-1. Solo persiste los que cambiaron. Actualiza la UI al
+  // instante (optimista) y, si algo falla en la base, recarga para no quedar
+  // desincronizado.
+  const persistOrder = async (orderedItems) => {
+    const updates = []
+    orderedItems.forEach((it, idx) => {
+      if ((it.orden ?? 0) !== idx) updates.push({ id: it.id, orden: idx })
+    })
+    if (!updates.length) return null
+
+    // Optimista: reflejar el nuevo orden en pantalla ya mismo.
+    const nuevoOrden = new Map(updates.map(u => [u.id, u.orden]))
+    setItems(prev =>
+      [...prev]
+        .map(it => nuevoOrden.has(it.id) ? { ...it, orden: nuevoOrden.get(it.id) } : it)
+        .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
+    )
+
+    const results = await Promise.all(updates.map(u =>
+      supabase.from('menu_items').update({ orden: u.orden }).eq('id', u.id)
+    ))
+    const fallo = results.find(r => r.error)
+    if (fallo?.error) {
+      fetchItems() // revertir al estado real de la base
+      return fallo.error
+    }
+    return null
+  }
+
   // Derived: items grouped by category
   const grouped = useMemo(() => {
     const map = {}
@@ -203,7 +258,7 @@ export function useMenu(tipo) {
   return {
     items, grouped, categories, stats,
     loading, error,
-    createItem, updateItem, deleteItem, toggleActive, uploadImage,
+    createItem, updateItem, deleteItem, toggleActive, uploadImage, persistOrder,
     refetch: fetchItems,
   }
 }

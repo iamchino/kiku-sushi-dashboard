@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
 import {
   Plus, Search, Edit2, Trash2, Eye, EyeOff,
-  UtensilsCrossed, Truck, RefreshCw, AlertCircle, Package, Sparkles, TrendingUp, Megaphone
+  UtensilsCrossed, Truck, RefreshCw, AlertCircle, Package, Sparkles, TrendingUp, Megaphone,
+  GripVertical, MoveVertical
 } from 'lucide-react'
 import { useMenu } from '../hooks/useMenu'
 import { normalizeSearch } from '../utils/normalize'
@@ -44,9 +45,55 @@ export default function MenuPage() {
   const {
     grouped, categories, stats,
     loading, error,
-    createItem, updateItem, deleteItem, toggleActive, uploadImage,
+    createItem, updateItem, deleteItem, toggleActive, uploadImage, persistOrder,
     refetch,
   } = useMenu(esConfig ? null : activeTab)
+
+  // ── Drag & drop (reordenar) ─────────────────────────────────────────────
+  // dragItem  → arrastrando un producto dentro de su categoría
+  // dragCat   → arrastrando el encabezado de una sección para moverla
+  const [dragItem, setDragItem] = useState(null)   // { cat, id }
+  const [dragCat,  setDragCat]  = useState(null)    // nombre de categoría
+  const [dropHint, setDropHint] = useState(null)    // { type:'item'|'cat', id }
+  const reordering = !esConfig && !search.trim()    // solo se reordena sin búsqueda activa
+
+  // Aplana grouped a la lista global de items en un orden de categorías dado.
+  const flatten = (catOrder) => catOrder.flatMap(c => grouped[c]?.items || [])
+
+  const persistAndNotify = async (flat) => {
+    const err = await persistOrder(flat)
+    if (err) setNotice({ type: 'error', text: `No se pudo guardar el nuevo orden: ${err.message || 'error'}` })
+  }
+
+  // Reordenar un PRODUCTO dentro de su categoría
+  const handleItemDrop = (cat, targetId) => {
+    const drag = dragItem
+    setDragItem(null); setDropHint(null)
+    if (!drag || drag.cat !== cat || drag.id === targetId) return
+    const catItems = grouped[cat]?.items || []
+    const from = catItems.findIndex(i => i.id === drag.id)
+    const to   = catItems.findIndex(i => i.id === targetId)
+    if (from === -1 || to === -1) return
+    const nuevos = [...catItems]
+    const [moved] = nuevos.splice(from, 1)
+    nuevos.splice(to, 0, moved)
+    const flat = Object.keys(grouped).flatMap(c => c === cat ? nuevos : grouped[c].items)
+    persistAndNotify(flat)
+  }
+
+  // Reordenar una SECCIÓN entera
+  const handleCatDrop = (targetCat) => {
+    const drag = dragCat
+    setDragCat(null); setDropHint(null)
+    if (!drag || drag === targetCat) return
+    const order = Object.keys(grouped)
+    const from = order.indexOf(drag)
+    const to   = order.indexOf(targetCat)
+    if (from === -1 || to === -1) return
+    order.splice(from, 1)
+    order.splice(to, 0, drag)
+    persistAndNotify(flatten(order))
+  }
 
   // ── Filtered view ──────────────────────────────────────────────────────
   const filteredGrouped = useMemo(() => {
@@ -287,21 +334,54 @@ export default function MenuPage() {
         </div>
       )}
 
+      {/* ── Aviso: cómo reordenar ── */}
+      {reordering && !loading && !isEmpty && (
+        <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+          <MoveVertical size={13} style={{ color: 'var(--accent-lift)' }} />
+          <span>Arrastrá <GripVertical size={12} className="inline -mt-0.5" /> para reordenar productos. Arrastrá el <strong style={{ color: 'var(--text-secondary)' }}>título de una sección</strong> para mover la sección entera y cambiar qué se ve primero.</span>
+        </div>
+      )}
+
       {/* ── Products grouped by category ── */}
       {!esConfig && !loading && !isEmpty && (
         <div className="space-y-4">
           {Object.entries(filteredGrouped).map(([cat, { subtitle, items }]) => (
-            <div key={cat} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}>
+            <div
+              key={cat}
+              className="rounded-xl overflow-hidden"
+              style={{
+                border: dropHint?.type === 'cat' && dropHint.id === cat ? '1px solid var(--accent)' : '1px solid var(--border-card)',
+                boxShadow: 'var(--shadow-card)',
+              }}
+              onDragOver={dragCat ? (e => { e.preventDefault(); setDropHint({ type: 'cat', id: cat }) }) : undefined}
+              onDrop={dragCat ? (() => handleCatDrop(cat)) : undefined}
+            >
 
               {/* Category header */}
-              <div className="flex items-center justify-between px-5 py-3" style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border)' }}>
-                <div>
-                  <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{cat}</span>
-                  {subtitle && (
-                    <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>{subtitle}</span>
+              <div
+                className="flex items-center justify-between px-5 py-3"
+                style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--border)' }}
+                draggable={reordering}
+                onDragStart={reordering ? (e => { setDragCat(cat); e.dataTransfer.effectAllowed = 'move' }) : undefined}
+                onDragEnd={() => { setDragCat(null); setDropHint(null) }}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  {reordering && (
+                    <GripVertical
+                      size={15}
+                      className="flex-shrink-0 cursor-grab active:cursor-grabbing"
+                      style={{ color: 'var(--text-xmuted)' }}
+                      title="Arrastrá para mover esta sección"
+                    />
                   )}
+                  <div className="min-w-0">
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{cat}</span>
+                    {subtitle && (
+                      <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>{subtitle}</span>
+                    )}
+                  </div>
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                   {items.length} productos
                 </span>
               </div>
@@ -310,17 +390,35 @@ export default function MenuPage() {
               <div style={{ background: 'var(--bg-card)' }}>
                 {items.map((item, idx) => {
                   const badge = BADGE_COLORS[item.etiqueta]
+                  const esDropItem = dropHint?.type === 'item' && dropHint.id === item.id
                   return (
                     <div
                       key={item.id}
                       className="flex items-center gap-4 px-5 py-3.5 transition-colors"
                       style={{
-                        opacity: item.activo ? 1 : 0.5,
+                        opacity: dragItem?.id === item.id ? 0.4 : (item.activo ? 1 : 0.5),
                         borderBottom: idx < items.length - 1 ? '1px solid var(--border)' : 'none',
+                        boxShadow: esDropItem ? 'inset 0 2px 0 0 var(--accent)' : 'none',
                       }}
+                      onDragOver={dragItem?.cat === cat ? (e => { e.preventDefault(); setDropHint({ type: 'item', id: item.id }) }) : undefined}
+                      onDrop={dragItem?.cat === cat ? (() => handleItemDrop(cat, item.id)) : undefined}
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
+                      {/* Drag handle */}
+                      {reordering && (
+                        <div
+                          draggable
+                          onDragStart={e => { setDragItem({ cat, id: item.id }); e.dataTransfer.effectAllowed = 'move' }}
+                          onDragEnd={() => { setDragItem(null); setDropHint(null) }}
+                          className="flex-shrink-0 cursor-grab active:cursor-grabbing"
+                          style={{ color: 'var(--text-xmuted)' }}
+                          title="Arrastrá para reordenar"
+                        >
+                          <GripVertical size={16} />
+                        </div>
+                      )}
+
                       {/* Thumbnail */}
                       <div className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid var(--border)' }}>
                         {item.imagen_url
