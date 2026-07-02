@@ -68,24 +68,45 @@ func formatESCPOSTicket(job PrintJob) []byte {
 	}
 	b.Write([]byte{0x1D, 0x21, sizeByte})
 
-	// Si vino qr_code_data, generamos el QR raster ESC/POS y lo insertamos
-	// en el lugar del marker {{QR}}. Si no hay marker, va al final del content.
-	content := job.Content
+	// Manejo del QR. Reglas de oro:
+	//  1) NUNCA imprimir el marcador {{QR}} como texto crudo, aunque el QR
+	//     falle o no lleguen datos (evita el bug de que salga "{{QR}}").
+	//  2) Si vino qr_code_data y se pudo generar el raster, se inserta en la
+	//     posición del marcador {{QR}} (o al final del ticket si no hay marcador).
+	content := []byte(job.Content)
+	marker := []byte("{{QR}}")
+
+	var qrBytes []byte
 	if job.QRCodeData != "" {
-		qrBytes, err := generateQRRaster(job.QRCodeData, 4)
+		gen, err := generateQRRaster(job.QRCodeData, 4)
 		if err != nil {
-			logToConsole("ERROR: No se pudo generar QR: %v", err)
-			b.WriteString(content)
-		} else {
-			parts := bytes.SplitN([]byte(content), []byte("{{QR}}"), 2)
-			b.Write(parts[0])
-			b.Write(qrBytes)
-			if len(parts) == 2 {
-				b.Write(parts[1])
+			preview := job.QRCodeData
+			if len(preview) > 120 {
+				preview = preview[:120]
 			}
+			logToConsole("ERROR: No se pudo generar QR (len=%d): %v | data=%q", len(job.QRCodeData), err, preview)
+		} else {
+			qrBytes = gen
+			logToConsole("QR generado OK (datos len=%d)", len(job.QRCodeData))
 		}
+	} else if bytes.Contains(content, marker) {
+		logToConsole("ADVERTENCIA: el ticket tiene {{QR}} pero NO llegó qr_code_data (cliente desactualizado). Se quita el marcador.")
+	}
+
+	if idx := bytes.Index(content, marker); idx >= 0 {
+		// Insertar el QR (si hay) donde estaba el marcador y limpiar cualquier
+		// marcador extra que pudiera quedar en el resto del contenido.
+		b.Write(content[:idx])
+		if qrBytes != nil {
+			b.Write(qrBytes)
+		}
+		b.Write(bytes.ReplaceAll(content[idx+len(marker):], marker, nil))
 	} else {
-		b.WriteString(content)
+		b.Write(content)
+		if qrBytes != nil {
+			b.Write([]byte{'\n'})
+			b.Write(qrBytes)
+		}
 	}
 	b.WriteByte('\n')
 

@@ -13,7 +13,7 @@ import { formatMoney } from '../../lib/printing'
  *  - Carrito con cantidad +/-, notas inline editable, precio editable, eliminar
  *  - Footer fijo con total y botones Cancelar / Confirmar
  */
-export default function AgregarItemsModal({ open, mesa, onClose, onAdd, titulo = null }) {
+export default function AgregarItemsModal({ open, mesa, onClose, onAdd, titulo = null, soloCarta = false }) {
   const [items,         setItems]         = useState([])
   const [search,        setSearch]        = useState('')
   const [menuItems,     setMenuItems]     = useState([])
@@ -36,24 +36,28 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd, titulo =
       setMenuItems(sorted)
       setLoadingMenu(false)
     }
+    // En el flujo de mesas (soloCarta) mostramos únicamente la Carta Salón
+    // (tipo='carta'). Deli / take away (tipo='delivery') NO van a la mesa.
     // Mostramos los activos (visibles en web) y también los "solo salón"
     // (ocultos en la web pero disponibles para cargar en mesa).
-    supabase
-      .from('menu_items')
-      .select(cols)
+    let query = supabase.from('menu_items').select(cols)
+    if (soloCarta) query = query.eq('tipo', 'carta')
+    query
       .or('activo.eq.true,solo_salon.eq.true')
       .order('categoria')
       .order('orden')
       .then(async ({ data, error }) => {
         if (error && /solo_salon/i.test(error.message || '')) {
           // Migración no aplicada: caemos al filtro clásico por activo.
-          const fb = await supabase.from('menu_items').select(cols).eq('activo', true).order('categoria').order('orden')
+          let fbQuery = supabase.from('menu_items').select(cols)
+          if (soloCarta) fbQuery = fbQuery.eq('tipo', 'carta')
+          const fb = await fbQuery.eq('activo', true).order('categoria').order('orden')
           aplicar(fb.data)
         } else {
           aplicar(data)
         }
       })
-  }, [open])
+  }, [open, soloCarta])
 
   useEffect(() => {
     if (!open) {

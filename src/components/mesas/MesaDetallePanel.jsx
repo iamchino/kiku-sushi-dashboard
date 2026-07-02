@@ -666,6 +666,7 @@ export default function MesaDetallePanel({
       <AgregarItemsModal
         open={showAgregar}
         mesa={mesa}
+        soloCarta
         onClose={() => setShowAgregar(false)}
         onAdd={async (newItems) => {
           const { error } = await agregarItems(newItems)
