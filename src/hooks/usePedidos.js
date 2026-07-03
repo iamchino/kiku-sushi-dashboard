@@ -766,12 +766,44 @@ export function usePedidos(options = {}) {
     return res
   }
 
+  /**
+   * Actualiza los datos "de cabecera" de una orden: fecha/hora (created_at),
+   * cliente (nombre / teléfono / dirección), mesa, personas, notas, canal, etc.
+   * Update tolerante: si una columna no existe (migración no aplicada), la saca
+   * del patch y reintenta, para no perder el resto de los cambios.
+   */
+  const actualizarDatosPedido = async (pedidoId, patch) => {
+    const clean = { ...(patch || {}) }
+    // Nunca dejamos que se cuele el id ni campos vacíos undefined.
+    delete clean.id
+    Object.keys(clean).forEach(k => { if (clean[k] === undefined) delete clean[k] })
+    if (Object.keys(clean).length === 0) return null
+
+    for (let intento = 0; intento < 6; intento++) {
+      const { error } = await supabase.from('pedidos').update(clean).eq('id', pedidoId)
+      if (!error) { fetchPedidos(); return null }
+
+      // Si el error menciona una columna del patch que no existe en el esquema,
+      // la quitamos y reintentamos con el resto.
+      const msg = error.message || ''
+      const columnaFaltante = Object.keys(clean).find(k => new RegExp(`\\b${k}\\b`, 'i').test(msg))
+      const esErrorDeColumna = /does not exist|could not find|schema cache|column/i.test(msg)
+      if (columnaFaltante && esErrorDeColumna) {
+        delete clean[columnaFaltante]
+        if (Object.keys(clean).length === 0) { fetchPedidos(); return null }
+        continue
+      }
+      return error
+    }
+    return null
+  }
+
   return {
     pedidos, grouped, stats,
     loading, error,
     createPedido, avanzarEstado, cerrarPedido, cancelarPedido,
     reabrirPedido, reactivarPedido, agregarItemsPedido, updateItemCantidadPedido, removeItemPedido,
-    aplicarDescuentoOrden, quitarDescuentoOrden, actualizarEnvioPedido,
+    aplicarDescuentoOrden, quitarDescuentoOrden, actualizarEnvioPedido, actualizarDatosPedido,
     refetch: fetchPedidos,
     isFacturado,
   }

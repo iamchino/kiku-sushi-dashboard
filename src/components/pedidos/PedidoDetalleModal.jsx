@@ -17,6 +17,7 @@ import FacturarModal from '../caja/FacturarModal'
 import AgregarItemsModal from '../mesas/AgregarItemsModal'
 import DescuentoModal from './DescuentoModal'
 import ComandaModal from './ComandaModal'
+import EditarDatosPedidoModal from './EditarDatosPedidoModal'
 
 const TIPO_META = {
   salon:    { label: 'Para Comer Aquí', icon: Utensils,    color: 'var(--accent-lift)' },
@@ -60,7 +61,7 @@ function formatFechaHora(value) {
 export default function PedidoDetalleModal({
   pedido, onClose, onCerrarClick, onCancelar,
   onReabrir, onReactivar, onAgregarItems, onUpdateItemCantidad, onRemoveItem,
-  onAplicarDescuento, onQuitarDescuento, onSetEnvio,
+  onAplicarDescuento, onQuitarDescuento, onSetEnvio, onActualizarDatos,
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -68,6 +69,7 @@ export default function PedidoDetalleModal({
   const [agregarOpen, setAgregarOpen] = useState(false)
   const [descuentoOpen, setDescuentoOpen] = useState(false)
   const [comandaOpen, setComandaOpen] = useState(false)
+  const [datosOpen, setDatosOpen] = useState(false)
   const [zoomImg, setZoomImg] = useState(null)
   const [envioOpen, setEnvioOpen] = useState(false)
   const [envioInput, setEnvioInput] = useState('')
@@ -719,6 +721,16 @@ export default function PedidoDetalleModal({
             </Link>
           )}
 
+          {/* Editar todos los datos: fecha, hora, cliente, mesa, notas, tipo */}
+          <button
+            type="button"
+            onClick={() => setDatosOpen(true)}
+            className="w-full py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}
+          >
+            <Pencil size={14} /> Editar datos (fecha, cliente, notas…)
+          </button>
+
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -785,6 +797,14 @@ export default function PedidoDetalleModal({
         pedido={pedido}
         items={items}
         onClose={() => setComandaOpen(false)}
+      />
+
+      <EditarDatosPedidoModal
+        open={datosOpen}
+        pedido={pedido}
+        facturada={facturada}
+        onClose={() => setDatosOpen(false)}
+        onGuardar={onActualizarDatos}
       />
 
       {/* Lightbox: imagen ampliada del producto */}
