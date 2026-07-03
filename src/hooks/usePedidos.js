@@ -779,21 +779,47 @@ export function usePedidos(options = {}) {
     Object.keys(clean).forEach(k => { if (clean[k] === undefined) delete clean[k] })
     if (Object.keys(clean).length === 0) return null
 
-    for (let intento = 0; intento < 6; intento++) {
-      const { error } = await supabase.from('pedidos').update(clean).eq('id', pedidoId)
-      if (!error) { fetchPedidos(); return null }
+    // 1) Camino preferido: RPC SECURITY DEFINER. Saltea el bloqueo silencioso de
+    //    RLS sobre `pedidos` (UPDATE directo que afecta 0 filas sin error) y
+    //    valida el rol del lado del servidor.
+    const { error: rpcErr } = await supabase.rpc('actualizar_datos_pedido', {
+      p_pedido_id: pedidoId,
+      p_patch:     clean,
+    })
+    if (!rpcErr) { fetchPedidos(); return null }
+    // La RPC existe pero rechazó (p.ej. no autorizado): devolvemos ese error.
+    if (!isMissingRpcFunction(rpcErr)) return rpcErr
 
-      // Si el error menciona una columna del patch que no existe en el esquema,
-      // la quitamos y reintentamos con el resto.
-      const msg = error.message || ''
-      const columnaFaltante = Object.keys(clean).find(k => new RegExp(`\\b${k}\\b`, 'i').test(msg))
-      const esErrorDeColumna = /does not exist|could not find|schema cache|column/i.test(msg)
-      if (columnaFaltante && esErrorDeColumna) {
-        delete clean[columnaFaltante]
-        if (Object.keys(clean).length === 0) { fetchPedidos(); return null }
-        continue
+    // 2) Fallback (RPC no aplicada aún): UPDATE directo. Usamos .select() para
+    //    detectar el caso RLS —0 filas afectadas SIN error— y avisarlo en vez de
+    //    fallar en silencio. Además sacamos columnas inexistentes y reintentamos.
+    const work = { ...clean }
+    for (let intento = 0; intento < 6; intento++) {
+      const { data, error } = await supabase
+        .from('pedidos').update(work).eq('id', pedidoId).select('id')
+
+      if (error) {
+        const msg = error.message || ''
+        const columnaFaltante = Object.keys(work).find(k => new RegExp(`\\b${k}\\b`, 'i').test(msg))
+        if (columnaFaltante && /does not exist|could not find|schema cache|column/i.test(msg)) {
+          delete work[columnaFaltante]
+          if (Object.keys(work).length === 0) { fetchPedidos(); return null }
+          continue
+        }
+        return error
       }
-      return error
+
+      // Sin error pero sin filas => RLS bloqueó el UPDATE (permisos).
+      if (!data || data.length === 0) {
+        return new Error(
+          'No se pudo guardar por permisos de la base (RLS). Aplicá la migración ' +
+          '20260702000000_actualizar_datos_pedido.sql en Supabase, o verificá que ' +
+          'tu usuario tenga rol operativo/admin.'
+        )
+      }
+
+      fetchPedidos()
+      return null
     }
     return null
   }
