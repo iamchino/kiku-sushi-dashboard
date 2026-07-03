@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, LayoutGrid, Users, Printer, Truck } from 'lucide-react'
 import SalonEditor from '../components/mesas/SalonEditor'
 import MozosManager from '../components/mesas/MozosManager'
@@ -20,7 +20,9 @@ const TABS = [
  * - Configuración de impresoras (GG EZ Print)
  */
 export default function ConfigSalonPage() {
-  const [tab, setTab] = useState('plano')
+  const [searchParams] = useSearchParams()
+  const tabParam = searchParams.get('tab')
+  const [tab, setTab] = useState(TABS.some(t => t.id === tabParam) ? tabParam : 'plano')
 
   return (
     <div className="flex flex-col h-full">

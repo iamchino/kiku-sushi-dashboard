@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   X, Printer, Ban, Receipt, User, Phone, MapPin,
   Clock, Tag, ExternalLink, AlertCircle, Loader2, Utensils, Truck,
-  ShoppingBag, CheckCircle2, Lock, Plus, Minus, Trash2, Banknote, Gift, RotateCcw,
-  Pencil, AlertTriangle,
+  ShoppingBag, CheckCircle2, Lock, Unlock, Plus, Minus, Trash2, Banknote, Gift, RotateCcw,
 } from 'lucide-react'
 import { getEstadoSimple, getTipoPedido } from '../../hooks/usePedidos'
 import { useFacturacion } from '../../hooks/useFacturacion'
@@ -120,34 +119,25 @@ export default function PedidoDetalleModal({
   const puedeAvanzar = false
   const puedeCancelar = simple === 'activa'
 
-  // Edición de items: pedidos activos. Los facturados se permiten con aviso fiscal.
-  const editable      = simple === 'activa'
-  // Reabrir / editar: pedidos completados (entregados).
-  const puedeReabrir  = simple === 'completada'
-  // Restablecer: pedidos cancelados por accidente.
-  const puedeReactivar = simple === 'cancelada'
+  // Edición de items: solo para pedidos activos y NO facturados.
+  const editable      = simple === 'activa' && !facturada
+  // Reabrir: pedidos completados (entregados) que todavía no se facturaron.
+  const puedeReabrir  = simple === 'completada' && !facturada
+  // Restablecer: pedidos cancelados por accidente (no facturados).
+  const puedeReactivar = simple === 'cancelada' && !facturada
 
   const handleReabrir = async () => {
-    if (facturada && !confirm(
-      'Esta orden ya tiene factura emitida (CAE). Reabrirla para editarla puede ' +
-      'generar inconsistencias fiscales: la factura conserva su número y monto. ' +
-      '¿Continuar de todas formas?'
-    )) return
     setBusy(true); setError(null)
-    const err = await onReabrir?.(pedido.id, { force: facturada })
+    const err = await onReabrir?.(pedido.id)
     setBusy(false)
     if (err) { setError(err.message || 'No se pudo reabrir el pedido'); return }
     // El pedido queda activo; el modal se sincroniza solo (realtime en la página).
   }
 
   const handleReactivar = async () => {
-    const msg = facturada
-      ? 'Esta orden cancelada tiene factura emitida (CAE). Restaurarla puede generar ' +
-        'inconsistencias fiscales. ¿Restaurar de todas formas? Volverá a estar pendiente.'
-      : '¿Restablecer este pedido cancelado? Volverá a estar pendiente.'
-    if (!confirm(msg)) return
+    if (!confirm('¿Restablecer este pedido cancelado? Volverá a estar pendiente.')) return
     setBusy(true); setError(null)
-    const err = await onReactivar?.(pedido.id, { force: facturada })
+    const err = await onReactivar?.(pedido.id)
     setBusy(false)
     if (err) { setError(err.message || 'No se pudo restablecer el pedido'); return }
     onClose?.()
@@ -296,19 +286,6 @@ export default function PedidoDetalleModal({
               style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
               <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
               <span>{error}</span>
-            </div>
-          )}
-
-          {/* Aviso fiscal: la orden ya tiene factura y aún se permite editar/reabrir/restaurar */}
-          {facturada && (editable || puedeReabrir || puedeReactivar) && (
-            <div className="rounded-lg p-3 text-xs flex items-start gap-2"
-              style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)', color: '#f59e0b' }}>
-              <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
-              <span>
-                <strong>Orden facturada.</strong> Editar, reabrir o restaurar esta orden puede
-                generar inconsistencias fiscales: el comprobante ya emitido conserva su número
-                y monto (CAE {comprobante?.cae ? `${comprobante.cae}` : 'autorizado'}).
-              </span>
             </div>
           )}
 
@@ -678,7 +655,7 @@ export default function PedidoDetalleModal({
             </div>
           )}
 
-          {/* Editar orden: reabre el pedido cerrado y lo deja editable en un paso */}
+          {/* Reabrir: vuelve el pedido a activo para editar items o cambiar el cobro */}
           {puedeReabrir && (
             <button
               type="button"
@@ -686,10 +663,9 @@ export default function PedidoDetalleModal({
               disabled={busy}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all hover:scale-[1.01] disabled:opacity-60"
               style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}
-              title="Reabre la orden y la deja editable"
             >
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <Pencil size={14} />}
-              Editar orden
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
+              Reabrir pedido
             </button>
           )}
 

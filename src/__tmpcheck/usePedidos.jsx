@@ -549,49 +549,20 @@ export function usePedidos(options = {}) {
 
   const isFacturado = useCallback((pedido) => Boolean(getAuthorizedComprobante(pedido)), [])
 
-  // UPDATE directo del estado (respeta RLS). Usado como fallback cuando falta la
-  // RPC y como camino principal cuando se fuerza sobre un pedido facturado (la
-  // RPC rechaza facturados del lado del servidor, así que la salteamos).
-  const setEstadoDirecto = async (id, estado) => {
-    let { error: updateError } = await supabase
-      .from('pedidos')
-      .update({ estado, cerrada_at: null })
-      .eq('id', id)
-
-    if (updateError && /cerrada_at/i.test(updateError.message || '')) {
-      const retry = await supabase
-        .from('pedidos')
-        .update({ estado })
-        .eq('id', id)
-      updateError = retry.error
-    }
-    return updateError
-  }
-
   /**
    * Reabre un pedido cerrado (entregado) para poder editarlo / cobrarlo de nuevo.
    * Vuelve el estado a 'preparando' y limpia cerrada_at.
-   * Por defecto bloquea pedidos ya facturados; con { force: true } se permite
-   * reabrir facturados (editar con aviso fiscal) vía UPDATE directo.
+   * Bloqueado si el pedido ya tiene un comprobante fiscal autorizado.
    */
-  const reabrirPedido = async (id, { force = false } = {}) => {
+  const reabrirPedido = async (id) => {
     const pedido = pedidos.find(p => p.id === id)
     if (!pedido) return new Error('Pedido no encontrado')
-    if (pedido.estado === 'cancelado') {
-      return new Error('No se puede reabrir un pedido cancelado.')
-    }
     // Chequeo en cliente (la RPC lo vuelve a validar en el servidor).
-    if (!force && getAuthorizedComprobante(pedido)) {
+    if (getAuthorizedComprobante(pedido)) {
       return new Error('No se puede reabrir un pedido ya facturado.')
     }
-
-    // Modo forzado (facturado permitido con aviso): vamos directo al UPDATE
-    // porque la RPC rechaza facturados en el servidor.
-    if (force) {
-      const err = await setEstadoDirecto(id, 'preparando')
-      if (err) return err
-      fetchPedidos()
-      return null
+    if (pedido.estado === 'cancelado') {
+      return new Error('No se puede reabrir un pedido cancelado.')
     }
 
     // Preferimos la RPC reabrir_pedido (valida no-facturado del lado del server).
@@ -604,8 +575,20 @@ export function usePedidos(options = {}) {
 
     if (rpcErr && isMissingRpcFunction(rpcErr)) {
       // Fallback: si la RPC no está aplicada, UPDATE directo (respeta RLS).
-      const err = await setEstadoDirecto(id, 'preparando')
-      if (err) return err
+      let { error: updateError } = await supabase
+        .from('pedidos')
+        .update({ estado: 'preparando', cerrada_at: null })
+        .eq('id', id)
+
+      if (updateError && /cerrada_at/i.test(updateError.message || '')) {
+        const retry = await supabase
+          .from('pedidos')
+          .update({ estado: 'preparando' })
+          .eq('id', id)
+        updateError = retry.error
+      }
+
+      if (updateError) return updateError
     }
 
     fetchPedidos()
@@ -614,21 +597,12 @@ export function usePedidos(options = {}) {
 
   /**
    * Restablece un pedido CANCELADO por accidente: lo vuelve a 'pendiente'.
-   * Por defecto bloquea pedidos ya facturados; con { force: true } se permite
-   * restaurar facturados (con aviso fiscal) vía UPDATE directo.
+   * Bloqueado si el pedido ya tiene un comprobante fiscal autorizado.
    */
-  const reactivarPedido = async (id, { force = false } = {}) => {
+  const reactivarPedido = async (id) => {
     const pedido = pedidos.find(p => p.id === id)
-    if (!force && pedido && getAuthorizedComprobante(pedido)) {
+    if (pedido && getAuthorizedComprobante(pedido)) {
       return new Error('No se puede restablecer un pedido ya facturado.')
-    }
-
-    // Modo forzado (facturado permitido con aviso): UPDATE directo.
-    if (force) {
-      const err = await setEstadoDirecto(id, 'pendiente')
-      if (err) return err
-      fetchPedidos()
-      return null
     }
 
     const { error: rpcErr } = await supabase.rpc('reactivar_pedido', { p_pedido_id: id })
@@ -640,8 +614,20 @@ export function usePedidos(options = {}) {
 
     if (rpcErr && isMissingRpcFunction(rpcErr)) {
       // Fallback: si la RPC no está aplicada, UPDATE directo (respeta RLS).
-      const err = await setEstadoDirecto(id, 'pendiente')
-      if (err) return err
+      let { error: updateError } = await supabase
+        .from('pedidos')
+        .update({ estado: 'pendiente', cerrada_at: null })
+        .eq('id', id)
+
+      if (updateError && /cerrada_at/i.test(updateError.message || '')) {
+        const retry = await supabase
+          .from('pedidos')
+          .update({ estado: 'pendiente' })
+          .eq('id', id)
+        updateError = retry.error
+      }
+
+      if (updateError) return updateError
     }
 
     fetchPedidos()

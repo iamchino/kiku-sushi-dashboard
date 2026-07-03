@@ -28,6 +28,7 @@ import { RoleContext, FinanzasAccessContext, DEFAULT_ROLE, getRoleFromUser, canA
 import { useRole } from './context/useRole'
 import { useFinanzasAccess } from './context/useFinanzasAccess'
 import { usePrinterStore } from './lib/printerStore'
+import PrinterStatusBanner from './components/PrinterStatusBanner'
 import { initNative } from './lib/native'
 
 function AdminLayout({ children }) {
@@ -38,6 +39,7 @@ function AdminLayout({ children }) {
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-app)' }}>
       <Sidebar />
       <main className={`flex-1 overflow-y-auto pt-14 lg:pt-0 ${conBottomNav ? 'pb-20 lg:pb-0' : ''}`}>
+        <PrinterStatusBanner />
         {children}
       </main>
     </div>

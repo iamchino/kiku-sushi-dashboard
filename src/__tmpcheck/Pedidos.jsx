@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import {
   Plus, RefreshCw, Search, Utensils, ShoppingBag, Truck, LayoutList,
   ClipboardList, Printer, ChevronRight, ChevronDown, Ban, Loader2,
-  Lock, Trash2, Pencil, RotateCcw,
+  Lock,
 } from 'lucide-react'
 import { usePedidos, getTipoPedido, getEstadoSimple, ESTADO_SIGUIENTE } from '../hooks/usePedidos'
 import { getAuthorizedComprobante } from '../lib/fiscal'
@@ -19,7 +19,6 @@ const TABS = [
   { id: 'llevar',   label: 'Para Llevar',     icon: ShoppingBag },
   { id: 'delivery', label: 'Delivery',        icon: Truck       },
   { id: 'todas',    label: 'Todas',           icon: LayoutList  },
-  { id: 'papelera', label: 'Papelera',        icon: Trash2      },
 ]
 
 const ESTADO_BADGE = {
@@ -151,31 +150,6 @@ export default function PedidosPage() {
     }
   }
 
-  // Editar una orden cerrada (entregada) en 1 clic: la reabre y abre el detalle
-  // ya editable. Para órdenes facturadas pide confirmación (aviso fiscal).
-  const handleEditarCerrada = async (p) => {
-    const facturada = Boolean(getAuthorizedComprobante(p))
-    if (facturada && !confirm(
-      'Esta orden ya tiene factura emitida (CAE). Reabrirla para editarla puede ' +
-      'generar inconsistencias fiscales. ¿Continuar de todas formas?'
-    )) return
-    setPedidoSel(p)
-    const err = await reabrirPedido(p.id, { force: facturada })
-    if (err) alert(err.message || 'No se pudo abrir la orden para editar')
-  }
-
-  // Restaurar una orden cancelada desde la Papelera: vuelve a 'pendiente'.
-  const handleRestaurar = async (p) => {
-    const facturada = Boolean(getAuthorizedComprobante(p))
-    const msg = facturada
-      ? 'Esta orden cancelada tiene factura emitida (CAE). Restaurarla puede generar ' +
-        'inconsistencias fiscales. ¿Restaurar de todas formas? Volverá a estar pendiente.'
-      : '¿Restaurar esta orden cancelada? Volverá a estar pendiente.'
-    if (!confirm(msg)) return
-    const err = await reactivarPedido(p.id, { force: facturada })
-    if (err) alert(err.message || 'No se pudo restaurar la orden')
-  }
-
   const {
     pedidos, loading, error,
     createPedido, avanzarEstado, cerrarPedido, cancelarPedido, refetch,
@@ -212,17 +186,11 @@ export default function PedidosPage() {
     const q = normalizeSearch(search.trim())
     let list = pedidos.slice()
 
-    if (tab === 'papelera') {
-      // La Papelera muestra SOLO órdenes canceladas (ignora los filtros de
-      // tipo / estado / facturación; sí respeta la búsqueda y el rango de fechas).
-      list = list.filter(p => getEstadoSimple(p) === 'cancelada')
-    } else {
-      if (tab !== 'todas')          list = list.filter(p => getTipoPedido(p) === tab)
-      if (estadoFiltro !== 'todos') list = list.filter(p => getEstadoSimple(p) === estadoFiltro)
-      if (facturacion !== 'todas') {
-        const wantFact = facturacion === 'facturado'
-        list = list.filter(p => Boolean(getAuthorizedComprobante(p)) === wantFact)
-      }
+    if (tab !== 'todas')         list = list.filter(p => getTipoPedido(p) === tab)
+    if (estadoFiltro !== 'todos') list = list.filter(p => getEstadoSimple(p) === estadoFiltro)
+    if (facturacion !== 'todas') {
+      const wantFact = facturacion === 'facturado'
+      list = list.filter(p => Boolean(getAuthorizedComprobante(p)) === wantFact)
     }
     if (q) {
       list = list.filter(p => {
@@ -263,20 +231,8 @@ export default function PedidosPage() {
       }
       return true
     })
-    const counts = { todas: base.length, salon: 0, llevar: 0, delivery: 0, papelera: 0 }
+    const counts = { todas: base.length, salon: 0, llevar: 0, delivery: 0 }
     base.forEach(p => { counts[getTipoPedido(p)]++ })
-    // Papelera: total de canceladas (independiente de los filtros de estado /
-    // facturación), respetando solo la búsqueda.
-    const q = normalizeSearch(search.trim())
-    counts.papelera = pedidos.filter(p => {
-      if (getEstadoSimple(p) !== 'cancelada') return false
-      if (!q) return true
-      const code    = normalizeSearch(codigoPedido(p))
-      const mesa    = p.mesa ? normalizeSearch(`mesa ${p.mesa}`) : ''
-      const cliente = normalizeSearch(p.cliente_nombre || '')
-      const tel     = normalizeSearch(p.cliente_telefono || '')
-      return code.includes(q) || mesa.includes(q) || cliente.includes(q) || tel.includes(q)
-    }).length
     return counts
   }, [pedidos, estadoFiltro, facturacion, search])
 
@@ -439,12 +395,6 @@ export default function PedidosPage() {
       <div className="flex-1 overflow-auto">
         {loading ? (
           <SkeletonTable />
-        ) : tab === 'papelera' ? (
-          <PapeleraView
-            pedidos={filtered}
-            onSelect={setPedidoSel}
-            onRestaurar={handleRestaurar}
-          />
         ) : filtered.length === 0 ? (
           <EmptyState />
         ) : (
@@ -470,7 +420,6 @@ export default function PedidosPage() {
                     pedido={p}
                     onSelect={() => setPedidoSel(p)}
                     onCerrarClick={() => setCerrarTarget(p)}
-                    onEditarClick={() => handleEditarCerrada(p)}
                     onAvanzar={avanzarEstado}
                     onCancelar={cancelarPedido}
                   />
@@ -485,7 +434,6 @@ export default function PedidosPage() {
                   pedido={p}
                   onSelect={() => setPedidoSel(p)}
                   onCerrarClick={() => setCerrarTarget(p)}
-                  onEditarClick={() => handleEditarCerrada(p)}
                   onAvanzar={avanzarEstado}
                   onCancelar={cancelarPedido}
                 />
@@ -680,7 +628,7 @@ function EstadoBadgeMenu({ pedido, onAvanzar, onCancelar }) {
   )
 }
 
-function PedidoRow({ pedido, onSelect, onCerrarClick, onEditarClick, onAvanzar, onCancelar }) {
+function PedidoRow({ pedido, onSelect, onCerrarClick, onAvanzar, onCancelar }) {
   const tipo      = getTipoPedido(pedido)
   const tipoMeta  = TIPO_META[tipo]
   const TipoIcon  = tipoMeta?.icon
@@ -689,7 +637,6 @@ function PedidoRow({ pedido, onSelect, onCerrarClick, onEditarClick, onAvanzar, 
   const { fecha, hora } = formatFechaHora(pedido.created_at)
   const resumen   = productosResumen(pedido.pedido_items)
   const canClose  = getEstadoSimple(pedido) === 'activa'
-  const canEdit   = getEstadoSimple(pedido) === 'completada'
 
   return (
     <tr
@@ -781,18 +728,6 @@ function PedidoRow({ pedido, onSelect, onCerrarClick, onEditarClick, onAvanzar, 
               Cerrar
             </button>
           )}
-          {canEdit && (
-            <button
-              type="button"
-              onClick={onEditarClick}
-              className="inline-flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] font-semibold transition-colors hover:bg-[var(--bg-hover)]"
-              style={{ color: 'var(--accent-lift)', border: '1px solid var(--accent-border)', background: 'var(--accent-soft)' }}
-              title="Editar orden (la reabre y la deja editable)"
-            >
-              <Pencil size={12} />
-              Editar
-            </button>
-          )}
           <button
             type="button"
             onClick={onSelect}
@@ -808,7 +743,7 @@ function PedidoRow({ pedido, onSelect, onCerrarClick, onEditarClick, onAvanzar, 
   )
 }
 
-function PedidoMobileRow({ pedido, onSelect, onCerrarClick, onEditarClick, onAvanzar, onCancelar }) {
+function PedidoMobileRow({ pedido, onSelect, onCerrarClick, onAvanzar, onCancelar }) {
   const tipo      = getTipoPedido(pedido)
   const tipoMeta  = TIPO_META[tipo]
   const TipoIcon  = tipoMeta?.icon
@@ -817,7 +752,6 @@ function PedidoMobileRow({ pedido, onSelect, onCerrarClick, onEditarClick, onAva
   const { fecha, hora } = formatFechaHora(pedido.created_at)
   const resumen   = productosResumen(pedido.pedido_items)
   const canClose  = getEstadoSimple(pedido) === 'activa'
-  const canEdit   = getEstadoSimple(pedido) === 'completada'
 
   return (
     <div
@@ -851,17 +785,6 @@ function PedidoMobileRow({ pedido, onSelect, onCerrarClick, onEditarClick, onAva
               Cerrar pedido
             </button>
           )}
-          {canEdit && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onEditarClick?.() }}
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold"
-              style={{ color: 'var(--accent-lift)', border: '1px solid var(--accent-border)', background: 'var(--accent-soft)' }}
-            >
-              <Pencil size={11} />
-              Editar orden
-            </button>
-          )}
         </div>
         <div className="text-right">
           <p className="text-sm font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
@@ -870,117 +793,6 @@ function PedidoMobileRow({ pedido, onSelect, onCerrarClick, onEditarClick, onAva
           <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} className="ml-auto mt-1" />
         </div>
       </div>
-    </div>
-  )
-}
-
-/* ────────────────────────── Papelera (canceladas) ────────────────────────── */
-
-/**
- * Vista de "Papelera": lista las órdenes canceladas del rango con un botón
- * para restaurarlas (vuelven a estado pendiente). Funciona como respaldo /
- * papelera de reciclaje de órdenes canceladas por accidente.
- */
-function PapeleraView({ pedidos, onSelect, onRestaurar }) {
-  if (!pedidos.length) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'var(--bg-input)' }}>
-          <Trash2 size={24} style={{ color: 'var(--text-muted)' }} />
-        </div>
-        <div>
-          <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Papelera vacía</p>
-          <p className="text-xs mt-1 max-w-xs" style={{ color: 'var(--text-muted)' }}>
-            No hay órdenes canceladas en este rango de fechas. Ampliá el rango “Desde / Hasta” para ver canceladas más antiguas.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      <div
-        className="px-4 md:px-6 py-2.5 flex items-center gap-2 text-xs"
-        style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', background: 'var(--bg-app)' }}
-      >
-        <Trash2 size={13} />
-        <span>
-          {pedidos.length} orden{pedidos.length === 1 ? '' : 'es'} cancelada{pedidos.length === 1 ? '' : 's'} · restaurá una para devolverla a pendiente
-        </span>
-      </div>
-      <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-        {pedidos.map(p => (
-          <PapeleraRow
-            key={p.id}
-            pedido={p}
-            onSelect={() => onSelect(p)}
-            onRestaurar={() => onRestaurar(p)}
-          />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function PapeleraRow({ pedido, onSelect, onRestaurar }) {
-  const [busy, setBusy] = useState(false)
-  const tipo      = getTipoPedido(pedido)
-  const tipoMeta  = TIPO_META[tipo]
-  const TipoIcon  = tipoMeta?.icon
-  const facturado = Boolean(getAuthorizedComprobante(pedido))
-  const codigo    = codigoPedido(pedido)
-  const { fecha, hora } = formatFechaHora(pedido.created_at)
-  const resumen   = productosResumen(pedido.pedido_items)
-
-  const handleRestaurar = async (e) => {
-    e.stopPropagation()
-    setBusy(true)
-    await onRestaurar()
-    setBusy(false)
-  }
-
-  return (
-    <div className="px-4 md:px-6 py-3 flex items-center gap-3 transition-colors hover:bg-[var(--bg-hover)]">
-      <button type="button" onClick={onSelect} className="flex-1 min-w-0 text-left flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239,68,68,0.08)' }}>
-          {TipoIcon && <TipoIcon size={15} style={{ color: '#f87171' }} />}
-        </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{codigo}</span>
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
-              Cancelada
-            </span>
-            {facturado && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(251,191,36,0.12)', color: '#f59e0b' }}>
-                Facturada
-              </span>
-            )}
-          </div>
-          <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
-            {tipoMeta?.label}{pedido.mesa ? ` · Mesa ${pedido.mesa}` : ''} · {resumen.cuenta}
-            {resumen.detalle ? ` · ${resumen.detalle}` : ''}
-          </p>
-          <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-xmuted)' }}>{fecha} {hora}</p>
-        </div>
-      </button>
-
-      <p className="text-sm font-bold tabular-nums line-through flex-shrink-0 opacity-70" style={{ color: 'var(--text-muted)' }}>
-        ${formatMoney(pedido.total)}
-      </p>
-
-      <button
-        type="button"
-        onClick={handleRestaurar}
-        disabled={busy}
-        className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:opacity-50"
-        style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}
-        title="Restaurar orden (vuelve a pendiente)"
-      >
-        {busy ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
-        <span className="hidden sm:inline">Restaurar</span>
-      </button>
     </div>
   )
 }
