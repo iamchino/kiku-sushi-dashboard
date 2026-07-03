@@ -112,6 +112,25 @@ function normalizeItems(pedido) {
 // ============================================================
 
 function printDocumentBrowser(title, bodyHtml) {
+  // El diseño se adapta al ancho del rollo configurado (58 u 80 mm). Clave para
+  // impresión directa por navegador: el @page tiene que coincidir con el papel,
+  // si no el navegador escala el ticket y sale chico / el QR ilegible.
+  const cfg = getPrinterConfig()
+  const paperWidth = Number(cfg.paper_width) === 80 ? 80 : 58
+  const is80 = paperWidth === 80
+  const margin = 1.5
+  const bodyWidth = paperWidth - margin * 2
+
+  // Escalas por ancho de papel.
+  const font   = 12
+  const fontXl = is80 ? 20 : 17
+  const fontLg = is80 ? 15 : 14
+  const fontSm = is80 ? 10 : 9
+  const qtyW   = is80 ? 26 : 22
+  const priceW = is80 ? 58 : 50
+  const indent = is80 ? 30 : 26
+  const qrMm   = is80 ? 50 : 44
+
   const iframe = document.createElement('iframe')
   iframe.setAttribute('title', title)
   iframe.style.position = 'fixed'
@@ -130,33 +149,33 @@ function printDocumentBrowser(title, bodyHtml) {
         <meta charset="utf-8" />
         <title>${escapeHtml(title)}</title>
         <style>
-          @page { size: 80mm auto; margin: 4mm; }
+          @page { size: ${paperWidth}mm auto; margin: ${margin}mm; }
           * { box-sizing: border-box; }
           body {
-            width: 72mm;
+            width: ${bodyWidth}mm;
             margin: 0;
             color: #000;
             background: #fff;
             font-family: "Consolas", "Courier New", monospace;
-            font-size: 11px;
-            line-height: 1.32;
+            font-size: ${font}px;
+            line-height: 1.3;
           }
           .ticket { width: 100%; }
           .center { text-align: center; }
           .right { text-align: right; }
           .bold { font-weight: 700; }
-          .xl { font-size: 18px; letter-spacing: 0; }
-          .lg { font-size: 14px; }
-          .sm { font-size: 9px; }
+          .xl { font-size: ${fontXl}px; letter-spacing: 0; }
+          .lg { font-size: ${fontLg}px; }
+          .sm { font-size: ${fontSm}px; }
           .mt { margin-top: 8px; }
-          .sep { border-top: 1px dashed #000; margin: 8px 0; }
-          .row { display: flex; justify-content: space-between; gap: 8px; }
-          .line { display: flex; gap: 5px; align-items: flex-start; }
-          .qty { width: 24px; text-align: right; font-weight: 700; }
+          .sep { border-top: 1px dashed #000; margin: 6px 0; }
+          .row { display: flex; justify-content: space-between; gap: 6px; }
+          .line { display: flex; gap: 4px; align-items: flex-start; }
+          .qty { width: ${qtyW}px; text-align: right; font-weight: 700; }
           .name { flex: 1; word-break: break-word; }
-          .price { width: 56px; text-align: right; }
-          .unit { margin-left: 29px; font-size: 9px; color: #000; }
-          .note { margin-left: 29px; font-size: 9px; }
+          .price { width: ${priceW}px; text-align: right; }
+          .unit { margin-left: ${indent}px; font-size: ${fontSm}px; color: #000; }
+          .note { margin-left: ${indent}px; font-size: ${fontSm}px; }
           .stamp {
             border: 1px solid #000;
             padding: 5px;
@@ -164,7 +183,7 @@ function printDocumentBrowser(title, bodyHtml) {
             text-align: center;
             font-weight: 700;
           }
-          img.qr { width: 35mm; height: 35mm; object-fit: contain; margin: 4px auto 0; display: block; }
+          img.qr { width: ${qrMm}mm; height: ${qrMm}mm; object-fit: contain; margin: 4px auto 0; display: block; }
           .qr-url { font-size: 7px; word-break: break-all; margin-top: 5px; }
         </style>
       </head>
