@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, LayoutGrid, Users, Printer, Truck } from 'lucide-react'
+import { ArrowLeft, LayoutGrid, Users, Printer, Truck, Clock } from 'lucide-react'
 import SalonEditor from '../components/mesas/SalonEditor'
 import MozosManager from '../components/mesas/MozosManager'
 import PrinterConfig from '../components/config/PrinterConfig'
 import EnvioConfig from '../components/config/EnvioConfig'
+import HorariosConfig from '../components/config/HorariosConfig'
 
 const TABS = [
   { id: 'plano',       label: 'Plano del salón', Icon: LayoutGrid },
   { id: 'mozos',       label: 'Camareros',       Icon: Users },
   { id: 'impresoras',  label: 'Impresoras',      Icon: Printer },
   { id: 'envio',       label: 'Envío',           Icon: Truck },
+  { id: 'horarios',    label: 'Horarios',        Icon: Clock },
 ]
 
 /**
@@ -96,6 +98,14 @@ export default function ConfigSalonPage() {
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="max-w-3xl mx-auto">
             <EnvioConfig />
+          </div>
+        </div>
+      )}
+
+      {tab === 'horarios' && (
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="max-w-3xl mx-auto">
+            <HorariosConfig />
           </div>
         </div>
       )}
