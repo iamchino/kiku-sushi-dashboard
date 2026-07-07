@@ -17,16 +17,19 @@ export function canAccessFinanzas(user) {
 export const COCINA_DEFAULT_ROUTE = '/operaciones'
 export const COCINA_BLOCKED_ROUTES = new Set([
   '/', '/dashboard', '/analiticas', '/caja', '/clientes',
-  '/mesas', '/reservas', '/configuracion/salon', '/notificaciones',
+  '/mesas', '/reservas', '/configuracion/salon', '/configuracion', '/notificaciones',
   '/platos', '/proveedores', '/finanzas',
 ])
 
-// Mozo: lista blanca. Mesas (abrir/cerrar/cobrar), platos de cocina y stock.
+// Mozo: lista blanca. Mesas (abrir/cerrar/cobrar), platos de cocina, stock y
+// la configuración (para corregir la IP de la impresora desde su celular;
+// solo ve el tab de Impresoras, ver Configuracion.jsx).
 export const MOZO_DEFAULT_ROUTE = '/mesas'
 export const MOZO_ALLOWED_ROUTES = new Set([
   '/mesas',
   '/platos',
   '/stock',
+  '/configuracion',
 ])
 
 export const RoleContext = createContext(DEFAULT_ROLE)

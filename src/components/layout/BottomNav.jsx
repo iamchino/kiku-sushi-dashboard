@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { ClipboardList, LayoutGrid, Package, ConciergeBell } from 'lucide-react'
+import { ClipboardList, LayoutGrid, Package, ConciergeBell, Printer } from 'lucide-react'
 import { useRole } from '../../context/useRole'
 
 const TABS_BY_ROLE = {
@@ -13,6 +13,7 @@ const TABS_BY_ROLE = {
     { to: '/mesas',  icon: LayoutGrid,    label: 'Mesas'  },
     { to: '/platos', icon: ConciergeBell, label: 'Platos' },
     { to: '/stock',  icon: Package,       label: 'Stock'  },
+    { to: '/configuracion', icon: Printer, label: 'Impresora' },
   ],
 }
 

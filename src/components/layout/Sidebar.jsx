@@ -4,7 +4,7 @@ import {
   Home, ClipboardList, Package, Receipt, ListChecks,
   Users, ChefHat, LogOut, UtensilsCrossed, X, Menu,
   Sun, Moon, BookOpen, LayoutGrid, CalendarDays, Inbox, BarChart2,
-  ConciergeBell, Truck, Wallet
+  ConciergeBell, Truck, Wallet, Settings
 } from 'lucide-react'
 import clsx from 'clsx'
 import { auth } from '../../lib/supabase'
@@ -34,6 +34,7 @@ const NAV_ITEMS = [
   { to: '/clientes',   icon: Users,           label: 'Clientes'     },
   { to: '/notificaciones', icon: Inbox,       label: 'Notificaciones' },
   { to: '/proveedores',   icon: Truck,        label: 'Proveedores',  adminOnly: true },
+  { to: '/configuracion', icon: Settings,     label: 'Configuración', adminOnly: true },
 ]
 
 function useAutoClose(setOpen) {

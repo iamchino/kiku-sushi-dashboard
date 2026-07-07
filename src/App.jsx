@@ -11,6 +11,7 @@ import PedidosPage from './pages/Pedidos'
 import MesasPage from './pages/Mesas'
 import ReservasPage from './pages/Reservas'
 import ConfigSalonPage from './pages/ConfigSalon'
+import ConfiguracionPage from './pages/Configuracion'
 import CocinaKDS from './pages/Cocina'
 import PlatosPage from './pages/Platos'
 import ProduccionPage from './pages/Produccion'
@@ -77,6 +78,7 @@ function AppRoutes() {
           <Route path="/mesas" element={<MesasPage />} />
           <Route path="/reservas" element={<ReservasPage />} />
           <Route path="/configuracion/salon" element={<ConfigSalonPage />} />
+          <Route path="/configuracion" element={<ConfiguracionPage />} />
           <Route path="/menu" element={<MenuPage />} />
           <Route path="/cocina" element={<CocinaKDS />} />
           <Route path="/platos" element={<PlatosPage />} />
