@@ -1,6 +1,6 @@
 import { createContext } from 'react'
 
-export const VALID_ROLES = new Set(['admin', 'cocina', 'mozo'])
+export const VALID_ROLES = new Set(['admin', 'cocina', 'mozo', 'empleado'])
 export const DEFAULT_ROLE = 'cocina'
 
 // La sección Finanzas es exclusiva de estos emails (acceso absoluto).
@@ -18,7 +18,7 @@ export const COCINA_DEFAULT_ROUTE = '/operaciones'
 export const COCINA_BLOCKED_ROUTES = new Set([
   '/', '/dashboard', '/analiticas', '/caja', '/clientes',
   '/mesas', '/reservas', '/configuracion/salon', '/configuracion', '/notificaciones',
-  '/platos', '/proveedores', '/finanzas',
+  '/platos', '/proveedores', '/finanzas', '/personal',
 ])
 
 // Mozo: lista blanca. Mesas (abrir/cerrar/cobrar), platos de cocina, stock y
@@ -30,6 +30,16 @@ export const MOZO_ALLOWED_ROUTES = new Set([
   '/platos',
   '/stock',
   '/configuracion',
+  // Fichaje: un mozo también puede estar vinculado a un empleado y fichar.
+  '/fichar',
+  '/mis-horas',
+])
+
+// Empleado (control de horas): lista blanca mínima. Solo ficha y ve sus horas.
+export const EMPLEADO_DEFAULT_ROUTE = '/fichar'
+export const EMPLEADO_ALLOWED_ROUTES = new Set([
+  '/fichar',
+  '/mis-horas',
 ])
 
 export const RoleContext = createContext(DEFAULT_ROLE)
@@ -45,6 +55,7 @@ export function getRoleFromUser(user) {
 export function getDefaultRoute(role) {
   if (role === 'cocina') return COCINA_DEFAULT_ROUTE
   if (role === 'mozo') return MOZO_DEFAULT_ROUTE
+  if (role === 'empleado') return EMPLEADO_DEFAULT_ROUTE
   return '/'
 }
 
@@ -52,6 +63,7 @@ export function canAccessRoute(role, pathname) {
   const normalizedPath = pathname === '' ? '/' : pathname
 
   if (role === 'mozo') return MOZO_ALLOWED_ROUTES.has(normalizedPath)
+  if (role === 'empleado') return EMPLEADO_ALLOWED_ROUTES.has(normalizedPath)
   if (role === 'cocina') return !COCINA_BLOCKED_ROUTES.has(normalizedPath)
   return true
 }

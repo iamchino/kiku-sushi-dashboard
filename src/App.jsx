@@ -23,6 +23,9 @@ import CajaPage from './pages/Caja'
 import NotificacionesPage from './pages/Notificaciones'
 import ProveedoresPage from './pages/Proveedores'
 import FinanzasPage from './pages/Finanzas'
+import PersonalPage from './pages/Personal'
+import FicharPage from './pages/Fichar'
+import MisHorasPage from './pages/MisHoras'
 import Login from './pages/Login'
 import { ThemeProvider } from './context/ThemeContext'
 import { RoleContext, FinanzasAccessContext, DEFAULT_ROLE, getRoleFromUser, canAccessRoute, getDefaultRoute, canAccessFinanzas } from './context/role'
@@ -55,16 +58,34 @@ function RoleGuard({ children }) {
   if (!canAccessRoute(role, location.pathname)) {
     return <Navigate to={getDefaultRoute(role)} replace />
   }
-  // Finanzas: exclusivo de los emails habilitados (ni siquiera otros admin entran).
-  if (location.pathname.startsWith('/finanzas') && !finanzasOk) {
+  // Finanzas y Personal (horas/sueldos): exclusivos de los emails habilitados
+  // (ni siquiera otros admin entran — los salarios son privados).
+  if ((location.pathname.startsWith('/finanzas') || location.pathname.startsWith('/personal')) && !finanzasOk) {
     return <Navigate to={getDefaultRoute(role)} replace />
   }
   return children
 }
 
+// Layout mínimo para el rol `empleado`: sin sidebar ni módulos del negocio.
+// Solo fichaje y sus horas, pensado para el celular.
+function EmpleadoLayout() {
+  return (
+    <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
+      <Routes>
+        <Route path="/fichar" element={<FicharPage />} />
+        <Route path="/mis-horas" element={<MisHorasPage />} />
+        <Route path="*" element={<Navigate to="/fichar" replace />} />
+      </Routes>
+    </div>
+  )
+}
+
 function AppRoutes() {
   const role = useRole()
   const defaultRoute = getDefaultRoute(role)
+
+  // El rol `empleado` no ve el dashboard: pantalla limpia de fichaje.
+  if (role === 'empleado') return <EmpleadoLayout />
 
   return (
     <AdminLayout>
@@ -90,6 +111,11 @@ function AppRoutes() {
           <Route path="/notificaciones" element={<NotificacionesPage />} />
           <Route path="/proveedores" element={<ProveedoresPage />} />
           <Route path="/finanzas" element={<FinanzasPage />} />
+          <Route path="/personal" element={<PersonalPage />} />
+          {/* Fichaje también disponible para otros roles vinculados a un empleado
+              (p. ej. un mozo o cocina que ficha con su mismo login). */}
+          <Route path="/fichar" element={<FicharPage />} />
+          <Route path="/mis-horas" element={<MisHorasPage />} />
           <Route path="*" element={<Navigate to={defaultRoute} replace />} />
         </Routes>
       </RoleGuard>

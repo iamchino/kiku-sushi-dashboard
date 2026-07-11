@@ -4,7 +4,7 @@ import {
   Home, ClipboardList, Package, Receipt, ListChecks,
   Users, ChefHat, LogOut, UtensilsCrossed, X, Menu,
   Sun, Moon, BookOpen, LayoutGrid, CalendarDays, Inbox, BarChart2,
-  ConciergeBell, Truck, Wallet, Settings
+  ConciergeBell, Truck, Wallet, Settings, Clock
 } from 'lucide-react'
 import clsx from 'clsx'
 import { auth } from '../../lib/supabase'
@@ -31,6 +31,7 @@ const NAV_ITEMS = [
   { to: '/recetas',    icon: BookOpen,        label: 'Recetas'      },
   { to: '/caja',       icon: Receipt,         label: 'Caja y ARCA'  },
   { to: '/finanzas',   icon: Wallet,          label: 'Finanzas',     finanzasOnly: true },
+  { to: '/personal',   icon: Clock,           label: 'Personal',     finanzasOnly: true },
   { to: '/clientes',   icon: Users,           label: 'Clientes'     },
   { to: '/notificaciones', icon: Inbox,       label: 'Notificaciones' },
   { to: '/proveedores',   icon: Truck,        label: 'Proveedores',  adminOnly: true },
