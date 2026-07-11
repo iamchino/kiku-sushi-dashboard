@@ -16,6 +16,15 @@ export default function SueldosSection({ desde, hasta, label }) {
   const [delEmp, setDelEmp]           = useState(null)
   const [delPago, setDelPago]         = useState(null)
 
+  const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+  const descPago = (emp) => {
+    if (emp.frecuencia_pago === 'semanal')
+      return `pago semanal${emp.dia_pago_semana != null ? ` (${DIAS_SEMANA[emp.dia_pago_semana]})` : ''}`
+    if (emp.frecuencia_pago === 'quincenal')
+      return `quincenal${emp.dia_pago ? ` (día ${emp.dia_pago})` : ''}`
+    return emp.dia_pago ? `pago día ${emp.dia_pago}` : null
+  }
+
   const pagosSueldos = useMemo(() => egresos.filter(e => e.categoria === 'sueldos'), [egresos])
   const totalSueldos = pagosSueldos.filter(e => e.estado === 'pagado').reduce((s, e) => s + Number(e.monto || 0), 0)
 
@@ -90,8 +99,8 @@ export default function SueldosSection({ desde, hasta, label }) {
                     </p>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       {emp.puesto && <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{emp.puesto}</span>}
-                      {emp.sueldo_base > 0 && <span className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>· base {fmtMoney(emp.sueldo_base)}</span>}
-                      {emp.dia_pago && <span className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>· pago día {emp.dia_pago}</span>}
+                      {emp.sueldo_base > 0 && <span className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>· {emp.tipo_sueldo === 'hora' ? `${fmtMoney(emp.sueldo_base)}/h` : `base ${fmtMoney(emp.sueldo_base)}`}</span>}
+                      {descPago(emp) && <span className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>· {descPago(emp)}</span>}
                     </div>
                   </div>
                 </div>
