@@ -231,7 +231,7 @@ export function buildComandaText(pedido, opts = {}) {
   // NUNCA se corten en el papel (el número de repe arriba siempre visible).
   if (repeNum) {
     out.push(line(width, '*'))
-    out.push(center(`x${repeNum} REPE`, width))
+    out.push(center('REPE', width))
     if (repeNombre) out.push(center(ascii(repeNombre), width))
     if (repePlatos) out.push(center(`${repePlatos} platos`, width))
     out.push(line(width, '*'))

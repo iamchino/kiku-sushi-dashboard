@@ -111,7 +111,7 @@ export default function MesaDetallePanel({
       const res = await printComanda({
         ...pedido,
         pedido_items: [{ nombre: nombreLibre.toUpperCase(), cantidad: cant, notas: entry?.nota || null }],
-        _ronda_label: `x${value} REPE ${nombreLibre.toUpperCase()}`,
+        _ronda_label: `REPE ${nombreLibre.toUpperCase()}`,
         // Banner estructurado para que la comanda diga claramente la repe.
         _repe_num: value,
         _repe_platos: cant,
@@ -276,7 +276,6 @@ export default function MesaDetallePanel({
                 className="flex-shrink-0 transition-transform"
                 style={{ color: 'var(--text-muted)', transform: repesOpen ? 'rotate(180deg)' : 'none' }}
               />
-              <span className="text-2xl font-extrabold tabular-nums flex-shrink-0" style={{ color: '#f59e0b' }}>x{rondasKiku}</span>
               <span className="min-w-0">
                 <span className="block text-xs font-bold truncate" style={{ color: 'var(--text-primary)' }}>{nombreLibre} · Repes</span>
                 <span className="block text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
