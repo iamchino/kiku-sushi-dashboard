@@ -20,7 +20,26 @@
 //  Supabase automáticamente; no hay secrets que configurar.)
 // ────────────────────────────────────────────────────────────────────────────
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders, jsonResponse, errorResponse } from "../_shared/cors.ts";
+
+// CORS inline (sin depender de ../_shared) para poder pegar esta función
+// tal cual en el editor del Dashboard de Supabase si no se usa la CLI.
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function errorResponse(message: string, status = 400): Response {
+  return jsonResponse({ ok: false, error: message }, status);
+}
 
 const VALID_ROLES = ["empleado", "mozo", "cocina", "admin"];
 
@@ -34,11 +53,16 @@ Deno.serve(async (req) => {
 
   // ── 1) Autenticación + autorización (solo Finanzas) ────────────────────────
   const authHeader = req.headers.get("Authorization") ?? "";
+  const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!jwt) return errorResponse("No autenticado", 401);
+
   const caller = createClient(url, anonKey, {
     global: { headers: { Authorization: authHeader } },
   });
 
-  const { data: userData, error: userErr } = await caller.auth.getUser();
+  // getUser(jwt): dentro de una Edge Function hay que pasar el token explícito
+  // (el cliente no tiene sesión propia; el header solo aplica a PostgREST/RPC).
+  const { data: userData, error: userErr } = await caller.auth.getUser(jwt);
   if (userErr || !userData?.user) return errorResponse("No autenticado", 401);
 
   const { data: esFinanzas, error: finErr } = await caller.rpc("is_finanzas_user");
