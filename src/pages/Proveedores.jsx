@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus, Search, Edit2, Trash2, X, RefreshCw, Truck, Phone, CreditCard, FileText, AlertTriangle, ChevronDown, ChevronUp, Calendar } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Plus, Search, Edit2, Trash2, X, RefreshCw, Truck, Phone, CreditCard, FileText, AlertTriangle, ChevronDown, ChevronUp, Calendar, CalendarClock } from 'lucide-react'
 import { useProveedores } from '../hooks/useProveedores'
 
 const EMPTY_FORM = {
@@ -62,6 +62,92 @@ const formatFecha = (s) => {
   if (!s) return ''
   const [y, m, d] = s.slice(0, 10).split('-')
   return (y && m && d) ? `${d}/${m}/${y}` : s
+}
+
+// Ventana (en días) para considerar un pago como "próximo".
+const DIAS_ALERTA_PAGO = 7
+
+// Parsea 'YYYY-MM-DD' a Date LOCAL a medianoche (sin corrimiento de zona).
+const parseFechaLocal = (s) => {
+  if (!s) return null
+  const [y, m, d] = s.slice(0, 10).split('-').map(Number)
+  if (!y || !m || !d) return null
+  return new Date(y, m - 1, d)
+}
+
+// Días desde hoy hasta la fecha (negativo = vencido, 0 = hoy). null si no hay fecha.
+const diasHastaPago = (fecha) => {
+  const f = parseFechaLocal(fecha)
+  if (!f) return null
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  return Math.round((f - hoy) / 86400000)
+}
+
+// Etiqueta + colores según urgencia (rojo = vencido/hoy, ámbar = próximo).
+const urgenciaPago = (dias) => {
+  if (dias < 0) {
+    const n = Math.abs(dias)
+    return { label: `Vencido hace ${n} día${n === 1 ? '' : 's'}`, color: '#f87171', bg: 'rgba(239,68,68,0.12)', vencido: true }
+  }
+  if (dias === 0) return { label: 'Vence hoy',    color: '#f87171', bg: 'rgba(239,68,68,0.12)', vencido: true }
+  if (dias === 1) return { label: 'Vence mañana', color: '#fbbf24', bg: 'rgba(251,191,36,0.14)', vencido: false }
+  return { label: `En ${dias} días`, color: '#fbbf24', bg: 'rgba(251,191,36,0.14)', vencido: false }
+}
+
+// ── Alerta de pagos próximos / vencidos ───────────────────────────────────────
+function ProximosPagosAlert({ items, onSelect }) {
+  if (!items.length) return null
+
+  const hayVencidos = items.some(x => x.dias <= 0)
+  const acento = hayVencidos ? '#f87171' : '#fbbf24'
+  const acentoBg = hayVencidos ? 'rgba(239,68,68,0.06)' : 'rgba(251,191,36,0.06)'
+  const acentoBorde = hayVencidos ? 'rgba(239,68,68,0.25)' : 'rgba(251,191,36,0.25)'
+
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${acentoBorde}`, background: acentoBg }}>
+      <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: `1px solid ${acentoBorde}` }}>
+        <CalendarClock size={15} style={{ color: acento }} />
+        <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+          Pagos próximos
+        </p>
+        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: acentoBg, color: acento, border: `1px solid ${acentoBorde}` }}>
+          {items.length}
+        </span>
+      </div>
+      <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+        {items.map(({ prov, dias }) => {
+          const meta = urgenciaPago(dias)
+          return (
+            <button
+              key={prov.id}
+              type="button"
+              onClick={() => onSelect(prov)}
+              className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors"
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              title="Editar proveedor / actualizar fecha de pago"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: meta.bg }}>
+                  <Truck size={13} style={{ color: meta.color }} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{prov.razon_social}</p>
+                  <p className="text-[11px] flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                    <Calendar size={9} /> Pago {formatFecha(prov.fecha_pago)}
+                  </p>
+                </div>
+              </div>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: meta.bg, color: meta.color }}>
+                {meta.label}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 // ── Modal alta/edición ────────────────────────────────────────────────────────
@@ -341,6 +427,15 @@ export default function ProveedoresPage() {
     )
   )
 
+  // Pagos que vencen dentro de la ventana (o ya vencidos). Independiente del
+  // buscador: la alerta siempre muestra todos los pagos próximos.
+  const pagosProximos = useMemo(() => (
+    proveedores
+      .map(prov => ({ prov, dias: diasHastaPago(prov.fecha_pago) }))
+      .filter(x => x.dias !== null && x.dias <= DIAS_ALERTA_PAGO)
+      .sort((a, b) => a.dias - b.dias)
+  ), [proveedores])
+
   const handleSave = async (form) => {
     if (modal === 'nuevo') {
       await crearProveedor(form)
@@ -395,6 +490,9 @@ export default function ProveedoresPage() {
           }}
         />
       </div>
+
+      {/* Alerta de pagos próximos / vencidos */}
+      <ProximosPagosAlert items={pagosProximos} onSelect={p => setModal(p)} />
 
       {/* Error */}
       {error && (

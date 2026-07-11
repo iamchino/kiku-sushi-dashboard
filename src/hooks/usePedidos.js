@@ -112,7 +112,7 @@ export function usePedidos(options = {}) {
   const fetchPedidos = useCallback(async () => {
     let query = supabase
       .from('pedidos')
-      .select('*, pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id), comprobantes_fiscales(*)')
+      .select('*, pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id), comprobantes_fiscales(*), pagos(id, medio_pago, monto, numero_operacion, notas, created_at)')
       .order('created_at', { ascending: false })
 
     if (mode === 'today') {
@@ -181,6 +181,7 @@ export function usePedidos(options = {}) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' },               fetchPedidos)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedido_items' },          fetchPedidos)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comprobantes_fiscales' }, fetchPedidos)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pagos' },                 fetchPedidos)
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [fetchPedidos, mode, dateFrom, dateTo])

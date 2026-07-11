@@ -4,7 +4,7 @@ import {
   X, Printer, Ban, Receipt, User, Phone, MapPin,
   Clock, Tag, ExternalLink, AlertCircle, Loader2, Utensils, Truck,
   ShoppingBag, CheckCircle2, Lock, Plus, Minus, Trash2, Banknote, Gift, RotateCcw,
-  Pencil, AlertTriangle,
+  Pencil, AlertTriangle, CreditCard, Send, Wallet,
 } from 'lucide-react'
 import { getEstadoSimple, getTipoPedido } from '../../hooks/usePedidos'
 import { useFacturacion } from '../../hooks/useFacturacion'
@@ -46,6 +46,14 @@ function formatFechaHora(value) {
     day: '2-digit', month: '2-digit', year: '2-digit',
     hour: '2-digit', minute: '2-digit',
   })
+}
+
+// Ícono según el medio de pago.
+function medioIcon(medio) {
+  if (medio === 'efectivo') return Banknote
+  if (medio === 'transferencia') return Send
+  if (medio === 'tarjeta_credito' || medio === 'tarjeta_debito') return CreditCard
+  return Wallet
 }
 
 /**
@@ -121,6 +129,17 @@ export default function PedidoDetalleModal({
   const esDelivery = pedido?.canal === 'delivery'
   const puedeAvanzar = false
   const puedeCancelar = simple === 'activa'
+
+  // Detalle de cómo pagó el cliente: usa la tabla `pagos` (soporta pago
+  // dividido); si no hay filas, cae al medio guardado en el pedido (cobros
+  // fuera de caja). Vacío si la orden todavía no se cobró.
+  const pagos = Array.isArray(pedido.pagos)
+    ? [...pedido.pagos].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    : []
+  const pagoLineas = pagos.length > 0
+    ? pagos.map(p => ({ medio: p.medio_pago, monto: Number(p.monto) || 0, nroOp: p.numero_operacion || null }))
+    : (pedido.medio_pago ? [{ medio: pedido.medio_pago, monto: Number(pedido.total) || 0, nroOp: null }] : [])
+  const pagoDividido = pagoLineas.length > 1
 
   // Edición de items: pedidos activos. Los facturados se permiten con aviso fiscal.
   const editable      = simple === 'activa'
@@ -617,6 +636,39 @@ export default function PedidoDetalleModal({
               </div>
             )}
           </section>
+
+          {/* Pago — cómo pagó el cliente (medios registrados; soporta split) */}
+          {pagoLineas.length > 0 && (
+            <section className="rounded-lg p-3 space-y-1.5"
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-wide flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                  <Wallet size={11} /> Pago{pagoDividido ? ' · dividido' : ''}
+                </p>
+                {pedido.afecta_caja === false && (
+                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                    style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
+                    Fuera de caja
+                  </span>
+                )}
+              </div>
+              {pagoLineas.map((l, i) => {
+                const Icon = medioIcon(l.medio)
+                return (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+                      <Icon size={13} style={{ color: 'var(--text-muted)' }} />
+                      {MEDIO_PAGO_LABELS[l.medio] || l.medio}
+                      {l.nroOp && <span style={{ color: 'var(--text-xmuted)' }}>· op. {l.nroOp}</span>}
+                    </span>
+                    <span className="font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                      ${formatMoney(l.monto)}
+                    </span>
+                  </div>
+                )
+              })}
+            </section>
+          )}
 
           {/* Facturación */}
           {facturada && (
