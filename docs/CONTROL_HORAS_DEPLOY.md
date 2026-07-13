@@ -7,16 +7,17 @@ Módulo implementado según `GUIA_CONTROL_HORAS_Y_FICHAJE.md` con estas decision
 | Administración | **Solo Finanzas** (`finanzas@kikusushi.com.ar`). También crea/elimina **usuarios** desde el dash. |
 | Valor hora | Se reutiliza `empleados.sueldo_base` cuando `tipo_sueldo = 'hora'` (no se duplicó el campo). |
 | Redondeo | Bloques de **30 min al más cercano**, por jornada (4h14m → 4h00m · 4h16m → 4h30m). |
-| Liquidación | **Semanal, martes → lunes**, con estados **En curso → Pendiente → Pagada**. |
+| Liquidación | **Semanal, martes → lunes**, con estados **En curso → Pendiente → Pagada**. También **pago por día (jornal)**: un día pagado suelto se excluye automáticamente del cierre semanal. |
 | Anti-fraude | Login + QR fijo + **geocerca de 100 m** (configurable por punto, 10–1000 m). |
 | App | Solo enlace web (el QR codifica la URL del dominio donde corre el dash). |
 
 ## 1. Base de datos
 
-Correr la migración (SQL Editor de Supabase o `supabase db push`):
+Correr las migraciones en orden (SQL Editor de Supabase o `supabase db push`):
 
 ```
 supabase/migrations/20260712000000_control_horas.sql
+supabase/migrations/20260713000000_liquidacion_diaria.sql
 ```
 
 Crea: `empleados.user_id`, `puntos_fichaje` (con un punto sembrado), `fichajes`,
@@ -56,6 +57,11 @@ Deploy normal en Vercel. `vercel.json` ahora permite `geolocation=(self)`
    Finanzas (categoría `sueldos`, período `YYYY-MM`) y la fila queda **Pagada**.
 4. Jornadas sin salida no suman: se corrigen en Personal → Fichajes (quedan
    marcadas `manual` para auditoría).
+5. **Pago por día (jornal):** botón "Pagar día" (o "Día" en la fila del
+   empleado) → elegir día → muestra horas y total → confirmar. Crea el egreso
+   (subtipo `jornal`) y ese día queda excluido del cierre semanal. Anular un
+   jornal borra también su egreso y las horas vuelven a la semana. No se puede
+   pagar un día que ya entró en una semana cerrada (eliminar ese cierre primero).
 
 ## Notas
 

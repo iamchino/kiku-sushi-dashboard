@@ -12,6 +12,7 @@ export function useMisHoras(refDate) {
   const [empleado, setEmpleado]       = useState(null)
   const [jornadas, setJornadas]       = useState([])
   const [liquidacion, setLiquidacion] = useState(null)
+  const [jornales, setJornales]       = useState([])   // pagos por día (tipo 'dia')
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState(null)
 
@@ -44,20 +45,22 @@ export function useMisHoras(refDate) {
             .from('liquidaciones')
             .select('*')
             .eq('empleado_id', emp.id)
-            .eq('semana_inicio', semana.desde)
-            .maybeSingle(),
+            .or(`and(tipo.eq.semana,semana_inicio.eq.${semana.desde}),and(tipo.eq.dia,semana_inicio.gte.${semana.desde},semana_inicio.lte.${semana.hasta})`)
+            .order('semana_inicio', { ascending: true }),
         ])
         if (jor.error) throw jor.error
         if (liq.error) throw liq.error
         setJornadas(jor.data || [])
-        setLiquidacion(liq.data || null)
+        const liqs = liq.data || []
+        setLiquidacion(liqs.find(l => (l.tipo || 'semana') === 'semana') || null)
+        setJornales(liqs.filter(l => l.tipo === 'dia'))
       }
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }, [semana.desde, semana.inicioISO, semana.finExclusivoISO])
+  }, [semana.desde, semana.hasta, semana.inicioISO, semana.finExclusivoISO])
 
   useEffect(() => { fetchDatos() }, [fetchDatos])
 
@@ -68,5 +71,5 @@ export function useMisHoras(refDate) {
   const esPorHora = empleado?.tipo_sueldo === 'hora'
   const estimado = esPorHora ? (minutos / 60) * Number(empleado?.sueldo_base || 0) : 0
 
-  return { empleado, jornadas, minutos, estimado, esPorHora, liquidacion, semana, loading, error, refetch: fetchDatos }
+  return { empleado, jornadas, minutos, estimado, esPorHora, liquidacion, jornales, semana, loading, error, refetch: fetchDatos }
 }

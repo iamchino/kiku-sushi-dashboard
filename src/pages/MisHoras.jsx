@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock, AlertTriangle, BadgeDollarSign } from 'lucide-react'
 import { useMisHoras } from '../hooks/useMisHoras'
 import { fmtMinutos, fmtHora, shiftSemana, esSemanaActual } from '../lib/horas'
-import { fmtMoney } from '../lib/finanzas'
+import { fmtMoney, localDateISO } from '../lib/finanzas'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import EmpleadoHeader from '../components/layout/EmpleadoHeader'
@@ -16,7 +16,10 @@ const ESTADO_CHIP = {
 // Mis horas: la semana de liquidación va de MARTES a LUNES.
 export default function MisHorasPage() {
   const [refDate, setRefDate] = useState(() => new Date())
-  const { empleado, jornadas, minutos, estimado, esPorHora, liquidacion, semana, loading, error } = useMisHoras(refDate)
+  const { empleado, jornadas, minutos, estimado, esPorHora, liquidacion, jornales, semana, loading, error } = useMisHoras(refDate)
+
+  const totalJornales = jornales.reduce((s, j) => s + Number(j.total || 0), 0)
+  const diasJornal = new Set(jornales.map(j => j.semana_inicio))
 
   const enCurso = esSemanaActual(semana.inicio)
   const chip = liquidacion
@@ -97,6 +100,11 @@ export default function MisHorasPage() {
               Valor hora: {fmtMoney(empleado.sueldo_base)}
             </p>
           )}
+          {jornales.length > 0 && (
+            <p className="text-[11px] mt-1" style={{ color: '#22c55e' }}>
+              Jornales pagados: {jornales.length} {jornales.length === 1 ? 'día' : 'días'} · {fmtMoney(totalJornales)}
+            </p>
+          )}
         </div>
 
         {abiertas.length > 0 && (
@@ -139,6 +147,9 @@ export default function MisHorasPage() {
                     <p className="text-[10px] tabular-nums" style={{ color: 'var(--text-xmuted)' }}>
                       reales: {fmtMinutos(j.minutos_reales)}
                     </p>
+                  )}
+                  {diasJornal.has(localDateISO(new Date(j.entrada))) && (
+                    <p className="text-[10px] font-semibold" style={{ color: '#22c55e' }}>jornal pagado</p>
                   )}
                 </div>
               </div>
