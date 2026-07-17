@@ -17,7 +17,7 @@ import { supabase } from '../../lib/supabase'
  * usan los productos y los especiales).
  */
 
-const MAX_IMAGENES = 3
+const MAX_IMAGENES = 5
 const MIN_IMAGENES_PARA_PUBLICAR = 2
 const MAX_MB = 5
 
@@ -264,13 +264,13 @@ export default function RamenTab() {
         </div>
 
         <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-          La <strong style={{ color: 'var(--text-secondary)' }}>primera</strong> es la principal: va de fondo
-          a toda la sección. Las otras aparecen como recuadros chicos al costado.
-          Arrastralas para cambiar el orden.
+          Se muestran en un carrusel, en este orden. La <strong style={{ color: 'var(--text-secondary)' }}>primera</strong> abre
+          el carrusel y además va de fondo a la sección. Arrastralas para reordenarlas.
+          Podés poner de {MIN_IMAGENES_PARA_PUBLICAR} a {MAX_IMAGENES}: si son tres, son tres — no quedan huecos.
         </p>
 
         {form.imagenes.length > 0 && (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
             {form.imagenes.map((im, idx) => (
               <div
                 key={im.url}
@@ -292,7 +292,7 @@ export default function RamenTab() {
                     className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide"
                     style={{ background: 'var(--accent)', color: '#fff' }}
                   >
-                    Principal
+                    1ª · portada
                   </span>
                 )}
                 <GripVertical
