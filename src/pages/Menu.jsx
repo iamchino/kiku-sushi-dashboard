@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import {
   Plus, Search, Edit2, Trash2, Eye, EyeOff,
   UtensilsCrossed, Truck, RefreshCw, AlertCircle, Package, Sparkles, TrendingUp, Megaphone, Utensils,
-  GripVertical, MoveVertical
+  GripVertical, MoveVertical, Soup
 } from 'lucide-react'
 import { useMenu } from '../hooks/useMenu'
 import { normalizeSearch } from '../utils/normalize'
@@ -10,6 +10,7 @@ import ProductModal from '../components/menu/ProductModal'
 import EspecialesTab from '../components/menu/EspecialesTab'
 import BannerTab from '../components/menu/BannerTab'
 import OmakaseTab from '../components/menu/OmakaseTab'
+import RamenTab from '../components/menu/RamenTab'
 import AjustePreciosModal from '../components/menu/AjustePreciosModal'
 
 const TABS = [
@@ -18,6 +19,7 @@ const TABS = [
   { id: 'especiales', label: 'Especiales Web',     icon: Sparkles },
   { id: 'banner',     label: 'Banner web',         icon: Megaphone },
   { id: 'omakase',    label: 'Omakase',            icon: Utensils },
+  { id: 'ramen',      label: 'Ramen',              icon: Soup },
 ]
 
 const BADGE_COLORS = {
@@ -42,8 +44,9 @@ export default function MenuPage() {
   const esEspeciales = activeTab === 'especiales'
   const esBanner = activeTab === 'banner'
   const esOmakase = activeTab === 'omakase'
-  // "config" = tabs que no listan productos (Especiales Web, Banner web, Omakase).
-  const esConfig = esEspeciales || esBanner || esOmakase
+  const esRamen = activeTab === 'ramen'
+  // "config" = tabs que no listan productos (Especiales Web, Banner web, Omakase, Ramen).
+  const esConfig = esEspeciales || esBanner || esOmakase || esRamen
 
   const {
     grouped, categories, stats,
@@ -256,6 +259,9 @@ export default function MenuPage() {
 
       {/* ── Tab Omakase (precio web, autocontenido) ── */}
       {esOmakase && <OmakaseTab />}
+
+      {/* ── Tab Ramen (sección web, autocontenido) ── */}
+      {esRamen && <RamenTab />}
 
       {/* ── Stats bar ── */}
       {!esConfig && !loading && (
