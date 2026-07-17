@@ -135,3 +135,15 @@
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }
 }
+
+/* Fila de tabs que se desliza en mobile (ver /menu).
+   Ocultamos la barra de scroll: cortaría los tabs por abajo y se ve mal.
+   El desplazamiento sigue funcionando con el dedo y con la rueda. */
+.tabs-scroll {
+  scrollbar-width: none;           /* Firefox */
+  -ms-overflow-style: none;        /* IE / Edge viejo */
+  -webkit-overflow-scrolling: touch;
+}
+.tabs-scroll::-webkit-scrollbar {  /* Chrome, Safari, y el WebView de Android */
+  display: none;
+}
