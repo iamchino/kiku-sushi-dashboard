@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import {
   Plus, Search, Edit2, Trash2, Eye, EyeOff,
   UtensilsCrossed, Truck, RefreshCw, AlertCircle, Package, Sparkles, TrendingUp, Megaphone, Utensils,
-  GripVertical, MoveVertical, Soup
+  GripVertical, MoveVertical, Flame
 } from 'lucide-react'
 import { useMenu } from '../hooks/useMenu'
 import { normalizeSearch } from '../utils/normalize'
@@ -10,7 +10,7 @@ import ProductModal from '../components/menu/ProductModal'
 import EspecialesTab from '../components/menu/EspecialesTab'
 import BannerTab from '../components/menu/BannerTab'
 import OmakaseTab from '../components/menu/OmakaseTab'
-import RamenTab from '../components/menu/RamenTab'
+import NovedadTab from '../components/menu/NovedadTab'
 import AjustePreciosModal from '../components/menu/AjustePreciosModal'
 
 const TABS = [
@@ -19,7 +19,7 @@ const TABS = [
   { id: 'especiales', label: 'Especiales Web',     icon: Sparkles },
   { id: 'banner',     label: 'Banner web',         icon: Megaphone },
   { id: 'omakase',    label: 'Omakase',            icon: Utensils },
-  { id: 'ramen',      label: 'Ramen',              icon: Soup },
+  { id: 'novedad',    label: 'Nuevo',              icon: Flame },
 ]
 
 const BADGE_COLORS = {
@@ -44,9 +44,9 @@ export default function MenuPage() {
   const esEspeciales = activeTab === 'especiales'
   const esBanner = activeTab === 'banner'
   const esOmakase = activeTab === 'omakase'
-  const esRamen = activeTab === 'ramen'
-  // "config" = tabs que no listan productos (Especiales Web, Banner web, Omakase, Ramen).
-  const esConfig = esEspeciales || esBanner || esOmakase || esRamen
+  const esNovedad = activeTab === 'novedad'
+  // "config" = tabs que no listan productos (Especiales Web, Banner web, Omakase, Nuevo).
+  const esConfig = esEspeciales || esBanner || esOmakase || esNovedad
 
   const {
     grouped, categories, stats,
@@ -167,7 +167,7 @@ export default function MenuPage() {
   const isEmpty = Object.keys(filteredGrouped).length === 0
 
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-7xl mx-auto">
+    <div className="p-4 md:p-6 space-y-5 max-w-7xl mx-auto overflow-x-hidden">
 
       {/* ── Aviso (resultado de eliminar) ── */}
       {notice && (
@@ -192,14 +192,14 @@ export default function MenuPage() {
       )}
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Menú & Carta</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
             Gestioná los productos de cada sección
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
             onClick={() => setPreciosOpen(true)}
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all"
@@ -234,12 +234,20 @@ export default function MenuPage() {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
+      <div
+        className="flex gap-1 p-1 rounded-xl overflow-x-auto tabs-scroll"
+        style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}
+        role="tablist"
+      >
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
+            role="tab"
+            aria-selected={activeTab === id}
             onClick={() => { setActiveTab(id); setSearch('') }}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
+            /* shrink-0 + whitespace-nowrap: en mobile cada tab conserva su ancho
+               y la fila se desliza. Desde sm entran todos y vuelven a repartirse. */
+            className="shrink-0 sm:flex-1 whitespace-nowrap flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all"
             style={activeTab === id
               ? { background: 'var(--bg-card)', color: 'var(--accent-lift)', border: '1px solid var(--border)' }
               : { color: 'var(--text-muted)' }
@@ -260,12 +268,12 @@ export default function MenuPage() {
       {/* ── Tab Omakase (precio web, autocontenido) ── */}
       {esOmakase && <OmakaseTab />}
 
-      {/* ── Tab Ramen (sección web, autocontenido) ── */}
-      {esRamen && <RamenTab />}
+      {/* ── Tab Nuevo (el plato del momento en la web, autocontenido) ── */}
+      {esNovedad && <NovedadTab />}
 
       {/* ── Stats bar ── */}
       {!esConfig && !loading && (
-        <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs" style={{ color: 'var(--text-muted)' }}>
           <span className="flex items-center gap-1.5">
             <Package size={12} />
             <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{stats.total}</span> productos

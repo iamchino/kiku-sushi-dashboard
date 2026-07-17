@@ -6,15 +6,19 @@ import {
 import { supabase } from '../../lib/supabase'
 
 /**
- * Editor de la sección "Ramen" de la web pública.
- * Tabla web_config (fila única id=1), columnas ramen_*.
+ * Editor de la sección "Nuevo" de la web pública: el plato del momento.
+ * Tabla web_config (fila única id=1), columnas novedad_*.
+ *
+ * Es un contenedor genérico a propósito. Hoy es el ramen; cuando el ramen deje
+ * de ser novedad, se cambian fotos, título y precio desde acá y pasa a ser
+ * otra cosa, sin tocar código.
  *
  * La sección va justo después del hero en el home. Nace apagada: la idea es
  * cargar fotos, copy y precio con calma, y recién prenderla cuando esté lista.
- * Mientras ramen_activo = false, la web ni siquiera renderiza la sección.
+ * Mientras novedad_activo = false, la web ni siquiera renderiza la sección.
  *
- * Las fotos van al bucket menu-images bajo el prefijo ramen/ (mismo bucket que
- * usan los productos y los especiales).
+ * Las fotos van al bucket menu-images bajo el prefijo novedad/ (mismo bucket
+ * que usan los productos y los especiales).
  */
 
 const MAX_IMAGENES = 5
@@ -26,15 +30,15 @@ const fmt = (n) => Number(n || 0).toLocaleString('es-AR')
 
 const VACIO = {
   activo: false,
-  overline: 'ラーメン',
-  titulo: 'Ramen',
+  overline: '',
+  titulo: '',
   tituloAccent: '',
   descripcion: '',
   precio: 0,
   imagenes: [],
 }
 
-export default function RamenTab() {
+export default function NovedadTab() {
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(VACIO)
   const [saveState, setSaveState] = useState('idle') // idle|saving|ok|error
@@ -50,7 +54,7 @@ export default function RamenTab() {
     let alive = true
     supabase
       .from('web_config')
-      .select('ramen_activo, ramen_overline, ramen_titulo, ramen_titulo_accent, ramen_descripcion, ramen_precio, ramen_imagenes')
+      .select('novedad_activo, novedad_overline, novedad_titulo, novedad_titulo_accent, novedad_descripcion, novedad_precio, novedad_imagenes')
       .eq('id', 1)
       .maybeSingle()
       .then(({ data, error: err }) => {
@@ -58,13 +62,13 @@ export default function RamenTab() {
         if (err) setError(err.message)
         if (data) {
           setForm({
-            activo: Boolean(data.ramen_activo),
-            overline: data.ramen_overline ?? 'ラーメン',
-            titulo: data.ramen_titulo ?? 'Ramen',
-            tituloAccent: data.ramen_titulo_accent ?? '',
-            descripcion: data.ramen_descripcion ?? '',
-            precio: Number(data.ramen_precio ?? 0),
-            imagenes: Array.isArray(data.ramen_imagenes) ? data.ramen_imagenes : [],
+            activo: Boolean(data.novedad_activo),
+            overline: data.novedad_overline ?? '',
+            titulo: data.novedad_titulo ?? '',
+            tituloAccent: data.novedad_titulo_accent ?? '',
+            descripcion: data.novedad_descripcion ?? '',
+            precio: Number(data.novedad_precio ?? 0),
+            imagenes: Array.isArray(data.novedad_imagenes) ? data.novedad_imagenes : [],
           })
         }
         setLoading(false)
@@ -103,7 +107,7 @@ export default function RamenTab() {
         continue
       }
       const ext = file.name.split('.').pop()
-      const fileName = `ramen/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+      const fileName = `novedad/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
       const { error: upErr } = await supabase.storage
         .from('menu-images')
         .upload(fileName, file, { upsert: true, contentType: file.type })
@@ -164,13 +168,13 @@ export default function RamenTab() {
       .from('web_config')
       .upsert({
         id: 1,
-        ramen_activo: form.activo,
-        ramen_overline: form.overline.trim(),
-        ramen_titulo: form.titulo.trim(),
-        ramen_titulo_accent: form.tituloAccent.trim(),
-        ramen_descripcion: form.descripcion.trim(),
-        ramen_precio: Math.round(Number(form.precio) || 0),
-        ramen_imagenes: form.imagenes,
+        novedad_activo: form.activo,
+        novedad_overline: form.overline.trim(),
+        novedad_titulo: form.titulo.trim(),
+        novedad_titulo_accent: form.tituloAccent.trim(),
+        novedad_descripcion: form.descripcion.trim(),
+        novedad_precio: Math.round(Number(form.precio) || 0),
+        novedad_imagenes: form.imagenes,
         updated_at: new Date().toISOString(),
       })
     if (err) {
@@ -200,8 +204,9 @@ export default function RamenTab() {
       {/* Explicación */}
       <div className="rounded-xl p-4 text-xs leading-relaxed" style={{ ...card, color: 'var(--text-secondary)' }}>
         <p>
-          <strong style={{ color: 'var(--text-primary)' }}>Sección Ramen.</strong> Es la primera sección
-          del home, justo debajo del video del hero — el primer plato que ve el cliente al bajar.
+          <strong style={{ color: 'var(--text-primary)' }}>El plato nuevo.</strong> Es la primera sección
+          del home, justo debajo del video del hero — lo primero que ve el cliente al bajar.
+          Sirve para lo que estén lanzando en el momento: hoy el ramen, mañana lo que venga.
           Cargá las fotos, el texto y el precio con calma: mientras esté oculta, la web no la muestra.
           Cuando esté lista, la prendés acá y aparece al instante.
         </p>
@@ -455,11 +460,11 @@ export default function RamenTab() {
               </p>
             )}
             <p className="text-2xl mb-2" style={{ color: '#F5F0F7', fontFamily: 'Georgia, serif', fontWeight: 300 }}>
-              {form.titulo || 'Ramen'}{' '}
+              {form.titulo || 'Tu plato'}{' '}
               {form.tituloAccent && <span style={{ color: '#E8D4A2' }}>{form.tituloAccent}</span>}
             </p>
             <p className="text-[11px] leading-relaxed max-w-sm" style={{ color: '#9B8FAA' }}>
-              {form.descripcion.trim() || 'Acá va la descripción del ramen.'}
+              {form.descripcion.trim() || 'Acá va la descripción del plato.'}
             </p>
             {Number(form.precio) > 0 && (
               <p className="text-sm mt-3" style={{ color: '#E8D4A2', fontFamily: 'Georgia, serif' }}>
