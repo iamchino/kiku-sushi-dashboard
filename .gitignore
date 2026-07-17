@@ -34,3 +34,15 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Vite: archivos temporales de config
+vite.config.*.timestamp-*.mjs
+vite.config.*.timestamp-*
+
+# Volcados de errores / scratch
+e.txt
+err.txt
+*.tmp
+*.bak
+*.orig
+src/__tmpcheck/
