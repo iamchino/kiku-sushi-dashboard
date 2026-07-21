@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { rangoSemana } from '../lib/horas'
+import { rangoSemana, arDateISO } from '../lib/horas'
 
 const FICHAJE_SELECT = '*, empleado:empleados(nombre, apellido), punto:puntos_fichaje(nombre)'
 const LIQ_SELECT = '*, empleado:empleados(nombre, apellido)'
 
-// Administración de horas (solo Finanzas, por RLS) para la semana martes→lunes
+// Administración de horas (solo Finanzas, por RLS) para la semana lunes→domingo
 // que contiene `refDate`:
 //  - fichajes: log de marcas de la semana (+ CRUD para correcciones manuales)
+//  - horasDia: minutos por empleado y día (vista_jornadas), para el desglose
+//             de la tira Lun→Dom. Excluye días ya pagados por jornal, así
+//             suma exacto el total del resumen.
 //  - resumen: liquidacion_horas(desde, hasta) — horas y $ pendientes de cierre
 //             semanal (excluye días ya pagados por jornal)
 //  - liquidaciones: cierres SEMANALES de esa semana (pendiente/pagado)
@@ -19,6 +22,7 @@ export function useHoras(refDate) {
   const [liquidaciones, setLiquidaciones]         = useState([])
   const [liquidacionesDia, setLiquidacionesDia]   = useState([])
   const [puntos, setPuntos]                       = useState([])
+  const [horasDia, setHorasDia]                   = useState({})
   const [loading, setLoading]                     = useState(true)
   const [error, setError]                         = useState(null)
 
@@ -27,7 +31,7 @@ export function useHoras(refDate) {
   const fetchTodo = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const [fic, res, liq, pun] = await Promise.all([
+      const [fic, res, liq, pun, jor] = await Promise.all([
         supabase
           .from('fichajes')
           .select(FICHAJE_SELECT)
@@ -44,14 +48,36 @@ export function useHoras(refDate) {
           .from('puntos_fichaje')
           .select('*')
           .order('created_at', { ascending: true }),
+        // Jornadas cerradas de la semana (todas las de la semana, Finanzas por RLS),
+        // para desglosar las horas por día. Mismo redondeo de 30 min que el resumen.
+        supabase
+          .from('vista_jornadas')
+          .select('empleado_id, entrada, salida, minutos')
+          .gte('entrada', semana.inicioISO)
+          .lt('entrada', semana.finExclusivoISO),
       ])
-      for (const r of [fic, res, liq, pun]) if (r.error) throw r.error
+      for (const r of [fic, res, liq, pun, jor]) if (r.error) throw r.error
       setFichajes(fic.data || [])
       setResumen(res.data || [])
       const todas = liq.data || []
+      const dias = todas.filter(l => l.tipo === 'dia')
       setLiquidaciones(todas.filter(l => (l.tipo || 'semana') === 'semana'))
-      setLiquidacionesDia(todas.filter(l => l.tipo === 'dia'))
+      setLiquidacionesDia(dias)
       setPuntos(pun.data || [])
+
+      // Minutos por empleado y día (solo jornadas cerradas). Excluimos los días
+      // ya pagados como jornal: así la tira Lun→Dom suma exactamente el total
+      // "pendiente de cierre" que muestra cada fila (el resumen los excluye igual).
+      const jornalDias = new Set(dias.map(l => `${l.empleado_id}|${l.semana_inicio}`))
+      const mapa = {}
+      for (const j of (jor.data || [])) {
+        if (!j.salida) continue
+        const fecha = arDateISO(j.entrada)
+        if (jornalDias.has(`${j.empleado_id}|${fecha}`)) continue
+        ;(mapa[j.empleado_id] ||= {})
+        mapa[j.empleado_id][fecha] = (mapa[j.empleado_id][fecha] || 0) + (j.minutos || 0)
+      }
+      setHorasDia(mapa)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -155,7 +181,7 @@ export function useHoras(refDate) {
   }, [fetchTodo])
 
   return {
-    semana, fichajes, resumen, liquidaciones, liquidacionesDia, puntos, loading, error,
+    semana, fichajes, resumen, liquidaciones, liquidacionesDia, puntos, horasDia, loading, error,
     refetch: fetchTodo,
     crearFichaje, actualizarFichaje, eliminarFichaje,
     generarLiquidacion, generarLiquidacionDia, anularLiquidacionDia,

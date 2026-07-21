@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { rangoSemana } from '../lib/horas'
 
-// Horas del empleado logueado para la semana (martes → lunes) que contiene
+// Horas del empleado logueado para la semana (lunes → domingo) que contiene
 // `refDate`. RLS self: solo ve lo suyo.
 //  - jornadas: pares entrada/salida de vista_jornadas (salida null = abierta)
 //  - minutos: suma redondeada a bloques de 30 (solo jornadas cerradas)

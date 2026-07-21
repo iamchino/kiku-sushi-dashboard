@@ -1,18 +1,19 @@
 // Helpers del módulo de Control de Horas.
-// La semana de liquidación de Kiku va de MARTES a LUNES (laborable mar–sáb).
+// La semana de liquidación de Kiku va de LUNES a DOMINGO (laborable mar–sáb;
+// el domingo no se trabaja pero cierra la semana).
 import { startOfWeek, addDays, addWeeks, format, isWithinInterval } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { localDateISO } from './finanzas'
 
-// weekStartsOn: 2 = martes
-export const SEMANA_OPTS = { weekStartsOn: 2 }
+// weekStartsOn: 1 = lunes
+export const SEMANA_OPTS = { weekStartsOn: 1 }
 
 export function inicioSemana(ref = new Date()) {
   return startOfWeek(ref, SEMANA_OPTS)
 }
 
 // Rango de la semana que contiene `ref`: { inicio, fin, desde, hasta, label }
-// desde/hasta en ISO local (YYYY-MM-DD) para queries; fin = lunes siguiente.
+// desde/hasta en ISO local (YYYY-MM-DD) para queries; fin = domingo (inicio + 6).
 export function rangoSemana(ref = new Date()) {
   const inicio = inicioSemana(ref)
   const fin = addDays(inicio, 6)
@@ -34,6 +35,45 @@ export function shiftSemana(ref, dir) {
 
 export function esSemanaActual(inicio) {
   return isWithinInterval(new Date(), { start: inicio, end: addDays(inicio, 7) })
+}
+
+// ── Desglose por día ────────────────────────────────────────────────────────
+// Zona horaria del negocio. La usamos para que la fecha de un fichaje coincida
+// con la que calcula el SQL (que agrupa con `at time zone America/...`): así el
+// desglose por día suma EXACTO el total semanal, sin corrimientos por UTC.
+const AR_TZ = 'America/Argentina/Buenos_Aires'
+const AR_DATE_FMT = new Intl.DateTimeFormat('en-CA', {
+  timeZone: AR_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+})
+
+// timestamptz | Date → 'YYYY-MM-DD' en hora de Argentina.
+export function arDateISO(ts) {
+  return AR_DATE_FMT.format(new Date(ts))
+}
+
+// Los 7 días de la semana que empieza en `inicio` (lunes), como
+// [{ iso, corta, num }] listos para pintar la tira Lun→Dom.
+// corta: 'lun'..'dom' · num: día del mes.
+export function diasDeLaSemana(inicio) {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = addDays(inicio, i)
+    return {
+      iso: localDateISO(d),
+      corta: format(d, 'EEEEEE', { locale: es }), // 'lu','ma'... -> lo normalizamos abajo
+      etiqueta: format(d, 'EEE', { locale: es }),   // 'lun','mar'...
+      num: format(d, 'd'),
+    }
+  })
+}
+
+// Compacto para la tira por día: 0 → '—', 420 → '7h', 450 → '7h30'.
+export function fmtHorasCompacto(min) {
+  const m = Math.max(0, Math.round(Number(min || 0)))
+  if (m === 0) return '—'
+  const h = Math.floor(m / 60)
+  const r = m % 60
+  if (h === 0) return `${r}m`
+  return r === 0 ? `${h}h` : `${h}h${r.toString().padStart(2, '0')}`
 }
 
 // 462 → "7 h 42 m"
