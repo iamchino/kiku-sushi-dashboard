@@ -15,7 +15,7 @@ const SECCIONES = [
   { id: 'qr',          label: 'QR del local', icon: QrCode },
 ]
 
-// Personal: control de horas y liquidación semanal (martes → lunes).
+// Personal: control de horas y liquidación semanal (lunes → domingo).
 // Exclusivo del usuario de Finanzas (guard en App.jsx + RLS en la BD).
 export default function PersonalPage() {
   const [refDate, setRefDate] = useState(() => new Date())
@@ -34,7 +34,7 @@ export default function PersonalPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Personal</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            Fichaje y horas · semana martes → lunes · bloques de 30 min
+            Fichaje y horas · semana lunes → domingo · bloques de 30 min
           </p>
         </div>
       </div>

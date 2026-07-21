@@ -3,7 +3,7 @@ import { BadgeDollarSign, Lock, Trash2, Clock, CalendarDays } from 'lucide-react
 import { supabase } from '../../lib/supabase'
 import { useEgresos } from '../../hooks/useEgresos'
 import { fmtMoney, fmtFecha, MEDIOS_PAGO, localDateISO } from '../../lib/finanzas'
-import { fmtMinutos } from '../../lib/horas'
+import { fmtMinutos, fmtHorasCompacto, diasDeLaSemana } from '../../lib/horas'
 import { ModalShell, Field, Select } from '../finanzas/fields'
 import ConfirmDelete from '../finanzas/ConfirmDelete'
 
@@ -14,13 +14,13 @@ const CHIP = {
   sin_liquidar: { label: 'Sin liquidar', bg: 'var(--bg-active)',      color: 'var(--text-muted)' },
 }
 
-// Liquidación semanal (martes → lunes) con estados + pago por DÍA (jornal):
+// Liquidación semanal (lunes → domingo) con estados + pago por DÍA (jornal):
 //   Semana:  En curso → Cerrar semana → Pendiente → Pagar → Pagada
 //   Día:     "Pagar día" → jornal pendiente + egreso → Pagado
 // Un día pagado por jornal queda excluido del cierre semanal (sin dobles pagos).
 export default function LiquidacionSection({ horas, enCurso }) {
   const {
-    semana, resumen, liquidaciones, liquidacionesDia,
+    semana, resumen, liquidaciones, liquidacionesDia, horasDia,
     generarLiquidacion, generarLiquidacionDia, anularLiquidacionDia,
     actualizarLiquidacion, eliminarLiquidacion, loading,
   } = horas
@@ -37,6 +37,9 @@ export default function LiquidacionSection({ horas, enCurso }) {
     () => new Map(liquidaciones.map(l => [l.empleado_id, l])),
     [liquidaciones],
   )
+
+  // Los 7 días de la semana visible (lun→dom) para la tira de horas por día.
+  const dias = useMemo(() => diasDeLaSemana(semana.inicio), [semana.inicio])
 
   // Filas visibles: todo empleado con horas pendientes de cierre o con cierre semanal.
   const filas = useMemo(() => {
@@ -175,9 +178,12 @@ export default function LiquidacionSection({ horas, enCurso }) {
             const chip = CHIP[f.estado]
             const minutosMostrar = f.liq ? f.liq.minutos : f.minutos
             const totalMostrar = f.liq ? f.liq.total : f.total
+            const porDia = horasDia[f.empleado_id] || {}
+            const tieneDetalle = f.tipo_sueldo === 'hora' && dias.some(d => (porDia[d.iso] || 0) > 0)
             return (
-              <div key={f.empleado_id} className="flex items-center justify-between rounded-xl px-4 py-3 gap-3 flex-wrap"
+              <div key={f.empleado_id} className="rounded-xl px-4 py-3"
                 style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
+               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
                   <p className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>{f.nombre}</p>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -225,6 +231,11 @@ export default function LiquidacionSection({ horas, enCurso }) {
                     </button>
                   )}
                 </div>
+               </div>
+
+               {/* Desglose por día (lun→dom). Suma el total de arriba: los días
+                   pagados por jornal se excluyen (aparecen abajo, en "Pagos por día"). */}
+               {tieneDetalle && <DiaStrip dias={dias} porDia={porDia} />}
               </div>
             )
           })}
@@ -297,6 +308,44 @@ export default function LiquidacionSection({ horas, enCurso }) {
           mensaje={`¿Anulás el jornal de ${delDia.empleado?.nombre || ''} del ${fmtFecha(delDia.semana_inicio)} por ${fmtMoney(delDia.total)}? Se borra también su egreso en Finanzas y las horas vuelven al cierre semanal.`}
           onClose={() => setDelDia(null)} onConfirm={() => anularLiquidacionDia(delDia)} />
       )}
+    </div>
+  )
+}
+
+// Tira de horas por día (lun→dom) bajo el total del empleado. Cada celda muestra
+// el día y las horas de ese día; los días sin horas quedan en gris. La suma de
+// la tira coincide con el total "pendiente de cierre" de la fila.
+function DiaStrip({ dias, porDia }) {
+  return (
+    <div className="mt-2.5 grid grid-cols-7 gap-1">
+      {dias.map(d => {
+        const min = porDia[d.iso] || 0
+        const activo = min > 0
+        return (
+          <div
+            key={d.iso}
+            title={`${d.etiqueta} ${d.num}: ${activo ? fmtMinutos(min) : 'sin horas'}`}
+            className="flex flex-col items-center justify-center rounded-lg py-1.5 gap-0.5"
+            style={{
+              background: activo ? 'var(--accent-soft)' : 'var(--bg-input)',
+              border: `1px solid ${activo ? 'var(--accent-border)' : 'var(--border)'}`,
+            }}
+          >
+            <span
+              className="text-[9px] font-semibold uppercase tracking-wide capitalize"
+              style={{ color: activo ? 'var(--accent-lift)' : 'var(--text-xmuted)' }}
+            >
+              {d.etiqueta}
+            </span>
+            <span
+              className="text-[11px] tabular-nums font-medium"
+              style={{ color: activo ? 'var(--text-primary)' : 'var(--text-xmuted)' }}
+            >
+              {fmtHorasCompacto(min)}
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 }
