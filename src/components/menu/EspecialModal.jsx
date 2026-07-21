@@ -38,6 +38,7 @@ const EMPTY = {
   firma: '',
   orden: 0,
   activo: true,
+  dias: [],
   imagen_url: '',
   imagen_alt: '',
 }
@@ -96,6 +97,7 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
         firma: item.firma || '',
         orden: item.orden ?? 0,
         activo: item.activo ?? true,
+        dias: Array.isArray(item.dias) ? item.dias : [],
         imagen_url: item.imagen_url || '',
         imagen_alt: item.imagen_alt || '',
       })
@@ -329,13 +331,21 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
 
                 {/* Reservar → experiencia del form */}
                 {form.cta_tipo === 'reservar' && (
-                  <Field label="Experiencia (form de reservas)">
-                    <select name="experiencia" value={form.experiencia} onChange={handleField} className="input-modal">
-                      {EXPERIENCIAS.map(x => (
-                        <option key={x.id} value={x.id} style={{ background: 'var(--bg-input)' }}>{x.label}</option>
-                      ))}
-                    </select>
-                  </Field>
+                  <>
+                    <Field label="Experiencia (form de reservas)">
+                      <select name="experiencia" value={form.experiencia} onChange={handleField} className="input-modal">
+                        {EXPERIENCIAS.map(x => (
+                          <option key={x.id} value={x.id} style={{ background: 'var(--bg-input)' }}>{x.label}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Días que se ofrece (para reservar)" hint="Vacío = cualquier día abierto. En la web solo aparece en estos días.">
+                      <DiasPicker
+                        value={form.dias}
+                        onChange={dias => setForm(f => ({ ...f, dias }))}
+                      />
+                    </Field>
+                  </>
                 )}
 
                 {/* Pedir → producto de deli / take away */}
@@ -686,6 +696,36 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
         .input-modal:focus { border-color: rgba(var(--accent-rgb),0.5); }
         .input-modal::placeholder { color: var(--text-xmuted); }
       `}</style>
+    </div>
+  )
+}
+
+// Selector compacto de días (0=Dom..6=Sáb). value/onChange = array de dow.
+const DIAS_PICKER = [
+  { dow: 1, l: 'Lun' }, { dow: 2, l: 'Mar' }, { dow: 3, l: 'Mié' }, { dow: 4, l: 'Jue' },
+  { dow: 5, l: 'Vie' }, { dow: 6, l: 'Sáb' }, { dow: 0, l: 'Dom' },
+]
+function DiasPicker({ value, onChange }) {
+  const set = new Set(value || [])
+  const toggle = (dow) => {
+    const next = new Set(set)
+    next.has(dow) ? next.delete(dow) : next.add(dow)
+    onChange([...next].sort((a, b) => a - b))
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {DIAS_PICKER.map(({ dow, l }) => {
+        const on = set.has(dow)
+        return (
+          <button key={dow} type="button" onClick={() => toggle(dow)} aria-pressed={on}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"
+            style={on
+              ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
+              : { background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+            {l}
+          </button>
+        )
+      })}
     </div>
   )
 }
