@@ -49,11 +49,19 @@ const SORT_OPCIONES = [
 ]
 
 function rangoToDates(rango, customFrom, customTo) {
+  // Fecha LOCAL (no UTC): toISOString() daría el día de más/menos según la hora,
+  // corriendo el filtro. Con getFullYear/Month/Date usamos el día del navegador.
+  const toIso = (d) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
   const today = new Date()
-  const toIso = (d) => d.toISOString().slice(0, 10)
+  const masDias = (n) => { const d = new Date(today); d.setDate(d.getDate() + n); return d }
   if (rango === 'hoy')    return { from: toIso(today), to: toIso(today) }
-  if (rango === 'semana') return { from: toIso(today), to: toIso(new Date(today.getTime() + 6 * 86400000)) }
-  if (rango === 'mes')    return { from: toIso(today), to: toIso(new Date(today.getTime() + 30 * 86400000)) }
+  if (rango === 'semana') return { from: toIso(today), to: toIso(masDias(6)) }
+  if (rango === 'mes')    return { from: toIso(today), to: toIso(masDias(30)) }
   return { from: customFrom || toIso(today), to: customTo || toIso(today) }
 }
 

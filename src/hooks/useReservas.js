@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { startOfDay, endOfDay, addDays } from 'date-fns'
+import { addDays } from 'date-fns'
+import { localDateISO } from '../lib/finanzas'
 
 export const RESERVA_ESTADOS = ['pendiente', 'confirmada', 'sentada', 'no_show', 'cancelada']
 
@@ -62,15 +63,14 @@ export function useReservas(options = {}) {
       .order('hora',  { ascending: true })
 
     if (mode === 'today') {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = localDateISO()
       query = query.eq('fecha', today)
     } else {
-      const from = dateFrom
-        ? startOfDay(new Date(dateFrom)).toISOString().slice(0, 10)
-        : new Date().toISOString().slice(0, 10)
-      const to = dateTo
-        ? endOfDay(new Date(dateTo)).toISOString().slice(0, 10)
-        : addDays(new Date(), 14).toISOString().slice(0, 10)
+      // dateFrom/dateTo ya son 'YYYY-MM-DD' (los arma Reservas.jsx en hora local).
+      // Se usan tal cual contra la columna date: reconvertirlos por new Date()
+      // los interpreta en UTC y corre el rango un día en zonas como Argentina.
+      const from = dateFrom || localDateISO()
+      const to   = dateTo   || localDateISO(addDays(new Date(), 14))
       query = query.gte('fecha', from).lte('fecha', to)
     }
 
