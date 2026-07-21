@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Printer, Truck, Clock } from 'lucide-react'
+import { Printer, Truck, Clock, CalendarClock } from 'lucide-react'
 import PrinterConfig from '../components/config/PrinterConfig'
 import EnvioConfig from '../components/config/EnvioConfig'
 import HorariosConfig from '../components/config/HorariosConfig'
+import ReservasConfig from '../components/config/ReservasConfig'
 import { useRole } from '../context/useRole'
 
 // Cada tab declara qué roles lo pueden ver. El mozo sólo ve Impresoras (para
@@ -12,6 +13,7 @@ const TABS = [
   { id: 'impresoras', label: 'Impresoras', Icon: Printer, roles: ['admin', 'mozo'] },
   { id: 'envio',      label: 'Envío',      Icon: Truck,   roles: ['admin'] },
   { id: 'horarios',   label: 'Horarios',   Icon: Clock,   roles: ['admin'] },
+  { id: 'reservas',   label: 'Reservas',   Icon: CalendarClock, roles: ['admin'] },
 ]
 
 /**
@@ -84,6 +86,14 @@ export default function ConfiguracionPage() {
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="max-w-3xl mx-auto">
             <HorariosConfig />
+          </div>
+        </div>
+      )}
+
+      {tab === 'reservas' && (
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="max-w-3xl mx-auto">
+            <ReservasConfig />
           </div>
         </div>
       )}
