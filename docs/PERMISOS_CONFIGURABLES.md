@@ -11,7 +11,7 @@ vivir hardcodeado en `src/context/role.js` y en ~40 policies de Postgres.
 | 1 | Tablas `roles` / `recursos` / `rol_permisos` + `tiene_permiso()` + seed | ✅ esta branch |
 | 2 | El front lee la matriz de la base en vez de `role.js` | ✅ esta branch |
 | 3 | Pantalla de edición en Personal | ✅ esta branch |
-| 4 | Migrar las policies a `tiene_permiso()` y sacar `"admin full access"` | pendiente |
+| 4 | Las policies obedecen la matriz, fuera `"admin full access"` | ✅ esta branch — ver FASE4_PERMISOS_SOBRE_DATOS.md |
 
 **La fase 1 no cambia el comportamiento de nadie** (crea y siembra las tablas,
 nadie las lee todavía) y se puede aplicar sin tocar el front.
