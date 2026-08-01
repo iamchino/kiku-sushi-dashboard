@@ -55,13 +55,20 @@ function RoleGuard({ children }) {
   const finanzasOk = useFinanzasAccess()
   const location = useLocation()
 
+  // Redirigir a la ruta por defecto salvo que ya estemos en ella: si el guard
+  // rechaza justo el default (p. ej. rol 'finanzas' sin acceso real a Finanzas)
+  // el Navigate se dispararía en loop. En ese caso mandamos a /fichar, que es
+  // lo mínimo que puede ver cualquier usuario logueado.
+  const salida = (destino) =>
+    <Navigate to={destino === location.pathname ? '/fichar' : destino} replace />
+
   if (!canAccessRoute(role, location.pathname)) {
-    return <Navigate to={getDefaultRoute(role)} replace />
+    return salida(getDefaultRoute(role))
   }
-  // Finanzas y Personal (horas/sueldos): exclusivos de los emails habilitados
-  // (ni siquiera otros admin entran — los salarios son privados).
+  // Finanzas y Personal (horas/sueldos): exclusivos de los habilitados por email
+  // o por rol 'finanzas' (ni siquiera otros admin entran — los salarios son privados).
   if ((location.pathname.startsWith('/finanzas') || location.pathname.startsWith('/personal')) && !finanzasOk) {
-    return <Navigate to={getDefaultRoute(role)} replace />
+    return salida(getDefaultRoute(role))
   }
   return children
 }

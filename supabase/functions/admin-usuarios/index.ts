@@ -41,7 +41,14 @@ function errorResponse(message: string, status = 400): Response {
   return jsonResponse({ ok: false, error: message }, status);
 }
 
-const VALID_ROLES = ["empleado", "mozo", "cocina", "admin"];
+// 'finanzas': acceso a Finanzas + Personal + fichaje propio, sin la operación
+// del restaurante. Habilita las RLS vía is_finanzas_user() (que lee
+// app_metadata.role, escrito solo con la service key desde acá).
+const VALID_ROLES = ["empleado", "mozo", "cocina", "finanzas", "admin"];
+
+// Emails con acceso a Finanzas por lista blanca histórica. Espeja
+// is_finanzas_user() en la BD y FINANZAS_EMAILS en src/context/role.js.
+const PROTEGIDOS = ["finanzas@kikusushi.com.ar"];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -104,7 +111,11 @@ Deno.serve(async (req) => {
       const usuarios = (data?.users ?? []).map((u) => ({
         id: u.id,
         email: u.email,
-        role: (u.app_metadata as Record<string, unknown>)?.role ?? "admin",
+        // Default 'cocina', igual que DEFAULT_ROLE en src/context/role.js.
+        // Antes decía "admin": mostraba como admin a usuarios que en realidad
+        // eran cocina, y ahora que el chip de rol es editable ese valor se
+        // podía guardar tal cual y elevar a alguien sin querer.
+        role: (u.app_metadata as Record<string, unknown>)?.role ?? "cocina",
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at,
         empleado: vinculos.get(u.id) ?? null,
@@ -142,8 +153,6 @@ Deno.serve(async (req) => {
       if (getErr) throw getErr;
 
       // Protección extra: nunca borrar un usuario habilitado para Finanzas.
-      // (Misma lista que is_finanzas_user() en la BD y FINANZAS_EMAILS en el front.)
-      const PROTEGIDOS = ["finanzas@kikusushi.com.ar"];
       const emailTarget = (target?.user?.email ?? "").toLowerCase();
       if (PROTEGIDOS.includes(emailTarget)) {
         return errorResponse("No se puede eliminar el usuario de Finanzas");
@@ -155,6 +164,57 @@ Deno.serve(async (req) => {
       const { error } = await admin.auth.admin.deleteUser(userId);
       if (error) throw error;
       return jsonResponse({ ok: true });
+    }
+
+    // ── rol ───────────────────────────────────────────────────────────────
+    // Cambia el rol de un usuario YA existente. Sin esto el rol solo se podía
+    // fijar al crear el login, y no había forma de asignarle 'finanzas' a
+    // alguien que ya tenía usuario.
+    if (action === "rol") {
+      const userId = String(body.user_id ?? "");
+      const role = String(body.role ?? "");
+      if (!userId) return errorResponse("Falta user_id");
+      if (!VALID_ROLES.includes(role)) return errorResponse(`Rol inválido: ${role}`);
+
+      // No cambiarse el rol a uno mismo: si Finanzas se auto-degrada pierde el
+      // acceso a esta misma función y queda sin forma de revertirlo.
+      if (userId === callerId) {
+        return errorResponse("No podés cambiar tu propio rol. Pedíselo a otro usuario de Finanzas.");
+      }
+
+      const { data: target, error: getErr } = await admin.auth.admin.getUserById(userId);
+      if (getErr) throw getErr;
+
+      const emailTarget = (target?.user?.email ?? "").toLowerCase();
+      // El usuario histórico de Finanzas es admin + whitelist de email. Si lo
+      // pasáramos a rol 'finanzas' perdería is_admin() (y con eso caja, stock,
+      // configuración) sin poder revertirlo solo, porque no puede cambiarse el
+      // rol a sí mismo. Solo se le permite quedar en 'admin'.
+      if (PROTEGIDOS.includes(emailTarget) && role !== "admin") {
+        return errorResponse(
+          "El usuario histórico de Finanzas tiene que seguir siendo admin: ya accede a Finanzas por email.",
+        );
+      }
+
+      // Merge: preservamos el resto de app_metadata (provider, providers, etc.).
+      const metaActual = (target?.user?.app_metadata ?? {}) as Record<string, unknown>;
+      const { error } = await admin.auth.admin.updateUserById(userId, {
+        app_metadata: { ...metaActual, role },
+      });
+      if (error) throw error;
+
+      // Las RLS leen el rol del JWT, así que el token viejo sigue valiendo hasta
+      // que expire (~1 h). Cerramos las sesiones para que el cambio —sobre todo
+      // una degradación— tenga efecto ya y la persona vuelva a loguearse.
+      const { error: outErr } = await admin.auth.admin.signOut(userId, "global");
+      if (outErr) {
+        return jsonResponse({
+          ok: true,
+          user: { id: userId, email: emailTarget, role },
+          warning: `Rol cambiado, pero no se pudieron cerrar sus sesiones (${outErr.message}). El rol nuevo le aplica cuando expire su token.`,
+        });
+      }
+      return jsonResponse({ ok: true, user: { id: userId, email: emailTarget, role } });
     }
 
     // ── password ──────────────────────────────────────────────────────────
