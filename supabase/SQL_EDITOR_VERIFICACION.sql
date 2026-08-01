@@ -17,7 +17,9 @@ with chequeos as (
     case when exists (
       select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public' and p.proname = 'current_app_role'
-        and p.prosrc not like '%user_metadata%'
+        -- Sacamos los comentarios antes de buscar: el cuerpo tiene uno que
+        -- explica por qué NO se usa user_metadata, y sin esto daba falso positivo.
+        and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') not like '%user_metadata%'
     ) then 'OK' else 'FALLA' end as resultado,
     'Si falla, cualquier usuario puede auto-asignarse admin desde el navegador' as detalle
 

@@ -22,7 +22,7 @@ Cualquier ❌ es un problema real. Los más graves:
 | Chequeo en ❌ | Qué significa |
 |---|---|
 | `current_app_role() no lee user_metadata` | La escalada de privilegios sigue abierta: cualquier empleado puede hacerse admin |
-| `Ninguna policy lee user_metadata` | Ídem, por otra vía. La columna "detalle" te dice qué tablas |
+| `Ninguna policy lee user_metadata` | Ídem, por otra vía. La columna "detalle" te dice qué tablas. Si dice `envio_config, envio_zonas`, corré `SQL_EDITOR_FIX_ENVIO.sql` |
 | `Hay al menos un rol que administra permisos` | Nadie puede editar la matriz salvo el email de emergencia |
 | `tiene_permiso() es SECURITY DEFINER` | La fase 4 va a entrar en recursión |
 
@@ -105,6 +105,25 @@ tener ningún efecto. Mirá la consola del navegador: hay un `console.error` con
 el motivo.
 
 ---
+
+## Hallazgo real de la primera corrida
+
+En la base productiva, `envio_config` y `envio_zonas` tenían policies que leían
+`user_metadata` — distintas de lo que dicen las migraciones del repo, que las
+declaran con `is_admin()`. Alguien las aplicó a mano y el repo quedó
+desincronizado de la base.
+
+Efecto: cualquier usuario con login podía cambiar los costos y las zonas de
+delivery desde la consola del navegador.
+
+Se arregla con `supabase/SQL_EDITOR_FIX_ENVIO.sql` (o la migración
+`20260804000000_envio_config_policies.sql`). Es auto-reparadora: borra
+cualquier policy de esas tablas que mencione `user_metadata`, sin importar cómo
+se llame, deja las canónicas, y **aborta si queda alguna otra policy insegura
+en cualquier tabla** — con el nombre exacto en el mensaje.
+
+Moraleja para el futuro: el repo no es la fuente de verdad de las policies.
+Vale correr la verificación cada tanto, no solo al hacer cambios.
 
 ## Si algo sale mal
 
