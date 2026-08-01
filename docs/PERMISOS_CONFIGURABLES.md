@@ -9,13 +9,17 @@ vivir hardcodeado en `src/context/role.js` y en ~40 policies de Postgres.
 |---|---|---|
 | 0 | Cimientos de seguridad (rol solo desde `app_metadata`, RLS faltante) | ✅ en master |
 | 1 | Tablas `roles` / `recursos` / `rol_permisos` + `tiene_permiso()` + seed | ✅ esta branch |
-| 2 | El front lee la matriz de la base en vez de `role.js` | pendiente |
+| 2 | El front lee la matriz de la base en vez de `role.js` | ✅ esta branch |
 | 3 | Pantalla de edición en Personal | pendiente |
 | 4 | Migrar las policies a `tiene_permiso()` y sacar `"admin full access"` | pendiente |
 
-**La fase 1 no cambia el comportamiento de nadie.** Crea las tablas y las
-siembra calcando exactamente lo que hace hoy `role.js`, pero todavía nadie las
-lee. Es seguro aplicarla en producción sin tocar el front.
+**La fase 1 no cambia el comportamiento de nadie** (crea y siembra las tablas,
+nadie las lee todavía) y se puede aplicar sin tocar el front.
+
+**La fase 2 sí toca el front** y exige que la fase 1 esté aplicada en la base.
+Si se deploya el front sin la migración, el fallback lo cubre —vuelve a las
+reglas del código y muestra un aviso— pero no es el orden deseado: primero la
+migración, después el deploy.
 
 ## Modelo
 
@@ -59,24 +63,42 @@ destildar "finanzas × permisos" desde la UI no habría tenido ningún efecto.
 npm run verificar:permisos
 ```
 
-Compara la matriz del seed contra `canAccessRoute()` de `role.js`, recurso por
-recurso y rol por rol (115 comparaciones). Sale con código 1 ante cualquier
-diferencia. Requiere `npm ci` previo, porque `role.js` importa React.
+Sale con código 1 ante cualquier diferencia. Requiere `npm ci` previo, porque
+importa el código real de la app (que a su vez importa React).
 
-Corrélo cada vez que toques el seed o `role.js` hasta que termine la fase 2 —
-después la fuente de verdad pasa a ser la base y el script se retira.
+Son dos scripts, 369 chequeos en total:
 
-## Pendientes conocidos para la fase 2
+- `verificar-paridad-permisos.mjs` — el seed contra `canAccessRoute()`.
+- `verificar-permisos-front.mjs` — la lógica de la fase 2 contra las reglas que
+  reemplaza: acceso por ruta, rutas por defecto, la pantalla mínima de fichaje,
+  el bypass por email de la cuenta histórica de Finanzas, el catálogo del
+  fallback sincronizado con el seed, y que ninguna ruta del router se quede sin
+  recurso declarado (si no, una pantalla nueva quedaría abierta a todos).
 
-- **El Sidebar tiene una segunda capa de gating** que la matriz no modela:
-  los flags `adminOnly`, `finanzasOnly` y `rolFinanzasOnly` de `NAV_ITEMS`
-  controlan visibilidad de menú aparte del acceso. Hoy mozo tiene
-  `/configuracion` permitido pero el Sidebar se lo esconde (llega por el
-  BottomNav). Al pasar la UI a la matriz hay que decidir si eso se unifica.
+Corrélos cada vez que toques el seed, `role.js`, `permisosCore.js` o agregues
+una ruta en `App.jsx`.
+
+## Cambios de menú que trajo la fase 2
+
+El menú ahora se deriva de la matriz, así que desaparecieron los flags
+`adminOnly` / `finanzasOnly` / `rolFinanzasOnly` del Sidebar. Efectos visibles,
+acordados:
+
+- **mozo** pasa a ver *Configuración* en el menú lateral (ya podía entrar desde
+  la barra inferior del celular; el Sidebar se lo escondía).
+- **todos** ven *Fichar* y *Mis horas* (antes solo el rol finanzas).
+- El orden del menú pasa a ser el de `recursos.orden`, que no es el mismo que
+  tenía `NAV_ITEMS`: para admin, Analíticas baja y Órdenes sube.
+- *Salón* (`/configuracion/salon`) y el *KDS* siguen fuera del menú a propósito
+  (`FUERA_DEL_MENU` en Sidebar.jsx): se llega a ellos desde adentro de otra
+  pantalla.
+
+## Pendientes conocidos para la fase 3
+
 - **`Configuracion.jsx` filtra por tabs**: mozo ve solo Impresoras, admin ve las
-  cuatro. No hay recursos `config_impresoras` / `config_envio` / etc. Si la UI
-  se maneja solo con la matriz, mozo se gana la sección completa salvo que ese
-  gate siga hardcodeado o se agreguen sub-recursos.
+  cuatro. No hay recursos `config_impresoras` / `config_envio` / etc., así que
+  ese gate sigue hardcodeado. Si se quiere granularidad ahí, hay que agregar
+  sub-recursos.
 - **Guardar la matriz debería ser una sola transacción.** El trigger anti-lockout
   es `deferrable initially deferred`, o sea que evalúa al cerrar la transacción.
   Si la UI manda un request por checkbox (supabase-js abre una transacción por

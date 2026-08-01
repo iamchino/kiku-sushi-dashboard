@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "verificar:permisos": "node scripts/verificar-paridad-permisos.mjs",
+    "verificar:permisos": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-paridad-permisos.mjs && node --import ./scripts/registrar-resolver.mjs scripts/verificar-permisos-front.mjs",
     "preview": "vite preview",
     "android:sync": "vite build && npx cap sync android",
     "android:open": "vite build && npx cap sync android && npx cap open android"
