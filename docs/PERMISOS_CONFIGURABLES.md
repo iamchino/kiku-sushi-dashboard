@@ -10,7 +10,7 @@ vivir hardcodeado en `src/context/role.js` y en ~40 policies de Postgres.
 | 0 | Cimientos de seguridad (rol solo desde `app_metadata`, RLS faltante) | ✅ en master |
 | 1 | Tablas `roles` / `recursos` / `rol_permisos` + `tiene_permiso()` + seed | ✅ esta branch |
 | 2 | El front lee la matriz de la base en vez de `role.js` | ✅ esta branch |
-| 3 | Pantalla de edición en Personal | pendiente |
+| 3 | Pantalla de edición en Personal | ✅ esta branch |
 | 4 | Migrar las policies a `tiene_permiso()` y sacar `"admin full access"` | pendiente |
 
 **La fase 1 no cambia el comportamiento de nadie** (crea y siembra las tablas,
@@ -93,20 +93,49 @@ acordados:
   (`FUERA_DEL_MENU` en Sidebar.jsx): se llega a ellos desde adentro de otra
   pantalla.
 
-## Pendientes conocidos para la fase 3
+## La pantalla (fase 3)
+
+Personal → Permisos, visible solo para quien tiene el recurso `permisos`.
+Elegís un rol, tildás secciones, confirmás y guardás.
+
+Todo lo que escribe pasa por RPC (`guardar_permisos_rol`, `crear_rol`,
+`eliminar_rol`), nunca por updates sueltos: el trigger anti-lockout es diferido
+y necesita ver el estado final de la transacción. supabase-js abre una
+transacción por request, así que un update por checkbox habría hecho que la
+guarda rechazara estados intermedios perfectamente válidos.
+
+### Qué frena antes de guardar
+
+- **Confirmación** que lista qué secciones se quitan, cuáles se agregan y a
+  cuántas personas afecta.
+- **Auto-lockout**: si te estás sacando a vos la administración de permisos,
+  hay que tildar una casilla extra reconociéndolo.
+- **La guarda de la base cuenta personas, no roles.** Antes contaba filas de
+  `rol_permisos`: darle el permiso a un rol vacío y sacárselo a finanzas pasaba
+  el chequeo y dejaba a todos afuera.
+
+### Sobre "cerrar la sesión"
+
+Al guardar se cierran las sesiones del rol afectado. Con una precisión
+importante: borrar la sesión invalida el **refresh token**, así que la persona
+no puede renovar — pero el access token que ya tiene es un JWT firmado y sigue
+valiendo hasta expirar (1 h por defecto, configurable en Auth → Settings → JWT
+expiry).
+
+Para los permisos eso casi no importa: la matriz se lee de la base en cada
+carga, así que el cambio aplica apenas el front la relee. Lo que sí vive dentro
+del JWT es el **rol**, y por eso un cambio de rol tiene esa ventana de hasta una
+hora. Si te molesta, bajá el JWT expiry a 15 minutos.
+
+## Pendientes conocidos
 
 - **`Configuracion.jsx` filtra por tabs**: mozo ve solo Impresoras, admin ve las
   cuatro. No hay recursos `config_impresoras` / `config_envio` / etc., así que
   ese gate sigue hardcodeado. Si se quiere granularidad ahí, hay que agregar
   sub-recursos.
-- **Guardar la matriz debería ser una sola transacción.** El trigger anti-lockout
-  es `deferrable initially deferred`, o sea que evalúa al cerrar la transacción.
-  Si la UI manda un request por checkbox (supabase-js abre una transacción por
-  request), el diferido no sirve de nada y puede rechazar un estado intermedio
-  legítimo. Conviene un RPC que reciba la matriz completa.
-- **El cambio de permisos no le aplica a quien ya está logueado** hasta que
-  refresque el JWT (~1 hora), porque el rol viaja en el token. Igual que con el
-  cambio de rol, conviene cerrar las sesiones de los usuarios del rol afectado.
+- La columna `editar` existe en la base pero la UI maneja una sola casilla
+  (ver). El RPC preserva el `editar` que ya tuviera cada fila, así que guardar
+  no eleva permisos sin querer. La segunda columna aparece en la fase 4.
 
 ## Pendientes para la fase 4
 
