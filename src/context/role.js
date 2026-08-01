@@ -16,11 +16,6 @@ export const FINANZAS_EMAILS = new Set(['finanzas@kikusushi.com.ar'])
 export function canAccessFinanzas(user) {
   const email = (user?.email || '').toLowerCase()
   if (FINANZAS_EMAILS.has(email)) return true
-  // OJO: a propósito NO usamos getRoleFromUser() acá. Esa función acepta
-  // user_metadata.role como fallback, y user_metadata lo puede editar el propio
-  // usuario desde el cliente (auth.updateUser). Para Finanzas exigimos
-  // app_metadata.role, que solo se escribe con la service key (Edge Function).
-  // Es la misma regla que aplica is_finanzas_user() en la BD.
   return user?.app_metadata?.role === 'finanzas'
 }
 
@@ -70,14 +65,11 @@ export const FinanzasAccessContext = createContext(false)
 export function getRoleFromUser(user) {
   if (user?.email?.toLowerCase() === 'cocina@kikusushi.com') return 'cocina'
 
-  // 'finanzas' SOLO puede venir de app_metadata: user_metadata lo escribe el
-  // propio usuario con auth.updateUser(), así que aceptarlo acá dejaría que
-  // cualquiera se auto-asigne el rol. La BD igual lo frenaría (is_finanzas_user
-  // mira app_metadata), pero el front quedaría mostrando pantallas sin datos.
-  if (user?.app_metadata?.role === 'finanzas') return 'finanzas'
-
-  const role = user?.app_metadata?.role || user?.user_metadata?.role
-  if (role === 'finanzas') return DEFAULT_ROLE
+  // SOLO app_metadata. user_metadata lo escribe el propio usuario desde el
+  // navegador con supabase.auth.updateUser({ data: { role: 'admin' } }), así
+  // que aceptarlo acá permitiría auto-asignarse cualquier rol.
+  // Misma regla que current_app_role() en la BD (fase 0 de seguridad).
+  const role = user?.app_metadata?.role
   return VALID_ROLES.has(role) ? role : DEFAULT_ROLE
 }
 

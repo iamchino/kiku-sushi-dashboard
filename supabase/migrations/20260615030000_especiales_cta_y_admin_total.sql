@@ -22,7 +22,9 @@ create or replace function public.current_app_role()
 returns text language sql stable as $$
   select coalesce(
     nullif(auth.jwt() -> 'app_metadata' ->> 'role', ''),
-    nullif(auth.jwt() -> 'user_metadata' ->> 'role', ''),
+    -- NO agregar user_metadata acá: lo escribe el propio usuario con
+    -- auth.updateUser() y permitiría auto-asignarse admin. Ver la migración
+    -- 20260802000000_seguridad_roles_fase0.sql, que quitó ese fallback.
     'cocina'
   )
 $$;

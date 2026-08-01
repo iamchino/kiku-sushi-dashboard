@@ -37,6 +37,12 @@ create trigger proveedores_set_updated_at
 -- ── RLS ──────────────────────────────────────────────────────────────────────
 alter table public.proveedores enable row level security;
 
+-- ⚠️ Las 4 policies de abajo quedaron OBSOLETAS: leen user_metadata, que el
+-- propio usuario puede escribir con auth.updateUser(). Las reemplaza una sola
+-- policy con is_admin() en 20260802000000_seguridad_roles_fase0.sql. Si
+-- re-pegás este archivo en el SQL Editor vas a reabrir el agujero: corré
+-- después la migración de la fase 0.
+
 -- Solo admin puede leer
 create policy "proveedores_select_admin"
   on public.proveedores for select
