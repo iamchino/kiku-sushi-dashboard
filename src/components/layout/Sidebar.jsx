@@ -4,7 +4,7 @@ import {
   Home, ClipboardList, Package, Receipt, ListChecks,
   Users, ChefHat, LogOut, UtensilsCrossed, X, Menu,
   Sun, Moon, BookOpen, LayoutGrid, CalendarDays, Inbox, BarChart2,
-  ConciergeBell, Truck, Wallet, Settings, Clock
+  ConciergeBell, Truck, Wallet, Settings, Clock, QrCode
 } from 'lucide-react'
 import clsx from 'clsx'
 import { auth } from '../../lib/supabase'
@@ -36,6 +36,11 @@ const NAV_ITEMS = [
   { to: '/notificaciones', icon: Inbox,       label: 'Notificaciones' },
   { to: '/proveedores',   icon: Truck,        label: 'Proveedores',  adminOnly: true },
   { to: '/configuracion', icon: Settings,     label: 'Configuración', adminOnly: true },
+  // Fichaje propio: el rol `finanzas` no tiene la barra de EmpleadoHeader (esa
+  // es del rol `empleado`), así que necesita estos accesos en el sidebar.
+  // Los demás roles siguen llegando a /fichar escaneando el QR del punto.
+  { to: '/fichar',     icon: QrCode,          label: 'Fichar',       rolFinanzasOnly: true },
+  { to: '/mis-horas',  icon: Clock,           label: 'Mis horas',    rolFinanzasOnly: true },
 ]
 
 function useAutoClose(setOpen) {
@@ -87,9 +92,10 @@ function SidebarContent({ onClose, showBell = false }) {
   useAutoClose(onClose ?? (() => {}))
   const role = useRole()
   const finanzasOk = useFinanzasAccess()
-  const navItems = NAV_ITEMS.filter(({ to, adminOnly, finanzasOnly }) => {
+  const navItems = NAV_ITEMS.filter(({ to, adminOnly, finanzasOnly, rolFinanzasOnly }) => {
     if (adminOnly && role !== 'admin') return false
     if (finanzasOnly && !finanzasOk) return false
+    if (rolFinanzasOnly && role !== 'finanzas') return false
     return canAccessRoute(role, to)
   })
 

@@ -8,6 +8,7 @@ const ROLES = [
   { value: 'empleado', label: 'Empleado (solo fichaje)' },
   { value: 'mozo',     label: 'Mozo' },
   { value: 'cocina',   label: 'Cocina' },
+  { value: 'finanzas', label: 'Finanzas (Finanzas + Personal + fichaje)' },
   { value: 'admin',    label: 'Admin (dashboard completo)' },
 ]
 
@@ -15,6 +16,7 @@ const ROLE_CHIP = {
   empleado: { bg: 'var(--accent-soft)',        color: 'var(--accent-lift)' },
   mozo:     { bg: 'rgba(59,130,246,0.12)',     color: '#3b82f6' },
   cocina:   { bg: 'rgba(245,158,11,0.14)',     color: '#f59e0b' },
+  finanzas: { bg: 'rgba(16,185,129,0.14)',     color: '#10b981' },
   admin:    { bg: 'rgba(168,85,247,0.14)',     color: '#a855f7' },
 }
 
@@ -22,12 +24,13 @@ const ROLE_CHIP = {
 // crear/eliminar usuarios, resetear contraseña y vincularlos a un empleado
 // del legajo para que puedan fichar.
 export default function UsuariosSection({ empleados }) {
-  const { usuarios, loading, error, crearUsuario, eliminarUsuario, cambiarPassword, vincularEmpleado } = useUsuarios()
+  const { usuarios, loading, error, crearUsuario, eliminarUsuario, cambiarPassword, cambiarRol, vincularEmpleado } = useUsuarios()
 
   const [nuevo, setNuevo]       = useState(false)
   const [delUser, setDelUser]   = useState(null)
   const [passUser, setPassUser] = useState(null)
   const [linkUser, setLinkUser] = useState(null)
+  const [rolUser, setRolUser]   = useState(null)
 
   // Empleados activos sin login vinculado (candidatos a vincular).
   const sinLogin = useMemo(() => {
@@ -39,7 +42,8 @@ export default function UsuariosSection({ empleados }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          Los usuarios con rol <b>empleado</b> solo ven Fichar y Mis horas. Vinculá cada login a un empleado del legajo.
+          Los usuarios con rol <b>empleado</b> solo ven Fichar y Mis horas; los de rol <b>finanzas</b> ven Finanzas,
+          Personal y su propio fichaje. Tocá el rol para cambiarlo. Vinculá cada login a un empleado del legajo.
         </p>
         <button onClick={() => setNuevo(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
@@ -70,10 +74,13 @@ export default function UsuariosSection({ empleados }) {
                     {u.es_yo && <span className="ml-2 text-[10px]" style={{ color: 'var(--text-xmuted)' }}>(vos)</span>}
                   </p>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize"
-                      style={{ background: chip.bg, color: chip.color }}>
+                    <button onClick={() => !u.es_yo && setRolUser(u)}
+                      disabled={u.es_yo}
+                      title={u.es_yo ? 'No podés cambiar tu propio rol' : 'Cambiar rol'}
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize transition-opacity disabled:cursor-default"
+                      style={{ background: chip.bg, color: chip.color, opacity: u.es_yo ? 0.7 : 1 }}>
                       {u.role}
-                    </span>
+                    </button>
                     {u.empleado ? (
                       <span className="text-[11px] flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                         <Link2 size={11} /> {u.empleado.nombre}
@@ -137,6 +144,15 @@ export default function UsuariosSection({ empleados }) {
         />
       )}
 
+      {/* Cambiar rol */}
+      {rolUser && (
+        <RolModal
+          usuario={rolUser}
+          onClose={() => setRolUser(null)}
+          onSave={(role) => cambiarRol(rolUser.id, role)}
+        />
+      )}
+
       {delUser && (
         <ConfirmDelete titulo="Eliminar usuario"
           mensaje={`¿Eliminás el login ${delUser.email}? Deja de poder entrar y fichar. Sus fichajes históricos se conservan.`}
@@ -183,6 +199,37 @@ function UsuarioModal({ empleadosSinLogin, onClose, onSave }) {
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
           {busy ? 'Creando…' : 'Crear usuario'}
+        </button>
+      </div>
+    </ModalShell>
+  )
+}
+
+function RolModal({ usuario, onClose, onSave }) {
+  const [role, setRole] = useState(usuario.role)
+  const [busy, setBusy]   = useState(false)
+  const [error, setError] = useState(null)
+
+  const handle = async () => {
+    setBusy(true); setError(null)
+    try { await onSave(role); onClose() }
+    catch (err) { setError(err.message); setBusy(false) }
+  }
+
+  return (
+    <ModalShell title={`Rol · ${usuario.email}`} icon={UserCog} onClose={onClose} maxW="max-w-sm">
+      <div className="p-5 space-y-4">
+        <Select label="Rol" value={role} onChange={setRole} options={ROLES} required />
+        <p className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>
+          {role === 'finanzas'
+            ? 'Finanzas ve sueldos, legajo, egresos y liquidación, ficha sus propias horas y administra los logins del sistema (puede crear usuarios y cambiar roles). No ve mesas, pedidos ni cocina. Dáselo solo a quien confiés esa información.'
+            : 'Al guardar se le cierran las sesiones abiertas y tiene que volver a entrar con el rol nuevo.'}
+        </p>
+        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+        <button onClick={handle} disabled={busy || role === usuario.role}
+          className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          {busy ? 'Guardando…' : 'Cambiar rol'}
         </button>
       </div>
     </ModalShell>

@@ -61,6 +61,13 @@ export function useUsuarios() {
     await invocar({ action: 'password', user_id: userId, password })
   }, [])
 
+  // Cambia el rol de un login existente (app_metadata.role, vía service key).
+  // El usuario afectado tiene que volver a entrar para que le tome el rol nuevo.
+  const cambiarRol = useCallback(async (userId, role) => {
+    await invocar({ action: 'rol', user_id: userId, role })
+    await fetchUsuarios()
+  }, [fetchUsuarios])
+
   // Vincular/desvincular un login a una fila de empleados (directo por RLS).
   const vincularEmpleado = useCallback(async (empleadoId, userId) => {
     if (userId) {
@@ -79,5 +86,5 @@ export function useUsuarios() {
     await fetchUsuarios()
   }, [fetchUsuarios])
 
-  return { usuarios, loading, error, refetch: fetchUsuarios, crearUsuario, eliminarUsuario, cambiarPassword, vincularEmpleado }
+  return { usuarios, loading, error, refetch: fetchUsuarios, crearUsuario, eliminarUsuario, cambiarPassword, cambiarRol, vincularEmpleado }
 }
