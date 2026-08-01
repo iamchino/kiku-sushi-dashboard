@@ -1,7 +1,13 @@
 import { createContext } from 'react'
 
+// Los 5 roles originales. Desde la fase 1 se pueden crear más desde la UI, así
+// que este set ya no es la lista de roles válidos: es la de los que tienen
+// reglas hardcodeadas de respaldo acá abajo (ver permisosFallback).
 export const VALID_ROLES = new Set(['admin', 'cocina', 'mozo', 'empleado', 'finanzas'])
 export const DEFAULT_ROLE = 'cocina'
+
+// Mismo formato que el CHECK de public.roles.id.
+export const SLUG_ROL = /^[a-z][a-z0-9_]{1,30}$/
 
 // La sección Finanzas es exclusiva. Se habilita por DOS vías equivalentes:
 //   1) email en esta lista blanca (histórico, se mantiene),
@@ -20,7 +26,6 @@ export function canAccessFinanzas(user) {
 }
 
 // Cocina: bloqueo por lista negra (todo lo operativo de cocina permitido).
-export const COCINA_DEFAULT_ROUTE = '/operaciones'
 export const COCINA_BLOCKED_ROUTES = new Set([
   '/', '/dashboard', '/analiticas', '/caja', '/clientes',
   '/mesas', '/reservas', '/configuracion/salon', '/configuracion', '/notificaciones',
@@ -30,7 +35,6 @@ export const COCINA_BLOCKED_ROUTES = new Set([
 // Mozo: lista blanca. Mesas (abrir/cerrar/cobrar), platos de cocina, stock y
 // la configuración (para corregir la IP de la impresora desde su celular;
 // solo ve el tab de Impresoras, ver Configuracion.jsx).
-export const MOZO_DEFAULT_ROUTE = '/mesas'
 export const MOZO_ALLOWED_ROUTES = new Set([
   '/mesas',
   '/platos',
@@ -44,7 +48,6 @@ export const MOZO_ALLOWED_ROUTES = new Set([
 // Finanzas: lista blanca. Solo su módulo (egresos/legajo/liquidación) y el
 // fichaje propio — la encargada de finanzas también marca sus horas.
 // No ve la operación del restaurante (mesas, pedidos, cocina, stock).
-export const FINANZAS_DEFAULT_ROUTE = '/finanzas'
 export const FINANZAS_ALLOWED_ROUTES = new Set([
   '/finanzas',
   '/personal',
@@ -53,14 +56,12 @@ export const FINANZAS_ALLOWED_ROUTES = new Set([
 ])
 
 // Empleado (control de horas): lista blanca mínima. Solo ficha y ve sus horas.
-export const EMPLEADO_DEFAULT_ROUTE = '/fichar'
 export const EMPLEADO_ALLOWED_ROUTES = new Set([
   '/fichar',
   '/mis-horas',
 ])
 
 export const RoleContext = createContext(DEFAULT_ROLE)
-export const FinanzasAccessContext = createContext(false)
 
 export function getRoleFromUser(user) {
   if (user?.email?.toLowerCase() === 'cocina@kikusushi.com') return 'cocina'
@@ -70,15 +71,13 @@ export function getRoleFromUser(user) {
   // que aceptarlo acá permitiría auto-asignarse cualquier rol.
   // Misma regla que current_app_role() en la BD (fase 0 de seguridad).
   const role = user?.app_metadata?.role
-  return VALID_ROLES.has(role) ? role : DEFAULT_ROLE
-}
 
-export function getDefaultRoute(role) {
-  if (role === 'cocina') return COCINA_DEFAULT_ROUTE
-  if (role === 'mozo') return MOZO_DEFAULT_ROUTE
-  if (role === 'empleado') return EMPLEADO_DEFAULT_ROUTE
-  if (role === 'finanzas') return FINANZAS_DEFAULT_ROUTE
-  return '/'
+  // Aceptamos cualquier slug bien formado, no solo los 5 originales: desde la
+  // fase 1 se pueden crear roles nuevos en la base, y current_app_role() en
+  // Postgres devuelve el rol real. Si acá lo degradáramos a 'cocina', la
+  // persona vería el menú de cocina mientras la base le aplica otros permisos.
+  // Mismo formato que el CHECK de public.roles.id.
+  return SLUG_ROL.test(role ?? '') ? role : DEFAULT_ROLE
 }
 
 export function canAccessRoute(role, pathname) {
@@ -88,5 +87,8 @@ export function canAccessRoute(role, pathname) {
   if (role === 'empleado') return EMPLEADO_ALLOWED_ROUTES.has(normalizedPath)
   if (role === 'finanzas') return FINANZAS_ALLOWED_ROUTES.has(normalizedPath)
   if (role === 'cocina') return !COCINA_BLOCKED_ROUTES.has(normalizedPath)
-  return true
+  // Solo admin tiene acceso irrestricto. Un rol creado desde la UI no tiene
+  // reglas de respaldo acá, y en modo fallback conviene negarle todo antes que
+  // regalarle el sistema entero.
+  return role === 'admin'
 }

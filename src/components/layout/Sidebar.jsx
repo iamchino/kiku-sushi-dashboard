@@ -10,38 +10,43 @@ import clsx from 'clsx'
 import { auth } from '../../lib/supabase'
 import { NotificationBell } from './NotificationBell'
 import { useTheme } from '../../context/useTheme'
-import { useRole } from '../../context/useRole'
-import { useFinanzasAccess } from '../../context/useFinanzasAccess'
-import { canAccessRoute } from '../../context/role'
+import { usePermisos } from '../../context/usePermisos'
 
-const NAV_ITEMS = [
-  { to: '/',           icon: Home,            label: 'Inicio'       },
-  { to: '/operaciones', icon: ChefHat,        label: 'Operaciones'  },
-  // Dashboard fue unificado dentro de Analíticas (sección "Hoy en vivo").
-  { to: '/analiticas', icon: BarChart2,       label: 'Analíticas'   },
-  { to: '/menu',       icon: UtensilsCrossed, label: 'Menú & Carta' },
-  { to: '/mesas',      icon: LayoutGrid,      label: 'Mesas'        },
-  { to: '/reservas',   icon: CalendarDays,    label: 'Reservas'     },
-  { to: '/pedidos',    icon: ClipboardList,   label: 'Ordenes'      },
-  { to: '/platos',     icon: ConciergeBell,   label: 'Platos'       },
-  // KDS oculto del menú; la ruta y la lógica se mantienen disponibles si se quiere reactivar.
-  // { to: '/cocina',     icon: ChefHat,         label: 'Cocina (KDS)' },
-  { to: '/produccion', icon: ListChecks,      label: 'Producción'   },
-  { to: '/stock',      icon: Package,         label: 'Inventario'   },
-  { to: '/recetas',    icon: BookOpen,        label: 'Recetas'      },
-  { to: '/caja',       icon: Receipt,         label: 'Caja y ARCA'  },
-  { to: '/finanzas',   icon: Wallet,          label: 'Finanzas',     finanzasOnly: true },
-  { to: '/personal',   icon: Clock,           label: 'Personal',     finanzasOnly: true },
-  { to: '/clientes',   icon: Users,           label: 'Clientes'     },
-  { to: '/notificaciones', icon: Inbox,       label: 'Notificaciones' },
-  { to: '/proveedores',   icon: Truck,        label: 'Proveedores',  adminOnly: true },
-  { to: '/configuracion', icon: Settings,     label: 'Configuración', adminOnly: true },
-  // Fichaje propio: el rol `finanzas` no tiene la barra de EmpleadoHeader (esa
-  // es del rol `empleado`), así que necesita estos accesos en el sidebar.
-  // Los demás roles siguen llegando a /fichar escaneando el QR del punto.
-  { to: '/fichar',     icon: QrCode,          label: 'Fichar',       rolFinanzasOnly: true },
-  { to: '/mis-horas',  icon: Clock,           label: 'Mis horas',    rolFinanzasOnly: true },
-]
+// El menú sale de la matriz de permisos: qué items aparecen, en qué orden y
+// con qué nombre lo define la tabla `recursos`, editable desde Personal.
+// En código queda solo el ícono (no tiene sentido guardarlo en la base) y qué
+// recursos nunca van al menú.
+const ICONOS = {
+  inicio:         Home,
+  operaciones:    ChefHat,
+  analiticas:     BarChart2,
+  menu:           UtensilsCrossed,
+  mesas:          LayoutGrid,
+  reservas:       CalendarDays,
+  pedidos:        ClipboardList,
+  platos:         ConciergeBell,
+  cocina_kds:     ChefHat,
+  produccion:     ListChecks,
+  stock:          Package,
+  recetas:        BookOpen,
+  caja:           Receipt,
+  finanzas:       Wallet,
+  personal:       Clock,
+  clientes:       Users,
+  notificaciones: Inbox,
+  proveedores:    Truck,
+  configuracion:  Settings,
+  config_salon:   LayoutGrid,
+  fichar:         QrCode,
+  mis_horas:      Clock,
+}
+const ICONO_POR_DEFECTO = ClipboardList
+
+// Recursos que existen y se pueden permitir, pero no van como item del menú:
+//   · cocina_kds: el KDS sigue oculto (la ruta y la lógica quedan vivas).
+//   · config_salon: se llega desde adentro de Mesas, nunca fue item del menú.
+// Los recursos sin `ruta` tampoco entran: no son una pantalla.
+const FUERA_DEL_MENU = new Set(['cocina_kds', 'config_salon'])
 
 function useAutoClose(setOpen) {
   const location = useLocation()
@@ -90,14 +95,14 @@ function ThemeToggle() {
 
 function SidebarContent({ onClose, showBell = false }) {
   useAutoClose(onClose ?? (() => {}))
-  const role = useRole()
-  const finanzasOk = useFinanzasAccess()
-  const navItems = NAV_ITEMS.filter(({ to, adminOnly, finanzasOnly, rolFinanzasOnly }) => {
-    if (adminOnly && role !== 'admin') return false
-    if (finanzasOnly && !finanzasOk) return false
-    if (rolFinanzasOnly && role !== 'finanzas') return false
-    return canAccessRoute(role, to)
-  })
+  const { visibles } = usePermisos()
+  const navItems = visibles
+    .filter(r => r.ruta && !FUERA_DEL_MENU.has(r.id))
+    .map(r => ({
+      to: r.ruta,
+      label: r.nombre,
+      icon: ICONOS[r.id] ?? ICONO_POR_DEFECTO,
+    }))
 
   return (
     <div
@@ -145,7 +150,7 @@ function SidebarContent({ onClose, showBell = false }) {
           <NavLink
             key={to}
             to={to}
-            end={to === '/'}
+            end
             className={({ isActive }) => clsx(
               'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
               !isActive && 'hover:bg-[var(--bg-hover)]'

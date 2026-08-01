@@ -1,26 +1,14 @@
 import { NavLink } from 'react-router-dom'
-import { ClipboardList, LayoutGrid, Package, ConciergeBell, Printer } from 'lucide-react'
 import { useRole } from '../../context/useRole'
-
-const TABS_BY_ROLE = {
-  cocina: [
-    { to: '/operaciones', icon: LayoutGrid, label: 'Inicio' },
-    // KDS oculto temporalmente.
-    // { to: '/cocina', icon: ChefHat, label: 'Cocina' },
-    { to: '/produccion', icon: ClipboardList, label: 'Produccion' },
-  ],
-  mozo: [
-    { to: '/mesas',  icon: LayoutGrid,    label: 'Mesas'  },
-    { to: '/platos', icon: ConciergeBell, label: 'Platos' },
-    { to: '/stock',  icon: Package,       label: 'Stock'  },
-    { to: '/configuracion', icon: Printer, label: 'Impresora' },
-  ],
-}
+import { usePermisos } from '../../context/usePermisos'
+import { TABS_BY_ROLE } from './bottomNavTabs'
 
 export function BottomNav() {
   const role = useRole()
-  const tabs = TABS_BY_ROLE[role]
-  if (!tabs) return null
+  const { puede } = usePermisos()
+
+  const tabs = TABS_BY_ROLE[role]?.filter(t => puede(t.recurso))
+  if (!tabs?.length) return null
 
   return (
     <nav
