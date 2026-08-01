@@ -7,7 +7,9 @@
 //   { action: "listar" }                                → lista usuarios (id, email, rol, vínculo)
 //   { action: "crear",    email, password, role? }      → crea usuario (rol default: 'empleado')
 //   { action: "eliminar", user_id }                     → elimina usuario (y desvincula empleados)
+//   { action: "rol",      user_id, role }               → cambia el rol y cierra sus sesiones
 //   { action: "password", user_id, password }           → resetea la contraseña
+//   { action: "cerrar_sesiones_rol", rol }              → cierra las sesiones de todo un rol
 //
 // Seguridad:
 //   * Requiere JWT válido (deploy SIN --no-verify-jwt).
@@ -92,8 +94,16 @@ Deno.serve(async (req) => {
   try {
     // ── listar ────────────────────────────────────────────────────────────
     if (action === "listar") {
-      const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
-      if (error) throw error;
+      // Paginado: con perPage fijo, a partir del usuario 201 la lista quedaba
+      // truncada sin ninguna señal.
+      const todos: Awaited<ReturnType<typeof admin.auth.admin.listUsers>>["data"]["users"] = [];
+      for (let page = 1; page <= 20; page++) {
+        const { data: d, error: e } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+        if (e) throw e;
+        todos.push(...(d?.users ?? []));
+        if ((d?.users ?? []).length < 200) break;
+      }
+      const data = { users: todos };
 
       // Vínculo usuario ↔ empleado para mostrar en la UI.
       const { data: empleados } = await admin
@@ -203,10 +213,10 @@ Deno.serve(async (req) => {
       });
       if (error) throw error;
 
-      // Las RLS leen el rol del JWT, así que el token viejo sigue valiendo hasta
-      // que expire (~1 h). Cerramos las sesiones para que el cambio —sobre todo
-      // una degradación— tenga efecto ya y la persona vuelva a loguearse.
-      const { error: outErr } = await admin.auth.admin.signOut(userId, "global");
+      // El rol viaja dentro del JWT, así que hay que invalidar la sesión para
+      // que el cambio tenga efecto. Va por RPC: auth.admin.signOut() recibe el
+      // JWT del usuario, no su id, así que pasarle el uuid no cerraba nada.
+      const { error: outErr } = await caller.rpc("cerrar_sesiones_de_usuario", { p_user_id: userId });
       if (outErr) {
         return jsonResponse({
           ok: true,
@@ -215,6 +225,27 @@ Deno.serve(async (req) => {
         });
       }
       return jsonResponse({ ok: true, user: { id: userId, email: emailTarget, role } });
+    }
+
+    // ── cerrar_sesiones_rol ───────────────────────────────────────────────
+    // Los permisos viajan en el JWT, así que un cambio en la matriz no le
+    // aplica a quien ya está logueado hasta que expire su token (~1 h). Para
+    // una REVOCACIÓN eso es inaceptable: la persona sigue entrando a algo que
+    // ya no debería ver. Cerrando las sesiones del rol, el cambio es inmediato.
+    if (action === "cerrar_sesiones_rol") {
+      const rol = String(body.rol ?? "");
+      if (!rol) return errorResponse("Falta rol");
+
+      // Va por RPC, no por auth.admin.signOut(): esa API recibe el JWT del
+      // usuario, NO su id. Pasarle un uuid mandaba `Bearer <uuid>`, GoTrue
+      // devolvía 401 y no se cerraba nada — decía que sí y no hacía nada.
+      // El RPC borra de auth.sessions y valida puede_administrar_permisos(),
+      // que es el permiso correcto: is_finanzas_user() alcanza a cualquiera
+      // con rol finanzas y esto puede dejar al local entero afuera.
+      const { data, error } = await caller.rpc("cerrar_sesiones_de_rol", { p_rol: rol });
+      if (error) return errorResponse(error.message, 403);
+
+      return jsonResponse({ ok: true, rol, cerradas: Number(data ?? 0) });
     }
 
     // ── password ──────────────────────────────────────────────────────────

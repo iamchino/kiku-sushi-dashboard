@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, BadgeDollarSign, ListChecks, UserCog, QrCode, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, BadgeDollarSign, ListChecks, UserCog, QrCode, AlertTriangle, ShieldCheck } from 'lucide-react'
 import { useHoras } from '../hooks/useHoras'
 import { useEmpleados } from '../hooks/useEmpleados'
 import { shiftSemana, esSemanaActual } from '../lib/horas'
@@ -7,12 +7,16 @@ import LiquidacionSection from '../components/personal/LiquidacionSection'
 import FichajesSection from '../components/personal/FichajesSection'
 import UsuariosSection from '../components/personal/UsuariosSection'
 import PuntosQRSection from '../components/personal/PuntosQRSection'
+import PermisosSection from '../components/personal/PermisosSection'
+import { usePermisos } from '../context/usePermisos'
 
 const SECCIONES = [
   { id: 'liquidacion', label: 'Liquidación', icon: BadgeDollarSign },
   { id: 'fichajes',    label: 'Fichajes',    icon: ListChecks },
   { id: 'usuarios',    label: 'Usuarios',    icon: UserCog },
   { id: 'qr',          label: 'QR del local', icon: QrCode },
+  // El tab de permisos aparece solo para quien tiene el recurso 'permisos'.
+  { id: 'permisos',    label: 'Permisos',    icon: ShieldCheck, recurso: 'permisos' },
 ]
 
 // Personal: control de horas y liquidación semanal (lunes → domingo).
@@ -23,6 +27,8 @@ export default function PersonalPage() {
 
   const horas = useHoras(refDate)
   const { empleados } = useEmpleados()
+  const { puede } = usePermisos()
+  const secciones = SECCIONES.filter(s => !s.recurso || puede(s.recurso))
 
   const enCurso = esSemanaActual(horas.semana.inicio)
   const conSemana = seccion === 'liquidacion' || seccion === 'fichajes'
@@ -41,7 +47,7 @@ export default function PersonalPage() {
 
       {/* Sub-tabs */}
       <section className="flex flex-wrap gap-2">
-        {SECCIONES.map(item => {
+        {secciones.map(item => {
           const Icon = item.icon
           return (
             <button key={item.id} onClick={() => setSeccion(item.id)}
@@ -96,6 +102,7 @@ export default function PersonalPage() {
         {seccion === 'fichajes'    && <FichajesSection horas={horas} empleados={empleados} />}
         {seccion === 'usuarios'    && <UsuariosSection empleados={empleados} />}
         {seccion === 'qr'          && <PuntosQRSection horas={horas} />}
+        {seccion === 'permisos'    && puede('permisos') && <PermisosSection />}
       </div>
     </div>
   )
