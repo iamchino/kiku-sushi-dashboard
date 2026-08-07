@@ -22,12 +22,7 @@
 
 begin;
 
-
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  BLOQUE 1 de 4
--- ║  Rol finanzas — is_finanzas_user() por email O por rol, + policies de caja_turnos/pagos/proveedores
--- ║  origen: 20260801000000_rol_finanzas.sql
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- ═══ Rol finanzas · 20260801000000_rol_finanzas.sql ═══
 
 -- ============================================================
 -- Migración: rol 'finanzas'
@@ -119,11 +114,7 @@ create policy "proveedores finanzas manage"
 notify pgrst, 'reload schema';
 
 
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  BLOQUE 2 de 4
--- ║  Fase 0 — el rol se lee solo de app_metadata, RLS en mozos, impresion_config
--- ║  origen: 20260802000000_seguridad_roles_fase0.sql
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- ═══ Fase 0 seguridad · 20260802000000_seguridad_roles_fase0.sql ═══
 
 -- ============================================================================
 -- Fase 0 — Cimientos de seguridad, previo al sistema de permisos configurable
@@ -307,11 +298,7 @@ create policy "impresion_config_modify"
 notify pgrst, 'reload schema';
 
 
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  BLOQUE 3 de 4
--- ║  Fase 1 (esquema) — tablas roles / recursos / rol_permisos + tiene_permiso()
--- ║  origen: 20260803000000_permisos_esquema.sql
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- ═══ Fase 1 esquema · 20260803000000_permisos_esquema.sql ═══
 
 -- ============================================================================
 -- Fase 1 — Esquema de permisos configurables
@@ -611,11 +598,7 @@ create trigger trg_roles_no_borrar_sistema
 notify pgrst, 'reload schema';
 
 
--- ╔══════════════════════════════════════════════════════════════════════════╗
--- ║  BLOQUE 4 de 4
--- ║  Fase 1 (seed) — los 5 roles y la matriz calcada del comportamiento actual
--- ║  origen: 20260803010000_permisos_seed.sql
--- ╚══════════════════════════════════════════════════════════════════════════╝
+-- ═══ Fase 1 seed · 20260803010000_permisos_seed.sql ═══
 
 -- ============================================================================
 -- Fase 1 (seed) — Los 5 roles y la matriz calcada del comportamiento actual
@@ -662,7 +645,7 @@ insert into public.recursos (id, nombre, descripcion, ruta, grupo, sensible, ord
 
   -- Negocio
   ('analiticas',     'Analíticas',      'Ventas, tendencias y el vivo del día.',            '/analiticas',           'Negocio',       false, 210),
-  ('caja',           'Caja y ARCA',     'Arqueo, turnos de caja y facturación fiscal.',     '/caja',                 'Negocio',       true,  220),
+  ('caja',           'Caja y facturación', 'Arqueo, turnos de caja y facturación fiscal. El botón Pagos registra todos los egresos.', '/caja',                 'Negocio',       true,  220),
   ('clientes',       'Clientes',        'Base de clientes.',                                '/clientes',             'Negocio',       false, 230),
   ('notificaciones', 'Notificaciones',  'Bandeja de notificaciones del sistema.',           '/notificaciones',       'Negocio',       false, 240),
   ('proveedores',    'Proveedores',     'Alta y edición de proveedores.',                   '/proveedores',          'Negocio',       false, 250),
@@ -753,9 +736,3 @@ notify pgrst, 'reload schema';
 
 
 commit;
-
--- ─── Verificación: pegá esto aparte, después del commit ─────────────────────
--- select rol_id, count(*) filter (where ver) as secciones
---   from public.rol_permisos group by rol_id order by rol_id;
---
--- Esperado:  admin 20 · cocina 9 · empleado 2 · finanzas 5 · mozo 6

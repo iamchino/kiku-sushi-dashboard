@@ -43,7 +43,7 @@ insert into public.recursos (id, nombre, descripcion, ruta, grupo, sensible, ord
 
   -- Negocio
   ('analiticas',     'Analíticas',      'Ventas, tendencias y el vivo del día.',            '/analiticas',           'Negocio',       false, 210),
-  ('caja',           'Caja y ARCA',     'Arqueo, turnos de caja y facturación fiscal.',     '/caja',                 'Negocio',       true,  220),
+  ('caja',           'Caja y facturación', 'Arqueo, turnos de caja y facturación fiscal. El botón Pagos registra todos los egresos.', '/caja',                 'Negocio',       true,  220),
   ('clientes',       'Clientes',        'Base de clientes.',                                '/clientes',             'Negocio',       false, 230),
   ('notificaciones', 'Notificaciones',  'Bandeja de notificaciones del sistema.',           '/notificaciones',       'Negocio',       false, 240),
   ('proveedores',    'Proveedores',     'Alta y edición de proveedores.',                   '/proveedores',          'Negocio',       false, 250),

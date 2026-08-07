@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { BadgeDollarSign, Lock, Trash2, Clock, CalendarDays } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { useEgresos } from '../../hooks/useEgresos'
 import { fmtMoney, fmtFecha, MEDIOS_PAGO, localDateISO } from '../../lib/finanzas'
 import { fmtMinutos, fmtHorasCompacto, diasDeLaSemana } from '../../lib/horas'
 import { ModalShell, Field, Select } from '../finanzas/fields'
@@ -24,7 +23,24 @@ export default function LiquidacionSection({ horas, enCurso }) {
     generarLiquidacion, generarLiquidacionDia, anularLiquidacionDia,
     actualizarLiquidacion, eliminarLiquidacion, loading,
   } = horas
-  const { crearEgreso } = useEgresos(semana.desde, semana.hasta)
+  // El pago de sueldos va por el RPC central de pagos: si hay un turno de
+  // caja abierto y se paga en efectivo, el arqueo lo descuenta — igual que
+  // cualquier pago hecho desde Caja → Pagos. Devuelve { egreso_id }.
+  const registrarPagoSueldo = async (form) => {
+    const { data, error: e } = await supabase.rpc('registrar_pago', {
+      p_categoria: 'sueldos',
+      p_descripcion: form.descripcion,
+      p_monto: Number(form.monto),
+      p_medio_pago: form.medio_pago,
+      p_estado: 'pagado',
+      p_fecha: form.fecha,
+      p_empleado_id: form.empleado_id,
+      p_subtipo: form.subtipo,
+      p_periodo: form.periodo,
+    })
+    if (e) throw new Error(e.message)
+    return { id: data.egreso_id }
+  }
 
   const [pagando, setPagando]     = useState(null)  // liq semanal a pagar
   const [pagandoDia, setPagandoDia] = useState(null) // { empleado_id, nombre, valor_hora }
@@ -73,9 +89,8 @@ export default function LiquidacionSection({ horas, enCurso }) {
     setBusy(true); setError(null)
     try {
       const nombre = `${pagando.empleado?.nombre || ''} ${pagando.empleado?.apellido || ''}`.trim() || 'empleado'
-      const egreso = await crearEgreso({
+      const egreso = await registrarPagoSueldo({
         fecha: fechaPago,
-        categoria: 'sueldos',
         subtipo: 'sueldo',
         descripcion: `Sueldo semanal ${nombre} · ${pagando.semana_inicio} → ${pagando.semana_fin}`,
         monto: pagando.total,
@@ -103,9 +118,8 @@ export default function LiquidacionSection({ horas, enCurso }) {
     setBusy(true); setError(null)
     try {
       const liq = await generarLiquidacionDia(empleado_id, fecha)
-      const egreso = await crearEgreso({
+      const egreso = await registrarPagoSueldo({
         fecha: fechaPago,
-        categoria: 'sueldos',
         subtipo: 'jornal',
         descripcion: `Jornal ${nombre} · ${fecha}`,
         monto: liq.total,

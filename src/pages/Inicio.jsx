@@ -11,7 +11,7 @@ const ACCESOS = [
   {
     to: '/caja',
     icon: Receipt,
-    label: 'Caja y ARCA',
+    label: 'Caja y facturación',
     desc: 'Facturación, cobros y comprobantes fiscales',
   },
   {
