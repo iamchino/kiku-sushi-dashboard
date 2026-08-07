@@ -59,6 +59,7 @@ export function usePagos() {
       p_vencimiento:  form.vencimiento || null,
       p_comprobante:  form.comprobante_nro || null,
       p_notas:        form.notas || null,
+      p_origen:       form.origen || 'auto',
     })
     if (e) throw new Error(e.message)
     await cargar()

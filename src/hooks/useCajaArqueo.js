@@ -27,7 +27,16 @@ export const TIPOS_MOVIMIENTO_CAJA = [
   { id: 'ajuste', label: 'Ajuste', short: 'Ajuste', sign: 1 },
 ]
 
-const NEGATIVE_TYPES = new Set(['egreso'])
+// Para MOSTRAR movimientos también existen tipos que el form manual no ofrece
+// (los crean los RPC de pagos y caja fuerte).
+export const TIPOS_MOVIMIENTO_DISPLAY = [
+  ...TIPOS_MOVIMIENTO_CAJA,
+  { id: 'retiro', label: 'Retiro a caja fuerte', short: 'Caja fuerte', sign: -1 },
+]
+
+// 'retiro' = efectivo que sale de la caja hacia la caja fuerte: resta igual
+// que un egreso. No está en el form manual (se crea solo vía RPC).
+const NEGATIVE_TYPES = new Set(['egreso', 'retiro'])
 
 function parseAmount(value) {
   const cleaned = String(value ?? '')
@@ -141,6 +150,7 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [setupWarning, setSetupWarning] = useState(null)
+  const [aperturaSugerida, setAperturaSugerida] = useState(null)
 
   const range = useMemo(() => toRange(dateFrom, dateTo), [dateFrom, dateTo])
 
@@ -148,6 +158,50 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
     setLoading(true)
     setError(null)
     setSetupWarning(null)
+
+    // ── Arrastre para la apertura ─────────────────────────────────────────
+    // Si al cerrar el turno anterior NO se retiró el efectivo a la caja
+    // fuerte, ese efectivo sigue en el cajón: el próximo turno abre con él.
+    // Sugerencia = efectivo CONTADO en el último cierre − depósitos a caja
+    // fuerte hechos después de ese cierre. Best-effort: si algo falla (sin
+    // permiso de caja fuerte, migración sin aplicar), no bloquea la carga.
+    try {
+      const { data: ult } = await supabase
+        .from('caja_turnos')
+        .select('id, business_date, cierre_at, denominaciones_cierre')
+        .eq('estado', 'cerrado')
+        // Desempate por created_at: dos cierres con el mismo timestamp (p. ej.
+        // corregidos en la misma operación) no deben devolver el turno viejo.
+        .order('cierre_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (ult) {
+        const efectivoCierre = Number(ult.denominaciones_cierre?.medios?.efectivo?.contado
+          ?? ult.denominaciones_cierre?.medios?.efectivo?.esperado ?? NaN)
+        if (Number.isFinite(efectivoCierre)) {
+          let depositosPost = 0
+          try {
+            const { data: deps } = await supabase
+              .from('caja_fuerte_movimientos')
+              .select('monto')
+              .eq('turno_id', ult.id)
+              .eq('tipo', 'deposito')
+              .gt('created_at', ult.cierre_at)
+            depositosPost = (deps || []).reduce((a, d) => a + Number(d.monto || 0), 0)
+          } catch { /* sin caja fuerte: arrastre completo */ }
+          setAperturaSugerida({
+            monto: Math.max(0, efectivoCierre - depositosPost),
+            fecha: ult.business_date,
+          })
+        } else {
+          setAperturaSugerida(null)
+        }
+      } else {
+        setAperturaSugerida(null)
+      }
+    } catch { setAperturaSugerida(null) }
 
     try {
       const openTurnoRes = await supabase
@@ -588,6 +642,7 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
     loading,
     error,
     setupWarning,
+    aperturaSugerida,
     refetch: fetchData,
     abrirTurno,
     registrarMovimiento,

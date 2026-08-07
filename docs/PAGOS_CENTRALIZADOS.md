@@ -53,6 +53,28 @@ devuelve **solo id y nombre**: no abre la tabla `empleados` (donde vive
 Funciona con o sin la fase 4 aplicada: las policies del permiso `pagos` son
 independientes y conviven con las dos generaciones.
 
+## La caja fuerte
+
+El circuito del efectivo completo:
+
+```
+venta en efectivo → CAJA (turno) → retiro al cierre → CAJA FUERTE → pagos
+```
+
+- **Al cerrar el turno**: pestaña Caja fuerte → "Retirar de la caja". Sale del
+  efectivo del turno (el arqueo lo descuenta como movimiento `retiro`) y se
+  deposita en la caja fuerte. Atómico, las dos puntas vinculadas.
+- **Si no se retira**: el efectivo queda en el cajón, y la próxima apertura
+  precarga el fondo inicial con el efectivo CONTADO del último cierre (menos
+  depósitos posteriores). Editable si el conteo real difiere.
+- **Pagar desde la caja fuerte**: en el modal de Pagos, cuando el medio es
+  efectivo aparece "¿De dónde sale el efectivo?" — caja abierta, caja fuerte, u
+  otro. Caja fuerte descuenta de su saldo sin tocar el arqueo del turno.
+- **Ajustes**: conteo real distinto al saldo, depósitos con la caja ya cerrada,
+  correcciones. Siempre con motivo.
+- La tabla `caja_fuerte_movimientos` **no acepta escrituras directas**: todo
+  pasa por RPCs atómicos. Permiso `caja_fuerte` (admin y finanzas al arrancar).
+
 ## Limitaciones conocidas
 
 - **Marcar pagada una cuenta pendiente** (desde Finanzas, editándola) no crea

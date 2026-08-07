@@ -94,6 +94,11 @@ export default function PagosPanel() {
                       <Link2 size={10} /> caja
                     </span>
                   )}
+                  {p.pagado_desde === 'caja_fuerte' && (
+                    <span className="flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                      <Link2 size={10} /> caja fuerte
+                    </span>
+                  )}
                 </div>
               </div>
               <span className="text-sm font-semibold flex-shrink-0" style={{ color: 'var(--text-primary)' }}>
@@ -122,6 +127,9 @@ function PagoModal({ empleados, turnoAbierto, onClose, onSave }) {
     categoria: 'proveedores', descripcion: '', monto: '', medio_pago: 'efectivo',
     estado: 'pagado', fecha: localDateISO(), proveedor_id: '', empleado_id: '',
     subtipo: '', periodo: '', vencimiento: '', comprobante_nro: '', notas: '',
+    // De dónde sale el efectivo: con turno abierto, de la caja; si no, de la
+    // caja fuerte. Siempre se puede cambiar.
+    origen: turnoAbierto ? 'caja' : 'caja_fuerte',
   })
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState(null)
@@ -130,12 +138,17 @@ function PagoModal({ empleados, turnoAbierto, onClose, onSave }) {
   const esSueldo = form.categoria === 'sueldos'
   const pendiente = form.estado === 'pendiente'
 
+  const esEfectivo = form.medio_pago === 'efectivo'
+
   const efectoCaja = useMemo(() => {
     if (pendiente) return 'Queda como cuenta por pagar: no toca la caja hasta que lo marques pagado.'
-    if (!turnoAbierto) return 'La caja está cerrada: el pago se registra sin turno y no toca ningún arqueo.'
-    if (form.medio_pago === 'efectivo') return 'Sale del efectivo de la caja abierta: el arqueo lo descuenta automáticamente.'
-    return 'Se vincula al turno abierto, pero al no ser efectivo no toca el arqueo.'
-  }, [pendiente, turnoAbierto, form.medio_pago])
+    if (!esEfectivo) return turnoAbierto
+      ? 'Se vincula al turno abierto, pero al no ser efectivo no toca el arqueo.'
+      : 'No es efectivo: se registra sin tocar ninguna caja.'
+    if (form.origen === 'caja_fuerte') return 'Sale de la CAJA FUERTE: descuenta de su saldo, no toca el arqueo del turno.'
+    if (form.origen === 'caja') return 'Sale del efectivo de la caja abierta: el arqueo lo descuenta automáticamente.'
+    return 'Efectivo sin origen registrado: no descuenta de la caja ni de la caja fuerte.'
+  }, [pendiente, turnoAbierto, esEfectivo, form.origen])
 
   const handle = async () => {
     setBusy(true); setError(null)
@@ -154,6 +167,15 @@ function PagoModal({ empleados, turnoAbierto, onClose, onSave }) {
           <Select label="Medio de pago" value={form.medio_pago} onChange={set('medio_pago')} required
             options={MEDIOS_PAGO.map(m => ({ value: m.id, label: m.label }))} />
         </div>
+
+        {esEfectivo && !pendiente && (
+          <Select label="¿De dónde sale el efectivo?" value={form.origen} onChange={set('origen')}
+            options={[
+              ...(turnoAbierto ? [{ value: 'caja', label: 'Caja abierta (descuenta del arqueo)' }] : []),
+              { value: 'caja_fuerte', label: 'Caja fuerte (descuenta de su saldo)' },
+              { value: 'ninguno', label: 'Otro efectivo / sin registrar origen' },
+            ]} />
+        )}
 
         <Field label="Descripción" value={form.descripcion} onChange={set('descripcion')}
           placeholder={esSueldo ? 'Adelanto / sueldo semana…' : 'Factura pescadería, hielo…'} required />
