@@ -7,7 +7,7 @@ import EgresoModal from './EgresoModal'
 import ConfirmDelete from './ConfirmDelete'
 
 export default function ProveedoresPagos({ desde, hasta, label }) {
-  const { egresos, pendientes, loading, error, crearEgreso, actualizarEgreso, eliminarEgreso } = useEgresos(desde, hasta)
+  const { egresos, pendientes, loading, error, actualizarEgreso, eliminarEgreso } = useEgresos(desde, hasta)
   const { proveedores } = useProveedores()
   const [modal, setModal]       = useState(null)  // null | 'nuevo' | egreso
   const [toDelete, setToDelete] = useState(null)
@@ -23,8 +23,8 @@ export default function ProveedoresPagos({ desde, hasta, label }) {
     .sort((a, b) => a.fecha_pago.localeCompare(b.fecha_pago)), [proveedores])
 
   const handleSave = async (form) => {
-    if (modal === 'nuevo') await crearEgreso(form)
-    else await actualizarEgreso(modal.id, form)
+    // Solo corrección: el alta vive en Caja → Pagos.
+    await actualizarEgreso(modal.id, form)
   }
   const marcarPagado = async (e) => { await actualizarEgreso(e.id, { estado: 'pagado', vencimiento: null }) }
 
@@ -41,11 +41,10 @@ export default function ProveedoresPagos({ desde, hasta, label }) {
             <p className="text-2xl font-bold tracking-tight" style={{ color: totalPorPagar > 0 ? '#f59e0b' : 'var(--text-primary)' }}>{fmtMoney(totalPorPagar)}</p>
           </div>
         </div>
-        <button onClick={() => setModal('nuevo')}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
-          <Plus size={14} /> Registrar pago
-        </button>
+        <span className="flex items-center gap-1.5 text-[11px] px-3 py-2 rounded-lg"
+          style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)' }}>
+          <Plus size={12} /> Los pagos se registran en Caja y facturación → Pagos
+        </span>
       </div>
 
       {error && (

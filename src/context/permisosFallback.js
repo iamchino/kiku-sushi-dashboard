@@ -26,7 +26,7 @@ export const CATALOGO_FALLBACK = [
   { id: 'stock', nombre: 'Inventario',          ruta: '/stock',               grupo: 'Producto',      orden: 130 },
   { id: 'recetas', nombre: 'Recetas',        ruta: '/recetas',             grupo: 'Producto',      orden: 140 },
   { id: 'analiticas', nombre: 'Analíticas',     ruta: '/analiticas',          grupo: 'Negocio',       orden: 210 },
-  { id: 'caja', nombre: 'Caja y ARCA',           ruta: '/caja',                grupo: 'Negocio',       orden: 220 },
+  { id: 'caja', nombre: 'Caja y facturación',           ruta: '/caja',                grupo: 'Negocio',       orden: 220 },
   { id: 'clientes', nombre: 'Clientes',       ruta: '/clientes',            grupo: 'Negocio',       orden: 230 },
   { id: 'notificaciones', nombre: 'Notificaciones', ruta: '/notificaciones',      grupo: 'Negocio',       orden: 240 },
   { id: 'proveedores', nombre: 'Proveedores',    ruta: '/proveedores',         grupo: 'Negocio',       orden: 250 },

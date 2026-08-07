@@ -9,7 +9,7 @@ import ConfirmDelete from './ConfirmDelete'
 
 export default function SueldosSection({ desde, hasta, label }) {
   const { empleados, loading, error, crearEmpleado, actualizarEmpleado, eliminarEmpleado } = useEmpleados()
-  const { egresos, crearEgreso, actualizarEgreso, eliminarEgreso } = useEgresos(desde, hasta)
+  const { egresos, actualizarEgreso, eliminarEgreso } = useEgresos(desde, hasta)
 
   const [empModal, setEmpModal]       = useState(null)  // null | 'nuevo' | empleado
   const [pagoModal, setPagoModal]     = useState(null)  // null | { empleado, egreso }
@@ -32,9 +32,10 @@ export default function SueldosSection({ desde, hasta, label }) {
     if (empModal === 'nuevo') await crearEmpleado(form)
     else await actualizarEmpleado(empModal.id, form)
   }
+  // Solo corrección: el alta de pagos de sueldo vive en Caja → Pagos
+  // (o en Personal → Liquidación, que paga por el mismo RPC central).
   const handleSavePago = async (form) => {
     if (pagoModal?.egreso) await actualizarEgreso(pagoModal.egreso.id, form)
-    else await crearEgreso(form)
   }
 
   return (
@@ -45,11 +46,10 @@ export default function SueldosSection({ desde, hasta, label }) {
           <p className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>{fmtMoney(totalSueldos)}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setPagoModal({ empleado: null, egreso: null })}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-            style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}>
-            <BadgeDollarSign size={14} /> Registrar pago
-          </button>
+          <span className="flex items-center gap-1.5 text-[11px] px-3 py-2 rounded-lg"
+            style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)' }}>
+            <BadgeDollarSign size={12} /> Los pagos se registran en Caja y facturación → Pagos
+          </span>
           <button onClick={() => setEmpModal('nuevo')}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
             style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>

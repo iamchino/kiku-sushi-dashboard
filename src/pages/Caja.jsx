@@ -17,14 +17,15 @@ import {
   Trash2,
   Usb,
   WalletCards,
-  X,
-} from 'lucide-react'
+  X, Banknote } from 'lucide-react'
 import { useFacturacion } from '../hooks/useFacturacion'
 import { supabase } from '../lib/supabase'
 import { esNotaCredito, formatReceiptNumber, getAuthorizedComprobante, getNotasCredito, nombreComprobante } from '../lib/fiscal'
 import { formatMoney } from '../lib/printing'
 import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../lib/orders'
 import ArqueoCajaSection from '../components/caja/ArqueoCajaSection'
+import PagosPanel from '../components/caja/PagosPanel'
+import { usePermisos } from '../context/usePermisos'
 import FacturarModal from '../components/caja/FacturarModal'
 import NotaCreditoModal from '../components/caja/NotaCreditoModal'
 
@@ -38,6 +39,9 @@ const FILTERS = [
 const SECCIONES_CAJA = [
   { id: 'facturacion', label: 'Facturacion', icon: Receipt },
   { id: 'arqueo', label: 'Arqueo y movimientos', icon: WalletCards },
+  // Pagos centralizados: todos los egresos del negocio salen de acá, con la
+  // caja abierta o cerrada. Solo lo ve quien tiene el permiso 'pagos'.
+  { id: 'pagos', label: 'Pagos', icon: Banknote, recurso: 'pagos' },
 ]
 
 const RANGOS_RAPIDOS = [
@@ -657,6 +661,8 @@ export default function CajaPage() {
   const [facturarTarget, setFacturarTarget] = useState(null)        // { pedido }
   const [ncTarget, setNcTarget] = useState(null)                     // { pedido, comprobante }
   const [seccion, setSeccion] = useState('facturacion')
+  const { puede } = usePermisos()
+  const seccionesVisibles = SECCIONES_CAJA.filter(t => !t.recurso || puede(t.recurso))
 
   const filteredPedidos = useMemo(() => {
     if (filter === 'todos') return pedidos
@@ -758,12 +764,22 @@ export default function CajaPage() {
               Kiku Sushi
             </p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-4xl" style={{ color: 'var(--text-primary)' }}>
-              Caja y ARCA
+              Caja y facturación
             </h1>
             <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
               Mostrando: {dateFrom === dateTo ? dateFrom : `${dateFrom} → ${dateTo}`}
             </p>
           </div>
+          {puede('pagos') && (
+            <button
+              onClick={() => setSeccion('pagos')}
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-white transition-colors"
+              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+            >
+              <Banknote size={15} />
+              Pagos
+            </button>
+          )}
           <button
             onClick={refetch}
             disabled={loading}
@@ -875,7 +891,7 @@ export default function CajaPage() {
         )}
 
         <section className="mt-5 flex flex-wrap gap-2">
-          {SECCIONES_CAJA.map(item => {
+          {seccionesVisibles.map(item => {
             const Icon = item.icon
             return (
               <button
@@ -893,7 +909,9 @@ export default function CajaPage() {
           })}
         </section>
 
-        {seccion === 'arqueo' ? (
+        {seccion === 'pagos' ? (
+          <div className="mt-5"><PagosPanel /></div>
+        ) : seccion === 'arqueo' ? (
           <ArqueoCajaSection dateFrom={dateFrom} dateTo={dateTo} />
         ) : (
           <section className="mt-5">
