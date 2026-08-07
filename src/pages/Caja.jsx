@@ -17,7 +17,7 @@ import {
   Trash2,
   Usb,
   WalletCards,
-  X, Banknote } from 'lucide-react'
+  X, Banknote, Landmark } from 'lucide-react'
 import { useFacturacion } from '../hooks/useFacturacion'
 import { supabase } from '../lib/supabase'
 import { esNotaCredito, formatReceiptNumber, getAuthorizedComprobante, getNotasCredito, nombreComprobante } from '../lib/fiscal'
@@ -25,6 +25,7 @@ import { formatMoney } from '../lib/printing'
 import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../lib/orders'
 import ArqueoCajaSection from '../components/caja/ArqueoCajaSection'
 import PagosPanel from '../components/caja/PagosPanel'
+import CajaFuertePanel from '../components/caja/CajaFuertePanel'
 import { usePermisos } from '../context/usePermisos'
 import FacturarModal from '../components/caja/FacturarModal'
 import NotaCreditoModal from '../components/caja/NotaCreditoModal'
@@ -42,6 +43,7 @@ const SECCIONES_CAJA = [
   // Pagos centralizados: todos los egresos del negocio salen de acá, con la
   // caja abierta o cerrada. Solo lo ve quien tiene el permiso 'pagos'.
   { id: 'pagos', label: 'Pagos', icon: Banknote, recurso: 'pagos' },
+  { id: 'caja_fuerte', label: 'Caja fuerte', icon: Landmark, recurso: 'caja_fuerte' },
 ]
 
 const RANGOS_RAPIDOS = [
@@ -909,7 +911,9 @@ export default function CajaPage() {
           })}
         </section>
 
-        {seccion === 'pagos' ? (
+        {seccion === 'caja_fuerte' ? (
+          <div className="mt-5"><CajaFuertePanel /></div>
+        ) : seccion === 'pagos' ? (
           <div className="mt-5"><PagosPanel /></div>
         ) : seccion === 'arqueo' ? (
           <ArqueoCajaSection dateFrom={dateFrom} dateTo={dateTo} />

@@ -105,6 +105,13 @@ export default function EgresosSection({ desde, hasta, label }) {
                     {e.estado === 'pendiente' && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium" style={{ background: 'rgba(245,158,11,0.14)', color: '#f59e0b' }}>Pendiente</span>
                     )}
+                    {e.pagado_desde === 'caja_fuerte' && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium flex items-center gap-1"
+                        style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)' }}
+                        title="El efectivo salió de la caja fuerte: su saldo lo descuenta">
+                        <Link2 size={10} /> Caja fuerte
+                      </span>
+                    )}
                     {e.caja_turno_id && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium flex items-center gap-1"
                         style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)' }}

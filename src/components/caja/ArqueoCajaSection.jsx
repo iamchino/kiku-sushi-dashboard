@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   ArrowDownCircle,
@@ -20,7 +20,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react'
-import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, useCajaArqueo } from '../../hooks/useCajaArqueo'
+import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, useCajaArqueo } from '../../hooks/useCajaArqueo'
 import { formatMoney } from '../../lib/printing'
 
 const TOLERANCIA_CAJA = 1000
@@ -60,7 +60,9 @@ function timeLabel(value) {
 }
 
 function tipoConfig(tipo) {
-  return TIPOS_MOVIMIENTO_CAJA.find(item => item.id === tipo) || TIPOS_MOVIMIENTO_CAJA[0]
+  // Busca en DISPLAY: incluye tipos que el form no ofrece (p. ej. 'retiro' a
+  // caja fuerte, creado por RPC) con su signo correcto.
+  return TIPOS_MOVIMIENTO_DISPLAY.find(item => item.id === tipo) || TIPOS_MOVIMIENTO_CAJA[0]
 }
 
 function movimientoColor(tipo) {
@@ -126,7 +128,7 @@ function Metric({ label, value, detail, icon: Icon, color = 'var(--accent-lift)'
   )
 }
 
-function EmptyTurnoForm({ onOpen, saving }) {
+function EmptyTurnoForm({ onOpen, saving, aperturaSugerida }) {
   const [form, setForm] = useState({
     caja_nombre: 'Caja principal',
     business_date: localDateISO(),
@@ -134,6 +136,18 @@ function EmptyTurnoForm({ onOpen, saving }) {
     notas_apertura: '',
   })
   const [error, setError] = useState(null)
+
+  // Arrastre: si el turno anterior cerró sin retirar el efectivo a la caja
+  // fuerte, ese efectivo sigue en el cajón. Se precarga como fondo inicial
+  // (editable: si el conteo real difiere, se corrige acá).
+  const [precargado, setPrecargado] = useState(false)
+  useEffect(() => {
+    if (precargado || !aperturaSugerida) return
+    setForm(prev => prev.apertura_monto === ''
+      ? { ...prev, apertura_monto: String(Math.round(aperturaSugerida.monto)) }
+      : prev)
+    setPrecargado(true)
+  }, [aperturaSugerida, precargado])
 
   const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }))
 
@@ -177,6 +191,12 @@ function EmptyTurnoForm({ onOpen, saving }) {
             style={inputStyle()}
           />
         </Field>
+        {aperturaSugerida && (
+          <p className="mt-1 text-[11px]" style={{ color: 'var(--accent-lift)' }}>
+            Efectivo que quedó en caja del turno del {aperturaSugerida.fecha}: ${formatMoney(aperturaSugerida.monto)}.
+            Si retiraste a caja fuerte y no se registró, corregí el monto.
+          </p>
+        )}
         <button
           type="submit"
           disabled={saving}
@@ -465,6 +485,10 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
             Cerrar turno
           </button>
         </div>
+        <p className="text-[11px] text-right" style={{ color: 'var(--text-xmuted)' }}>
+          ¿Retiraste el efectivo a la caja fuerte? (pestaña Caja fuerte). Si no,
+          el próximo turno abre con ese efectivo como fondo inicial.
+        </p>
         {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
       </form>
 
@@ -1252,6 +1276,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
     reasignarPago,
     calcularResumenTurno,
     auditoriaDeTurno,
+    aperturaSugerida,
   } = useCajaArqueo({ dateFrom, dateTo })
 
   const [busy, setBusy] = useState(null)
@@ -1338,6 +1363,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
       {!turnoActual ? (
         <EmptyTurnoForm
           saving={busy === 'abrir'}
+          aperturaSugerida={aperturaSugerida}
           onOpen={(values) => run('abrir', () => abrirTurno(values), 'Turno abierto.')}
         />
       ) : (
