@@ -148,3 +148,8 @@ hora. Si te molesta, bajá el JWT expiry a 15 minutos.
 - ⚠️ No le saques el `security definer` a `tiene_permiso()` ni le pongas
   `force row level security` a `rol_permisos`: es lo que evita la recursión
   cuando una policy de esa tabla llama a la función.
+- ⚠️ Lección aprendida (hotfix 20260809): **todo bypass que exista en el front
+  tiene que existir también en `puede_tabla()`**. La cuenta histórica de
+  Finanzas entra por email con rol admin; la fase 4 le cortó los datos de
+  Personal aunque el menú se los mostraba. Si se agrega otra vía de acceso en
+  permisosCore.js, espejarla en la base.

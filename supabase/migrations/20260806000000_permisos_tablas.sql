@@ -64,6 +64,20 @@ as $$
             else false          -- falla cerrado ante una acción desconocida
           end
   )
+  -- Bypass por email para el DOMINIO de Finanzas, espejando al front
+  -- (RECURSOS_FINANZAS en permisosCore.js): la cuenta histórica tiene rol
+  -- admin y entra a Finanzas/Personal por lista blanca de email. Sin esto,
+  -- el menú le muestra las pantallas y la base le niega los datos — veía
+  -- solo sus propios fichajes y no podía liquidar sueldos.
+  or (
+    public.is_finanzas_user()
+    and exists (
+      select 1 from public.recurso_tablas rt2
+      where rt2.tabla = p_tabla
+        and rt2.recurso_id in ('finanzas', 'personal', 'permisos')
+        and (p_accion = 'ver' or (p_accion = 'editar' and rt2.escribe))
+    )
+  )
 $$;
 
 revoke execute on function public.puede_tabla(text, text) from public;
