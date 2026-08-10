@@ -40,7 +40,7 @@ func initConsole() {
 
 	// Log startup banner
 	logToConsole("===========================================")
-	logToConsole("GG EZ Print - Servidor de Impresión")
+	logToConsole("GG EZ Print - Servidor de Impresión - v" + appVersion)
 	logToConsole("===========================================")
 	logToConsole("Ventana de consola inicializada")
 }
