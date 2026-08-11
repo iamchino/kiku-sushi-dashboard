@@ -43,7 +43,7 @@ create index if not exists caja_movimientos_egreso_idx
 insert into public.recursos (id, nombre, descripcion, ruta, grupo, sensible, orden) values
   ('pagos', 'Pagos',
    'Registrar egresos (sueldos, proveedores, servicios) desde Caja, con caja abierta o cerrada. Incluye los montos de sueldos.',
-   null, 'Negocio', true, 225)
+   null, 'Dinero', true, 215)
 on conflict (id) do update
   set nombre = excluded.nombre, descripcion = excluded.descripcion,
       grupo = excluded.grupo, sensible = excluded.sensible, orden = excluded.orden;

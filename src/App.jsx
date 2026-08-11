@@ -4,6 +4,7 @@ import { supabase, auth } from './lib/supabase'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Sidebar } from './components/layout/Sidebar'
 import { BottomNav } from './components/layout/BottomNav'
+import DomainTabs from './components/layout/DomainTabs'
 import { TIENEN_BARRA_INFERIOR } from './components/layout/bottomNavTabs'
 import Inicio from './pages/Inicio'
 import OperacionesPage from './pages/Operaciones'
@@ -45,6 +46,7 @@ function AdminLayout({ children }) {
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-app)' }}>
       <Sidebar />
       <main className={`flex-1 overflow-y-auto pt-14 lg:pt-0 ${conBottomNav ? 'pb-20 lg:pb-0' : ''}`}>
+        <DomainTabs />
         <PrinterStatusBanner />
         {children}
       </main>

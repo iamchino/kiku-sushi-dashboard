@@ -1,52 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import {
-  Home, ClipboardList, Package, Receipt, ListChecks,
-  Users, ChefHat, LogOut, UtensilsCrossed, X, Menu,
-  Sun, Moon, BookOpen, LayoutGrid, CalendarDays, Inbox, BarChart2,
-  ConciergeBell, Truck, Wallet, Settings, Clock, QrCode
-} from 'lucide-react'
+import { LogOut, X, Menu, Sun, Moon } from 'lucide-react'
 import clsx from 'clsx'
 import { auth } from '../../lib/supabase'
 import { NotificationBell } from './NotificationBell'
 import { useTheme } from '../../context/useTheme'
 import { usePermisos } from '../../context/usePermisos'
+import { dominiosVisibles, dominioDeRuta } from './dominios'
+import { useNegocio } from '../../hooks/useNegocio'
 
-// El menú sale de la matriz de permisos: qué items aparecen, en qué orden y
-// con qué nombre lo define la tabla `recursos`, editable desde Personal.
-// En código queda solo el ícono (no tiene sentido guardarlo en la base) y qué
-// recursos nunca van al menú.
-const ICONOS = {
-  inicio:         Home,
-  operaciones:    ChefHat,
-  analiticas:     BarChart2,
-  menu:           UtensilsCrossed,
-  mesas:          LayoutGrid,
-  reservas:       CalendarDays,
-  pedidos:        ClipboardList,
-  platos:         ConciergeBell,
-  cocina_kds:     ChefHat,
-  produccion:     ListChecks,
-  stock:          Package,
-  recetas:        BookOpen,
-  caja:           Receipt,
-  finanzas:       Wallet,
-  personal:       Clock,
-  clientes:       Users,
-  notificaciones: Inbox,
-  proveedores:    Truck,
-  configuracion:  Settings,
-  config_salon:   LayoutGrid,
-  fichar:         QrCode,
-  mis_horas:      Clock,
-}
-const ICONO_POR_DEFECTO = ClipboardList
-
-// Recursos que existen y se pueden permitir, pero no van como item del menú:
-//   · cocina_kds: el KDS sigue oculto (la ruta y la lógica quedan vivas).
-//   · config_salon: se llega desde adentro de Mesas, nunca fue item del menú.
-// Los recursos sin `ruta` tampoco entran: no son una pantalla.
-const FUERA_DEL_MENU = new Set(['cocina_kds', 'config_salon'])
 
 function useAutoClose(setOpen) {
   const location = useLocation()
@@ -96,13 +58,14 @@ function ThemeToggle() {
 function SidebarContent({ onClose, showBell = false }) {
   useAutoClose(onClose ?? (() => {}))
   const { visibles } = usePermisos()
-  const navItems = visibles
-    .filter(r => r.ruta && !FUERA_DEL_MENU.has(r.id))
-    .map(r => ({
-      to: r.ruta,
-      label: r.nombre,
-      icon: ICONOS[r.id] ?? ICONO_POR_DEFECTO,
-    }))
+  const negocio = useNegocio()
+  const location = useLocation()
+
+  // La barra muestra DOMINIOS (6 entradas), no las 18 secciones sueltas.
+  // Dentro de cada dominio, las secciones aparecen como pestañas arriba del
+  // contenido (DomainTabs). El agrupamiento vive en la base: recursos.grupo.
+  const dominios = dominiosVisibles(visibles)
+  const dominioActivo = dominioDeRuta(dominios, location.pathname)
 
   return (
     <div
@@ -118,14 +81,14 @@ function SidebarContent({ onClose, showBell = false }) {
             className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold"
             style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
           >
-            K
+            {(negocio.nombre || 'K').trim().charAt(0).toUpperCase()}
           </div>
           <div>
             <p className="font-semibold text-sm tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>
-              KIKU <span style={{ color: 'var(--accent-lift)' }}>SUSHI</span>
+              {negocio.nombrePrincipal}{negocio.nombreAcento && <span style={{ color: 'var(--accent-lift)' }}> {negocio.nombreAcento}</span>}
             </p>
             <p className="text-[10px] mt-0.5 uppercase tracking-widest" style={{ color: 'var(--text-xmuted)' }}>
-              Sistema de gestión
+              {negocio.subtitulo}
             </p>
           </div>
         </div>
@@ -145,25 +108,33 @@ function SidebarContent({ onClose, showBell = false }) {
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end
-            className={({ isActive }) => clsx(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
-              !isActive && 'hover:bg-[var(--bg-hover)]'
-            )}
-            style={({ isActive }) => isActive
-              ? { background: 'var(--bg-active)', color: 'var(--accent-lift)' }
-              : { color: 'var(--text-secondary)' }
-            }
-          >
-            <Icon size={16} />
-            <span>{label}</span>
-          </NavLink>
-        ))}
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        {dominios.map(d => {
+          const Icon = d.icon
+          const activo = dominioActivo?.grupo === d.grupo
+          return (
+            <NavLink
+              key={d.grupo}
+              to={d.ruta}
+              className={clsx(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
+                !activo && 'hover:bg-[var(--bg-hover)]'
+              )}
+              style={activo
+                ? { background: 'var(--bg-active)', color: 'var(--accent-lift)' }
+                : { color: 'var(--text-secondary)' }}
+              title={d.hint}
+            >
+              <Icon size={16} />
+              <span className="flex-1">{d.grupo}</span>
+              {d.items.length > 1 && (
+                <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-xmuted)' }}>
+                  {d.items.length}
+                </span>
+              )}
+            </NavLink>
+          )
+        })}
       </nav>
 
       {/* pb extra en mobile para que "Cerrar sesión" no quede tapado por la
