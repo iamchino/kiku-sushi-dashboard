@@ -27,13 +27,13 @@ on conflict (id) do update
 -- ─── Recursos ───────────────────────────────────────────────────────────────
 insert into public.recursos (id, nombre, descripcion, ruta, grupo, sensible, orden) values
   -- Salón y pedidos
-  ('inicio',         'Inicio',          'Pantalla de bienvenida.',                          '/',                     'Operación',     false, 10),
-  ('operaciones',    'Operaciones',     'Tablero operativo de cocina.',                     '/operaciones',          'Operación',     false, 20),
-  ('pedidos',        'Órdenes',         'Pedidos de salón, delivery y take away.',          '/pedidos',              'Operación',     false, 30),
-  ('mesas',          'Mesas',           'Abrir, cobrar y cerrar mesas del salón.',          '/mesas',                'Operación',     false, 40),
-  ('reservas',       'Reservas',        'Reservas y lista de espera.',                      '/reservas',             'Operación',     false, 50),
-  ('platos',         'Platos',          'Estado de los platos en preparación.',             '/platos',               'Operación',     false, 60),
-  ('cocina_kds',     'Cocina (KDS)',    'Pantalla de cocina. Hoy oculta del menú.',         '/cocina',               'Operación',     false, 70),
+  ('inicio',         'Inicio',          'Pantalla de bienvenida.',                          '/',                     'Servicio',     false, 5),
+  ('operaciones',    'Operaciones',     'Tablero operativo de cocina.',                     '/operaciones',          'Servicio',     false, 10),
+  ('pedidos',        'Órdenes',         'Pedidos de salón, delivery y take away.',          '/pedidos',              'Servicio',     false, 20),
+  ('mesas',          'Mesas',           'Abrir, cobrar y cerrar mesas del salón.',          '/mesas',                'Servicio',     false, 30),
+  ('reservas',       'Reservas',        'Reservas y lista de espera.',                      '/reservas',             'Servicio',     false, 40),
+  ('platos',         'Platos',          'Estado de los platos en preparación.',             '/platos',               'Servicio',     false, 50),
+  ('cocina_kds',     'Cocina (KDS)',    'Pantalla de cocina. Hoy oculta del menú.',         '/cocina',               'Servicio',     false, 60),
 
   -- Producto
   ('menu',           'Menú & Carta',    'Carta, precios, especiales y novedades de la web.', '/menu',                'Producto',      false, 110),
@@ -42,24 +42,24 @@ insert into public.recursos (id, nombre, descripcion, ruta, grupo, sensible, ord
   ('recetas',        'Recetas',         'Recetas, ingredientes y combos.',                  '/recetas',              'Producto',      false, 140),
 
   -- Negocio
-  ('analiticas',     'Analíticas',      'Ventas, tendencias y el vivo del día.',            '/analiticas',           'Negocio',       false, 210),
-  ('caja',           'Caja y facturación', 'Arqueo, turnos de caja y facturación fiscal. El botón Pagos registra todos los egresos.', '/caja',                 'Negocio',       true,  220),
-  ('clientes',       'Clientes',        'Base de clientes.',                                '/clientes',             'Negocio',       false, 230),
-  ('notificaciones', 'Notificaciones',  'Bandeja de notificaciones del sistema.',           '/notificaciones',       'Negocio',       false, 240),
-  ('proveedores',    'Proveedores',     'Alta y edición de proveedores.',                   '/proveedores',          'Negocio',       false, 250),
+  ('analiticas',     'Analíticas',      'Ventas, tendencias y el vivo del día.',            '/analiticas',           'Análisis',       false, 310),
+  ('caja',           'Caja y facturación', 'Arqueo, turnos de caja y facturación fiscal. El botón Pagos registra todos los egresos.', '/caja',                 'Dinero',       true,  210),
+  ('clientes',       'Clientes',        'Base de clientes.',                                '/clientes',             'Análisis',       false, 320),
+  ('notificaciones', 'Notificaciones',  'Bandeja de notificaciones del sistema.',           '/notificaciones',       'Análisis',       false, 330),
+  ('proveedores',    'Proveedores',     'Alta y edición de proveedores.',                   '/proveedores',          'Producto',       false, 150),
 
   -- Configuración
-  ('configuracion',  'Configuración',   'Impresoras, envíos, horarios y reservas.',         '/configuracion',        'Configuración', false, 310),
-  ('config_salon',   'Salón',           'Mapa de mesas, salones y mozos.',                  '/configuracion/salon',  'Configuración', false, 320),
+  ('configuracion',  'Configuración',   'Impresoras, envíos, horarios y reservas.',         '/configuracion',        'Ajustes', false, 510),
+  ('config_salon',   'Salón',           'Mapa de mesas, salones y mozos.',                  '/configuracion/salon',  'Ajustes', false, 520),
 
   -- Plata y personas
-  ('finanzas',       'Finanzas',        'Egresos, sueldos e ingresos. Información sensible.', '/finanzas',           'Finanzas',      true,  410),
-  ('personal',       'Personal',        'Legajo, fichajes, liquidación y logins del sistema.', '/personal',          'Finanzas',      true,  420),
-  ('permisos',       'Permisos',        'Editar qué puede hacer cada rol. Vive dentro de Personal.', null,           'Finanzas',      true,  430),
+  ('finanzas',       'Finanzas',        'Egresos, sueldos e ingresos. Información sensible.', '/finanzas',           'Dinero',      true,  220),
+  ('personal',       'Personal',        'Legajo, fichajes, liquidación y logins del sistema.', '/personal',          'Equipo',      true,  410),
+  ('permisos',       'Permisos',        'Editar qué puede hacer cada rol. Vive dentro de Personal.', null,           'Equipo',      true,  415),
 
   -- Propio
-  ('fichar',         'Fichar',          'Marcar entrada y salida con el QR del local.',     '/fichar',               'Mi fichaje',    false, 510),
-  ('mis_horas',      'Mis horas',       'Ver las horas propias y su liquidación.',          '/mis-horas',            'Mi fichaje',    false, 520)
+  ('fichar',         'Fichar',          'Marcar entrada y salida con el QR del local.',     '/fichar',               'Equipo',    false, 420),
+  ('mis_horas',      'Mis horas',       'Ver las horas propias y su liquidación.',          '/mis-horas',            'Equipo',    false, 430)
 on conflict (id) do update
   set nombre      = excluded.nombre,
       descripcion = excluded.descripcion,

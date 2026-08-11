@@ -124,7 +124,7 @@ comment on function public.puede_tabla(text, text) is
 insert into public.recursos (id, nombre, descripcion, ruta, grupo, sensible, orden) values
   ('config_avanzada', 'Configuración avanzada',
    'Costos de envío, zonas de delivery, horarios y aperturas especiales. Vive dentro de Configuración.',
-   null, 'Configuración', false, 315)
+   null, 'Ajustes', false, 515)
 on conflict (id) do update
   set nombre = excluded.nombre, descripcion = excluded.descripcion,
       grupo = excluded.grupo, orden = excluded.orden;

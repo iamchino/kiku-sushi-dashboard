@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Printer, Truck, Clock, CalendarClock } from 'lucide-react'
+import { Printer, Truck, Clock, CalendarClock, Store } from 'lucide-react'
 import PrinterConfig from '../components/config/PrinterConfig'
 import EnvioConfig from '../components/config/EnvioConfig'
 import HorariosConfig from '../components/config/HorariosConfig'
+import NegocioTab from '../components/config/NegocioTab'
 import ReservasConfig from '../components/config/ReservasConfig'
 import { useRole } from '../context/useRole'
 
@@ -14,6 +15,7 @@ const TABS = [
   { id: 'envio',      label: 'Envío',      Icon: Truck,   roles: ['admin'] },
   { id: 'horarios',   label: 'Horarios',   Icon: Clock,   roles: ['admin'] },
   { id: 'reservas',   label: 'Reservas',   Icon: CalendarClock, roles: ['admin'] },
+  { id: 'negocio',    label: 'Negocio',    Icon: Store,   roles: ['admin'] },
 ]
 
 /**
@@ -97,6 +99,8 @@ export default function ConfiguracionPage() {
           </div>
         </div>
       )}
+
+      {tab === 'negocio' && <NegocioTab />}
     </div>
   )
 }

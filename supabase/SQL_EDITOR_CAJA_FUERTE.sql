@@ -72,7 +72,7 @@ create policy "caja_fuerte lectura"
 insert into public.recursos (id, nombre, descripcion, ruta, grupo, sensible, orden) values
   ('caja_fuerte', 'Caja fuerte',
    'El efectivo del negocio fuera de la caja registradora: depósitos al cierre de turno, pagos y saldo. Vive dentro de Caja y facturación.',
-   null, 'Negocio', true, 226)
+   null, 'Dinero', true, 216)
 on conflict (id) do update
   set nombre = excluded.nombre, descripcion = excluded.descripcion,
       grupo = excluded.grupo, sensible = excluded.sensible, orden = excluded.orden;
