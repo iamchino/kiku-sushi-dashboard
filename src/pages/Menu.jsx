@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Plus, Search, Edit2, Trash2, Eye, EyeOff,
-  UtensilsCrossed, Truck, RefreshCw, AlertCircle, Package, Sparkles, TrendingUp, Megaphone, Utensils,
+  UtensilsCrossed, Truck, RefreshCw, AlertCircle, Package, Sparkles, TrendingUp, Megaphone, Utensils, Infinity as InfinityIcon,
   GripVertical, MoveVertical, Flame
 } from 'lucide-react'
 import { useMenu } from '../hooks/useMenu'
@@ -10,6 +10,7 @@ import ProductModal from '../components/menu/ProductModal'
 import EspecialesTab from '../components/menu/EspecialesTab'
 import BannerTab from '../components/menu/BannerTab'
 import OmakaseTab from '../components/menu/OmakaseTab'
+import LibreTab from '../components/menu/LibreTab'
 import NovedadTab from '../components/menu/NovedadTab'
 import AjustePreciosModal from '../components/menu/AjustePreciosModal'
 
@@ -19,6 +20,7 @@ const TABS = [
   { id: 'especiales', label: 'Especiales Web',     icon: Sparkles },
   { id: 'banner',     label: 'Banner web',         icon: Megaphone },
   { id: 'omakase',    label: 'Omakase',            icon: Utensils },
+  { id: 'libre',      label: 'Kiku Libre',         icon: InfinityIcon },
   { id: 'novedad',    label: 'Nuevo',              icon: Flame },
 ]
 
@@ -44,9 +46,10 @@ export default function MenuPage() {
   const esEspeciales = activeTab === 'especiales'
   const esBanner = activeTab === 'banner'
   const esOmakase = activeTab === 'omakase'
+  const esLibre = activeTab === 'libre'
   const esNovedad = activeTab === 'novedad'
   // "config" = tabs que no listan productos (Especiales Web, Banner web, Omakase, Nuevo).
-  const esConfig = esEspeciales || esBanner || esOmakase || esNovedad
+  const esConfig = esEspeciales || esBanner || esOmakase || esNovedad || esLibre
 
   const {
     grouped, categories, stats,
@@ -267,6 +270,7 @@ export default function MenuPage() {
 
       {/* ── Tab Omakase (precio web, autocontenido) ── */}
       {esOmakase && <OmakaseTab />}
+      {esLibre && <LibreTab />}
 
       {/* ── Tab Nuevo (el plato del momento en la web, autocontenido) ── */}
       {esNovedad && <NovedadTab />}
