@@ -300,20 +300,35 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
 
       if (reabiertosFueraDeRango.length > 0) {
         turnosList = [...reabiertosFueraDeRango, ...turnosList]
-        const ids = reabiertosFueraDeRango.map(t => t.id)
+      }
 
-        const [movExtra, pagExtra] = await Promise.all([
-          supabase.from('caja_movimientos').select('*').in('turno_id', ids),
-          supabase.from('pagos_arqueo').select('*').in('caja_turno_id', ids),
+      // Además del filtro por fecha, traemos TODO lo vinculado por turno_id a
+      // los turnos visibles. Sin esto, un movimiento hecho pasada la medianoche
+      // (p. ej. el retiro a caja fuerte de un cierre a las 00:30) tiene
+      // created_at del día siguiente, queda fuera del rango del día del turno
+      // y el arqueo no lo descontaba. El vínculo por turno no depende del reloj.
+      const idsTurnosVisibles = [...new Set([
+        ...turnosList.map(t => t.id),
+        ...(openTurno ? [openTurno.id] : []),
+      ])]
+      if (idsTurnosVisibles.length > 0) {
+        const [movPorTurno, pagPorTurno] = await Promise.all([
+          supabase.from('caja_movimientos').select('*').in('turno_id', idsTurnosVisibles),
+          supabase.from('pagos_arqueo').select('*').in('caja_turno_id', idsTurnosVisibles),
         ])
 
-        const movById = new Map(movimientosList.map(m => [m.id, m]))
-        ;(movExtra.data || []).forEach(m => movById.set(m.id, m))
-        movimientosList = [...movById.values()]
-
-        const pagById = new Map(pagosList.map(p => [p.id, p]))
-        ;(pagExtra.data || []).forEach(p => pagById.set(p.id, p))
-        pagosList = [...pagById.values()]
+        if (!movPorTurno.error) {
+          const movById = new Map(movimientosList.map(m => [m.id, m]))
+          ;(movPorTurno.data || []).forEach(m => movById.set(m.id, m))
+          movimientosList = [...movById.values()]
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        }
+        if (!pagPorTurno.error) {
+          const pagById = new Map(pagosList.map(p => [p.id, p]))
+          ;(pagPorTurno.data || []).forEach(p => pagById.set(p.id, p))
+          pagosList = [...pagById.values()]
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        }
       }
 
       setTurnoActual(openTurno)

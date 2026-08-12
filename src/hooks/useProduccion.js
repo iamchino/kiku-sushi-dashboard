@@ -108,13 +108,24 @@ export function useProduccion() {
     return { total, completadas, pendientes, enProgreso, porcentaje: total ? Math.round((completadas / total) * 100) : 0 }
   }, [tareas])
 
+  // Antes solo entraban las recetas marcadas como subreceta o vinculadas a un
+  // ítem de stock de producción — en la práctica quedaba UNA sola receta para
+  // elegir. Ahora entran todas: las de producción primero (con su flag), y el
+  // resto también producible (al completarlas descuentan sus ingredientes;
+  // solo las vinculadas suman stock de semielaborado).
   const subRecetas = useMemo(() =>
     recetas
-      .filter(r => r.es_subreceta || stockItems.some(s => s.tipo_stock === 'produccion' && s.receta_id === r.id))
-      .map(r => ({
-        ...r,
-        _stockProduccion: stockItems.find(s => s.tipo_stock === 'produccion' && s.receta_id === r.id) || null,
-      })),
+      .map(r => {
+        const stockProd = stockItems.find(s => s.tipo_stock === 'produccion' && s.receta_id === r.id) || null
+        return {
+          ...r,
+          _stockProduccion: stockProd,
+          _esProduccion: Boolean(r.es_subreceta || stockProd),
+        }
+      })
+      .sort((a, b) =>
+        Number(b._esProduccion) - Number(a._esProduccion)
+        || String(a.nombre).localeCompare(String(b.nombre), 'es')),
   [recetas, stockItems])
 
   const createLista = async (fechaLista, titulo, notas) => {
@@ -132,6 +143,21 @@ export function useProduccion() {
     if (e) return { error: e }
     setLista(data)
     return { data }
+  }
+
+  // Elimina la lista completa del día con sus tareas. OJO: las tareas ya
+  // completadas no devuelven el stock que movieron — el modal lo advierte.
+  const deleteLista = async () => {
+    if (!lista) return { error: { message: 'No hay lista para eliminar.' } }
+    const { error: eTareas } = await supabase
+      .from('produccion_tareas').delete().eq('lista_id', lista.id)
+    if (eTareas) return { error: eTareas }
+    const { error: e } = await supabase
+      .from('produccion_listas').delete().eq('id', lista.id)
+    if (e) return { error: e }
+    setLista(null)
+    setTareas([])
+    return {}
   }
 
   const addTarea = async ({ receta_id, descripcion, cantidad, prioridad }) => {
@@ -208,7 +234,7 @@ export function useProduccion() {
   return {
     lista, tareas, recetas, stockItems, subRecetas, stats,
     loading, error, fecha, setFecha,
-    createLista, addTarea, updateTarea, deleteTarea,
+    createLista, deleteLista, addTarea, updateTarea, deleteTarea,
     completarTarea, revertirTarea, fetchData,
   }
 }

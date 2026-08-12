@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { RefreshCw, CalendarDays, ChevronLeft, ChevronRight, ListChecks, ClipboardList } from 'lucide-react'
+import { RefreshCw, CalendarDays, ChevronLeft, ChevronRight, ListChecks, ClipboardList, Trash2 } from 'lucide-react'
 import { useProduccion } from '../hooks/useProduccion'
 import { useRole } from '../context/useRole'
 import ProgresoBar from '../components/produccion/ProgresoBar'
@@ -26,12 +26,16 @@ function isToday(dateStr) {
 // ── Página ────────────────────────────────────────────────────────────────────
 export default function ProduccionPage() {
   const role = useRole()
-  const isAdmin = role === 'admin'
+  // Gestión de la lista (crear, eliminar, cambiar fecha): solo admin y finanzas.
+  const isAdmin = role === 'admin' || role === 'finanzas'
+  // Cargar tareas y anotaciones: también cocina (Marce y Fran pueden anotar
+  // refuerzos o cargar una producción que hicieron).
+  const puedeCargar = isAdmin || role === 'cocina'
 
   const {
     lista, tareas, recetas, stockItems, subRecetas, stats,
     loading, error, fecha, setFecha,
-    createLista, addTarea, deleteTarea,
+    createLista, deleteLista, addTarea, deleteTarea,
     completarTarea, revertirTarea, fetchData,
   } = useProduccion()
 
@@ -39,6 +43,9 @@ export default function ProduccionPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [creando, setCreando] = useState(false)
+  const [borrarListaOpen, setBorrarListaOpen] = useState(false)
+  const [borrandoLista, setBorrandoLista] = useState(false)
+  const [errorLista, setErrorLista] = useState(null)
 
   // Receta asociada a cada tarea
   const getReceta = (tarea) => recetas.find(r => r.id === tarea.receta_id) || null
@@ -54,6 +61,16 @@ export default function ProduccionPage() {
     setCreando(true)
     await createLista(fecha)
     setCreando(false)
+  }
+
+  // Eliminar la lista completa (solo admin/finanzas)
+  const handleBorrarLista = async () => {
+    setBorrandoLista(true)
+    setErrorLista(null)
+    const r = await deleteLista()
+    setBorrandoLista(false)
+    if (r?.error) { setErrorLista(r.error.message || 'No se pudo eliminar la lista.'); return }
+    setBorrarListaOpen(false)
   }
 
   // Delete tarea
@@ -88,11 +105,21 @@ export default function ProduccionPage() {
             Tareas de preparación del día
           </p>
         </div>
-        <button onClick={fetchData} disabled={loading}
-          className="p-2 rounded-lg disabled:opacity-50 self-end sm:self-auto"
-          style={{ border: '1px solid var(--border)' }}>
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} style={{ color: 'var(--text-muted)' }} />
-        </button>
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          {isAdmin && lista && (
+            <button onClick={() => { setErrorLista(null); setBorrarListaOpen(true) }}
+              title="Eliminar la lista de este día"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold"
+              style={{ border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' }}>
+              <Trash2 size={13} /> Eliminar lista
+            </button>
+          )}
+          <button onClick={fetchData} disabled={loading}
+            className="p-2 rounded-lg disabled:opacity-50"
+            style={{ border: '1px solid var(--border)' }}>
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} style={{ color: 'var(--text-muted)' }} />
+          </button>
+        </div>
       </div>
 
       {/* ── Navegación de fecha (admin puede cambiar, cocina solo ve hoy) ── */}
@@ -185,8 +212,8 @@ export default function ProduccionPage() {
             </div>
           )}
 
-          {/* Agregar tarea (solo admin) */}
-          {isAdmin && (
+          {/* Agregar tarea / anotación (admin, finanzas y cocina) */}
+          {puedeCargar && (
             <NuevaTareaForm
               subRecetas={subRecetas}
               onAdd={addTarea}
@@ -251,7 +278,7 @@ export default function ProduccionPage() {
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                 No hay tareas aún
               </p>
-              {isAdmin && (
+              {puedeCargar && (
                 <p className="text-xs" style={{ color: 'var(--text-xmuted)' }}>
                   Usá el botón de arriba para agregar tareas
                 </p>
@@ -271,6 +298,41 @@ export default function ProduccionPage() {
         recetas={recetas}
         onConfirm={completarTarea}
       />
+
+      {/* ── Modal eliminar lista ── */}
+      {borrarListaOpen && lista && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setBorrarListaOpen(false)} />
+          <div className="relative w-full max-w-sm rounded-2xl p-6 space-y-4"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 32px 64px rgba(0,0,0,0.3)' }}>
+            <div className="text-center space-y-2">
+              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>¿Eliminar la lista del día?</p>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                Se eliminan la lista y sus {tareas.length} tarea{tareas.length === 1 ? '' : 's'}.
+              </p>
+              {tareas.some(t => t.estado === 'completada') && (
+                <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
+                  Hay tareas completadas: el stock que ya movieron NO se devuelve.
+                  Si necesitás revertirlas, hacelo antes de eliminar.
+                </p>
+              )}
+            </div>
+            {errorLista && <p className="text-xs text-center" style={{ color: '#ef4444' }}>{errorLista}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => setBorrarListaOpen(false)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium"
+                style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                Cancelar
+              </button>
+              <button onClick={handleBorrarLista} disabled={borrandoLista}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
+                style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)' }}>
+                {borrandoLista ? 'Eliminando...' : 'Eliminar lista'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal delete ── */}
       {deleteTarget && (
