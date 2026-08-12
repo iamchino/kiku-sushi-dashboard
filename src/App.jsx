@@ -37,6 +37,7 @@ import { usePermisos } from './context/usePermisos'
 import { usePrinterStore } from './lib/printerStore'
 import PrinterStatusBanner from './components/PrinterStatusBanner'
 import { initNative } from './lib/native'
+import { initWebNotifs } from './lib/webNotifs'
 
 function AdminLayout({ children }) {
   const role = useRole()
@@ -205,9 +206,13 @@ export default function App() {
   }, [session, loadPrinterConfig])
 
   // Inicializa integraciones nativas (Capacitor): status bar, push, etc.
-  // En navegador es un no-op.
+  // En navegador es un no-op, y ahí entra initWebNotifs (sonido + notificación
+  // del navegador para pedidos nuevos / listos).
   useEffect(() => {
-    if (session) initNative(session)
+    if (session) {
+      initNative(session)
+      initWebNotifs(session)
+    }
   }, [session])
 
   if (session === undefined) {

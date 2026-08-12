@@ -190,7 +190,7 @@ export default function ProduccionPage() {
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
             No hay lista de producción para este día
           </p>
-          {isAdmin && (
+          {puedeCargar && (
             <button onClick={handleCrearLista} disabled={creando}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105 disabled:opacity-50"
               style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}>
