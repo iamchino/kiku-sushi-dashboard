@@ -105,7 +105,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
             ? { background: 'rgba(59,130,246,0.1)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.25)' }
             : { color: 'var(--text-muted)', background: 'transparent', border: '1px solid transparent' }
           }>
-          📝 Tarea libre
+          📝 Anotación / refuerzo
         </button>
       </div>
 
@@ -114,7 +114,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
           {/* Buscador de recetas */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-              Receta de produccion *
+              Receta *
             </label>
             <div className="relative">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-xmuted)' }} />
@@ -123,7 +123,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
                 onChange={e => { setBusqueda(e.target.value); setRecetaId('') }}
                 className="w-full pl-9 pr-3 py-2.5 rounded-lg text-sm outline-none"
                 style={inputStyle}
-                placeholder="Buscar receta de produccion..."
+                placeholder="Buscar receta..."
               />
             </div>
 
@@ -132,7 +132,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
               <div className="max-h-36 overflow-y-auto rounded-lg" style={{ border: '1px solid var(--border)' }}>
                 {recetasFiltradas.length === 0 ? (
                   <p className="text-xs text-center py-3" style={{ color: 'var(--text-muted)' }}>
-                    No hay recetas de produccion{busqueda ? ` para "${busqueda}"` : ''}
+                    No hay recetas{busqueda ? ` para "${busqueda}"` : ''}
                   </p>
                 ) : (
                   recetasFiltradas.map(r => {
@@ -152,6 +152,12 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
                       >
                         <span className="flex items-center gap-2">
                           {r.nombre}
+                          {r._esProduccion && (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wide"
+                              style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}>
+                              producción
+                            </span>
+                          )}
                           {r.porciones > 1 && (
                             <span className="text-[10px] px-1 py-0.5 rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-xmuted)' }}>
                               rinde {r.porciones} {r._stockProduccion?.unidad || 'porc.'}
@@ -178,6 +184,13 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
                   Cambiar
                 </button>
               </div>
+            )}
+
+            {recetaId && recetaSeleccionada && !recetaSeleccionada._esProduccion && !sinIngredientes && (
+              <p className="text-[11px] px-2 py-1 rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
+                Al completarla descuenta los ingredientes de la receta.
+                No suma stock de semielaborado (no está vinculada a un ítem de producción).
+              </p>
             )}
 
             {sinIngredientes && (
@@ -208,18 +221,19 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
         /* ── Modo tarea libre ── */
         <div className="space-y-1.5">
           <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-            Descripción de la tarea *
+            ¿Qué hiciste o hay que hacer? *
           </label>
           <input
             value={descripcionLibre}
             onChange={e => setDescripcionLibre(e.target.value)}
             className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
             style={inputStyle}
-            placeholder="Ej: Limpiar camarones, preparar mise en place..."
+            placeholder="Ej: Refuerzo de salmón x2, limpiar camarones..."
             autoFocus
           />
           <p className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
-            Esta tarea no descuenta inventario. Queda como registro de trabajo.
+            Para anotar refuerzos o producciones extra. No descuenta inventario:
+            queda como registro de trabajo del día.
           </p>
         </div>
       )}
