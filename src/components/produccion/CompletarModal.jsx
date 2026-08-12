@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { X, Loader2, AlertTriangle } from 'lucide-react'
 import { calcularIngredientesCrudos, mergeIngredientes } from '../../hooks/useProduccion'
 
-export default function CompletarModal({ open, onClose, tarea, receta, stockProduccion, recetas, onConfirm }) {
+export default function CompletarModal({ open, onClose, tarea, receta, stockProduccion, recetas, onConfirm, onRenombrar }) {
   const [nombre, setNombre] = useState('')
+  const [producto, setProducto] = useState('')
   const [cantidad, setCantidad] = useState('')
   const [notas, setNotas] = useState('')
   const [saving, setSaving] = useState(false)
@@ -14,6 +15,9 @@ export default function CompletarModal({ open, onClose, tarea, receta, stockProd
     if (open) {
       const saved = localStorage.getItem('kiku_produccion_nombre') || ''
       setNombre(saved)
+      // Tareas sin receta: el nombre de lo producido es editable al completar
+      // (p. ej. "Bocha helado Aisu"). Arranca con la descripción de la tarea.
+      setProducto(tarea?.receta_id ? '' : (tarea?.descripcion || ''))
       setCantidad(String(tarea?.cantidad || 1))
       setNotas('')
       setError(null)
@@ -21,6 +25,8 @@ export default function CompletarModal({ open, onClose, tarea, receta, stockProd
   }, [open, tarea])
 
   if (!open || !tarea) return null
+
+  const sinReceta = !tarea.receta_id
 
   const cantNum = parseFloat(cantidad) || 0
 
@@ -36,11 +42,23 @@ export default function CompletarModal({ open, onClose, tarea, receta, stockProd
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!nombre.trim()) { setError('Escribí tu nombre'); return }
+    if (sinReceta && !producto.trim()) { setError('Poné qué se produjo (ej: Bocha helado Aisu)'); return }
     if (!cantNum || cantNum <= 0) { setError('Ingresá la cantidad producida'); return }
 
     setSaving(true)
     setError(null)
     localStorage.setItem('kiku_produccion_nombre', nombre.trim())
+
+    // Si cambió el nombre de lo producido, se renombra la tarea: la tarjeta
+    // queda con el nombre real de lo que se hizo.
+    if (sinReceta && onRenombrar && producto.trim() !== tarea.descripcion) {
+      const r = await onRenombrar(tarea.id, producto.trim())
+      if (r?.error) {
+        setError(r.error.message || 'No se pudo guardar el nombre')
+        setSaving(false)
+        return
+      }
+    }
 
     const result = await onConfirm(tarea.id, nombre.trim(), cantNum, notas.trim())
     if (result?.error) {
@@ -89,6 +107,27 @@ export default function CompletarModal({ open, onClose, tarea, receta, stockProd
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
+          {/* Qué se produjo (solo tareas sin receta) */}
+          {sinReceta && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                ¿Qué se produjo? *
+              </label>
+              <input
+                value={producto}
+                onChange={e => setProducto(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                style={{ ...inputStyle, fontSize: '16px' }}
+                placeholder="Ej: Bocha helado Aisu"
+                autoComplete="off"
+              />
+              <p className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
+                Es el nombre con el que queda registrada la tarea.
+              </p>
+            </div>
+          )}
+
           {/* Nombre */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>

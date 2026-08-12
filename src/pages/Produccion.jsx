@@ -35,7 +35,7 @@ export default function ProduccionPage() {
   const {
     lista, tareas, recetas, stockItems, subRecetas, stats,
     loading, error, fecha, setFecha,
-    createLista, deleteLista, addTarea, deleteTarea,
+    createLista, deleteLista, addTarea, updateTarea, deleteTarea,
     completarTarea, revertirTarea, fetchData,
   } = useProduccion()
 
@@ -238,6 +238,7 @@ export default function ProduccionPage() {
                   receta={getReceta(t)}
                   stockProduccion={getStockProduccion(t)}
                   isAdmin={isAdmin}
+                  cocinaView={isCocina}
                   onCompletar={setCompletarTarget}
                   onRevertir={revertirTarea}
                   onDelete={setDeleteTarget}
@@ -264,6 +265,7 @@ export default function ProduccionPage() {
                   receta={getReceta(t)}
                   stockProduccion={getStockProduccion(t)}
                   isAdmin={isAdmin}
+                  cocinaView={isCocina}
                   onCompletar={setCompletarTarget}
                   onRevertir={(tarea) => revertirTarea(tarea.id)}
                   onDelete={setDeleteTarget}
@@ -297,6 +299,7 @@ export default function ProduccionPage() {
         stockProduccion={completarTarget ? getStockProduccion(completarTarget) : null}
         recetas={recetas}
         onConfirm={completarTarea}
+        onRenombrar={(id, descripcion) => updateTarea(id, { descripcion })}
       />
 
       {/* ── Modal eliminar lista ── */}

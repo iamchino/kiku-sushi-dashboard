@@ -6,9 +6,19 @@ const ESTADO_CONFIG = {
   completada:  { color: '#22c55e', border: 'rgba(34,197,94,0.25)',  bg: 'rgba(34,197,94,0.04)',  label: 'Completada' },
 }
 
-export default function TareaCard({ tarea, receta, stockProduccion, isAdmin, onCompletar, onRevertir, onDelete }) {
+export default function TareaCard({ tarea, receta, stockProduccion, isAdmin, cocinaView, onCompletar, onRevertir, onDelete }) {
   const cfg = ESTADO_CONFIG[tarea.estado] || ESTADO_CONFIG.pendiente
   const completada = tarea.estado === 'completada'
+
+  // La vista de cocina fuerza fondo oscuro sin importar el tema: los colores
+  // de texto tienen que ser explícitos (las vars del tema claro son oscuras y
+  // el nombre quedaba invisible). Además, en cocina el nombre va más grande.
+  const tituloColor = completada
+    ? (cocinaView ? 'rgba(255,255,255,0.4)' : 'var(--text-muted)')
+    : (cocinaView ? '#fafafa' : 'var(--text-primary)')
+  const chipMuted = cocinaView
+    ? { background: 'rgba(255,255,255,0.08)', color: '#d4d4d8' }
+    : { background: 'var(--bg-hover)', color: 'var(--text-muted)' }
 
   const fechaCompletada = tarea.completada_at
     ? new Date(tarea.completada_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
@@ -37,9 +47,10 @@ export default function TareaCard({ tarea, receta, stockProduccion, isAdmin, onC
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p
-            className="font-semibold text-[15px] leading-snug"
+            className={`leading-snug ${cocinaView ? 'font-bold' : 'font-semibold'}`}
             style={{
-              color: completada ? 'var(--text-muted)' : 'var(--text-primary)',
+              fontSize: cocinaView ? '19px' : '15px',
+              color: tituloColor,
               textDecoration: completada ? 'line-through' : 'none',
             }}
           >
@@ -47,19 +58,22 @@ export default function TareaCard({ tarea, receta, stockProduccion, isAdmin, onC
           </p>
           <div className="flex flex-wrap items-center gap-2 mt-1.5">
             {/* Cantidad objetivo */}
-            <span className="text-xs font-medium px-2 py-0.5 rounded-full"
-              style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={chipMuted}>
               Objetivo: {parseFloat(tarea.cantidad)} {unidadObjetivo}
             </span>
             {/* Vinculada o no */}
             {tieneReceta ? (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded"
-                style={{ background: 'rgba(var(--accent-rgb),0.1)', color: 'var(--accent-lift)', border: '1px solid rgba(var(--accent-rgb),0.2)' }}>
+              <span className={`${cocinaView ? 'text-xs' : 'text-[10px]'} font-medium px-1.5 py-0.5 rounded`}
+                style={{
+                  background: 'rgba(var(--accent-rgb),0.12)',
+                  color: cocinaView ? '#cdb8f5' : 'var(--accent-lift)',
+                  border: '1px solid rgba(var(--accent-rgb),0.25)',
+                }}>
                 🔗 {receta?.nombre || 'Receta'}
               </span>
             ) : (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded"
-                style={{ background: 'var(--bg-hover)', color: 'var(--text-xmuted)' }}>
+              <span className={`${cocinaView ? 'text-xs' : 'text-[10px]'} font-medium px-1.5 py-0.5 rounded`}
+                style={cocinaView ? chipMuted : { background: 'var(--bg-hover)', color: 'var(--text-xmuted)' }}>
                 📝 Sin receta
               </span>
             )}
