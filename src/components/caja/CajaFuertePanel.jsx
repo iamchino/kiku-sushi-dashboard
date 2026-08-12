@@ -8,7 +8,7 @@ import { fmtMoney, fmtFecha, catLabel } from '../../lib/finanzas'
 // registradora. Entra al cerrar el turno (retiro), sale por pagos (desde
 // Pagos, eligiendo origen "caja fuerte") o por ajustes.
 export default function CajaFuertePanel() {
-  const { movimientos, saldo, turnoAbierto, loading, error, retirar, ajustar } = useCajaFuerte()
+  const { movimientos, saldo, turnoAbierto, ultimoCierre, loading, error, retirar, ajustar } = useCajaFuerte()
   const [modal, setModal] = useState(null)   // 'agregar' | 'ajuste' | null
   const [aviso, setAviso] = useState(null)
 
@@ -54,8 +54,14 @@ export default function CajaFuertePanel() {
 
       {!turnoAbierto && (
         <p className="text-[11px] px-3 py-2 rounded-lg" style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', color: 'var(--accent-lift)' }}>
-          La caja está cerrada. Podés agregar efectivo externo con &quot;Agregar dinero&quot;;
-          para pagar con efectivo de acá, usá Pagos → origen &quot;caja fuerte&quot;.
+          La caja está cerrada.
+          {ultimoCierre?.disponible > 0 && (
+            <> El cierre del {fmtFecha(ultimoCierre.fecha)} dejó <b>{fmtMoney(ultimoCierre.disponible)}</b> en
+            el cajón sin retirar: guardalo con &quot;Agregar dinero → De la caja&quot; para que
+            la próxima apertura no lo arrastre.</>
+          )}
+          {!(ultimoCierre?.disponible > 0) && <> Podés agregar efectivo con &quot;Agregar dinero&quot;;
+          para pagar con efectivo de acá, usá Pagos → origen &quot;caja fuerte&quot;.</>}
         </p>
       )}
 
@@ -121,11 +127,13 @@ export default function CajaFuertePanel() {
       )}
 
       {modal === 'agregar' && (
-        <AgregarModal onClose={() => setModal(null)} turnoAbierto={!!turnoAbierto}
+        <AgregarModal onClose={() => setModal(null)} turnoAbierto={!!turnoAbierto} ultimoCierre={ultimoCierre}
           onSave={async (origen, monto, nota) => {
             if (origen === 'caja') {
               const r = await retirar(monto, nota)
-              setAviso(`Retiro registrado: salió de la caja del día (el arqueo ya lo descuenta). Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.`)
+              setAviso(r?.modo === 'post_cierre'
+                ? `Depósito del cierre registrado. La próxima apertura de caja ya no arrastra esa plata. Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.`
+                : `Retiro registrado: salió de la caja del día (el arqueo ya lo descuenta). Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.`)
             } else {
               const descripcion = nota.trim()
                 ? `Depósito externo: ${nota.trim()}`
@@ -150,8 +158,11 @@ export default function CajaFuertePanel() {
 // dónde viene la plata, porque las dos opciones hacen cosas distintas:
 //   · de la caja del día  → retiro del turno abierto: el arqueo lo DESCUENTA
 //   · efectivo externo    → ajuste sobrante: NO toca la caja del día
-function AgregarModal({ onClose, onSave, turnoAbierto }) {
-  const [origen, setOrigen] = useState(turnoAbierto ? 'caja' : 'externo')
+function AgregarModal({ onClose, onSave, turnoAbierto, ultimoCierre }) {
+  // "De la caja" también funciona con la caja cerrada: sale del efectivo del
+  // último cierre (retiro post-cierre). Solo se deshabilita si nunca hubo caja.
+  const hayCaja = turnoAbierto || !!ultimoCierre
+  const [origen, setOrigen] = useState(hayCaja ? 'caja' : 'externo')
   const [monto, setMonto] = useState('')
   const [nota, setNota]   = useState('')
   const [busy, setBusy]   = useState(false)
@@ -176,17 +187,19 @@ function AgregarModal({ onClose, onSave, turnoAbierto }) {
         <div className="space-y-1.5">
           <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>¿De dónde viene la plata?</p>
           <div className="grid grid-cols-1 gap-2">
-            <button type="button" disabled={!turnoAbierto}
+            <button type="button" disabled={!hayCaja}
               onClick={() => setOrigen('caja')}
               className="text-left px-3 py-2.5 rounded-lg text-xs font-semibold flex items-center gap-2"
-              style={opcionStyle(origen === 'caja', !turnoAbierto)}>
+              style={opcionStyle(origen === 'caja', !hayCaja)}>
               <ArrowDownToLine size={14} className="flex-shrink-0" />
               <span>
-                De la caja del día (retiro del turno)
+                {turnoAbierto ? 'De la caja del día (retiro del turno)' : 'Del último cierre de caja'}
                 <span className="block font-normal text-[10px] mt-0.5" style={{ color: 'var(--text-xmuted)' }}>
                   {turnoAbierto
                     ? 'El arqueo del turno lo descuenta. Las dos puntas quedan vinculadas.'
-                    : 'No hay turno de caja abierto.'}
+                    : ultimoCierre
+                      ? `Cierre del ${fmtFecha(ultimoCierre.fecha)}${ultimoCierre.disponible !== null ? ` · quedan ${fmtMoney(ultimoCierre.disponible)} por retirar` : ''}. La próxima apertura deja de arrastrarlo.`
+                      : 'Todavía no hubo ningún cierre de caja.'}
                 </span>
               </span>
             </button>
