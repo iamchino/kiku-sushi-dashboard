@@ -14,9 +14,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,7 +30,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const version = "1.0.1"
+const version = "1.0.2"
 
 // Ruta del certificado exportado (se completa en main).
 var certCrtPath string
@@ -208,6 +212,76 @@ elegí el archivo → tipo "Certificado de CA".</p>
 </body></html>`)
 }
 
+// ── Prueba del QR sin impresora ─────────────────────────────────────────────
+// Reconstruye la imagen a partir de los BYTES EXACTOS del comando raster
+// GS v 0 que se le mandan a la impresora. No es un dibujo aparte: si la
+// cámara lo lee acá, la impresora imprime exactamente eso.
+func rasterAImagen(raster []byte) *image.Gray {
+	if len(raster) < 8 {
+		return nil
+	}
+	bpf := int(raster[4]) | int(raster[5])<<8
+	alto := int(raster[6]) | int(raster[7])<<8
+	ancho := bpf * 8
+	if bpf <= 0 || alto <= 0 || alto > 4096 {
+		return nil
+	}
+	img := image.NewGray(image.Rect(0, 0, ancho, alto))
+	datos := raster[8:]
+	for y := 0; y < alto; y++ {
+		for x := 0; x < ancho; x++ {
+			idx := y*bpf + x/8
+			if idx >= len(datos) {
+				return img
+			}
+			c := uint8(255)
+			if (datos[idx]>>(7-uint(x%8)))&1 == 1 {
+				c = 0
+			}
+			img.SetGray(x, y, color.Gray{Y: c})
+		}
+	}
+	return img
+}
+
+func datosDePrueba(r *http.Request) string {
+	if d := r.URL.Query().Get("data"); d != "" {
+		return d
+	}
+	return "https://www.afip.gob.ar/fe/qr/?p=PRUEBA-KIKU-PRINT-" + time.Now().Format("20060102150405")
+}
+
+func atenderPruebaPNG(w http.ResponseWriter, r *http.Request) {
+	raster, err := rasterQR(datosDePrueba(r), 58)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	img := rasterAImagen(raster)
+	if img == nil {
+		http.Error(w, "raster inválido", 500)
+		return
+	}
+	w.Header().Set("Content-Type", "image/png")
+	_ = png.Encode(w, img)
+}
+
+func atenderPrueba(w http.ResponseWriter, r *http.Request) {
+	datos := datosDePrueba(r)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(w, `<html><body style="font-family:sans-serif;background:#111;color:#eee;padding:40px;max-width:560px">
+<h1>🖨 Prueba del QR (sin impresora)</h1>
+<p>Esta imagen está reconstruida desde los <b>bytes exactos</b> que KIKU Print
+le manda a la impresora. No es un dibujo aparte: <b>si tu cámara lee este QR,
+la impresora imprime exactamente esto</b>, píxel por píxel.</p>
+<p style="background:#fff;display:inline-block;padding:16px;border-radius:8px"><img src="/prueba.png?data=%s" style="width:280px;image-rendering:pixelated"></p>
+<p>Escanealo con la cámara del celular. Tiene que abrir:<br><code style="color:#4ade80;word-break:break-all">%s</code></p>
+<form method="get"><p>Probar con otro contenido (p. ej. la URL real de un comprobante):<br>
+<input name="data" style="width:100%%;padding:10px;border-radius:8px;border:none" placeholder="https://www.afip.gob.ar/fe/qr/?p=...">
+<button style="margin-top:8px;padding:10px 18px;border-radius:8px;border:none;background:#4ade80;font-weight:bold">Generar</button></p></form>
+</body></html>`, url.QueryEscape(datos), datos)
+}
+
 // Página de estado: sirve para verificar que el certificado quedó instalado
 // (candado verde) y que el servicio corre.
 func atenderStatus(w http.ResponseWriter, _ *http.Request) {
@@ -224,6 +298,7 @@ func atenderStatus(w http.ResponseWriter, _ *http.Request) {
 <p>¿Falta instalar el certificado en otro dispositivo? Desde ese dispositivo
 abrí <b>http://ESTA-IP:8442</b> (con http, sin s) y descargalo, o
 <a href="/cert.crt" style="color:#4ade80">bajalo directo acá</a>.</p>
+<p>¿Querés verificar el QR sin impresora? <a href="/prueba" style="color:#4ade80">Prueba del QR</a>.</p>
 <p style="color:#888">El dashboard se conecta solo. No hay nada más que hacer acá.</p>
 </body></html>`, version, strings.Join(nombres, "\n"))
 }
@@ -278,12 +353,16 @@ func main() {
 
 	http.HandleFunc("/ws", atenderWS)
 	http.HandleFunc("/cert.crt", servirCrt)
+	http.HandleFunc("/prueba", atenderPrueba)
+	http.HandleFunc("/prueba.png", atenderPruebaPNG)
 	http.HandleFunc("/", atenderStatus)
 
-	// Puerto HTTP común (sin candado) solo para repartir el certificado a los
-	// dispositivos nuevos.
+	// Puerto HTTP común (sin candado): reparte el certificado a dispositivos
+	// nuevos y permite la prueba del QR sin certificado instalado.
 	go func() {
 		mux := http.NewServeMux()
+		mux.HandleFunc("/prueba", atenderPrueba)
+		mux.HandleFunc("/prueba.png", atenderPruebaPNG)
 		mux.HandleFunc("/", atenderPaginaCert)
 		_ = http.ListenAndServe(":8442", mux)
 	}()
