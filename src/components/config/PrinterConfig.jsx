@@ -214,8 +214,13 @@ export default function PrinterConfig() {
         <div className="flex items-center gap-2">
           <Plug size={14} style={{ color: 'var(--accent)' }} />
           <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-            Servidor GG EZ Print
+            Servidor de impresión
           </p>
+          <a href="/descargas/KikuPrint.exe" download
+            className="ml-auto text-[11px] font-medium underline"
+            style={{ color: 'var(--accent-lift)' }}>
+            Descargar KIKU Print
+          </a>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <input
@@ -247,7 +252,8 @@ export default function PrinterConfig() {
             <AlertTriangle size={13} className="mt-0.5" />
             <span>
               No se pudo conectar: {discoverError}.
-              Revisa que <code>gg-ez-print.exe</code> este corriendo y que hayas instalado el certificado CA desde el tray.
+              Revisá que <code>KikuPrint.exe</code> esté corriendo en la PC del local y que el
+              certificado esté instalado en este dispositivo (abrí https://IP:8443 para probar).
             </span>
           </div>
         )}

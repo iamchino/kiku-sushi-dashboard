@@ -46,3 +46,10 @@ err.txt
 *.bak
 *.orig
 src/__tmpcheck/
+
+# KIKU Print: artefactos locales (el exe lo compila GitHub Actions)
+kiku-print/KikuPrint.exe
+kiku-print/*.log
+kiku-print/certificados/
+kiku-print/config.json
+kiku-print/INSTALAR-ESTE-CERTIFICADO.crt
