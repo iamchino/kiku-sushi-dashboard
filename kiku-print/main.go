@@ -26,7 +26,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const version = "1.0.0"
+const version = "1.0.1"
+
+// Ruta del certificado exportado (se completa en main).
+var certCrtPath string
 
 // ── Configuración ────────────────────────────────────────────────────────────
 type Config struct {
@@ -176,6 +179,35 @@ func atenderWS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Descarga del certificado (.crt).
+func servirCrt(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/x-x509-ca-cert")
+	w.Header().Set("Content-Disposition", `attachment; filename="kiku-print-certificado.crt"`)
+	http.ServeFile(w, r, certCrtPath)
+}
+
+// Página del puerto HTTP común (8442): solo existe para repartir el
+// certificado. Un dispositivo sin el certificado instalado no puede pasar el
+// candado https, pero http entra directo — se baja el .crt, se instala, listo.
+func atenderPaginaCert(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/cert.crt" {
+		servirCrt(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprint(w, `<html><body style="font-family:sans-serif;background:#111;color:#eee;padding:40px;max-width:500px">
+<h1>🖨 KIKU Print — certificado</h1>
+<p><a href="/cert.crt" style="display:inline-block;background:#4ade80;color:#111;padding:14px 24px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:18px">⬇ Descargar certificado</a></p>
+<p><b>Después de descargarlo:</b></p>
+<p><b>Celular Android:</b> abrí el archivo descargado. Si no se instala solo:
+Configuración → Seguridad → Instalar certificados desde el almacenamiento →
+elegí el archivo → tipo "Certificado de CA".</p>
+<p><b>PC Windows:</b> doble click → Instalar certificado → Equipo local →
+"Colocar en el siguiente almacén" → Entidades de certificación raíz de confianza.</p>
+<p style="color:#888">Al terminar, cerrá y abrí el navegador y probá el candado en el puerto 8443.</p>
+</body></html>`)
+}
+
 // Página de estado: sirve para verificar que el certificado quedó instalado
 // (candado verde) y que el servicio corre.
 func atenderStatus(w http.ResponseWriter, _ *http.Request) {
@@ -189,6 +221,9 @@ func atenderStatus(w http.ResponseWriter, _ *http.Request) {
 <h1>🖨 KIKU Print v%s</h1>
 <p style="color:#4ade80">Funcionando. Si ves el candado en la barra de direcciones, el certificado está bien instalado.</p>
 <p>Impresoras de Windows detectadas:</p><pre>%s</pre>
+<p>¿Falta instalar el certificado en otro dispositivo? Desde ese dispositivo
+abrí <b>http://ESTA-IP:8442</b> (con http, sin s) y descargalo, o
+<a href="/cert.crt" style="color:#4ade80">bajalo directo acá</a>.</p>
 <p style="color:#888">El dashboard se conecta solo. No hay nada más que hacer acá.</p>
 </body></html>`, version, strings.Join(nombres, "\n"))
 }
@@ -239,14 +274,29 @@ func main() {
 		log.Fatalf("No se pudieron preparar los certificados: %v", err)
 	}
 
+	certCrtPath = filepath.Join(dir, "INSTALAR-ESTE-CERTIFICADO.crt")
+
 	http.HandleFunc("/ws", atenderWS)
+	http.HandleFunc("/cert.crt", servirCrt)
 	http.HandleFunc("/", atenderStatus)
+
+	// Puerto HTTP común (sin candado) solo para repartir el certificado a los
+	// dispositivos nuevos.
+	go func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/", atenderPaginaCert)
+		_ = http.ListenAndServe(":8442", mux)
+	}()
 
 	addr := fmt.Sprintf(":%d", cfg.Puerto)
 	for _, ip := range ipsLocales() {
 		log.Printf("Escuchando en https://%s%s  (dashboard: usar %s como servidor de impresión)", ip, addr, ip)
 	}
-	log.Printf("Certificado para instalar: %s", filepath.Join(dir, "INSTALAR-ESTE-CERTIFICADO.crt"))
+	log.Printf("Certificado para instalar: %s", certCrtPath)
+	for _, ip := range ipsLocales() {
+		log.Printf("Para instalar el certificado en un celular: abrí http://%s:8442 desde ese celular", ip)
+		break
+	}
 
 	if err := http.ListenAndServeTLS(addr, certPath, keyPath, nil); err != nil {
 		log.Fatalf("No se pudo iniciar el servidor: %v", err)

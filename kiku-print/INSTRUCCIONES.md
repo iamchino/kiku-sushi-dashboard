@@ -40,7 +40,9 @@ certificado → **Equipo local** → "Colocar todos los certificados en el
 siguiente almacén" → Examinar → **Entidades de certificación raíz de
 confianza** → Finalizar.
 
-**Cada celular (Android)**: pasá el `.crt` por WhatsApp y abrilo. Si no se
+**Cada celular (Android)**: en el navegador del celu abrí
+**`http://LA-IP:8442`** (con http, SIN s — ej: `http://192.168.0.10:8442`).
+Aparece un botón verde **"Descargar certificado"**: bajalo y abrilo. Si no se
 instala solo: Configuración → Seguridad → **Instalar certificados desde el
 almacenamiento** → elegí el archivo → tipo **"Certificado de CA"**.
 
