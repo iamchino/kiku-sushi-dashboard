@@ -23,6 +23,9 @@ export function useHoras(refDate) {
   const [liquidacionesDia, setLiquidacionesDia]   = useState([])
   const [puntos, setPuntos]                       = useState([])
   const [horasDia, setHorasDia]                   = useState({})
+  // Sueldo base por empleado (para mostrar el monto de los de sueldo fijo:
+  // liquidacion_horas devuelve total=0 para ellos y el monto vive en el legajo)
+  const [sueldos, setSueldos]                     = useState({})
   const [loading, setLoading]                     = useState(true)
   const [error, setError]                         = useState(null)
 
@@ -31,7 +34,7 @@ export function useHoras(refDate) {
   const fetchTodo = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const [fic, res, liq, pun, jor] = await Promise.all([
+      const [fic, res, liq, pun, jor, emp] = await Promise.all([
         supabase
           .from('fichajes')
           .select(FICHAJE_SELECT)
@@ -55,8 +58,12 @@ export function useHoras(refDate) {
           .select('empleado_id, entrada, salida, minutos')
           .gte('entrada', semana.inicioISO)
           .lt('entrada', semana.finExclusivoISO),
+        supabase
+          .from('empleados')
+          .select('id, sueldo_base, tipo_sueldo')
+          .eq('activo', true),
       ])
-      for (const r of [fic, res, liq, pun, jor]) if (r.error) throw r.error
+      for (const r of [fic, res, liq, pun, jor, emp]) if (r.error) throw r.error
       setFichajes(fic.data || [])
       setResumen(res.data || [])
       const todas = liq.data || []
@@ -64,6 +71,7 @@ export function useHoras(refDate) {
       setLiquidaciones(todas.filter(l => (l.tipo || 'semana') === 'semana'))
       setLiquidacionesDia(dias)
       setPuntos(pun.data || [])
+      setSueldos(Object.fromEntries((emp.data || []).map(e => [e.id, Number(e.sueldo_base) || 0])))
 
       // Minutos por empleado y día (solo jornadas cerradas). Excluimos los días
       // ya pagados como jornal: así la tira Lun→Dom suma exactamente el total
@@ -181,7 +189,7 @@ export function useHoras(refDate) {
   }, [fetchTodo])
 
   return {
-    semana, fichajes, resumen, liquidaciones, liquidacionesDia, puntos, horasDia, loading, error,
+    semana, fichajes, resumen, liquidaciones, liquidacionesDia, puntos, horasDia, sueldos, loading, error,
     refetch: fetchTodo,
     crearFichaje, actualizarFichaje, eliminarFichaje,
     generarLiquidacion, generarLiquidacionDia, anularLiquidacionDia,

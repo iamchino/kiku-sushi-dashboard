@@ -19,7 +19,7 @@ const CHIP = {
 // Un día pagado por jornal queda excluido del cierre semanal (sin dobles pagos).
 export default function LiquidacionSection({ horas, enCurso }) {
   const {
-    semana, resumen, liquidaciones, liquidacionesDia, horasDia,
+    semana, resumen, liquidaciones, liquidacionesDia, horasDia, sueldos,
     generarLiquidacion, generarLiquidacionDia, anularLiquidacionDia,
     actualizarLiquidacion, eliminarLiquidacion, loading,
   } = horas
@@ -212,7 +212,9 @@ export default function LiquidacionSection({ horas, enCurso }) {
                         · {fmtMoney(f.liq ? f.liq.valor_hora : f.valor_hora)}/h
                       </span>
                     ) : (
-                      <span className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>· sueldo fijo</span>
+                      <span className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>
+                        · sueldo fijo{(sueldos?.[f.empleado_id] || 0) > 0 ? ` · ${fmtMoney(sueldos[f.empleado_id])}/mes` : ''}
+                      </span>
                     )}
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: chip.bg, color: chip.color }}>
                       {chip.label}
@@ -220,9 +222,14 @@ export default function LiquidacionSection({ horas, enCurso }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {f.tipo_sueldo === 'hora' && (
+                  {f.tipo_sueldo === 'hora' ? (
                     <span className="font-semibold text-sm tabular-nums" style={{ color: 'var(--text-primary)' }}>
                       {fmtMoney(totalMostrar)}
+                    </span>
+                  ) : (sueldos?.[f.empleado_id] || 0) > 0 && (
+                    <span className="font-semibold text-sm tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                      {fmtMoney(sueldos[f.empleado_id])}
+                      <span className="text-[10px] font-normal" style={{ color: 'var(--text-xmuted)' }}> /mes</span>
                     </span>
                   )}
                   {f.tipo_sueldo === 'hora' && !f.liq && (
