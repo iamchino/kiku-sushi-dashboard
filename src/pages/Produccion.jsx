@@ -122,10 +122,12 @@ export default function ProduccionPage() {
         </div>
       </div>
 
-      {/* ── Navegación de fecha (admin puede cambiar, cocina solo ve hoy) ── */}
+      {/* ── Navegación de fecha ──
+          También para cocina: pueden ir a mañana y crear la lista del día
+          siguiente (o revisar días anteriores). Solo lectura para el resto. */}
       <div className="flex items-center justify-between rounded-xl px-3 py-2"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
-        {isAdmin ? (
+        {puedeCargar ? (
           <>
             <button onClick={() => setFecha(f => addDays(f, -1))}
               className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
