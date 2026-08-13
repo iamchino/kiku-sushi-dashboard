@@ -12,6 +12,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -30,7 +31,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const version = "1.0.5"
+const version = "1.0.6"
 
 // Ruta del certificado exportado (se completa en main).
 var certCrtPath string
@@ -217,6 +218,77 @@ elegí el archivo → tipo "Certificado de CA".</p>
 </body></html>`)
 }
 
+// ── Ticket de diagnóstico de tamaños ────────────────────────────────────────
+// Imprime la misma frase con cada comando de tamaño. Sirve para ver EN PAPEL
+// qué comandos honra el modelo de impresora y elegir la config correcta.
+func ticketPruebaTamanos() []byte {
+	var b bytes.Buffer
+	esc := func(bs ...byte) { b.Write(bs) }
+	esc(0x1B, 0x40) // init
+	b.WriteString("PRUEBA DE TAMANOS - KIKU PRINT\n")
+	b.WriteString("------------------------------\n")
+	esc(0x1B, 0x21, 0x00)
+	esc(0x1D, 0x21, 0x00)
+	b.WriteString("1) Normal de fabrica\n\n")
+	esc(0x1B, 0x21, 0x18) // ESC !: doble alto + negrita
+	b.WriteString("2) ESC doble alto\n\n")
+	esc(0x1B, 0x21, 0x00)
+	esc(0x1D, 0x21, 0x01) // GS !: doble alto
+	b.WriteString("3) GS doble alto\n\n")
+	esc(0x1D, 0x21, 0x11) // GS !: doble ancho y alto
+	b.WriteString("4) GS grande\n\n")
+	esc(0x1D, 0x21, 0x00)
+	esc(0x1B, 0x45, 0x01) // negrita
+	b.WriteString("5) Solo negrita\n")
+	b.WriteString("\nSacale una foto a este ticket.\n")
+	esc(0x1B, 0x64, 0x04, 0x1D, 0x56, 0x42, 0x00)
+	return b.Bytes()
+}
+
+func atenderPruebaImpresion(w http.ResponseWriter, r *http.Request) {
+	imp := strings.TrimSpace(r.URL.Query().Get("impresora"))
+	tipo := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("tipo")))
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	if imp == "" {
+		opciones := ""
+		for _, p := range listarImpresoras() {
+			opciones += fmt.Sprintf(`<option value="%s">%s (USB)</option>`, p.Name, p.Name)
+		}
+		fmt.Fprintf(w, `<html><body style="font-family:sans-serif;background:#111;color:#eee;padding:40px;max-width:520px">
+<h1>🖨 Ticket de prueba de tamaños</h1>
+<p>Imprime la misma frase en 5 modos. La foto del resultado dice qué comandos
+entiende la impresora.</p>
+<form method="get">
+<p>Impresora USB: <select name="impresora">%s</select>
+<input type="hidden" name="tipo" value="usb">
+<button style="padding:8px 16px;border-radius:8px;border:none;background:#4ade80;font-weight:bold">Imprimir</button></p>
+</form>
+<form method="get">
+<p>O impresora de red (IP): <input name="impresora" placeholder="192.168.1.50">
+<input type="hidden" name="tipo" value="network">
+<button style="padding:8px 16px;border-radius:8px;border:none;background:#4ade80;font-weight:bold">Imprimir</button></p>
+</form>
+</body></html>`, opciones)
+		return
+	}
+
+	datos := ticketPruebaTamanos()
+	printMu.Lock()
+	var err error
+	if tipo == "network" {
+		err = imprimirRed(imp, datos)
+	} else {
+		err = imprimirWindows(imp, datos)
+	}
+	printMu.Unlock()
+	if err != nil {
+		fmt.Fprintf(w, `<html><body style="font-family:sans-serif;background:#111;color:#f87171;padding:40px">✘ Error: %s</body></html>`, err.Error())
+		return
+	}
+	fmt.Fprint(w, `<html><body style="font-family:sans-serif;background:#111;color:#4ade80;padding:40px">✔ Ticket de prueba enviado. Sacale una foto.</body></html>`)
+}
+
 // ── Prueba del QR sin impresora ─────────────────────────────────────────────
 // Reconstruye la imagen a partir de los BYTES EXACTOS del comando raster
 // GS v 0 que se le mandan a la impresora. No es un dibujo aparte: si la
@@ -361,6 +433,7 @@ func main() {
 	http.HandleFunc("/cert.crt", servirCrt)
 	http.HandleFunc("/prueba", atenderPrueba)
 	http.HandleFunc("/prueba.png", atenderPruebaPNG)
+	http.HandleFunc("/prueba-impresion", atenderPruebaImpresion)
 	http.HandleFunc("/", atenderStatus)
 
 	// Puerto HTTP común (sin candado): reparte el certificado a dispositivos
@@ -369,6 +442,7 @@ func main() {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/prueba", atenderPrueba)
 		mux.HandleFunc("/prueba.png", atenderPruebaPNG)
+		mux.HandleFunc("/prueba-impresion", atenderPruebaImpresion)
 		mux.HandleFunc("/", atenderPaginaCert)
 		_ = http.ListenAndServe(":8442", mux)
 	}()
