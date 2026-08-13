@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, Clock, AlertTriangle, BadgeDollarSign } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, AlertTriangle } from 'lucide-react'
 import { useMisHoras } from '../hooks/useMisHoras'
 import { fmtMinutos, fmtHora, shiftSemana, esSemanaActual } from '../lib/horas'
-import { fmtMoney, localDateISO } from '../lib/finanzas'
+import { localDateISO } from '../lib/finanzas'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import EmpleadoHeader from '../components/layout/EmpleadoHeader'
@@ -13,12 +13,13 @@ const ESTADO_CHIP = {
   en_curso:  { label: 'En curso',            bg: 'var(--accent-soft)',    color: 'var(--accent-lift)' },
 }
 
-// Mis horas: la semana de liquidación va de MARTES a LUNES.
+// Mis horas: cada empleado ve SOLO sus horas y el estado de la semana.
+// Los montos en pesos no se muestran acá a propósito: eso vive en
+// Personal → Liquidación (finanzas/admin).
 export default function MisHorasPage() {
   const [refDate, setRefDate] = useState(() => new Date())
-  const { empleado, jornadas, minutos, estimado, esPorHora, liquidacion, jornales, semana, loading, error } = useMisHoras(refDate)
+  const { jornadas, minutos, liquidacion, jornales, semana, loading, error } = useMisHoras(refDate)
 
-  const totalJornales = jornales.reduce((s, j) => s + Number(j.total || 0), 0)
   const diasJornal = new Set(jornales.map(j => j.semana_inicio))
 
   const enCurso = esSemanaActual(semana.inicio)
@@ -77,17 +78,6 @@ export default function MisHorasPage() {
                 {fmtMinutos(liquidacion ? liquidacion.minutos : minutos)}
               </p>
             </div>
-            {esPorHora && (
-              <div className="text-right">
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {liquidacion ? 'Total' : 'Estimado'}
-                </p>
-                <p className="text-2xl font-bold tracking-tight flex items-center gap-1.5" style={{ color: '#22c55e' }}>
-                  <BadgeDollarSign size={18} />
-                  {fmtMoney(liquidacion ? liquidacion.total : estimado)}
-                </p>
-              </div>
-            )}
           </div>
           {chip && (
             <span className="inline-block mt-3 text-[11px] font-semibold px-2.5 py-1 rounded-full"
@@ -95,14 +85,9 @@ export default function MisHorasPage() {
               {chip.label}
             </span>
           )}
-          {esPorHora && empleado?.sueldo_base > 0 && (
-            <p className="text-[11px] mt-2" style={{ color: 'var(--text-xmuted)' }}>
-              Valor hora: {fmtMoney(empleado.sueldo_base)}
-            </p>
-          )}
           {jornales.length > 0 && (
             <p className="text-[11px] mt-1" style={{ color: '#22c55e' }}>
-              Jornales pagados: {jornales.length} {jornales.length === 1 ? 'día' : 'días'} · {fmtMoney(totalJornales)}
+              Jornales pagados: {jornales.length} {jornales.length === 1 ? 'día' : 'días'}
             </p>
           )}
         </div>

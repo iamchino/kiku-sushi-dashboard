@@ -193,7 +193,10 @@ export default function LiquidacionSection({ horas, enCurso }) {
             const minutosMostrar = f.liq ? f.liq.minutos : f.minutos
             const totalMostrar = f.liq ? f.liq.total : f.total
             const porDia = horasDia[f.empleado_id] || {}
-            const tieneDetalle = f.tipo_sueldo === 'hora' && dias.some(d => (porDia[d.iso] || 0) > 0)
+            // La tira Lun→Dom se muestra para TODOS los que tengan horas,
+            // también sueldo fijo: sus horas se contabilizan igual (solo que
+            // no generan monto en el cierre).
+            const tieneDetalle = dias.some(d => (porDia[d.iso] || 0) > 0)
             return (
               <div key={f.empleado_id} className="rounded-xl px-4 py-3"
                 style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
@@ -209,7 +212,7 @@ export default function LiquidacionSection({ horas, enCurso }) {
                         · {fmtMoney(f.liq ? f.liq.valor_hora : f.valor_hora)}/h
                       </span>
                     ) : (
-                      <span className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>· sueldo fijo (horas informativas)</span>
+                      <span className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>· sueldo fijo</span>
                     )}
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: chip.bg, color: chip.color }}>
                       {chip.label}
