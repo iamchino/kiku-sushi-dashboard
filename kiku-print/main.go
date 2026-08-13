@@ -30,7 +30,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const version = "1.0.3"
+const version = "1.0.4"
 
 // Ruta del certificado exportado (se completa en main).
 var certCrtPath string
@@ -354,6 +354,7 @@ func main() {
 	}
 
 	certCrtPath = filepath.Join(dir, "INSTALAR-ESTE-CERTIFICADO.crt")
+	log.Printf("Ticket: texto=%s · negrita=%s · acentos=%s", cfg.Texto, cfg.Negrita, cfg.Acentos)
 
 	http.HandleFunc("/ws", atenderWS)
 	http.HandleFunc("/cert.crt", servirCrt)

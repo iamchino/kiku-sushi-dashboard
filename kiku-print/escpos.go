@@ -28,23 +28,28 @@ func buildTicket(contenido string, fontSize, paperWidth int, qrData, acentos str
 		out.Write([]byte{0x1B, 0x74, 19}) // ESC t 19
 	}
 
-	// Tamaño de fuente: GS ! n. La fuente "normal" de las térmicas se ve
-	// chica y finita: por defecto va DOBLE ALTO (0x01), que es más legible y
-	// no cambia la cantidad de columnas — el formato del ticket queda intacto.
-	// Configurable con "texto" en config.json: normal | alto | grande.
-	tam := byte(0x01)
+	// Tamaño y negrita. La fuente "normal" de las térmicas se ve chica y
+	// finita: por defecto va DOBLE ALTO, que es más legible y no cambia la
+	// cantidad de columnas — el formato del ticket queda intacto.
+	// Se mandan LAS DOS familias de comandos (ESC ! y GS !) porque según el
+	// modelo la impresora honra una u otra. Config: texto normal|alto|grande.
+	tam := byte(0x01)  // GS !: doble alto
+	esc := byte(0x10)  // ESC !: doble alto
 	switch cfg.Texto {
 	case "normal":
-		tam = 0x00
+		tam, esc = 0x00, 0x00
 	case "grande":
-		tam = 0x11
+		tam, esc = 0x11, 0x30
 	}
 	if fontSize >= 2 {
-		tam = 0x11 // el dashboard pidió grande explícitamente
+		tam, esc = 0x11, 0x30 // el dashboard pidió grande explícitamente
 	}
-	out.Write([]byte{0x1D, 0x21, tam})
-
 	// Negrita: mucho mejor contraste en papel térmico. "negrita": "no" la saca.
+	if cfg.Negrita != "no" {
+		esc |= 0x08
+	}
+	out.Write([]byte{0x1B, 0x21, esc}) // ESC ! n
+	out.Write([]byte{0x1D, 0x21, tam}) // GS ! n
 	if cfg.Negrita != "no" {
 		out.Write([]byte{0x1B, 0x45, 0x01}) // ESC E 1
 	}
