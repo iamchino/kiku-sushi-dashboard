@@ -30,7 +30,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const version = "1.0.2"
+const version = "1.0.3"
 
 // Ruta del certificado exportado (se completa en main).
 var certCrtPath string
@@ -39,6 +39,8 @@ var certCrtPath string
 type Config struct {
 	Puerto    int    `json:"puerto"`
 	Acentos   string `json:"acentos"`    // "cp858" (tildes reales) | "ascii" (a e i o u)
+	Texto     string `json:"texto"`      // "normal" | "alto" (default) | "grande"
+	Negrita   string `json:"negrita"`    // "si" (default) | "no"
 	UpdateURL string `json:"update_url"` // JSON de versión publicado por el dashboard
 }
 
@@ -46,6 +48,8 @@ func cargarConfig(dir string) Config {
 	cfg := Config{
 		Puerto:    8443,
 		Acentos:   "cp858",
+		Texto:     "alto",
+		Negrita:   "si",
 		UpdateURL: "https://kiku-sushi-dashboard.vercel.app/descargas/kiku-print-version.json",
 	}
 	path := filepath.Join(dir, "config.json")

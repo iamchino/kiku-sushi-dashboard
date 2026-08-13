@@ -73,6 +73,7 @@ Cerralo, borrá su acceso directo de `shell:startup` y borrá su carpeta.
 | No imprime la USB | El nombre debe ser EXACTO al de Windows. Elegilo de la lista del dashboard, no lo escribas. |
 | No imprime la de red | Verificá la IP de la impresora (autotest). Puerto 9100. |
 | Tildes raras | En `config.json` cambiá `"acentos": "cp858"` por `"ascii"` y reiniciá. |
+| Letra muy chica o muy grande | En `config.json`: `"texto"` puede ser `"normal"`, `"alto"` (default) o `"grande"`, y `"negrita"` `"si"`/`"no"`. Reiniciá el programa. |
 | ¿Qué pasó con una impresión? | Está todo en `kiku-print.log`, con fecha y motivo. |
 
 ---

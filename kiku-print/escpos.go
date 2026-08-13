@@ -28,11 +28,25 @@ func buildTicket(contenido string, fontSize, paperWidth int, qrData, acentos str
 		out.Write([]byte{0x1B, 0x74, 19}) // ESC t 19
 	}
 
-	// Tamaño de fuente: GS ! n (0x11 = doble ancho y alto).
+	// Tamaño de fuente: GS ! n. La fuente "normal" de las térmicas se ve
+	// chica y finita: por defecto va DOBLE ALTO (0x01), que es más legible y
+	// no cambia la cantidad de columnas — el formato del ticket queda intacto.
+	// Configurable con "texto" en config.json: normal | alto | grande.
+	tam := byte(0x01)
+	switch cfg.Texto {
+	case "normal":
+		tam = 0x00
+	case "grande":
+		tam = 0x11
+	}
 	if fontSize >= 2 {
-		out.Write([]byte{0x1D, 0x21, 0x11})
-	} else {
-		out.Write([]byte{0x1D, 0x21, 0x00})
+		tam = 0x11 // el dashboard pidió grande explícitamente
+	}
+	out.Write([]byte{0x1D, 0x21, tam})
+
+	// Negrita: mucho mejor contraste en papel térmico. "negrita": "no" la saca.
+	if cfg.Negrita != "no" {
+		out.Write([]byte{0x1B, 0x45, 0x01}) // ESC E 1
 	}
 
 	texto := strings.ReplaceAll(contenido, "\r\n", "\n")
