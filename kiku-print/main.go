@@ -30,7 +30,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const version = "1.0.4"
+const version = "1.0.5"
 
 // Ruta del certificado exportado (se completa en main).
 var certCrtPath string
@@ -41,6 +41,7 @@ type Config struct {
 	Acentos   string `json:"acentos"`    // "cp858" (tildes reales) | "ascii" (a e i o u)
 	Texto     string `json:"texto"`      // "normal" | "alto" (default) | "grande"
 	Negrita   string `json:"negrita"`    // "si" (default) | "no"
+	Papel     int    `json:"papel"`      // 0 = usar el del dashboard | 58 | 80 (fuerza el ancho para el QR)
 	UpdateURL string `json:"update_url"` // JSON de versión publicado por el dashboard
 }
 

@@ -89,6 +89,12 @@ func buildTicket(contenido string, fontSize, paperWidth int, qrData, acentos str
 
 // rasterQR: QR como imagen raster GS v 0. Cada módulo del QR se dibuja como
 // un cuadrado de `escala` puntos. Cualquier impresora ESC/POS imprime esto.
+//
+// El tamaño de cada módulo es lo que decide si la cámara lo lee: en térmica
+// el punto "sangra" y los módulos chicos se pegan. Por eso se usa TODO el
+// ancho del cabezal disponible. Si el dashboard manda mal el ancho de papel
+// (dice 58 pero la impresora es de 80), se corrige con "papel": 80 en
+// config.json.
 func rasterQR(datos string, paperWidth int) ([]byte, error) {
 	q, err := qrcode.New(datos, qrcode.Medium)
 	if err != nil {
@@ -96,18 +102,21 @@ func rasterQR(datos string, paperWidth int) ([]byte, error) {
 	}
 	mapa := q.Bitmap() // [][]bool, true = negro, incluye borde blanco
 
-	// Ancho útil: 384 puntos en papel de 58mm, 576 en 80mm. Margen de
-	// seguridad para no cortar el QR en impresoras con cabezal más chico.
-	maxPuntos := 360
+	// Ancho del cabezal: 384 puntos (58mm) o 576 (80mm). El override de
+	// config manda sobre lo que diga el dashboard.
+	if cfg.Papel >= 58 {
+		paperWidth = cfg.Papel
+	}
+	maxPuntos := 384
 	if paperWidth >= 80 {
-		maxPuntos = 512
+		maxPuntos = 568
 	}
 	escala := maxPuntos / len(mapa)
 	if escala < 2 {
 		escala = 2
 	}
-	if escala > 8 {
-		escala = 8
+	if escala > 10 {
+		escala = 10
 	}
 
 	lado := len(mapa) * escala
