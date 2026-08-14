@@ -31,7 +31,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const version = "1.0.7"
+const version = "1.0.8"
 
 // Ruta del certificado exportado (se completa en main).
 var certCrtPath string
@@ -175,7 +175,16 @@ func atenderWS(w http.ResponseWriter, r *http.Request) {
 			if req.Data.QRCodeData != "" {
 				conQR = " + QR"
 			}
-			log.Printf("→ print [%s/%s]%s (%d caracteres)", nombre, req.Data.Type, conQR, len(req.Data.Content))
+			// Columnas reales del ticket (línea más larga): es lo que define el
+			// tamaño de letra en modo imagen. Queda logueado para diagnosticar.
+			maxCols := 0
+			for _, l := range strings.Split(req.Data.Content, "\n") {
+				if n := len([]rune(strings.TrimRight(l, "\r"))); n > maxCols {
+					maxCols = n
+				}
+			}
+			log.Printf("→ print [%s/%s]%s · papel dashboard=%dmm config=%d · fuente=%d · %d columnas",
+				nombre, req.Data.Type, conQR, req.Data.PaperWidth, cfg.Papel, req.Data.FontSize, maxCols)
 			if err := imprimir(req); err != nil {
 				log.Printf("  ✘ ERROR: %v", err)
 				_ = conn.WriteJSON(map[string]string{"status": "error", "message": err.Error()})

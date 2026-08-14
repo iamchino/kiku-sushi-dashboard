@@ -162,7 +162,11 @@ func buildTicketImagen(contenido string, paperWidth int, qrData string) ([]byte,
 // (dice 58 pero la impresora es de 80), se corrige con "papel": 80 en
 // config.json.
 func rasterQR(datos string, paperWidth int) ([]byte, error) {
-	q, err := qrcode.New(datos, qrcode.Medium)
+	// Corrección de errores BAJA a propósito: las URLs de ARCA son larguísimas
+	// y con ECC media el QR queda con demasiados módulos — chicos y densos, la
+	// cámara no los separa en papel térmico. Con Low el QR tiene ~30% menos
+	// módulos → cada cuadradito sale un tercio más grande.
+	q, err := qrcode.New(datos, qrcode.Low)
 	if err != nil {
 		return nil, err
 	}
