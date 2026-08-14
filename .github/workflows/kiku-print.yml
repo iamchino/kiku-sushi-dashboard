@@ -35,6 +35,7 @@ jobs:
         run: |
           go mod tidy
           go vet ./...
+          go test ./...
           GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o KikuPrint.exe .
           ls -la KikuPrint.exe
 

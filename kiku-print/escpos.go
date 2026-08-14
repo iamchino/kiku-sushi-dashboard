@@ -20,6 +20,13 @@ import (
 const marcadorQR = "{{QR}}"
 
 func buildTicket(contenido string, fontSize, paperWidth int, qrData, acentos string) ([]byte, error) {
+	// Modo imagen (default): el texto se dibuja como raster, igual que el QR.
+	// El tamaño de letra lo controla el programa, no el firmware de la
+	// impresora — sale idéntico en cualquier modelo. "modo": "comandos" en
+	// config.json vuelve al modo clásico ESC/POS.
+	if cfg.Modo != "comandos" {
+		return buildTicketImagen(contenido, paperWidth, qrData)
+	}
 	var out bytes.Buffer
 
 	// Inicializar + página de códigos CP858 (n=19, multilingüe con €).
@@ -84,6 +91,65 @@ func buildTicket(contenido string, fontSize, paperWidth int, qrData, acentos str
 	// Avance + corte parcial.
 	out.Write([]byte{0x1B, 0x64, 0x04})       // ESC d 4: alimentar 4 líneas
 	out.Write([]byte{0x1D, 0x56, 0x42, 0x00}) // GS V 66 0: corte parcial
+	return out.Bytes(), nil
+}
+
+// buildTicketImagen: el ticket entero como imagen. Texto → raster con fuente
+// monoespaciada (el ancho de cada carácter se adapta a las columnas del
+// ticket), QR → raster como siempre. Solo el corte va por comando (universal).
+func buildTicketImagen(contenido string, paperWidth int, qrData string) ([]byte, error) {
+	if cfg.Papel >= 58 {
+		paperWidth = cfg.Papel
+	}
+	maxPuntos := 384
+	if paperWidth >= 80 {
+		maxPuntos = 568
+	}
+	negrita := cfg.Negrita != "no"
+
+	var out bytes.Buffer
+	out.Write([]byte{0x1B, 0x40})       // init
+	out.Write([]byte{0x1B, 0x61, 0x00}) // alinear izquierda
+
+	texto := strings.ReplaceAll(contenido, "\r\n", "\n")
+
+	escribirTexto := func(t string) error {
+		banda, err := renderTextoRaster(t, maxPuntos, negrita)
+		if err != nil {
+			return err
+		}
+		out.Write(banda)
+		return nil
+	}
+
+	if strings.TrimSpace(qrData) == "" {
+		// Sin QR: el marcador desaparece — jamás se imprime "{{QR}}".
+		if err := escribirTexto(strings.ReplaceAll(texto, marcadorQR, "")); err != nil {
+			return nil, err
+		}
+	} else {
+		partes := strings.SplitN(texto, marcadorQR, 2)
+		if err := escribirTexto(partes[0]); err != nil {
+			return nil, err
+		}
+		qr, err := rasterQR(qrData, paperWidth)
+		if err != nil {
+			return nil, fmt.Errorf("generando el QR: %w", err)
+		}
+		out.Write([]byte{0x0A})
+		out.Write([]byte{0x1B, 0x61, 0x01}) // centrar
+		out.Write(qr)
+		out.Write([]byte{0x1B, 0x61, 0x00})
+		out.Write([]byte{0x0A})
+		if len(partes) == 2 {
+			if err := escribirTexto(strings.ReplaceAll(partes[1], marcadorQR, "")); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	out.Write([]byte{0x1B, 0x64, 0x04})       // alimentar 4 líneas
+	out.Write([]byte{0x1D, 0x56, 0x42, 0x00}) // corte parcial
 	return out.Bytes(), nil
 }
 
