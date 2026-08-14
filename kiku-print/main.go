@@ -31,7 +31,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const version = "1.0.8"
+const version = "1.0.9"
 
 // Ruta del certificado exportado (se completa en main).
 var certCrtPath string
@@ -391,16 +391,26 @@ abrí <b>http://ESTA-IP:8442</b> (con http, sin s) y descargalo, o
 }
 
 func ipsLocales() []string {
-	var ips []string
+	var lan, linkLocal []string
 	ifaces, _ := net.InterfaceAddrs()
 	for _, a := range ifaces {
 		if ipn, ok := a.(*net.IPNet); ok && !ipn.IP.IsLoopback() {
 			if v4 := ipn.IP.To4(); v4 != nil {
-				ips = append(ips, v4.String())
+				// 169.254.x.x = dirección "link-local": una placa de red sin
+				// conexión real (sin cable, virtual). Nadie puede conectarse a
+				// esa IP desde otro dispositivo — mostrarla solo confunde.
+				if v4[0] == 169 && v4[1] == 254 {
+					linkLocal = append(linkLocal, v4.String())
+					continue
+				}
+				lan = append(lan, v4.String())
 			}
 		}
 	}
-	return ips
+	if len(lan) > 0 {
+		return lan
+	}
+	return linkLocal
 }
 
 func main() {
