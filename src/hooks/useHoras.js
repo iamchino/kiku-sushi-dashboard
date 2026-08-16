@@ -23,6 +23,10 @@ export function useHoras(refDate) {
   const [liquidacionesDia, setLiquidacionesDia]   = useState([])
   const [puntos, setPuntos]                       = useState([])
   const [horasDia, setHorasDia]                   = useState({})
+  // Detalle de jornadas por empleado y día ({empleado: {fecha: [{entrada,
+  // salida, minutos}]}}): alimenta el "de qué hora a qué hora" al clickear
+  // un día en la tira de Liquidación.
+  const [jornadasDia, setJornadasDia]             = useState({})
   // Sueldo base por empleado (para mostrar el monto de los de sueldo fijo:
   // liquidacion_horas devuelve total=0 para ellos y el monto vive en el legajo)
   const [sueldos, setSueldos]                     = useState({})
@@ -78,14 +82,23 @@ export function useHoras(refDate) {
       // "pendiente de cierre" que muestra cada fila (el resumen los excluye igual).
       const jornalDias = new Set(dias.map(l => `${l.empleado_id}|${l.semana_inicio}`))
       const mapa = {}
+      const detalle = {}
       for (const j of (jor.data || [])) {
         if (!j.salida) continue
         const fecha = arDateISO(j.entrada)
         if (jornalDias.has(`${j.empleado_id}|${fecha}`)) continue
         ;(mapa[j.empleado_id] ||= {})
         mapa[j.empleado_id][fecha] = (mapa[j.empleado_id][fecha] || 0) + (j.minutos || 0)
+        ;(detalle[j.empleado_id] ||= {})
+        ;(detalle[j.empleado_id][fecha] ||= []).push(j)
+      }
+      for (const porEmpleado of Object.values(detalle)) {
+        for (const lista of Object.values(porEmpleado)) {
+          lista.sort((a, b) => new Date(a.entrada) - new Date(b.entrada))
+        }
       }
       setHorasDia(mapa)
+      setJornadasDia(detalle)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -189,7 +202,7 @@ export function useHoras(refDate) {
   }, [fetchTodo])
 
   return {
-    semana, fichajes, resumen, liquidaciones, liquidacionesDia, puntos, horasDia, sueldos, loading, error,
+    semana, fichajes, resumen, liquidaciones, liquidacionesDia, puntos, horasDia, jornadasDia, sueldos, loading, error,
     refetch: fetchTodo,
     crearFichaje, actualizarFichaje, eliminarFichaje,
     generarLiquidacion, generarLiquidacionDia, anularLiquidacionDia,

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { BadgeDollarSign, Lock, Trash2, Clock, CalendarDays } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { fmtMoney, fmtFecha, MEDIOS_PAGO, localDateISO } from '../../lib/finanzas'
-import { fmtMinutos, fmtHorasCompacto, diasDeLaSemana } from '../../lib/horas'
+import { fmtMinutos, fmtHorasCompacto, fmtHora, diasDeLaSemana } from '../../lib/horas'
 import { ModalShell, Field, Select } from '../finanzas/fields'
 import ConfirmDelete from '../finanzas/ConfirmDelete'
 
@@ -19,7 +19,7 @@ const CHIP = {
 // Un día pagado por jornal queda excluido del cierre semanal (sin dobles pagos).
 export default function LiquidacionSection({ horas, enCurso }) {
   const {
-    semana, resumen, liquidaciones, liquidacionesDia, horasDia, sueldos,
+    semana, resumen, liquidaciones, liquidacionesDia, horasDia, jornadasDia, sueldos,
     generarLiquidacion, generarLiquidacionDia, anularLiquidacionDia,
     actualizarLiquidacion, eliminarLiquidacion, loading,
   } = horas
@@ -259,7 +259,10 @@ export default function LiquidacionSection({ horas, enCurso }) {
 
                {/* Desglose por día (lun→dom). Suma el total de arriba: los días
                    pagados por jornal se excluyen (aparecen abajo, en "Pagos por día"). */}
-               {tieneDetalle && <DiaStrip dias={dias} porDia={porDia} />}
+               {tieneDetalle && (
+                 <DiaStrip dias={dias} porDia={porDia}
+                   detalles={jornadasDia?.[f.empleado_id] || {}} />
+               )}
               </div>
             )
           })}
@@ -336,40 +339,75 @@ export default function LiquidacionSection({ horas, enCurso }) {
   )
 }
 
-// Tira de horas por día (lun→dom) bajo el total del empleado. Cada celda muestra
-// el día y las horas de ese día; los días sin horas quedan en gris. La suma de
-// la tira coincide con el total "pendiente de cierre" de la fila.
-function DiaStrip({ dias, porDia }) {
+// Tira de horas por día (lun→dom) bajo el total del empleado. Cada celda
+// muestra el día y sus horas; tocando un día con horas se despliega el
+// detalle de cada jornada: de qué hora a qué hora.
+function DiaStrip({ dias, porDia, detalles }) {
+  const [sel, setSel] = useState(null)
+  const jornadasSel = sel ? (detalles?.[sel] || []) : []
+  const diaSel = sel ? dias.find(d => d.iso === sel) : null
+
   return (
-    <div className="mt-2.5 grid grid-cols-7 gap-1">
-      {dias.map(d => {
-        const min = porDia[d.iso] || 0
-        const activo = min > 0
-        return (
-          <div
-            key={d.iso}
-            title={`${d.etiqueta} ${d.num}: ${activo ? fmtMinutos(min) : 'sin horas'}`}
-            className="flex flex-col items-center justify-center rounded-lg py-1.5 gap-0.5"
-            style={{
-              background: activo ? 'var(--accent-soft)' : 'var(--bg-input)',
-              border: `1px solid ${activo ? 'var(--accent-border)' : 'var(--border)'}`,
-            }}
-          >
-            <span
-              className="text-[9px] font-semibold uppercase tracking-wide capitalize"
-              style={{ color: activo ? 'var(--accent-lift)' : 'var(--text-xmuted)' }}
+    <div className="mt-2.5">
+      <div className="grid grid-cols-7 gap-1">
+        {dias.map(d => {
+          const min = porDia[d.iso] || 0
+          const activo = min > 0
+          const abierto = sel === d.iso
+          return (
+            <button
+              key={d.iso}
+              type="button"
+              disabled={!activo}
+              onClick={() => setSel(abierto ? null : d.iso)}
+              title={`${d.etiqueta} ${d.num}: ${activo ? `${fmtMinutos(min)} — tocá para ver los horarios` : 'sin horas'}`}
+              className="flex flex-col items-center justify-center rounded-lg py-1.5 gap-0.5 transition-all"
+              style={{
+                background: abierto ? 'rgba(var(--accent-rgb),0.18)' : activo ? 'var(--accent-soft)' : 'var(--bg-input)',
+                border: `1px solid ${abierto ? 'var(--accent-lift)' : activo ? 'var(--accent-border)' : 'var(--border)'}`,
+                cursor: activo ? 'pointer' : 'default',
+              }}
             >
-              {d.etiqueta}
-            </span>
-            <span
-              className="text-[11px] tabular-nums font-medium"
-              style={{ color: activo ? 'var(--text-primary)' : 'var(--text-xmuted)' }}
-            >
-              {fmtHorasCompacto(min)}
-            </span>
-          </div>
-        )
-      })}
+              <span
+                className="text-[9px] font-semibold uppercase tracking-wide capitalize"
+                style={{ color: activo ? 'var(--accent-lift)' : 'var(--text-xmuted)' }}
+              >
+                {d.etiqueta}
+              </span>
+              <span
+                className="text-[11px] tabular-nums font-medium"
+                style={{ color: activo ? 'var(--text-primary)' : 'var(--text-xmuted)' }}
+              >
+                {fmtHorasCompacto(min)}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Detalle del día elegido: cada jornada con su entrada → salida */}
+      {sel && jornadasSel.length > 0 && (
+        <div className="mt-1.5 rounded-lg px-3 py-2 space-y-1"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--accent-border)' }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wide capitalize"
+            style={{ color: 'var(--accent-lift)' }}>
+            {diaSel ? `${diaSel.etiqueta} ${diaSel.num}` : sel}
+            {jornadasSel.length > 1 && (
+              <span className="ml-1.5 font-normal normal-case" style={{ color: 'var(--text-xmuted)' }}>
+                · {jornadasSel.length} jornadas
+              </span>
+            )}
+          </p>
+          {jornadasSel.map((j, i) => (
+            <div key={i} className="flex items-center justify-between text-[11px] tabular-nums">
+              <span style={{ color: 'var(--text-primary)' }}>
+                {fmtHora(j.entrada)} → {fmtHora(j.salida)}
+              </span>
+              <span style={{ color: 'var(--text-muted)' }}>{fmtMinutos(j.minutos)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
