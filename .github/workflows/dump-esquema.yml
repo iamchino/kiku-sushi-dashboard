@@ -1,0 +1,48 @@
+# Extrae el esquema completo de la base de producción y lo commitea en
+# provision/esquema_base.sql. Es la pieza que faltaba para instalar el sistema
+# en un cliente nuevo: las migraciones del repo asumen que las tablas base ya
+# existen (nacieron después del esquema original).
+#
+# Se corre a mano: GitHub → Actions → "dump-esquema" → Run workflow.
+# Requiere el secret DATABASE_URL (Settings → Secrets and variables → Actions):
+# la connection string de Supabase (Database → Connect → URI, la "direct").
+name: dump-esquema
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dump del esquema (público, sin owners)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Falta el secret DATABASE_URL (Settings → Secrets → Actions)."
+            exit 1
+          fi
+          mkdir -p provision
+          docker run --rm postgres:17-alpine \
+            pg_dump "$DATABASE_URL" --schema-only --schema=public --no-owner \
+            > provision/esquema_base.sql
+          lineas=$(wc -l < provision/esquema_base.sql)
+          echo "Esquema: $lineas líneas"
+          if [ "$lineas" -lt 500 ]; then
+            echo "::error::El dump salió sospechosamente chico ($lineas líneas)."
+            exit 1
+          fi
+
+      - name: Commitear el esquema
+        run: |
+          git config user.name  "provision-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add provision/esquema_base.sql
+          git diff --cached --quiet && { echo "Sin cambios."; exit 0; }
+          git commit -m "provision: esquema base desde producción [skip ci]"
+          git push

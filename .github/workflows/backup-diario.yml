@@ -1,0 +1,38 @@
+# Backup diario completo (esquema + datos del schema public) de la base de
+# producción. Queda guardado como artefacto del workflow por 30 días.
+#
+# Restaurar: bajar el artefacto → descomprimir → correr el .sql contra una
+# base nueva (o pedirle a Claude que lo haga).
+#
+# Requiere el secret DATABASE_URL (el mismo que dump-esquema).
+name: backup-diario
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 06:00 UTC = 03:00 Argentina, todos los días
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump completo
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Falta el secret DATABASE_URL."
+            exit 1
+          fi
+          fecha=$(date +%Y-%m-%d)
+          docker run --rm postgres:17-alpine \
+            pg_dump "$DATABASE_URL" --schema=public --no-owner \
+            | gzip > "backup-$fecha.sql.gz"
+          ls -lh backup-*.sql.gz
+
+      - name: Guardar como artefacto (30 días)
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_id }}
+          path: backup-*.sql.gz
+          retention-days: 30
