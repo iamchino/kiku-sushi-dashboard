@@ -12,10 +12,9 @@ propia instancia (su base Supabase + su deploy), aislada de las demás.
 ## 1. Base de datos (Supabase)
 
 - [ ] Crear proyecto nuevo en supabase.com (región `sa-east-1`, San Pablo).
-- [ ] SQL Editor → correr en orden: `provision/esquema_base.sql`, después `provision/datos_catalogo.sql`,
-      y por último `provision/CONFIGURAR-CLIENTE.sql` **editado** con los datos del cliente.
-- [ ] Correr `provision/CONFIGURAR-CLIENTE.sql` **editado antes** con los datos
-      del cliente (email admin, nombre del negocio, color).
+- [ ] SQL Editor → correr en orden: `provision/esquema_base.sql`, después
+      `provision/datos_catalogo.sql`, y por último `provision/CONFIGURAR-CLIENTE.sql`
+      **editado antes** con los datos del cliente (email admin, nombre, color).
 - [ ] Storage → crear bucket `menu-images` (público) — las policies ya vienen
       en el esquema.
 - [ ] Authentication → crear el primer usuario (el dueño / admin) con email y
