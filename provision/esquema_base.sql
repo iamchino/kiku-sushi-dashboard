@@ -1,9 +1,7 @@
 --
--- Nota: orden de instalación → 1) este archivo  2) datos_catalogo.sql  3) CONFIGURAR-CLIENTE.sql (editado)
 -- PostgreSQL database dump
 --
 
--- (limpiado) \restrict nYz45lZyIg5UhSvd2njM7t1Fj5oS4mtLRulBQ0QNeFhIbrsphOyTzfySbLUfESg
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.11
@@ -10544,5 +10542,4 @@ ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON T
 -- PostgreSQL database dump complete
 --
 
--- (limpiado) \unrestrict nYz45lZyIg5UhSvd2njM7t1Fj5oS4mtLRulBQ0QNeFhIbrsphOyTzfySbLUfESg
 
