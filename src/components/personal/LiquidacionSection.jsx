@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { BadgeDollarSign, Lock, Trash2, Clock, CalendarDays } from 'lucide-react'
+import { BadgeDollarSign, Lock, Trash2, Clock, CalendarDays, Pencil } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { fmtMoney, fmtFecha, MEDIOS_PAGO, localDateISO } from '../../lib/finanzas'
 import { fmtMinutos, fmtHorasCompacto, fmtHora, diasDeLaSemana } from '../../lib/horas'
@@ -20,6 +20,7 @@ const CHIP = {
 export default function LiquidacionSection({ horas, enCurso }) {
   const {
     semana, resumen, liquidaciones, liquidacionesDia, horasDia, jornadasDia, sueldos,
+    fichajes, actualizarFichaje,
     generarLiquidacion, generarLiquidacionDia, anularLiquidacionDia,
     actualizarLiquidacion, eliminarLiquidacion, loading,
   } = horas
@@ -44,6 +45,7 @@ export default function LiquidacionSection({ horas, enCurso }) {
 
   const [pagando, setPagando]     = useState(null)  // liq semanal a pagar
   const [pagandoDia, setPagandoDia] = useState(null) // { empleado_id, nombre, valor_hora }
+  const [editJornada, setEditJornada] = useState(null) // { jornada, empleado_id, nombre }
   const [delLiq, setDelLiq]       = useState(null)
   const [delDia, setDelDia]       = useState(null)
   const [busy, setBusy]           = useState(false)
@@ -105,6 +107,40 @@ export default function LiquidacionSection({ horas, enCurso }) {
         pagado_at: new Date().toISOString(),
       })
       setPagando(null)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Corrección de una jornada desde la tira: ajusta las marcas reales de
+  // fichaje (entrada/salida). Queda como corrección manual y recalcula todo.
+  const handleEditarJornada = async ({ horaEntrada, horaSalida }) => {
+    if (!editJornada) return
+    const { jornada, empleado_id } = editJornada
+    setBusy(true); setError(null)
+    try {
+      const eq = (a, b) => new Date(a).getTime() === new Date(b).getTime()
+      const fe = fichajes.find(x => x.empleado_id === empleado_id && x.tipo === 'entrada' && eq(x.ts, jornada.entrada))
+      const fs = fichajes.find(x => x.empleado_id === empleado_id && x.tipo === 'salida' && eq(x.ts, jornada.salida))
+      if (!fe || !fs) {
+        throw new Error('No encontré las marcas de esa jornada. Corregila desde la pestaña Fichajes.')
+      }
+      const conHora = (baseIso, hhmm) => {
+        const [h, m] = String(hhmm).split(':').map(Number)
+        const d = new Date(baseIso)
+        d.setHours(h, m, 0, 0)
+        return d.toISOString()
+      }
+      const nuevaEntrada = conHora(jornada.entrada, horaEntrada)
+      const nuevaSalida  = conHora(jornada.salida, horaSalida)
+      if (new Date(nuevaSalida) <= new Date(nuevaEntrada)) {
+        throw new Error('La salida tiene que ser después de la entrada.')
+      }
+      if (!eq(nuevaEntrada, jornada.entrada)) await actualizarFichaje(fe.id, { ts: nuevaEntrada })
+      if (!eq(nuevaSalida, jornada.salida))  await actualizarFichaje(fs.id, { ts: nuevaSalida })
+      setEditJornada(null)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -261,7 +297,10 @@ export default function LiquidacionSection({ horas, enCurso }) {
                    pagados por jornal se excluyen (aparecen abajo, en "Pagos por día"). */}
                {tieneDetalle && (
                  <DiaStrip dias={dias} porDia={porDia}
-                   detalles={jornadasDia?.[f.empleado_id] || {}} />
+                   detalles={jornadasDia?.[f.empleado_id] || {}}
+                   onEditar={f.liq
+                     ? null // con la semana ya cerrada, primero eliminar el cierre
+                     : (j) => { setError(null); setEditJornada({ jornada: j, empleado_id: f.empleado_id, nombre: f.nombre }) }} />
                )}
               </div>
             )
@@ -324,6 +363,12 @@ export default function LiquidacionSection({ horas, enCurso }) {
         />
       )}
 
+      {/* Modal de corrección de jornada */}
+      {editJornada && (
+        <EditarJornadaModal seed={editJornada} busy={busy} error={error}
+          onClose={() => setEditJornada(null)} onConfirm={handleEditarJornada} />
+      )}
+
       {delLiq && (
         <ConfirmDelete titulo="Eliminar liquidación"
           mensaje="Se elimina el cierre (vuelve a 'Sin liquidar'). Los fichajes no se tocan."
@@ -342,7 +387,7 @@ export default function LiquidacionSection({ horas, enCurso }) {
 // Tira de horas por día (lun→dom) bajo el total del empleado. Cada celda
 // muestra el día y sus horas; tocando un día con horas se despliega el
 // detalle de cada jornada: de qué hora a qué hora.
-function DiaStrip({ dias, porDia, detalles }) {
+function DiaStrip({ dias, porDia, detalles, onEditar }) {
   const [sel, setSel] = useState(null)
   const jornadasSel = sel ? (detalles?.[sel] || []) : []
   const diaSel = sel ? dias.find(d => d.iso === sel) : null
@@ -399,16 +444,66 @@ function DiaStrip({ dias, porDia, detalles }) {
             )}
           </p>
           {jornadasSel.map((j, i) => (
-            <div key={i} className="flex items-center justify-between text-[11px] tabular-nums">
+            <div key={i} className="flex items-center justify-between gap-2 text-[11px] tabular-nums">
               <span style={{ color: 'var(--text-primary)' }}>
                 {fmtHora(j.entrada)} → {fmtHora(j.salida)}
               </span>
-              <span style={{ color: 'var(--text-muted)' }}>{fmtMinutos(j.minutos)}</span>
+              <span className="flex items-center gap-2">
+                <span style={{ color: 'var(--text-muted)' }}>{fmtMinutos(j.minutos)}</span>
+                {onEditar && (
+                  <button type="button" onClick={() => onEditar(j)} title="Corregir entrada/salida"
+                    className="p-1 rounded transition-colors" style={{ color: 'var(--accent-lift)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <Pencil size={11} />
+                  </button>
+                )}
+              </span>
             </div>
           ))}
+          {!onEditar && (
+            <p className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
+              La semana ya tiene cierre: para corregir horarios, eliminá el cierre primero.
+            </p>
+          )}
         </div>
       )}
     </div>
+  )
+}
+
+// Corrección rápida de una jornada: dos campos de hora, listo. Toca las
+// marcas reales de fichaje (quedan como corrección manual).
+function EditarJornadaModal({ seed, busy, error, onClose, onConfirm }) {
+  const hhmm = (iso) => {
+    const d = new Date(iso)
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  }
+  const [horaEntrada, setHoraEntrada] = useState(() => hhmm(seed.jornada.entrada))
+  const [horaSalida, setHoraSalida]   = useState(() => hhmm(seed.jornada.salida))
+  const fecha = new Date(seed.jornada.entrada)
+    .toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  return (
+    <ModalShell title={`Corregir jornada · ${seed.nombre}`} icon={Pencil} onClose={onClose} maxW="max-w-sm">
+      <div className="p-5 space-y-4">
+        <p className="text-sm capitalize text-center" style={{ color: 'var(--text-secondary)' }}>{fecha}</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Entrada" type="time" value={horaEntrada} onChange={setHoraEntrada} required />
+          <Field label="Salida"  type="time" value={horaSalida}  onChange={setHoraSalida} required />
+        </div>
+        <p className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>
+          Corrige las marcas reales de fichaje (quedan como corrección manual) y
+          recalcula las horas y la liquidación de la semana al instante.
+        </p>
+        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+        <button onClick={() => onConfirm({ horaEntrada, horaSalida })} disabled={busy || !horaEntrada || !horaSalida}
+          className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          {busy ? 'Guardando…' : 'Guardar corrección'}
+        </button>
+      </div>
+    </ModalShell>
   )
 }
 
