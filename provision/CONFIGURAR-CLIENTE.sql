@@ -52,7 +52,31 @@ union all select 'empleados', count(*) from public.empleados
 union all select 'menu_items', count(*) from public.menu_items;
 -- Todas las cuentas deben dar 0 (salvo auth.users si ya creaste el admin).
 
--- ─── 4. Verificación final ──────────────────────────────────────────────────
+-- ─── 4. Realtime ────────────────────────────────────────────────────────────
+-- La publicación supabase_realtime no viaja en el dump: se agregan acá las
+-- tablas que el dashboard escucha en vivo. Tolerante: si alguna ya está o no
+-- existe, sigue.
+do $$
+declare
+  v_tabla text;
+begin
+  foreach v_tabla in array array[
+    'reservas', 'pedidos', 'pedido_items', 'notificaciones',
+    'comprobantes_fiscales', 'stock', 'produccion_listas', 'produccion_tareas',
+    'pagos', 'caja_turnos', 'caja_movimientos', 'caja_turnos_auditoria',
+    'mesas', 'lista_espera'
+  ]
+  loop
+    begin
+      execute format('alter publication supabase_realtime add table public.%I', v_tabla);
+    exception
+      when duplicate_object then null;
+      when undefined_table  then null;
+    end;
+  end loop;
+end $$;
+
+-- ─── 5. Verificación final ──────────────────────────────────────────────────
 select
   (select count(*) from public.roles)    as roles,
   (select count(*) from public.recursos) as recursos,

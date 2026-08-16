@@ -38,11 +38,44 @@ jobs:
             exit 1
           fi
 
-      - name: Commitear el esquema
+      - name: Dump de datos de catálogo (permisos, tipos, configs)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          # Datos que un cliente nuevo necesita para que el sistema funcione:
+          # la matriz de permisos afinada, tipos de comprobante y las filas de
+          # configuración (el cliente después las edita desde el dashboard).
+          # NO se incluyen: webhook_config (tokens), facturacion_config (CUIT
+          # del cliente, se carga en el onboarding), ni datos operativos.
+          docker run --rm postgres:17-alpine \
+            pg_dump "$DATABASE_URL" --data-only --column-inserts --no-owner \
+              --table=public.roles \
+              --table=public.recursos \
+              --table=public.rol_permisos \
+              --table=public.recurso_tablas \
+              --table=public.tipos_comprobante \
+              --table=public.web_config \
+              --table=public.reservas_config \
+              --table=public.reservas_dias \
+              --table=public.envio_config \
+              --table=public.impresion_config \
+            > provision/datos_catalogo.sql
+          echo "Catálogo: $(wc -l < provision/datos_catalogo.sql) líneas"
+
+      - name: Limpiar para el SQL Editor
+        run: |
+          # Los metacomandos de psql (\restrict, etc.) no existen en el SQL
+          # Editor de Supabase, y CREATE SCHEMA public choca con el existente.
+          for f in provision/esquema_base.sql provision/datos_catalogo.sql; do
+            sed -i '/^\\/d' "$f"
+            sed -i 's/^CREATE SCHEMA public;/CREATE SCHEMA IF NOT EXISTS public;/' "$f"
+          done
+
+      - name: Commitear
         run: |
           git config user.name  "provision-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add provision/esquema_base.sql
+          git add provision/esquema_base.sql provision/datos_catalogo.sql
           git diff --cached --quiet && { echo "Sin cambios."; exit 0; }
-          git commit -m "provision: esquema base desde producción [skip ci]"
+          git commit -m "provision: esquema y catálogo desde producción [skip ci]"
           git push

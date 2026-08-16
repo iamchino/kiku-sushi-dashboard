@@ -1,8 +1,9 @@
 --
+-- Nota: orden de instalación → 1) este archivo  2) datos_catalogo.sql  3) CONFIGURAR-CLIENTE.sql (editado)
 -- PostgreSQL database dump
 --
 
-\restrict nYz45lZyIg5UhSvd2njM7t1Fj5oS4mtLRulBQ0QNeFhIbrsphOyTzfySbLUfESg
+-- (limpiado) \restrict nYz45lZyIg5UhSvd2njM7t1Fj5oS4mtLRulBQ0QNeFhIbrsphOyTzfySbLUfESg
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.11
@@ -23,7 +24,7 @@ SET row_security = off;
 -- Name: public; Type: SCHEMA; Schema: -; Owner: -
 --
 
-CREATE SCHEMA public;
+CREATE SCHEMA IF NOT EXISTS public;
 
 
 --
@@ -10543,5 +10544,5 @@ ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public GRANT ALL ON T
 -- PostgreSQL database dump complete
 --
 
-\unrestrict nYz45lZyIg5UhSvd2njM7t1Fj5oS4mtLRulBQ0QNeFhIbrsphOyTzfySbLUfESg
+-- (limpiado) \unrestrict nYz45lZyIg5UhSvd2njM7t1Fj5oS4mtLRulBQ0QNeFhIbrsphOyTzfySbLUfESg
 
