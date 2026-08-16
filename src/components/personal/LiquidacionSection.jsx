@@ -116,7 +116,7 @@ export default function LiquidacionSection({ horas, enCurso }) {
 
   // Corrección de una jornada desde la tira: ajusta las marcas reales de
   // fichaje (entrada/salida). Queda como corrección manual y recalcula todo.
-  const handleEditarJornada = async ({ horaEntrada, horaSalida }) => {
+  const handleEditarJornada = async ({ fecha, horaEntrada, horaSalida }) => {
     if (!editJornada) return
     const { jornada, empleado_id } = editJornada
     setBusy(true); setError(null)
@@ -127,19 +127,22 @@ export default function LiquidacionSection({ horas, enCurso }) {
       if (!fe || !fs) {
         throw new Error('No encontré las marcas de esa jornada. Corregila desde la pestaña Fichajes.')
       }
-      const conHora = (baseIso, hhmm) => {
-        const [h, m] = String(hhmm).split(':').map(Number)
-        const d = new Date(baseIso)
-        d.setHours(h, m, 0, 0)
-        return d.toISOString()
+      const armar = (fechaStr, hhmm) => {
+        const [y, mo, d] = String(fechaStr).split('-').map(Number)
+        const [h, mi] = String(hhmm).split(':').map(Number)
+        return new Date(y, mo - 1, d, h, mi, 0, 0)
       }
-      const nuevaEntrada = conHora(jornada.entrada, horaEntrada)
-      const nuevaSalida  = conHora(jornada.salida, horaSalida)
-      if (new Date(nuevaSalida) <= new Date(nuevaEntrada)) {
-        throw new Error('La salida tiene que ser después de la entrada.')
+      const nuevaEntrada = armar(fecha, horaEntrada)
+      let nuevaSalida    = armar(fecha, horaSalida)
+      // Salida "antes" de la entrada = la jornada cruzó la medianoche.
+      if (nuevaSalida <= nuevaEntrada) {
+        nuevaSalida = new Date(nuevaSalida.getTime() + 24 * 3600 * 1000)
       }
-      if (!eq(nuevaEntrada, jornada.entrada)) await actualizarFichaje(fe.id, { ts: nuevaEntrada })
-      if (!eq(nuevaSalida, jornada.salida))  await actualizarFichaje(fs.id, { ts: nuevaSalida })
+      if (nuevaSalida - nuevaEntrada > 16 * 3600 * 1000) {
+        throw new Error('La jornada quedaría de más de 16 horas: revisá las horas cargadas.')
+      }
+      if (!eq(nuevaEntrada.toISOString(), jornada.entrada)) await actualizarFichaje(fe.id, { ts: nuevaEntrada.toISOString() })
+      if (!eq(nuevaSalida.toISOString(), jornada.salida))  await actualizarFichaje(fs.id, { ts: nuevaSalida.toISOString() })
       setEditJornada(null)
     } catch (err) {
       setError(err.message)
@@ -479,25 +482,31 @@ function EditarJornadaModal({ seed, busy, error, onClose, onConfirm }) {
     const d = new Date(iso)
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   }
+  const fechaLocal = (iso) => {
+    const d = new Date(iso)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+  const [fecha, setFecha]             = useState(() => fechaLocal(seed.jornada.entrada))
   const [horaEntrada, setHoraEntrada] = useState(() => hhmm(seed.jornada.entrada))
   const [horaSalida, setHoraSalida]   = useState(() => hhmm(seed.jornada.salida))
-  const fecha = new Date(seed.jornada.entrada)
-    .toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
     <ModalShell title={`Corregir jornada · ${seed.nombre}`} icon={Pencil} onClose={onClose} maxW="max-w-sm">
       <div className="p-5 space-y-4">
-        <p className="text-sm capitalize text-center" style={{ color: 'var(--text-secondary)' }}>{fecha}</p>
+        <Field label="Día trabajado" type="date" value={fecha} onChange={setFecha} required />
         <div className="grid grid-cols-2 gap-3">
           <Field label="Entrada" type="time" value={horaEntrada} onChange={setHoraEntrada} required />
           <Field label="Salida"  type="time" value={horaSalida}  onChange={setHoraSalida} required />
         </div>
         <p className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>
           Corrige las marcas reales de fichaje (quedan como corrección manual) y
-          recalcula las horas y la liquidación de la semana al instante.
+          recalcula horas y liquidación al instante. Si la salida es &quot;antes&quot; que
+          la entrada, se toma como del día siguiente (turno que cruza la medianoche).
+          Si cambiás el día a otra semana, la jornada se muda a esa semana.
         </p>
         {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
-        <button onClick={() => onConfirm({ horaEntrada, horaSalida })} disabled={busy || !horaEntrada || !horaSalida}
+        <button onClick={() => onConfirm({ fecha, horaEntrada, horaSalida })}
+          disabled={busy || !fecha || !horaEntrada || !horaSalida}
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
           {busy ? 'Guardando…' : 'Guardar corrección'}
