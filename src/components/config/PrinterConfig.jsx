@@ -147,7 +147,7 @@ export default function PrinterConfig() {
         importe_neto: 4545.45, importe_iva: 954.55, importe_total: 5500,
         moneda: 'PES', cotizacion: 1, doc_tipo: 99, doc_nro: '0',
         receptor_nombre: 'Consumidor Final',
-      }, { nombre_fantasia: 'KIKU SUSHI', cuit: '20111111112' })
+      }, { nombre_fantasia: 'TICKET DE PRUEBA', cuit: '20111111112' })
       setTestState(s => ({ ...s, [kind]: 'ok' }))
       setTimeout(() => setTestState(s => ({ ...s, [kind]: 'idle' })), 1800)
     } catch (err) {
@@ -169,12 +169,12 @@ export default function PrinterConfig() {
       {/* Banner explicativo */}
       <div className="rounded-xl p-4 text-xs leading-relaxed" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
         <p className="mb-1">
-          <strong style={{ color: 'var(--text-primary)' }}>GG EZ Print</strong> es el puente local que imprime
-          directo en la impresora termica (XP-58, Epson, etc) sin abrir el dialogo del navegador.
+          <strong style={{ color: 'var(--text-primary)' }}>Comandera Print</strong> es el puente local que imprime
+          directo en la impresora térmica (58 u 80mm, cualquier marca) sin abrir el diálogo del navegador.
         </p>
         <p>
-          Asegurate de tenerlo corriendo en la PC de caja. La <em>Direccion</em> figura en el menu del icono
-          (click derecho sobre el tray icon de impresora).
+          Asegurate de tenerlo corriendo en la PC del local. La <em>dirección</em> es la IP que muestra su
+          consola al abrirlo (ej: 192.168.0.10:8443).
         </p>
       </div>
 
@@ -216,10 +216,10 @@ export default function PrinterConfig() {
           <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
             Servidor de impresión
           </p>
-          <a href="/descargas/KikuPrint.exe" download
+          <a href="/descargas/ComanderaPrint.exe" download
             className="ml-auto text-[11px] font-medium underline"
             style={{ color: 'var(--accent-lift)' }}>
-            Descargar KIKU Print
+            Descargar Comandera Print
           </a>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
@@ -252,7 +252,7 @@ export default function PrinterConfig() {
             <AlertTriangle size={13} className="mt-0.5" />
             <span>
               No se pudo conectar: {discoverError}.
-              Revisá que <code>KikuPrint.exe</code> esté corriendo en la PC del local y que el
+              Revisá que <code>ComanderaPrint.exe</code> esté corriendo en la PC del local y que el
               certificado esté instalado en este dispositivo (abrí https://IP:8443 para probar).
             </span>
           </div>

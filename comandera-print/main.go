@@ -1,5 +1,5 @@
 // ────────────────────────────────────────────────────────────────────────────
-// KIKU Print — puente de impresión térmica para el dashboard.
+// Comandera Print — puente de impresión térmica para el dashboard.
 //
 // Reemplazo directo de GG EZ Print: mismo protocolo (wss://IP:8443/ws,
 // mensajes "list" y "print"), así el dashboard no necesita ningún cambio.
@@ -31,7 +31,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const version = "1.0.9"
+const version = "1.0.10"
 
 // Ruta del certificado exportado (se completa en main).
 var certCrtPath string
@@ -53,7 +53,7 @@ func cargarConfig(dir string) Config {
 		Acentos:   "cp858",
 		Texto:     "alto",
 		Negrita:   "si",
-		UpdateURL: "https://kiku-sushi-dashboard.vercel.app/descargas/kiku-print-version.json",
+		UpdateURL: "https://kiku-sushi-dashboard.vercel.app/descargas/comandera-print-version.json",
 	}
 	path := filepath.Join(dir, "config.json")
 	if data, err := os.ReadFile(path); err == nil {
@@ -202,7 +202,7 @@ func atenderWS(w http.ResponseWriter, r *http.Request) {
 // Descarga del certificado (.crt).
 func servirCrt(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/x-x509-ca-cert")
-	w.Header().Set("Content-Disposition", `attachment; filename="kiku-print-certificado.crt"`)
+	w.Header().Set("Content-Disposition", `attachment; filename="comandera-certificado.crt"`)
 	http.ServeFile(w, r, certCrtPath)
 }
 
@@ -216,7 +216,7 @@ func atenderPaginaCert(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprint(w, `<html><body style="font-family:sans-serif;background:#111;color:#eee;padding:40px;max-width:500px">
-<h1>🖨 KIKU Print — certificado</h1>
+<h1>🖨 Comandera Print — certificado</h1>
 <p><a href="/cert.crt" style="display:inline-block;background:#4ade80;color:#111;padding:14px 24px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:18px">⬇ Descargar certificado</a></p>
 <p><b>Después de descargarlo:</b></p>
 <p><b>Celular Android:</b> abrí el archivo descargado. Si no se instala solo:
@@ -235,7 +235,7 @@ func ticketPruebaTamanos() []byte {
 	var b bytes.Buffer
 	esc := func(bs ...byte) { b.Write(bs) }
 	esc(0x1B, 0x40) // init
-	b.WriteString("PRUEBA DE TAMANOS - KIKU PRINT\n")
+	b.WriteString("PRUEBA DE TAMANOS - COMANDERA\n")
 	b.WriteString("------------------------------\n")
 	esc(0x1B, 0x21, 0x00)
 	esc(0x1D, 0x21, 0x00)
@@ -335,7 +335,7 @@ func datosDePrueba(r *http.Request) string {
 	if d := r.URL.Query().Get("data"); d != "" {
 		return d
 	}
-	return "https://www.afip.gob.ar/fe/qr/?p=PRUEBA-KIKU-PRINT-" + time.Now().Format("20060102150405")
+	return "https://www.afip.gob.ar/fe/qr/?p=PRUEBA-COMANDERA-" + time.Now().Format("20060102150405")
 }
 
 func atenderPruebaPNG(w http.ResponseWriter, r *http.Request) {
@@ -358,7 +358,7 @@ func atenderPrueba(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, `<html><body style="font-family:sans-serif;background:#111;color:#eee;padding:40px;max-width:560px">
 <h1>🖨 Prueba del QR (sin impresora)</h1>
-<p>Esta imagen está reconstruida desde los <b>bytes exactos</b> que KIKU Print
+<p>Esta imagen está reconstruida desde los <b>bytes exactos</b> que Comandera Print
 le manda a la impresora. No es un dibujo aparte: <b>si tu cámara lee este QR,
 la impresora imprime exactamente esto</b>, píxel por píxel.</p>
 <p style="background:#fff;display:inline-block;padding:16px;border-radius:8px"><img src="/prueba.png?data=%s" style="width:280px;image-rendering:pixelated"></p>
@@ -379,7 +379,7 @@ func atenderStatus(w http.ResponseWriter, _ *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, `<html><body style="font-family:sans-serif;background:#111;color:#eee;padding:40px">
-<h1>🖨 KIKU Print v%s</h1>
+<h1>🖨 Comandera Print v%s</h1>
 <p style="color:#4ade80">Funcionando. Si ves el candado en la barra de direcciones, el certificado está bien instalado.</p>
 <p>Impresoras de Windows detectadas:</p><pre>%s</pre>
 <p>¿Falta instalar el certificado en otro dispositivo? Desde ese dispositivo
@@ -418,7 +418,7 @@ func main() {
 	dir := filepath.Dir(exe)
 
 	// Log a consola Y a archivo, para poder revisar qué pasó.
-	logFile, err := os.OpenFile(filepath.Join(dir, "kiku-print.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	logFile, err := os.OpenFile(filepath.Join(dir, "comandera-print.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err == nil {
 		log.SetOutput(newDualWriter(os.Stdout, logFile))
 	}
@@ -435,7 +435,7 @@ func main() {
 
 	fmt.Printf(`
   ╔════════════════════════════════════════════╗
-  ║   🖨  KIKU Print v%s                    ║
+  ║   🖨  Comandera Print v%s               ║
   ║   Puente de impresión del dashboard        ║
   ╚════════════════════════════════════════════╝
 

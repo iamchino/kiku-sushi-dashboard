@@ -2,7 +2,7 @@
 // que la conexión al puente sea wss:// con un certificado confiable.
 //
 // Estrategia:
-//   · Se genera UNA VEZ una CA propia ("KIKU Print CA") que se guarda en
+//   · Se genera UNA VEZ una CA propia ("Comandera Print CA") que se guarda en
 //     ./certificados y se exporta como INSTALAR-ESTE-CERTIFICADO.crt.
 //     Ese archivo se instala una sola vez en cada dispositivo (PC/celular).
 //   · En cada arranque se emite un certificado de servidor firmado por esa CA
@@ -56,7 +56,7 @@ func prepararCertificados(dir string) (certPath, keyPath string, err error) {
 		serial, _ := rand.Int(rand.Reader, big.NewInt(1<<62))
 		plantilla := &x509.Certificate{
 			SerialNumber:          serial,
-			Subject:               pkix.Name{CommonName: "KIKU Print CA", Organization: []string{"KIKU Print"}},
+			Subject:               pkix.Name{CommonName: "Comandera Print CA", Organization: []string{"Comandera Print"}},
 			NotBefore:             time.Now().Add(-24 * time.Hour),
 			NotAfter:              time.Now().AddDate(10, 0, 0),
 			IsCA:                  true,
@@ -94,7 +94,7 @@ func prepararCertificados(dir string) (certPath, keyPath string, err error) {
 	serial, _ := rand.Int(rand.Reader, big.NewInt(1<<62))
 	plantilla := &x509.Certificate{
 		SerialNumber: serial,
-		Subject:      pkix.Name{CommonName: "KIKU Print", Organization: []string{"KIKU Print"}},
+		Subject:      pkix.Name{CommonName: "Comandera Print", Organization: []string{"Comandera Print"}},
 		NotBefore:    time.Now().Add(-24 * time.Hour),
 		NotAfter:     time.Now().AddDate(5, 0, 0),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,

@@ -89,7 +89,7 @@ func imprimirWindows(nombre string, datos []byte) error {
 	}
 	defer procClosePrinter.Call(uintptr(h))
 
-	docName, _ := syscall.UTF16PtrFromString("KIKU Print")
+	docName, _ := syscall.UTF16PtrFromString("Comandera Print")
 	datatype, _ := syscall.UTF16PtrFromString("RAW")
 	di := docInfo1{pDocName: docName, pDatatype: datatype}
 

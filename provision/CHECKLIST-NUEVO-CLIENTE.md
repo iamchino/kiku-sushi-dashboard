@@ -43,7 +43,7 @@ propia instancia (su base Supabase + su deploy), aislada de las demás.
 ## 4. Configuración dentro del sistema
 
 - [ ] Entrar con el usuario admin → Ajustes → Configuración:
-      impresoras (KikuPrint), ancho de papel, caracteres por línea.
+      impresoras (ComanderaPrint), ancho de papel, caracteres por línea.
 - [ ] Personal → Permisos: revisar la matriz por rol (viene con los defaults).
 - [ ] Cargar carta, recetas y stock inicial (o importarlos — servicio de
       implementación).
@@ -54,11 +54,11 @@ propia instancia (su base Supabase + su deploy), aislada de las demás.
 
 - [ ] En la PC del local: descargar el exe desde el dashboard del cliente
       (link "Descargar" en Configuración → Impresoras — sale de su propio
-      deploy, `/descargas/KikuPrint.exe`).
+      deploy, `/descargas/ComanderaPrint.exe`).
 - [ ] `config.json`: **cambiar `update_url`** al dominio del cliente
-      (`https://cliente.tudominio.com/descargas/kiku-print-version.json`)
+      (`https://cliente.tudominio.com/descargas/comandera-print-version.json`)
       para que se auto-actualice desde su instancia.
-- [ ] Certificados en PC y celulares (instrucciones en `kiku-print/INSTRUCCIONES.md`).
+- [ ] Certificados en PC y celulares (instrucciones en `comandera-print/INSTRUCCIONES.md`).
 - [ ] Acceso directo en `shell:startup`.
 
 ## 6. Backups y cierre
@@ -71,7 +71,7 @@ propia instancia (su base Supabase + su deploy), aislada de las demás.
 
 ## Pendientes conocidos del producto (no bloquean pilotos)
 
-- Renombre de marca (elegir nombre → renombrar "KIKU Print", textos y repos).
+- Renombre de marca (elegir nombre → renombrar "Comandera Print", textos y repos).
 - Asistente de onboarding dentro del sistema (hoy: este checklist + SQL Editor).
 - Multi-tenant real (hoy: una instancia por cliente, que para <15 clientes es
   más simple y más aislado).

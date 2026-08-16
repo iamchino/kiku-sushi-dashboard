@@ -1,4 +1,4 @@
-module kiku-print
+module comandera-print
 
 go 1.21
 

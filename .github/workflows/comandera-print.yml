@@ -1,0 +1,57 @@
+# Compila Comandera Print en la nube y lo publica en el deploy del dashboard.
+#
+#   push que toque comandera-print/  →  compila el .exe de Windows
+#   →  lo commitea en public/descargas/  →  Vercel lo sirve
+#   →  el exe instalado en cada local se auto-actualiza.
+#
+# Compatibilidad: también se publican KikuPrint.exe y kiku-print-version.json
+# (alias del mismo binario) para que las instalaciones previas al renombre
+# sigan actualizándose sin tocar nada.
+name: comandera-print
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'comandera-print/**'
+      - '.github/workflows/comandera-print.yml'
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: comandera-print/go.sum
+
+      - name: Compilar ComanderaPrint.exe (Windows amd64)
+        working-directory: comandera-print
+        run: |
+          go mod tidy
+          go vet ./...
+          go test ./...
+          GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o ComanderaPrint.exe .
+          ls -la ComanderaPrint.exe
+
+      - name: Publicar en public/descargas (con alias legacy)
+        run: |
+          VERSION=$(grep -oP 'const version = "\K[^"]+' comandera-print/main.go)
+          echo "Versión: $VERSION"
+          mkdir -p public/descargas
+          cp comandera-print/ComanderaPrint.exe public/descargas/ComanderaPrint.exe
+          cp comandera-print/ComanderaPrint.exe public/descargas/KikuPrint.exe
+          printf '{"version":"%s","url":"https://kiku-sushi-dashboard.vercel.app/descargas/ComanderaPrint.exe"}\n' "$VERSION" \
+            > public/descargas/comandera-print-version.json
+          cp public/descargas/comandera-print-version.json public/descargas/kiku-print-version.json
+          git config user.name  "comandera-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add public/descargas comandera-print/go.sum comandera-print/go.mod
+          git diff --cached --quiet && { echo "Sin cambios."; exit 0; }
+          git commit -m "comandera-print: build v$VERSION [skip ci]"
+          git push
