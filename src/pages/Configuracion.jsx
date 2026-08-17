@@ -9,13 +9,14 @@ import ReservasConfig from '../components/config/ReservasConfig'
 import { useRole } from '../context/useRole'
 
 // Cada tab declara qué roles lo pueden ver. El mozo sólo ve Impresoras (para
-// corregir la IP); envío y horarios quedan para admin.
+// corregir la IP). Finanzas (la cuenta "suprema" del negocio) ve lo mismo que
+// admin — el acceso a los DATOS igual lo decide la matriz de permisos.
 const TABS = [
-  { id: 'impresoras', label: 'Impresoras', Icon: Printer, roles: ['admin', 'mozo'] },
-  { id: 'envio',      label: 'Envío',      Icon: Truck,   roles: ['admin'] },
-  { id: 'horarios',   label: 'Horarios',   Icon: Clock,   roles: ['admin'] },
-  { id: 'reservas',   label: 'Reservas',   Icon: CalendarClock, roles: ['admin'] },
-  { id: 'negocio',    label: 'Negocio',    Icon: Store,   roles: ['admin'] },
+  { id: 'impresoras', label: 'Impresoras', Icon: Printer, roles: ['admin', 'finanzas', 'mozo'] },
+  { id: 'envio',      label: 'Envío',      Icon: Truck,   roles: ['admin', 'finanzas'] },
+  { id: 'horarios',   label: 'Horarios',   Icon: Clock,   roles: ['admin', 'finanzas'] },
+  { id: 'reservas',   label: 'Reservas',   Icon: CalendarClock, roles: ['admin', 'finanzas'] },
+  { id: 'negocio',    label: 'Negocio',    Icon: Store,   roles: ['admin', 'finanzas'] },
 ]
 
 /**
