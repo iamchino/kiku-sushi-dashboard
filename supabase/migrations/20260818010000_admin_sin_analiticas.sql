@@ -5,6 +5,6 @@
 -- ============================================================================
 
 delete from public.rol_permisos
- where rol = 'admin' and recurso = 'analiticas';
+ where rol_id = 'admin' and recurso_id = 'analiticas';
 
 notify pgrst, 'reload schema';

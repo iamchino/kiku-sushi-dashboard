@@ -18,6 +18,6 @@ comment on column public.empleados.frecuencia_pago is
   'mensual | quincenal | semanal | diario. Diario = se paga por día trabajado, sin día de pago fijo.';
 
 delete from public.rol_permisos
- where rol = 'cocina' and recurso = 'menu';
+ where rol_id = 'cocina' and recurso_id = 'menu';
 
 notify pgrst, 'reload schema';
