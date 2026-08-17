@@ -50,7 +50,7 @@ export default function EmpleadoModal({ initial, onClose, onSave }) {
       alias: form.alias?.trim() || null,
       telefono: form.telefono?.trim() || null,
       frecuencia_pago: form.frecuencia_pago || 'mensual',
-      dia_pago: form.frecuencia_pago === 'semanal' ? null : (form.dia_pago ? Number(form.dia_pago) : null),
+      dia_pago: ['semanal', 'diario'].includes(form.frecuencia_pago) ? null : (form.dia_pago ? Number(form.dia_pago) : null),
       dia_pago_semana: form.frecuencia_pago === 'semanal'
         ? (form.dia_pago_semana !== '' ? Number(form.dia_pago_semana) : 6)
         : null,
@@ -96,10 +96,15 @@ export default function EmpleadoModal({ initial, onClose, onSave }) {
               { value: 'mensual', label: 'Mensual' },
               { value: 'quincenal', label: 'Quincenal' },
               { value: 'semanal', label: 'Semanal' },
+              { value: 'diario', label: 'Por día' },
             ]} />
           {form.frecuencia_pago === 'semanal'
             ? <Select label="Día de la semana" value={form.dia_pago_semana} onChange={v => set('dia_pago_semana', v)} options={DIAS_SEMANA} />
-            : <Field label="Día de pago (1-31)" value={form.dia_pago} onChange={v => set('dia_pago', v.replace(/\D/g, '').slice(0, 2))} placeholder="Ej: 5" inputMode="numeric" />}
+            : form.frecuencia_pago === 'diario'
+              ? <div className="flex items-end pb-2.5">
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Se paga al final de cada día trabajado.</p>
+                </div>
+              : <Field label="Día de pago (1-31)" value={form.dia_pago} onChange={v => set('dia_pago', v.replace(/\D/g, '').slice(0, 2))} placeholder="Ej: 5" inputMode="numeric" />}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Field label="CUIT / CUIL" value={form.cuit_cuil} onChange={v => set('cuit_cuil', v)} placeholder="20-12345678-9" inputMode="numeric" />

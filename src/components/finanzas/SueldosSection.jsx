@@ -18,6 +18,8 @@ export default function SueldosSection({ desde, hasta, label }) {
 
   const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
   const descPago = (emp) => {
+    if (emp.frecuencia_pago === 'diario')
+      return 'pago por día'
     if (emp.frecuencia_pago === 'semanal')
       return `pago semanal${emp.dia_pago_semana != null ? ` (${DIAS_SEMANA[emp.dia_pago_semana]})` : ''}`
     if (emp.frecuencia_pago === 'quincenal')
