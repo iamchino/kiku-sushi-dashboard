@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   CalendarClock, Save, Loader2, CheckCircle2, AlertTriangle,
-  Sun, Moon, Plus, X,
+  Sun, Moon, Plus, X, UtensilsCrossed, Trash2,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
@@ -38,6 +38,8 @@ export default function ReservasConfig() {
   const [loading, setLoading] = useState(true)
   const [dias, setDias] = useState([])          // [{dow, mediodia, noche}]
   const [cfg, setCfg] = useState({ mediodia_slots: [], noche_slots: [], orden_llegada_slots: [] })
+  // Menús ofrecidos al reservar mediodía: [{id, nombre, precio, detalle[], activo}]
+  const [menus, setMenus] = useState([])
   const [saveState, setSaveState] = useState('idle')  // idle|saving|ok|error
   const [error, setError] = useState(null)
 
@@ -65,6 +67,15 @@ export default function ReservasConfig() {
         noche_slots: c.data?.noche_slots || [],
         orden_llegada_slots: c.data?.orden_llegada_slots || [],
       })
+      setMenus(Array.isArray(c.data?.menus_mediodia)
+        ? c.data.menus_mediodia.map(m => ({
+            id: m.id || crypto.randomUUID().slice(0, 8),
+            nombre: m.nombre || '',
+            precio: m.precio ?? '',
+            detalle: Array.isArray(m.detalle) ? m.detalle.join('\n') : '',
+            activo: m.activo !== false,
+          }))
+        : [])
       setLoading(false)
     })()
     return () => { alive = false }
@@ -80,6 +91,27 @@ export default function ReservasConfig() {
   }
   const removeSlot = (key, hhmm) =>
     setCfg(c => ({ ...c, [key]: c[key].filter(s => s !== hhmm) }))
+
+  // ── Menús de mediodía ──────────────────────────────────────────────────────
+  const setMenu = (id, campo, val) =>
+    setMenus(ms => ms.map(m => (m.id === id ? { ...m, [campo]: val } : m)))
+  const agregarMenu = () =>
+    setMenus(ms => [...ms, {
+      id: crypto.randomUUID().slice(0, 8),
+      nombre: '', precio: '', detalle: '', activo: true,
+    }])
+  const eliminarMenu = (id) => setMenus(ms => ms.filter(m => m.id !== id))
+
+  // Lo que se guarda en la base: nombre obligatorio, detalle por renglones.
+  const menusParaGuardar = () => menus
+    .filter(m => m.nombre.trim() !== '')
+    .map(m => ({
+      id: m.id,
+      nombre: m.nombre.trim(),
+      precio: m.precio === '' || m.precio === null ? null : Number(m.precio) || null,
+      detalle: String(m.detalle || '').split('\n').map(s => s.trim()).filter(Boolean),
+      activo: m.activo !== false,
+    }))
 
   // Avisos de coherencia (no bloquean, solo orientan).
   const avisos = useMemo(() => {
@@ -105,6 +137,7 @@ export default function ReservasConfig() {
         mediodia_slots: ordenarSlots(cfg.mediodia_slots),
         noche_slots: ordenarSlots(cfg.noche_slots),
         orden_llegada_slots: ordenarSlots(cfg.orden_llegada_slots),
+        menus_mediodia: menusParaGuardar(),
         updated_at: new Date().toISOString(),
       })
       const [rd, rc] = await Promise.all([upDias, upCfg])
@@ -203,6 +236,72 @@ export default function ReservasConfig() {
         placeholder="22:30"
         hint="Estos horarios se pueden reservar pero quedan como orden de llegada, sin mesa asignada."
       />
+
+      {/* Menús de mediodía */}
+      <div className="rounded-xl p-4 space-y-3" style={card}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <UtensilsCrossed size={14} style={{ color: 'var(--accent)' }} />
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+              Menús de mediodía
+            </p>
+          </div>
+          <button type="button" onClick={agregarMenu}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}>
+            <Plus size={13} /> Agregar menú
+          </button>
+        </div>
+        <p className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>
+          Son las opciones que la web ofrece al reservar un turno de mediodía. La opción
+          &quot;carta habitual&quot; aparece siempre, no hace falta cargarla. Un menú desactivado
+          deja de mostrarse sin perder su carga.
+        </p>
+
+        {menus.length === 0 && (
+          <p className="text-xs py-2" style={{ color: 'var(--text-xmuted)' }}>
+            Sin menús cargados: la web ofrece solo &quot;carta habitual&quot;.
+          </p>
+        )}
+
+        {menus.map(m => (
+          <div key={m.id} className="rounded-lg p-3 space-y-2"
+            style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', opacity: m.activo ? 1 : 0.55 }}>
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                value={m.nombre}
+                onChange={e => setMenu(m.id, 'nombre', e.target.value)}
+                placeholder="MENÚ 1 · SUSHI"
+                className="flex-1 min-w-[180px] px-3 py-2 rounded-lg text-sm font-semibold outline-none"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              />
+              <input
+                value={m.precio}
+                onChange={e => setMenu(m.id, 'precio', e.target.value.replace(/[^\d]/g, ''))}
+                placeholder="Precio $"
+                inputMode="numeric"
+                className="w-28 px-3 py-2 rounded-lg text-sm tabular-nums outline-none"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              />
+              <Toggle on={m.activo} onClick={() => setMenu(m.id, 'activo', !m.activo)} />
+              <button type="button" onClick={() => eliminarMenu(m.id)} title="Eliminar menú"
+                className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}>
+                <Trash2 size={14} />
+              </button>
+            </div>
+            <textarea
+              value={m.detalle}
+              onChange={e => setMenu(m.id, 'detalle', e.target.value)}
+              rows={3}
+              placeholder={'Un renglón por línea del menú, ej:\nEntrada: 2 u. de gyozas\nPrincipal: 12 piezas de sushi\nBebida: gaseosa o agua'}
+              className="w-full px-3 py-2 rounded-lg text-xs outline-none leading-relaxed"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            />
+          </div>
+        ))}
+      </div>
 
       {avisos.map((a, i) => (
         <div key={i} className="rounded-lg px-3 py-2 text-xs flex items-start gap-2"
