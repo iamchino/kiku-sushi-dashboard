@@ -129,26 +129,18 @@ function buildProductOptions(menuItems) {
   })
 }
 
-function StatusPill({ ok, label, detail, icon: Icon }) {
+function EstadoChip({ ok, label, detail, icon: Icon }) {
   return (
-    <div
-      className="flex items-center gap-3 rounded-lg px-3 py-3"
+    <span
+      className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-[11px] leading-none"
       style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}
+      title={`${label} — ${detail}`}
     >
-      <div
-        className="flex h-9 w-9 items-center justify-center rounded-lg"
-        style={{
-          background: ok ? 'rgba(52,211,153,0.12)' : 'rgba(251,191,36,0.12)',
-          color: ok ? '#34d399' : '#fbbf24',
-        }}
-      >
-        <Icon size={18} />
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{label}</p>
-        <p className="truncate text-xs" style={{ color: 'var(--text-muted)' }}>{detail}</p>
-      </div>
-    </div>
+      <Icon size={12} className="shrink-0" style={{ color: ok ? '#34d399' : '#fbbf24' }} />
+      <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+      <span aria-hidden="true" style={{ color: 'var(--border-card)' }}>·</span>
+      <span className="truncate" style={{ color: 'var(--text-muted)' }}>{detail}</span>
+    </span>
   )
 }
 
@@ -771,6 +763,26 @@ export default function CajaPage() {
             <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
               Mostrando: {dateFrom === dateTo ? dateFrom : `${dateFrom} → ${dateTo}`}
             </p>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <EstadoChip
+                ok
+                icon={Usb}
+                label="Comandera USB"
+                detail="Impresion desde Windows"
+              />
+              <EstadoChip
+                ok={arcaReady}
+                icon={ShieldCheck}
+                label="ARCA WSFE"
+                detail={arcaReady ? `PV ${config?.punto_venta}` : 'Conector pendiente'}
+              />
+              <EstadoChip
+                ok={Boolean(config?.cuit)}
+                icon={FileText}
+                label={config?.nombre_fantasia || 'Kiku Sushi'}
+                detail={config?.cuit ? `CUIT ${config.cuit}` : 'Datos fiscales pendientes'}
+              />
+            </div>
           </div>
           {puede('pagos') && (
             <button
@@ -833,28 +845,7 @@ export default function CajaPage() {
           )}
         </section>
 
-        <section className="grid gap-3 lg:grid-cols-3">
-          <StatusPill
-            ok
-            icon={Usb}
-            label="Comandera USB"
-            detail="Impresion desde Windows"
-          />
-          <StatusPill
-            ok={arcaReady}
-            icon={ShieldCheck}
-            label="ARCA WSFE"
-            detail={arcaReady ? `PV ${config?.punto_venta}` : 'Conector pendiente'}
-          />
-          <StatusPill
-            ok={Boolean(config?.cuit)}
-            icon={FileText}
-            label={config?.nombre_fantasia || 'Kiku Sushi'}
-            detail={config?.cuit ? `CUIT ${config.cuit}` : 'Datos fiscales pendientes'}
-          />
-        </section>
-
-        <section className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <section className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Stat label="Pedidos" value={stats.pedidos} />
           <Stat label="Pendientes facturación" value={stats.pendientes} color="#fbbf24" />
           <Stat label="Facturados" value={stats.facturados} color="#34d399" />
