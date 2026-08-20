@@ -1,11 +1,8 @@
 import { useState, useMemo } from 'react'
-import { PieChart, Wallet, ArrowDownCircle, Truck, Users, ChevronLeft, ChevronRight } from 'lucide-react'
+import { PieChart, CalendarClock, ChevronLeft, ChevronRight } from 'lucide-react'
 import { calcularPeriodo, shiftRef, localDateISO } from '../lib/finanzas'
 import ResumenFinanzas from '../components/finanzas/ResumenFinanzas'
-import CajasDiarias from '../components/finanzas/CajasDiarias'
-import EgresosSection from '../components/finanzas/EgresosSection'
-import ProveedoresPagos from '../components/finanzas/ProveedoresPagos'
-import SueldosSection from '../components/finanzas/SueldosSection'
+import ProyeccionPagos from '../components/finanzas/ProyeccionPagos'
 
 const GRANS = [
   { id: 'dia',  label: 'Día' },
@@ -13,12 +10,14 @@ const GRANS = [
   { id: 'anio', label: 'Año' },
 ]
 
+// Finanzas quedó en dos vistas: el Resumen (la foto del negocio, con cierres
+// de caja e historial de pagos desplegables adentro) y la Proyección de pagos
+// (lo comprometido a futuro). El resto se mudó a su lugar natural:
+// egresos/pagos a Caja → Pagos, proveedores a su propia pantalla y el legajo
+// de empleados a Personal → Empleados.
 const SECCIONES = [
-  { id: 'resumen',     label: 'Resumen',      icon: PieChart },
-  { id: 'cajas',       label: 'Cajas diarias', icon: Wallet },
-  { id: 'egresos',     label: 'Egresos',      icon: ArrowDownCircle },
-  { id: 'proveedores', label: 'Proveedores',  icon: Truck },
-  { id: 'sueldos',     label: 'Sueldos',      icon: Users },
+  { id: 'resumen',    label: 'Resumen',             icon: PieChart },
+  { id: 'proyeccion', label: 'Proyección de pagos', icon: CalendarClock },
 ]
 
 export default function FinanzasPage() {
@@ -45,34 +44,21 @@ export default function FinanzasPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Selector Día/Mes/Año */}
-          <div className="inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-            {GRANS.map(g => (
-              <button key={g.id} onClick={() => cambiarGran(g.id)}
-                className="px-3 py-2 text-xs font-semibold transition-colors"
-                style={gran === g.id
-                  ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)' }
-                  : { color: 'var(--text-secondary)' }}>
-                {g.label}
-              </button>
-            ))}
-          </div>
+          {/* Selector Día/Mes/Año (aplica al Resumen) */}
+          {seccion === 'resumen' && (
+            <div className="inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+              {GRANS.map(g => (
+                <button key={g.id} onClick={() => cambiarGran(g.id)}
+                  className="px-3 py-2 text-xs font-semibold transition-colors"
+                  style={gran === g.id
+                    ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)' }
+                    : { color: 'var(--text-secondary)' }}>
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
-
-      {/* Navegador de período */}
-      <div className="flex items-center justify-center gap-3">
-        <button onClick={() => setRefDate(d => shiftRef(gran, d, -1))}
-          className="p-1.5 rounded-lg transition-colors" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-          <ChevronLeft size={16} />
-        </button>
-        <span className="text-sm font-semibold capitalize min-w-[140px] text-center" style={{ color: 'var(--text-primary)' }}>{label}</span>
-        <button onClick={() => setRefDate(d => shiftRef(gran, d, 1))} disabled={esActual}
-          className="p-1.5 rounded-lg transition-colors disabled:opacity-30" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-          onMouseEnter={e => { if (!esActual) e.currentTarget.style.background = 'var(--bg-hover)' }} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-          <ChevronRight size={16} />
-        </button>
       </div>
 
       {/* Sub-tabs */}
@@ -92,13 +78,27 @@ export default function FinanzasPage() {
         })}
       </section>
 
+      {/* Navegador de período (solo Resumen: la proyección siempre mira al futuro) */}
+      {seccion === 'resumen' && (
+        <div className="flex items-center justify-center gap-3">
+          <button onClick={() => setRefDate(d => shiftRef(gran, d, -1))}
+            className="p-1.5 rounded-lg transition-colors" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+            <ChevronLeft size={16} />
+          </button>
+          <span className="text-sm font-semibold capitalize min-w-[140px] text-center" style={{ color: 'var(--text-primary)' }}>{label}</span>
+          <button onClick={() => setRefDate(d => shiftRef(gran, d, 1))} disabled={esActual}
+            className="p-1.5 rounded-lg transition-colors disabled:opacity-30" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+            onMouseEnter={e => { if (!esActual) e.currentTarget.style.background = 'var(--bg-hover)' }} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Contenido */}
       <div className="mt-1">
-        {seccion === 'resumen'     && <ResumenFinanzas   desde={desde} hasta={hasta} label={label} />}
-        {seccion === 'cajas'       && <CajasDiarias      desde={desde} hasta={hasta} />}
-        {seccion === 'egresos'     && <EgresosSection    desde={desde} hasta={hasta} label={label} />}
-        {seccion === 'proveedores' && <ProveedoresPagos  desde={desde} hasta={hasta} label={label} />}
-        {seccion === 'sueldos'     && <SueldosSection    desde={desde} hasta={hasta} label={label} />}
+        {seccion === 'resumen'    && <ResumenFinanzas desde={desde} hasta={hasta} label={label} />}
+        {seccion === 'proyeccion' && <ProyeccionPagos />}
       </div>
     </div>
   )

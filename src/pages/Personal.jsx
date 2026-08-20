@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, BadgeDollarSign, ListChecks, UserCog, QrCode, AlertTriangle, ShieldCheck } from 'lucide-react'
+import { ChevronLeft, ChevronRight, BadgeDollarSign, ListChecks, UserCog, Users, QrCode, AlertTriangle, ShieldCheck } from 'lucide-react'
 import { useHoras } from '../hooks/useHoras'
 import { useEmpleados } from '../hooks/useEmpleados'
 import { shiftSemana, esSemanaActual } from '../lib/horas'
@@ -8,11 +8,15 @@ import FichajesSection from '../components/personal/FichajesSection'
 import UsuariosSection from '../components/personal/UsuariosSection'
 import PuntosQRSection from '../components/personal/PuntosQRSection'
 import PermisosSection from '../components/personal/PermisosSection'
+import EmpleadosSection from '../components/personal/EmpleadosSection'
 import { usePermisos } from '../context/usePermisos'
 
 const SECCIONES = [
   { id: 'liquidacion', label: 'Liquidación', icon: BadgeDollarSign },
   { id: 'fichajes',    label: 'Fichajes',    icon: ListChecks },
+  // Legajo del equipo (antes en Finanzas → Sueldos): la ficha de cada
+  // empleado, sin pagos — esos van por Liquidación o Caja → Pagos.
+  { id: 'empleados',   label: 'Empleados',   icon: Users },
   { id: 'usuarios',    label: 'Usuarios',    icon: UserCog },
   { id: 'qr',          label: 'QR del local', icon: QrCode },
   // El tab de permisos aparece solo para quien tiene el recurso 'permisos'.
@@ -100,6 +104,7 @@ export default function PersonalPage() {
       <div className="mt-1">
         {seccion === 'liquidacion' && <LiquidacionSection horas={horas} enCurso={enCurso} />}
         {seccion === 'fichajes'    && <FichajesSection horas={horas} empleados={empleados} />}
+        {seccion === 'empleados'   && <EmpleadosSection />}
         {seccion === 'usuarios'    && <UsuariosSection empleados={empleados} />}
         {seccion === 'qr'          && <PuntosQRSection horas={horas} />}
         {seccion === 'permisos'    && puede('permisos') && <PermisosSection />}
