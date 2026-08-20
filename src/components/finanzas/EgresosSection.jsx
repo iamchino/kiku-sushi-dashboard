@@ -1,17 +1,19 @@
 import { useState, useMemo } from 'react'
-import { Edit2, Trash2, RefreshCw, AlertTriangle, ArrowDownCircle, Link2, Banknote } from 'lucide-react'
+import { Edit2, Trash2, RefreshCw, AlertTriangle, ArrowDownCircle, Link2, Plus } from 'lucide-react'
 import { useEgresos } from '../../hooks/useEgresos'
 import { useProveedores } from '../../hooks/useProveedores'
 import { useEmpleados } from '../../hooks/useEmpleados'
 import { fmtMoney, fmtFecha, catLabel, catColor, medioLabel, CATEGORIAS } from '../../lib/finanzas'
 import EgresoModal from './EgresoModal'
 import ConfirmDelete from './ConfirmDelete'
+import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 
 export default function EgresosSection({ desde, hasta, label }) {
   const { egresos, loading, error, refetch, actualizarEgreso, eliminarEgreso } = useEgresos(desde, hasta)
   const { proveedores } = useProveedores()
   const { empleados } = useEmpleados()
-  const [modal, setModal]       = useState(null)   // null | 'nuevo' | egreso
+  const [modal, setModal]       = useState(null)   // null | egreso a corregir
+  const [pagoModal, setPagoModal] = useState(false) // alta centralizada
   const [toDelete, setToDelete] = useState(null)
   const [filtroCat, setFiltroCat] = useState('todas')
   const [filtroEstado, setFiltroEstado] = useState('todos')
@@ -40,12 +42,13 @@ export default function EgresosSection({ desde, hasta, label }) {
             className="p-2 rounded-lg disabled:opacity-50 transition-all" style={{ border: '1px solid var(--border)' }}>
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} style={{ color: 'var(--text-muted)' }} />
           </button>
-          {/* El alta se hace desde Caja → Pagos: una sola puerta de entrada
-              para todos los egresos. Acá queda ver y corregir. */}
-          <span className="flex items-center gap-1.5 text-[11px] px-3 py-2 rounded-lg"
-            style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)' }}>
-            <Banknote size={12} /> Los pagos se registran en Caja y facturación → Pagos
-          </span>
+          {/* Misma alta que Caja → Pagos y que el arqueo: un solo formulario
+              para todos los egresos del negocio. Acá además se corrigen. */}
+          <button onClick={() => setPagoModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
+            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+            <Plus size={14} /> Registrar pago
+          </button>
         </div>
       </div>
 
@@ -81,7 +84,7 @@ export default function EgresosSection({ desde, hasta, label }) {
             <ArrowDownCircle size={22} style={{ color: 'var(--accent-lift)' }} />
           </div>
           <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>No hay egresos en el período</p>
-          <button onClick={() => setModal('nuevo')}
+          <button onClick={() => setPagoModal(true)}
             className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
             style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}>
             + Cargar el primero
@@ -142,9 +145,15 @@ export default function EgresosSection({ desde, hasta, label }) {
 
       {modal && (
         <EgresoModal
-          initial={modal !== 'nuevo' ? modal : null}
+          initial={modal}
           proveedores={proveedores} empleados={empleados}
           onClose={() => setModal(null)} onSave={handleSave}
+        />
+      )}
+      {pagoModal && (
+        <RegistrarPagoModal
+          onClose={() => setPagoModal(false)}
+          onRegistrado={() => refetch()}
         />
       )}
       {toDelete && (

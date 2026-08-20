@@ -8,7 +8,23 @@ import { supabase } from '../lib/supabase'
 // y, si hay turno de caja abierto y el pago es en efectivo, también el
 // movimiento que lo descuenta del arqueo. Todo o nada — nunca queda un egreso
 // sin su movimiento ni al revés.
-export function usePagos() {
+//
+// Opciones:
+//   lista      false para las pantallas que solo necesitan el alta (el modal
+//              compartido): evita traer el listado al pedo.
+//   desde/hasta 'YYYY-MM-DD' — filtran por la fecha del pago.
+//   categoria  id de CATEGORIAS, o null/'todas' para no filtrar.
+//   estado     'pagado' | 'pendiente', o null/'todos' para no filtrar.
+export function usePagos(opciones = {}) {
+  const {
+    lista = true,
+    desde = null,
+    hasta = null,
+    categoria = null,
+    estado = null,
+    limite = 200,
+  } = opciones
+
   const [pagos, setPagos]         = useState([])
   const [empleados, setEmpleados] = useState([])
   const [turnoAbierto, setTurnoAbierto] = useState(null)
@@ -18,12 +34,23 @@ export function usePagos() {
   const cargar = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const [pagosRes, empRes, turnoRes] = await Promise.all([
-        supabase
+      let pagosQuery = null
+      if (lista) {
+        let q = supabase
           .from('egresos')
           .select('*, proveedor:proveedores(razon_social), empleado:empleados(nombre, apellido)')
+          .order('fecha', { ascending: false })
           .order('created_at', { ascending: false })
-          .limit(30),
+          .limit(limite)
+        if (desde) q = q.gte('fecha', desde)
+        if (hasta) q = q.lte('fecha', hasta)
+        if (categoria && categoria !== 'todas') q = q.eq('categoria', categoria)
+        if (estado && estado !== 'todos') q = q.eq('estado', estado)
+        pagosQuery = q
+      }
+
+      const [pagosRes, empRes, turnoRes] = await Promise.all([
+        pagosQuery || Promise.resolve({ data: [], error: null }),
         // Solo id y nombre, vía RPC: no expone sueldo_base ni el legajo.
         supabase.rpc('empleados_para_pagos'),
         supabase.from('caja_turnos').select('id, apertura, created_at').eq('estado', 'abierto')
@@ -39,7 +66,7 @@ export function usePagos() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [lista, desde, hasta, categoria, estado, limite])
 
   useEffect(() => { cargar() }, [cargar])
 

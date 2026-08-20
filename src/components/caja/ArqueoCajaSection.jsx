@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   ArrowDownCircle,
   ArrowUpCircle,
+  ArrowUpRight,
   Banknote,
   Calculator,
   CheckCircle2,
@@ -22,6 +23,8 @@ import {
 } from 'lucide-react'
 import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, useCajaArqueo } from '../../hooks/useCajaArqueo'
 import { formatMoney } from '../../lib/printing'
+import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
+import { usePermisos } from '../../context/usePermisos'
 
 const TOLERANCIA_CAJA = 1000
 
@@ -223,7 +226,7 @@ function EmptyTurnoForm({ onOpen, saving, aperturaSugerida }) {
   )
 }
 
-function MovimientoForm({ turno, onSubmit, saving }) {
+function MovimientoForm({ turno, onSubmit, saving, onRegistrarPago }) {
   const [tipo, setTipo] = useState('ingreso')
   const [medio, setMedio] = useState('efectivo')
   const [monto, setMonto] = useState('')
@@ -267,23 +270,35 @@ function MovimientoForm({ turno, onSubmit, saving }) {
         <Field label="Tipo de movimiento">
           <div className="grid grid-cols-3 gap-2">
             {TIPOS_MOVIMIENTO_CAJA.map(item => {
-              const active = tipo === item.id
+              // Los egresos NO se cargan a mano: van por el alta centralizada
+              // de pagos, que crea el egreso y el movimiento de caja juntos.
+              const esPago = item.id === 'egreso' && Boolean(onRegistrarPago)
+              const active = !esPago && tipo === item.id
               const color = movimientoColor(item.id)
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => { setTipo(item.id); setError(null) }}
-                  className="rounded-lg px-3 py-2 text-center text-xs font-semibold transition-colors"
+                  title={esPago ? 'Se registra como pago: crea el egreso y lo descuenta de la caja del día' : undefined}
+                  onClick={esPago
+                    ? () => { setError(null); onRegistrarPago() }
+                    : () => { setTipo(item.id); setError(null) }}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-center text-xs font-semibold transition-colors"
                   style={active
                     ? { background: 'var(--accent-soft)', color, border: `1px solid ${color}` }
-                    : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                    : { background: 'var(--bg-input)', color: esPago ? color : 'var(--text-secondary)', border: '1px solid var(--border)' }}
                 >
                   {item.short}
+                  {esPago && <ArrowUpRight size={12} />}
                 </button>
               )
             })}
           </div>
+          {onRegistrarPago && (
+            <p className="mt-1.5 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              Los egresos se cargan como pago: en un solo paso queda el gasto registrado y descontado de la caja del día.
+            </p>
+          )}
         </Field>
 
         <Field label="Medio">
@@ -1282,6 +1297,11 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
   const [busy, setBusy] = useState(null)
   const [notice, setNotice] = useState(null)
   const [reabrirTarget, setReabrirTarget] = useState(null)
+  // Alta de egresos centralizada: el botón "Egreso" del formulario manual abre
+  // el mismo modal de Registrar pago que usan Caja → Pagos y Finanzas.
+  const [pagoModal, setPagoModal] = useState(false)
+  const { puedeEditar } = usePermisos()
+  const puedeRegistrarPagos = puedeEditar('pagos')
 
   const turnosReabiertos = useMemo(
     () => turnos.filter(turno => turno.estado === 'reabierto'),
@@ -1440,6 +1460,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
             turno={turnoActual}
             saving={busy === 'movimiento'}
             onSubmit={(values) => run('movimiento', () => registrarMovimiento(values), 'Movimiento registrado.')}
+            onRegistrarPago={puedeRegistrarPagos ? () => setPagoModal(true) : null}
           />
 
           <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
@@ -1490,6 +1511,14 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
           setReabrirTarget(null)
         }}
       />
+
+      {pagoModal && (
+        <RegistrarPagoModal
+          origenInicial="caja"
+          onClose={() => setPagoModal(false)}
+          onRegistrado={(mensaje) => { setNotice({ type: 'ok', text: mensaje }); refetch() }}
+        />
+      )}
     </section>
   )
 }

@@ -723,7 +723,9 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
 }
 
 export default function CajaPage() {
-  const [rango, setRango]           = useState('hoy')
+  // Arranca en la semana: mirar solo el día dejaba afuera los pedidos de
+  // anoche, que es lo primero que se busca al abrir la pantalla.
+  const [rango, setRango]           = useState('semana')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo,   setCustomTo]   = useState('')
 
