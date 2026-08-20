@@ -66,14 +66,34 @@ export function useFacturacion(options = {}) {
     const start = from.toISOString()
     const end   = to.toISOString()
 
+    const ITEMS_SELECT = 'pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id)'
+    const PAGOS_SELECT = 'pagos(id, medio_pago, monto, numero_operacion, notas, created_at)'
+
     const pedidosQuery = supabase
       .from('pedidos')
-      .select('*, pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id), comprobantes_fiscales(*)')
+      .select(`*, ${ITEMS_SELECT}, comprobantes_fiscales(*), ${PAGOS_SELECT}`)
       .gte('created_at', start)
       .lte('created_at', end)
       .order('created_at', { ascending: false })
 
     let { data: pedidosData, error: pedidosError } = await pedidosQuery
+
+    // Si el embed de `pagos` no está disponible (rol sin acceso a la tabla,
+    // instancia sin la migración de pagos), se reintenta sin él: la pantalla
+    // sigue funcionando, sólo se pierde el detalle de forma de pago.
+    if (pedidosError) {
+      const sinPagos = await supabase
+        .from('pedidos')
+        .select(`*, ${ITEMS_SELECT}, comprobantes_fiscales(*)`)
+        .gte('created_at', start)
+        .lte('created_at', end)
+        .order('created_at', { ascending: false })
+
+      if (!sinPagos.error) {
+        pedidosData = sinPagos.data
+        pedidosError = null
+      }
+    }
 
     if (pedidosError) {
       const fallback = await supabase
@@ -111,6 +131,7 @@ export function useFacturacion(options = {}) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedido_items' }, fetchData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comprobantes_fiscales' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pagos' }, fetchData)
       .subscribe()
 
     return () => supabase.removeChannel(channel)

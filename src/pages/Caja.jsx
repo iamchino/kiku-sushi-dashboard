@@ -17,12 +17,13 @@ import {
   Trash2,
   Usb,
   WalletCards,
-  X, Banknote, Landmark } from 'lucide-react'
+  X, Banknote, Landmark, ChevronDown } from 'lucide-react'
 import { useFacturacion } from '../hooks/useFacturacion'
 import { supabase } from '../lib/supabase'
 import { esNotaCredito, formatReceiptNumber, getAuthorizedComprobante, getNotasCredito, nombreComprobante } from '../lib/fiscal'
 import { formatMoney } from '../lib/printing'
 import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../lib/orders'
+import { colorMedioPago, etiquetaMedioPago, lineasDePago, resumenMediosPago } from '../lib/pagosPedido'
 import ArqueoCajaSection from '../components/caja/ArqueoCajaSection'
 import PagosPanel from '../components/caja/PagosPanel'
 import CajaFuertePanel from '../components/caja/CajaFuertePanel'
@@ -144,11 +145,40 @@ function EstadoChip({ ok, label, detail, icon: Icon }) {
   )
 }
 
-function Stat({ label, value, color = 'var(--accent-lift)' }) {
+// Caja de métricas agrupadas: un recuadro por tema, con su color propio.
+function GrupoMetricas({ titulo, color, icon: Icon, children }) {
   return (
-    <div className="rounded-lg px-3 py-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
-      <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{label}</p>
-      <p className="mt-1 text-xl font-bold" style={{ color }}>{value}</p>
+    <div
+      className="overflow-hidden rounded-lg"
+      style={{ background: 'var(--bg-card)', border: `1px solid ${color}59`, boxShadow: 'var(--shadow-card)' }}
+    >
+      <div className="flex items-center gap-2 px-3 py-2" style={{ background: `${color}1f` }}>
+        <Icon size={13} style={{ color }} />
+        <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color }}>{titulo}</p>
+      </div>
+      <div className="py-0.5">
+        {children}
+      </div>
+    </div>
+  )
+}
+
+// Fila de una caja de métricas: etiqueta a la izquierda, valor a la derecha.
+function FilaMetrica({ label, value, hint, color = 'var(--text-primary)', apagado = false, fuerte = false }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 px-3 py-1.5">
+      <span className="truncate text-xs" style={{ color: apagado ? 'var(--text-muted)' : 'var(--text-secondary)' }}>
+        {label}
+      </span>
+      <span className="flex shrink-0 items-baseline gap-1.5">
+        {hint && <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{hint}</span>}
+        <span
+          className={fuerte ? 'text-base font-bold' : 'text-sm font-bold'}
+          style={{ color: apagado ? 'var(--text-muted)' : color }}
+        >
+          {value}
+        </span>
+      </span>
     </div>
   )
 }
@@ -487,6 +517,14 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
   const descuento = clampDiscount(pedido.descuento_porcentaje)
   const comprobanteLabel = comprobante ? nombreComprobante(comprobante.tipo_cbte) : null
 
+  // Forma de pago: chip en la cabecera, detalle desplegable al clickearlo.
+  const [verPago, setVerPago] = useState(false)
+  const pagoLineas = lineasDePago(pedido)
+  const pagoDividido = pagoLineas.length > 1
+  const totalCobrado = pagoLineas.reduce((acc, l) => acc + l.monto, 0)
+  const pagoColor = pagoDividido ? 'var(--accent-lift)' : colorMedioPago(pagoLineas[0]?.medio)
+  const pagoLabel = pagoDividido ? 'Pago dividido' : etiquetaMedioPago(pagoLineas[0]?.medio)
+
   return (
     <article
       className="rounded-lg p-4"
@@ -507,6 +545,29 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
             <span className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
               <Clock size={11} /> {date}
             </span>
+            {pagoLineas.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setVerPago(v => !v)}
+                aria-expanded={verPago}
+                title="Ver detalle del cobro"
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors"
+                style={{ background: 'var(--bg-input)', color: pagoColor, border: `1px solid ${'var(--border)'}` }}
+              >
+                <Banknote size={11} />
+                {pagoLabel}
+                <ChevronDown size={11} className={verPago ? 'rotate-180 transition-transform' : 'transition-transform'} />
+              </button>
+            ) : (
+              <span
+                title="La orden todavía no registra cobro"
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}
+              >
+                <Banknote size={11} />
+                Sin cobro
+              </span>
+            )}
           </div>
           <div className="mt-3 space-y-1">
             {items.slice(0, 4).map(item => (
@@ -568,6 +629,47 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
           )}
         </div>
       </div>
+
+      {verPago && pagoLineas.length > 0 && (
+        <div
+          className="mt-3 rounded-lg px-3 py-2"
+          style={{ background: 'var(--bg-input)', border: '1px solid var(--border-card)' }}
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+            Detalle del cobro
+          </p>
+          <div className="mt-1.5 space-y-1">
+            {pagoLineas.map((linea, i) => (
+              <div key={`${linea.medio}-${i}`} className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  <span className="inline-block h-2 w-2 rounded-full" style={{ background: colorMedioPago(linea.medio) }} />
+                  {etiquetaMedioPago(linea.medio)}
+                  {linea.nroOp && <span style={{ color: 'var(--text-muted)' }}>· op. {linea.nroOp}</span>}
+                  {linea.at && (
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      · {new Date(linea.at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                </span>
+                <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                  ${formatMoney(linea.monto)}
+                </span>
+              </div>
+            ))}
+          </div>
+          {pagoDividido && (
+            <div className="mt-1.5 flex items-baseline justify-between gap-2 border-t pt-1.5" style={{ borderColor: 'var(--border-card)' }}>
+              <span className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>Total cobrado</span>
+              <span className="text-xs font-bold" style={{ color: 'var(--accent-lift)' }}>${formatMoney(totalCobrado)}</span>
+            </div>
+          )}
+          {pagoLineas.some(l => l.estimado) && (
+            <p className="mt-1.5 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              Medio informado en el pedido: no hay cobro registrado en caja.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
         <button
@@ -657,6 +759,8 @@ export default function CajaPage() {
   const [seccion, setSeccion] = useState('facturacion')
   const { puede } = usePermisos()
   const seccionesVisibles = SECCIONES_CAJA.filter(t => !t.recurso || puede(t.recurso))
+
+  const resumenPagos = useMemo(() => resumenMediosPago(pedidos), [pedidos])
 
   const filteredPedidos = useMemo(() => {
     if (filter === 'todos') return pedidos
@@ -845,13 +949,46 @@ export default function CajaPage() {
           )}
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Stat label="Pedidos" value={stats.pedidos} />
-          <Stat label="Pendientes facturación" value={stats.pendientes} color="#fbbf24" />
-          <Stat label="Facturados" value={stats.facturados} color="#34d399" />
-          <Stat label="Notas Crédito" value={stats.notasCredito} color="#f87171" />
-          <Stat label="Total facturado" value={`$${formatMoney(stats.totalFacturado)}`} color="#4f8ef7" />
-          <Stat label="Neto (post-NC)" value={`$${formatMoney(stats.netoFacturado)}`} color="var(--accent-lift)" />
+        <section className="grid gap-3 lg:grid-cols-3">
+          <GrupoMetricas titulo="Facturación" color="#f97316" icon={Receipt}>
+            <FilaMetrica label="Pedidos" value={stats.pedidos} />
+            <FilaMetrica label="Pendientes facturación" value={stats.pendientes} color="#fbbf24" apagado={stats.pendientes === 0} />
+            <FilaMetrica label="Facturados" value={stats.facturados} color="#34d399" apagado={stats.facturados === 0} />
+            <FilaMetrica label="Notas de crédito" value={stats.notasCredito} color="#f87171" apagado={stats.notasCredito === 0} />
+          </GrupoMetricas>
+
+          <GrupoMetricas titulo="Formas de pago" color="#4f8ef7" icon={Banknote}>
+            {resumenPagos.medios.map(medio => (
+              <FilaMetrica
+                key={medio.id}
+                label={medio.label}
+                value={`$${formatMoney(medio.monto)}`}
+                hint={medio.cobros > 0 ? `${medio.cobros} ${medio.cobros === 1 ? 'cobro' : 'cobros'}` : null}
+                color={medio.color}
+                apagado={medio.cobros === 0}
+              />
+            ))}
+            {resumenPagos.sinRegistrar > 0 && (
+              <FilaMetrica
+                label="Sin cobro registrado"
+                value={`${resumenPagos.sinRegistrar} ${resumenPagos.sinRegistrar === 1 ? 'orden' : 'órdenes'}`}
+                color="#fbbf24"
+              />
+            )}
+            <FilaMetrica label="Total cobrado" value={`$${formatMoney(resumenPagos.totalCobrado)}`} fuerte />
+          </GrupoMetricas>
+
+          <GrupoMetricas titulo="Totales" color="#34d399" icon={WalletCards}>
+            <FilaMetrica label="Vendido (pedidos)" value={`$${formatMoney(stats.total)}`} />
+            <FilaMetrica label="Total facturado" value={`$${formatMoney(stats.totalFacturado)}`} color="#4f8ef7" />
+            <FilaMetrica
+              label="Notas de crédito"
+              value={`-$${formatMoney(stats.totalNotasCredito)}`}
+              color="#f87171"
+              apagado={!stats.totalNotasCredito}
+            />
+            <FilaMetrica label="Neto (post-NC)" value={`$${formatMoney(stats.netoFacturado)}`} color="var(--accent-lift)" fuerte />
+          </GrupoMetricas>
         </section>
 
         {(error || setupWarning || notice || !arcaReady) && (
