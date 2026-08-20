@@ -88,7 +88,12 @@ export default function RegistrarPagoModal({ onClose, onRegistrado, origenInicia
         {esEfectivo && !pendiente && (
           <Select label="¿De dónde sale el efectivo?" value={origenEfectivo} onChange={set('origen')}
             options={[
-              ...(turnoAbierto ? [{ value: 'caja', label: 'Caja del día / turno abierto (descuenta del arqueo)' }] : []),
+              // La opción de la caja del día se muestra siempre: si no hay
+              // turno abierto queda deshabilitada, para que se entienda que
+              // existe y qué hace falta para usarla.
+              turnoAbierto
+                ? { value: 'caja', label: 'Caja del día / turno abierto (descuenta del arqueo)' }
+                : { value: 'caja', label: 'Caja del día — necesita un turno abierto', disabled: true },
               { value: 'caja_fuerte', label: 'Caja fuerte (descuenta de su saldo)' },
               { value: 'ninguno', label: 'Otro efectivo / sin registrar origen' },
             ]} />

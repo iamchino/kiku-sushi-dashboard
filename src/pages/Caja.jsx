@@ -890,16 +890,6 @@ export default function CajaPage() {
               />
             </div>
           </div>
-          {puede('pagos') && (
-            <button
-              onClick={() => setSeccion('pagos')}
-              className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-white transition-colors"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
-            >
-              <Banknote size={15} />
-              Pagos
-            </button>
-          )}
           <button
             onClick={refetch}
             disabled={loading}

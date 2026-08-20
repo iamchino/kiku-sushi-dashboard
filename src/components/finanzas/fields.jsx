@@ -51,7 +51,7 @@ export function Select({ label, value, onChange, options, required }) {
         onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
       >
         {options.map(o => (
-          <option key={o.value} value={o.value}>{o.label}</option>
+          <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>
         ))}
       </select>
     </div>
