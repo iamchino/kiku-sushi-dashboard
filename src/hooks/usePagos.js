@@ -53,13 +53,21 @@ export function usePagos(opciones = {}) {
         pagosQuery || Promise.resolve({ data: [], error: null }),
         // Solo id y nombre, vía RPC: no expone sueldo_base ni el legajo.
         supabase.rpc('empleados_para_pagos'),
-        supabase.from('caja_turnos').select('id, apertura, created_at').eq('estado', 'abierto')
+        // OJO: la columna del monto de apertura es `apertura_monto`. Pedir una
+        // columna inexistente hace fallar TODA la consulta, y como el turno se
+        // resuelve a null en silencio, la pantalla creía siempre que la caja
+        // estaba cerrada (y los pagos en efectivo se iban a la caja fuerte).
+        supabase.from('caja_turnos').select('id, apertura_monto, business_date, created_at')
+          .eq('estado', 'abierto')
           .order('created_at', { ascending: false }).limit(1).maybeSingle(),
       ])
       if (pagosRes.error) throw pagosRes.error
       // empleados puede fallar sin permiso; no bloquea el resto
       setPagos(pagosRes.data || [])
       setEmpleados(empRes.error ? [] : (empRes.data || []))
+      // Un error acá (rol sin acceso a caja_turnos) no rompe el alta: se
+      // asume caja cerrada. Se avisa por consola para que no pase inadvertido.
+      if (turnoRes.error) console.warn('[usePagos] no se pudo leer el turno de caja:', turnoRes.error.message)
       setTurnoAbierto(turnoRes.error ? null : turnoRes.data)
     } catch (err) {
       setError(err.message)

@@ -37,8 +37,11 @@ export default function RegistrarPagoModal({ onClose, onRegistrado, origenInicia
 
   // 'auto' se resuelve en la base: con turno abierto sale de la caja del día,
   // sin turno no toca nada. Se muestra ya resuelto para que el select no mienta.
-  // Sin turno abierto, 'caja' no es una opción válida: cae a la caja fuerte.
-  const origenEfectivo = (form.origen === 'auto' || (form.origen === 'caja' && !turnoAbierto))
+  // El resto de los orígenes se respetan tal cual los eligió el usuario: la
+  // opción de la caja del día NUNCA se pisa ni se bloquea — si al final no hay
+  // turno abierto, es el RPC el que avisa (y así un problema al leer el turno
+  // no deja a nadie sin poder cargar el pago donde corresponde).
+  const origenEfectivo = form.origen === 'auto'
     ? (turnoAbierto ? 'caja' : 'caja_fuerte')
     : form.origen
 
@@ -48,7 +51,9 @@ export default function RegistrarPagoModal({ onClose, onRegistrado, origenInicia
       ? 'Se vincula al turno abierto, pero al no ser efectivo no toca el arqueo.'
       : 'No es efectivo: se registra sin tocar ninguna caja.'
     if (origenEfectivo === 'caja_fuerte') return 'Sale de la CAJA FUERTE: descuenta de su saldo, no toca el arqueo del turno.'
-    if (origenEfectivo === 'caja') return 'Sale de la CAJA DEL DÍA (turno abierto): el arqueo lo descuenta automáticamente.'
+    if (origenEfectivo === 'caja') return turnoAbierto
+      ? 'Sale de la CAJA DEL DÍA (turno abierto): el arqueo lo descuenta automáticamente.'
+      : 'No veo ningún turno de caja abierto. Si guardás así, la base va a rechazar el pago: abrí el turno en Arqueo o elegí otro origen.'
     return 'Efectivo sin origen registrado: no descuenta de la caja ni de la caja fuerte.'
   }, [pendiente, turnoAbierto, esEfectivo, origenEfectivo])
 
@@ -88,12 +93,14 @@ export default function RegistrarPagoModal({ onClose, onRegistrado, origenInicia
         {esEfectivo && !pendiente && (
           <Select label="¿De dónde sale el efectivo?" value={origenEfectivo} onChange={set('origen')}
             options={[
-              // La opción de la caja del día se muestra siempre: si no hay
-              // turno abierto queda deshabilitada, para que se entienda que
-              // existe y qué hace falta para usarla.
-              turnoAbierto
-                ? { value: 'caja', label: 'Caja del día / turno abierto (descuenta del arqueo)' }
-                : { value: 'caja', label: 'Caja del día — necesita un turno abierto', disabled: true },
+              // Siempre seleccionable: si no hay turno abierto se avisa en el
+              // texto de abajo y, en última instancia, lo valida la base.
+              {
+                value: 'caja',
+                label: turnoAbierto
+                  ? 'Caja del día / turno abierto (descuenta del arqueo)'
+                  : 'Caja del día / turno abierto (no veo un turno abierto)',
+              },
               { value: 'caja_fuerte', label: 'Caja fuerte (descuenta de su saldo)' },
               { value: 'ninguno', label: 'Otro efectivo / sin registrar origen' },
             ]} />
