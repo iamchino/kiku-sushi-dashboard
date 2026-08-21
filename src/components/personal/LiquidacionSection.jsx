@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { BadgeDollarSign, Trash2, Clock, Pencil } from 'lucide-react'
 import { fmtMoney, fmtFecha } from '../../lib/finanzas'
-import { fmtMinutos, fmtHorasCompacto, fmtHora, diasDeLaSemana } from '../../lib/horas'
+import { fmtMinutos, fmtHorasCompacto, fmtHora, fmtFechaHora, diasDeLaSemana } from '../../lib/horas'
 import { ModalShell, Field } from '../finanzas/fields'
 import ConfirmDelete from '../finanzas/ConfirmDelete'
 
@@ -21,9 +21,10 @@ const CHIP = {
 export default function LiquidacionSection({ horas, enCurso }) {
   const {
     semana, resumen, liquidaciones, liquidacionesDia, horasDia, jornadasDia, sueldos,
-    fichajes, actualizarFichaje, anularLiquidacionDia, eliminarLiquidacion, loading,
+    fichajes, actualizarFichaje, eliminarFichaje, anularLiquidacionDia, eliminarLiquidacion, loading,
   } = horas
   const [editJornada, setEditJornada] = useState(null) // { jornada, empleado_id, nombre }
+  const [delJornada, setDelJornada] = useState(null) // { jornada, empleado_id, nombre }
   const [delLiq, setDelLiq]       = useState(null)
   const [delDia, setDelDia]       = useState(null)
   const [busy, setBusy]           = useState(false)
@@ -50,6 +51,31 @@ export default function LiquidacionSection({ horas, enCurso }) {
 
   const totalSemana = filas.reduce((s, f) => s + Number(f.liq ? f.liq.total : f.total), 0)
   const totalJornales = liquidacionesDia.reduce((s, l) => s + Number(l.total || 0), 0)
+  // Borrado de una jornada desde la tira: elimina LAS DOS marcas (entrada y
+  // salida) que la forman. Es la salida de emergencia para una jornada que
+  // quedó mal armada — por ejemplo una salida de madrugada que se registró
+  // como entrada y quedó apareada con la entrada del día siguiente.
+  const handleEliminarJornada = async () => {
+    if (!delJornada) return
+    const { jornada, empleado_id } = delJornada
+    setBusy(true); setError(null)
+    try {
+      const eq = (a, b) => new Date(a).getTime() === new Date(b).getTime()
+      const fe = fichajes.find(x => x.empleado_id === empleado_id && x.tipo === 'entrada' && eq(x.ts, jornada.entrada))
+      const fs = fichajes.find(x => x.empleado_id === empleado_id && x.tipo === 'salida'  && eq(x.ts, jornada.salida))
+      if (!fe && !fs) {
+        throw new Error('No encontré las marcas de esa jornada. Borralas desde la pestaña Fichajes.')
+      }
+      if (fe) await eliminarFichaje(fe.id)
+      if (fs) await eliminarFichaje(fs.id)
+      setDelJornada(null)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   // Corrección de una jornada desde la tira: ajusta las marcas reales de
   // fichaje (entrada/salida). Queda como corrección manual y recalcula todo.
   const handleEditarJornada = async ({ fecha, horaEntrada, horaSalida }) => {
@@ -187,7 +213,10 @@ export default function LiquidacionSection({ horas, enCurso }) {
                    detalles={jornadasDia?.[f.empleado_id] || {}}
                    onEditar={f.liq
                      ? null // con la semana ya cerrada, primero eliminar el cierre
-                     : (j) => { setError(null); setEditJornada({ jornada: j, empleado_id: f.empleado_id, nombre: f.nombre }) }} />
+                     : (j) => { setError(null); setEditJornada({ jornada: j, empleado_id: f.empleado_id, nombre: f.nombre }) }}
+                   onEliminar={f.liq
+                     ? null
+                     : (j) => { setError(null); setDelJornada({ jornada: j, empleado_id: f.empleado_id, nombre: f.nombre }) }} />
                )}
               </div>
             )
@@ -238,6 +267,12 @@ export default function LiquidacionSection({ horas, enCurso }) {
           onClose={() => setEditJornada(null)} onConfirm={handleEditarJornada} />
       )}
 
+      {delJornada && (
+        <ConfirmDelete titulo="Eliminar jornada"
+          mensaje={`¿Borrás la jornada de ${delJornada.nombre} del ${fmtFechaHora(delJornada.jornada.entrada)} (${fmtHora(delJornada.jornada.entrada)} → ${fmtHora(delJornada.jornada.salida)})? Se eliminan las DOS marcas, la de entrada y la de salida. Cambia el cálculo de horas.`}
+          onClose={() => setDelJornada(null)} onConfirm={handleEliminarJornada} />
+      )}
+
       {delLiq && (
         <ConfirmDelete titulo="Eliminar liquidación"
           mensaje="Se elimina el cierre (vuelve a 'Sin liquidar'). Los fichajes no se tocan."
@@ -256,7 +291,7 @@ export default function LiquidacionSection({ horas, enCurso }) {
 // Tira de horas por día (lun→dom) bajo el total del empleado. Cada celda
 // muestra el día y sus horas; tocando un día con horas se despliega el
 // detalle de cada jornada: de qué hora a qué hora.
-function DiaStrip({ dias, porDia, detalles, onEditar }) {
+function DiaStrip({ dias, porDia, detalles, onEditar, onEliminar }) {
   const [sel, setSel] = useState(null)
   const jornadasSel = sel ? (detalles?.[sel] || []) : []
   const diaSel = sel ? dias.find(d => d.iso === sel) : null
@@ -318,13 +353,21 @@ function DiaStrip({ dias, porDia, detalles, onEditar }) {
                 {fmtHora(j.entrada)} → {fmtHora(j.salida)}
               </span>
               <span className="flex items-center gap-2">
-                <span style={{ color: 'var(--text-muted)' }}>{fmtMinutos(j.minutos)}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{fmtMinutos(j.minutos_reales ?? j.minutos)}</span>
                 {onEditar && (
                   <button type="button" onClick={() => onEditar(j)} title="Corregir entrada/salida"
                     className="p-1 rounded transition-colors" style={{ color: 'var(--accent-lift)' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <Pencil size={11} />
+                  </button>
+                )}
+                {onEliminar && (
+                  <button type="button" onClick={() => onEliminar(j)} title="Eliminar esta jornada (borra las dos marcas)"
+                    className="p-1 rounded transition-colors" style={{ color: 'var(--text-muted)' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.12)'; e.currentTarget.style.color = '#f87171' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}>
+                    <Trash2 size={11} />
                   </button>
                 )}
               </span>
