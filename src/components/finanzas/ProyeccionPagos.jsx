@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, CalendarClock, CheckCircle2, Edit2, Flame } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CheckCircle2, Edit2, Flame, Plus } from 'lucide-react'
 import { useEgresos } from '../../hooks/useEgresos'
 import { useProveedores } from '../../hooks/useProveedores'
 import { useEmpleados } from '../../hooks/useEmpleados'
 import { fmtMoney, fmtFecha, catLabel, catColor, localDateISO } from '../../lib/finanzas'
 import EgresoModal from './EgresoModal'
+import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 
 // Proyección de pagos: lo pendiente de pagar, separado en dos naturalezas:
 //
@@ -100,10 +101,12 @@ function Grupo({ titulo, color, items, hoy, onEditar }) {
 
 export default function ProyeccionPagos() {
   // Sin rango: las cuentas por pagar importan todas, sea cual sea su fecha.
-  const { pendientes, loading, error, actualizarEgreso } = useEgresos(null, null)
+  const { pendientes, loading, error, actualizarEgreso, refetch } = useEgresos(null, null)
   const { proveedores } = useProveedores()
   const { empleados } = useEmpleados()
   const [editando, setEditando] = useState(null)
+  const [nueva, setNueva] = useState(false)
+  const [aviso, setAviso] = useState(null)
 
   const hoy = localDateISO()
 
@@ -138,6 +141,24 @@ export default function ProyeccionPagos() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-end justify-between flex-wrap gap-3">
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          Lo que falta pagar: cuánto y cuándo. Los pagos ya hechos están en el Resumen.
+        </p>
+        <button onClick={() => { setAviso(null); setNueva(true) }}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
+          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          <Plus size={14} /> Nueva proyección de pago
+        </button>
+      </div>
+
+      {aviso && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
+          style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', color: 'var(--accent-lift)' }}>
+          <CheckCircle2 size={14} /> {aviso}
+        </div>
+      )}
+
       {/* Deuda vs proyección: dos números distintos, no una sola bolsa */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="rounded-xl p-4"
@@ -178,6 +199,11 @@ export default function ProyeccionPagos() {
             <CheckCircle2 size={22} style={{ color: '#10b981' }} />
           </div>
           <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>No hay pagos pendientes</p>
+          <button onClick={() => { setAviso(null); setNueva(true) }}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}>
+            + Cargar la primera
+          </button>
         </div>
       ) : (
         <>
@@ -194,6 +220,15 @@ export default function ProyeccionPagos() {
             para pagarlo registralo en Caja → Pagos o marcalo pagado con el lápiz
           </p>
         </>
+      )}
+
+      {nueva && (
+        <RegistrarPagoModal
+          estadoInicial="pendiente"
+          titulo="Nueva proyección de pago"
+          onClose={() => setNueva(false)}
+          onRegistrado={(mensaje) => { setAviso(mensaje); refetch() }}
+        />
       )}
 
       {editando && (

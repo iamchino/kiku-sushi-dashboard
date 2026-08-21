@@ -19,13 +19,21 @@ import { CATEGORIAS, MEDIOS_PAGO, localDateISO } from '../../lib/finanzas'
 //   · tarjetas / cheque            → se registran sin mover caja ni banco
 //
 // El trabajo transaccional lo hace el RPC registrar_pago().
-export default function RegistrarPagoModal({ onClose, onRegistrado, origenInicial = null }) {
+export default function RegistrarPagoModal({
+  onClose,
+  onRegistrado,
+  origenInicial = null,
+  // 'pendiente' arranca el formulario como cuenta por pagar (una proyección):
+  // no mueve plata todavía y pide fecha de vencimiento.
+  estadoInicial = 'pagado',
+  titulo = 'Registrar pago',
+}) {
   const { empleados, turnoAbierto, bancoCuenta, registrarPago } = usePagos({ lista: false })
   const { proveedores } = useProveedores()
 
   const [form, setForm] = useState({
     categoria: 'proveedores', descripcion: '', monto: '', medio_pago: 'efectivo',
-    estado: 'pagado', fecha: localDateISO(), proveedor_id: '', empleado_id: '',
+    estado: estadoInicial, fecha: localDateISO(), proveedor_id: '', empleado_id: '',
     subtipo: '', periodo: '', vencimiento: '', comprobante_nro: '', notas: '',
     origen: origenInicial || 'auto',
   })
@@ -82,7 +90,9 @@ export default function RegistrarPagoModal({ onClose, onRegistrado, origenInicia
     try {
       const resultado = await registrarPago({ ...form, origen: origenResuelto })
       onRegistrado?.(
-        resultado?.origen === 'banco'
+        form.estado === 'pendiente'
+          ? 'Pago pendiente agregado a la proyección. Cuando lo pagues, marcalo pagado con el lápiz.'
+          : resultado?.origen === 'banco'
           ? (resultado?.descuenta_arqueo
               ? `Pago registrado. Salió de ${bancoCuenta}: el esperado en transferencias del turno ya lo descuenta.`
               : `Pago registrado. Salió de ${bancoCuenta} (no había turno abierto al que imputarlo).`)
@@ -103,7 +113,7 @@ export default function RegistrarPagoModal({ onClose, onRegistrado, origenInicia
   }
 
   return (
-    <ModalShell title="Registrar pago" icon={Wallet} onClose={onClose} maxW="max-w-md">
+    <ModalShell title={titulo} icon={Wallet} onClose={onClose} maxW="max-w-md">
       <div className="p-5 space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <Select label="Categoría" value={form.categoria} onChange={set('categoria')} required
@@ -175,7 +185,7 @@ export default function RegistrarPagoModal({ onClose, onRegistrado, origenInicia
         <button onClick={guardar} disabled={busy || !valido}
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
-          {busy ? 'Registrando…' : 'Registrar pago'}
+          {busy ? 'Registrando…' : (pendiente ? 'Agregar a la proyección' : 'Registrar pago')}
         </button>
       </div>
     </ModalShell>
