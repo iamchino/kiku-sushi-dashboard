@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   TrendingUp, TrendingDown, ArrowDownCircle, Wallet, Percent, AlertTriangle,
-  CalendarClock, CheckCircle2, ChevronDown, Edit2, History,
+  CalendarClock, CheckCircle2, ChevronDown, Edit2, History, Trash2,
 } from 'lucide-react'
 import { useFinanzas } from '../../hooks/useFinanzas'
 import { useEgresos } from '../../hooks/useEgresos'
@@ -9,6 +9,7 @@ import { useProveedores } from '../../hooks/useProveedores'
 import { useEmpleados } from '../../hooks/useEmpleados'
 import { fmtMoney, fmtFecha, catLabel, catColor, medioLabel } from '../../lib/finanzas'
 import EgresoModal from './EgresoModal'
+import ConfirmDelete from './ConfirmDelete'
 
 // Resumen de Finanzas: la "foto del negocio" en una sola pantalla, pensada
 // para leerse de un vistazo sin conocer el sistema. Todo lo que se puede
@@ -156,11 +157,12 @@ function CierresDeCaja({ turnos }) {
 // Historial de pagos del período. El alta vive en Caja → Pagos; acá se ve
 // todo lo pagado y se puede corregir un pago puntual.
 function HistorialDePagos({ desde, hasta }) {
-  const { egresos, loading, error, actualizarEgreso } = useEgresos(desde, hasta)
+  const { egresos, loading, error, actualizarEgreso, eliminarEgreso } = useEgresos(desde, hasta)
   const { proveedores } = useProveedores()
   const { empleados } = useEmpleados()
   const [verTodos, setVerTodos] = useState(false)
   const [editando, setEditando] = useState(null)
+  const [borrando, setBorrando] = useState(null)
 
   const visibles = verTodos ? egresos : egresos.slice(0, 6)
 
@@ -198,6 +200,12 @@ function HistorialDePagos({ desde, hasta }) {
                 onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
                 <Edit2 size={12} />
               </button>
+              <button onClick={() => setBorrando(e)} title="Eliminar este pago"
+                className="p-1 rounded-md transition-colors" style={{ color: 'var(--text-xmuted)' }}
+                onMouseEnter={ev => { ev.currentTarget.style.background = 'rgba(248,113,113,0.12)'; ev.currentTarget.style.color = '#f87171' }}
+                onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--text-xmuted)' }}>
+                <Trash2 size={12} />
+              </button>
             </div>
           </div>
         ))}
@@ -215,12 +223,20 @@ function HistorialDePagos({ desde, hasta }) {
 
       {editando && (
         <EgresoModal
+          title="Editar pago"
           initial={editando}
           proveedores={proveedores}
           empleados={empleados}
           onClose={() => setEditando(null)}
           onSave={async (form) => { await actualizarEgreso(editando.id, form) }}
         />
+      )}
+
+      {borrando && (
+        <ConfirmDelete titulo="Eliminar pago"
+          mensaje={`¿Borrás "${borrando.descripcion}" por ${fmtMoney(borrando.monto)}? Desaparece del historial y de los totales del período. Si salió de una caja, el movimiento de esa caja NO se revierte solo.`}
+          onClose={() => setBorrando(null)}
+          onConfirm={async () => { await eliminarEgreso(borrando.id) }} />
       )}
     </div>
   )

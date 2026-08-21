@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, CalendarClock, CheckCircle2, Edit2, Flame, Plus } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CheckCircle2, Edit2, Flame, Plus, Trash2 } from 'lucide-react'
 import { useEgresos } from '../../hooks/useEgresos'
 import { useProveedores } from '../../hooks/useProveedores'
 import { useEmpleados } from '../../hooks/useEmpleados'
-import { fmtMoney, fmtFecha, catLabel, catColor, localDateISO, DIAS_ANTES_DE_SER_DEUDA } from '../../lib/finanzas'
+import { fmtMoney, fmtFecha, catLabel, catColor, localDateISO, DIAS_ANTES_DE_SER_DEUDA, naturalezaPendiente } from '../../lib/finanzas'
 import EgresoModal from './EgresoModal'
+import ConfirmDelete from './ConfirmDelete'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 
 // Proyección de pagos: lo pendiente de pagar, separado en dos naturalezas:
@@ -44,7 +45,7 @@ function tiempoLabel(e, hoy) {
   return `vence en ${d} días`
 }
 
-function FilaPendiente({ e, hoy, onEditar }) {
+function FilaPendiente({ e, hoy, onEditar, onEliminar }) {
   const urgente = e.vencimiento && diasHasta(e.vencimiento, hoy) <= 0
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5"
@@ -77,12 +78,18 @@ function FilaPendiente({ e, hoy, onEditar }) {
           onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
           <Edit2 size={12} />
         </button>
+        <button onClick={() => onEliminar(e)} title="Eliminar de la proyección"
+          className="p-1 rounded-md transition-colors" style={{ color: 'var(--text-xmuted)' }}
+          onMouseEnter={ev => { ev.currentTarget.style.background = 'rgba(248,113,113,0.12)'; ev.currentTarget.style.color = '#f87171' }}
+          onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--text-xmuted)' }}>
+          <Trash2 size={12} />
+        </button>
       </div>
     </div>
   )
 }
 
-function Grupo({ titulo, color, items, hoy, onEditar }) {
+function Grupo({ titulo, color, items, hoy, onEditar, onEliminar }) {
   if (items.length === 0) return null
   return (
     <div className="rounded-xl p-4"
@@ -92,7 +99,7 @@ function Grupo({ titulo, color, items, hoy, onEditar }) {
         <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{fmtMoney(sumar(items))}</span>
       </div>
       <div className="space-y-1.5">
-        {items.map(e => <FilaPendiente key={e.id} e={e} hoy={hoy} onEditar={onEditar} />)}
+        {items.map(e => <FilaPendiente key={e.id} e={e} hoy={hoy} onEditar={onEditar} onEliminar={onEliminar} />)}
       </div>
     </div>
   )
@@ -100,11 +107,12 @@ function Grupo({ titulo, color, items, hoy, onEditar }) {
 
 export default function ProyeccionPagos() {
   // Sin rango: las cuentas por pagar importan todas, sea cual sea su fecha.
-  const { pendientes, loading, error, actualizarEgreso, refetch } = useEgresos(null, null)
+  const { pendientes, loading, error, actualizarEgreso, eliminarEgreso, refetch } = useEgresos(null, null)
   const { proveedores } = useProveedores()
   const { empleados } = useEmpleados()
   const [editando, setEditando] = useState(null)
   const [nueva, setNueva] = useState(false)
+  const [borrando, setBorrando] = useState(null)
   const [aviso, setAviso] = useState(null)
 
   const hoy = localDateISO()
@@ -207,13 +215,13 @@ export default function ProyeccionPagos() {
       ) : (
         <>
           <Grupo titulo="Deuda · vencidos" color="#f87171"
-            items={grupos.vencidos} hoy={hoy} onEditar={setEditando} />
+            items={grupos.vencidos} hoy={hoy} onEditar={setEditando} onEliminar={setBorrando} />
           <Grupo titulo={`Deuda · vencen en los próximos ${DIAS_ANTES_DE_SER_DEUDA} días`} color="#f59e0b"
-            items={grupos.porVencer} hoy={hoy} onEditar={setEditando} />
+            items={grupos.porVencer} hoy={hoy} onEditar={setEditando} onEliminar={setBorrando} />
           <Grupo titulo="Proyección · más adelante" color="#4f8ef7"
-            items={grupos.proyectados} hoy={hoy} onEditar={setEditando} />
+            items={grupos.proyectados} hoy={hoy} onEditar={setEditando} onEliminar={setBorrando} />
           <Grupo titulo="Proyección · sin fecha de vencimiento" color="#94a3b8"
-            items={grupos.sinFecha} hoy={hoy} onEditar={setEditando} />
+            items={grupos.sinFecha} hoy={hoy} onEditar={setEditando} onEliminar={setBorrando} />
           <p className="text-center text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
             Un pago pasa de proyección a deuda solo, {DIAS_ANTES_DE_SER_DEUDA} días antes de su vencimiento ·
             para pagarlo registralo en Caja → Pagos o marcalo pagado con el lápiz
@@ -233,12 +241,22 @@ export default function ProyeccionPagos() {
 
       {editando && (
         <EgresoModal
+          title={naturalezaPendiente(editando.vencimiento || null) === 'deuda'
+            ? 'Editar deuda'
+            : 'Editar proyección de pago'}
           initial={editando}
           proveedores={proveedores}
           empleados={empleados}
           onClose={() => setEditando(null)}
           onSave={async (form) => { await actualizarEgreso(editando.id, form) }}
         />
+      )}
+
+      {borrando && (
+        <ConfirmDelete titulo="Eliminar de la proyección"
+          mensaje={`¿Borrás "${borrando.descripcion}" por ${fmtMoney(borrando.monto)}? Se elimina del listado de pendientes y no queda registro del pago.`}
+          onClose={() => setBorrando(null)}
+          onConfirm={async () => { await eliminarEgreso(borrando.id) }} />
       )}
     </div>
   )

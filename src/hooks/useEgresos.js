@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { borrarFila } from '../lib/borrar'
 
 const SELECT = '*, proveedor:proveedores(razon_social), empleado:empleados(nombre, apellido)'
 
@@ -68,11 +69,7 @@ export function useEgresos(desde, hasta) {
   }, [fetchEgresos])
 
   const eliminarEgreso = useCallback(async (id) => {
-    const { error: e } = await supabase
-      .from('egresos')
-      .delete()
-      .eq('id', id)
-    if (e) throw e
+    await borrarFila('egresos', id, 'el pago')
     await fetchEgresos()
   }, [fetchEgresos])
 
