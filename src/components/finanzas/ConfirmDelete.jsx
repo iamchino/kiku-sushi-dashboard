@@ -1,11 +1,20 @@
 import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Trash2, AlertTriangle } from 'lucide-react'
 
 export default function ConfirmDelete({ titulo = 'Eliminar', mensaje, onClose, onConfirm }) {
   const [loading, setLoading] = useState(false)
+  // El error se MUESTRA: antes se descartaba y el diálogo se cerraba como si
+  // hubiera borrado, aunque la fila siguiera ahí.
+  const [error, setError] = useState(null)
   const handle = async () => {
-    setLoading(true)
-    try { await onConfirm(); onClose() } catch { setLoading(false) }
+    setLoading(true); setError(null)
+    try {
+      await onConfirm()
+      onClose()
+    } catch (err) {
+      setError(err?.message || 'No se pudo eliminar.')
+      setLoading(false)
+    }
   }
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
@@ -18,6 +27,14 @@ export default function ConfirmDelete({ titulo = 'Eliminar', mensaje, onClose, o
         </div>
         <h3 className="font-semibold text-sm mb-1" style={{ color: 'var(--text-primary)' }}>{titulo}</h3>
         <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>{mensaje}</p>
+
+        {error && (
+          <div className="mb-3 flex items-start gap-2 rounded-lg px-3 py-2 text-xs"
+            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+            <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
         <div className="flex gap-2">
           <button onClick={onClose}
             className="flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all"

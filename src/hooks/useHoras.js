@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { rangoSemana, arDateISO, redondearBloque } from '../lib/horas'
+import { borrarFila } from '../lib/borrar'
 
 const FICHAJE_SELECT = '*, empleado:empleados(nombre, apellido), punto:puntos_fichaje(nombre)'
 const LIQ_SELECT = '*, empleado:empleados(nombre, apellido)'
@@ -136,8 +137,7 @@ export function useHoras(refDate) {
   }, [fetchTodo])
 
   const eliminarFichaje = useCallback(async (id) => {
-    const { error: e } = await supabase.from('fichajes').delete().eq('id', id)
-    if (e) throw e
+    await borrarFila('fichajes', id, 'la marca')
     await fetchTodo()
   }, [fetchTodo])
 
@@ -171,8 +171,7 @@ export function useHoras(refDate) {
       const { error: e0 } = await supabase.from('egresos').delete().eq('id', liq.egreso_id)
       if (e0) throw e0
     }
-    const { error: e } = await supabase.from('liquidaciones').delete().eq('id', liq.id)
-    if (e) throw e
+    await borrarFila('liquidaciones', liq.id, 'el jornal')
     await fetchTodo()
   }, [fetchTodo])
 
@@ -183,8 +182,7 @@ export function useHoras(refDate) {
   }, [fetchTodo])
 
   const eliminarLiquidacion = useCallback(async (id) => {
-    const { error: e } = await supabase.from('liquidaciones').delete().eq('id', id)
-    if (e) throw e
+    await borrarFila('liquidaciones', id, 'la liquidación')
     await fetchTodo()
   }, [fetchTodo])
 
