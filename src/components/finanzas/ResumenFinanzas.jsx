@@ -10,6 +10,7 @@ import { useEmpleados } from '../../hooks/useEmpleados'
 import { fmtMoney, fmtFecha, catLabel, catColor, medioLabel } from '../../lib/finanzas'
 import EgresoModal from './EgresoModal'
 import ConfirmDelete from './ConfirmDelete'
+import CajaFuerteResumen from './CajaFuerteResumen'
 
 // Resumen de Finanzas: la "foto del negocio" en una sola pantalla, pensada
 // para leerse de un vistazo sin conocer el sistema. Todo lo que se puede
@@ -322,6 +323,9 @@ export default function ResumenFinanzas({ desde, hasta, label }) {
               </div>
             )}
           </Card>
+
+          {/* Caja fuerte: cuánto hay guardado y qué se movió en el período */}
+          <CajaFuerteResumen desde={desde} hasta={hasta} label={label} />
         </div>
       </div>
 

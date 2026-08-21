@@ -5,7 +5,9 @@ import { supabase } from '../lib/supabase'
 // Entra por retiros al cierre de turno (retirar_a_caja_fuerte) y sale por
 // pagos (registrar_pago con origen 'caja_fuerte') o ajustes. Todo por RPC:
 // la tabla no acepta escrituras directas.
-export function useCajaFuerte() {
+// Opciones: { desde, hasta } en 'YYYY-MM-DD' acotan los MOVIMIENTOS al
+// período (el saldo siempre es el actual, no tiene sentido "a fecha").
+export function useCajaFuerte({ desde = null, hasta = null } = {}) {
   const [movimientos, setMovimientos] = useState([])
   const [saldo, setSaldo]     = useState(null)
   const [turnoAbierto, setTurnoAbierto] = useState(null)
@@ -16,12 +18,16 @@ export function useCajaFuerte() {
   const cargar = useCallback(async () => {
     setLoading(true); setError(null)
     try {
+      let movsQuery = supabase
+        .from('caja_fuerte_movimientos')
+        .select('*, egreso:egresos(descripcion, categoria, medio_pago), turno:caja_turnos(business_date)')
+        .order('created_at', { ascending: false })
+        .limit(200)
+      if (desde) movsQuery = movsQuery.gte('created_at', new Date(`${desde}T00:00:00`).toISOString())
+      if (hasta) movsQuery = movsQuery.lte('created_at', new Date(`${hasta}T23:59:59.999`).toISOString())
+
       const [movs, saldoRes, turnoRes] = await Promise.all([
-        supabase
-          .from('caja_fuerte_movimientos')
-          .select('*, egreso:egresos(descripcion, categoria, medio_pago), turno:caja_turnos(business_date)')
-          .order('created_at', { ascending: false })
-          .limit(50),
+        movsQuery,
         supabase.rpc('saldo_caja_fuerte'),
         supabase.from('caja_turnos').select('id').eq('estado', 'abierto').limit(1).maybeSingle(),
       ])
@@ -68,7 +74,7 @@ export function useCajaFuerte() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [desde, hasta])
 
   useEffect(() => { cargar() }, [cargar])
 
