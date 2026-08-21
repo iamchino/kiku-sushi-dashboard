@@ -10,15 +10,17 @@ import { CATEGORIAS, MEDIOS_PAGO, localDateISO } from '../../lib/finanzas'
 // (botón "Egreso") y Finanzas → Egresos. Cualquier cambio de reglas se hace
 // una sola vez, acá.
 //
-// Reglas de caja, visibles para quien paga:
-//   · efectivo + origen "caja del día"  → descuenta del arqueo del turno abierto
-//   · efectivo + origen "caja fuerte"   → descuenta del saldo de la caja fuerte
-//   · efectivo sin origen               → no toca ninguna caja
-//   · otro medio                        → nunca toca el efectivo
+// Reglas de dónde sale la plata, visibles para quien paga:
+//   · efectivo + "caja del día"    → descuenta del arqueo del turno abierto
+//   · efectivo + "caja fuerte"     → descuenta del saldo de la caja fuerte
+//   · efectivo sin origen          → no toca ninguna caja
+//   · transferencia + cuenta banco → descuenta del ESPERADO EN TRANSFERENCIAS
+//                                    del turno; nunca toca la caja fuerte
+//   · tarjetas / cheque            → se registran sin mover caja ni banco
 //
 // El trabajo transaccional lo hace el RPC registrar_pago().
 export default function RegistrarPagoModal({ onClose, onRegistrado, origenInicial = null }) {
-  const { empleados, turnoAbierto, registrarPago } = usePagos({ lista: false })
+  const { empleados, turnoAbierto, bancoCuenta, registrarPago } = usePagos({ lista: false })
   const { proveedores } = useProveedores()
 
   const [form, setForm] = useState({
@@ -31,40 +33,60 @@ export default function RegistrarPagoModal({ onClose, onRegistrado, origenInicia
   const [error, setError] = useState(null)
 
   const set = (k) => (v) => setForm(f => ({ ...f, [k]: v }))
-  const esSueldo   = form.categoria === 'sueldos'
-  const pendiente  = form.estado === 'pendiente'
-  const esEfectivo = form.medio_pago === 'efectivo'
+  const esSueldo        = form.categoria === 'sueldos'
+  const pendiente       = form.estado === 'pendiente'
+  const esEfectivo      = form.medio_pago === 'efectivo'
+  const esTransferencia = form.medio_pago === 'transferencia'
 
-  // 'auto' se resuelve en la base: con turno abierto sale de la caja del día,
-  // sin turno no toca nada. Se muestra ya resuelto para que el select no mienta.
-  // El resto de los orígenes se respetan tal cual los eligió el usuario: la
-  // opción de la caja del día NUNCA se pisa ni se bloquea — si al final no hay
-  // turno abierto, es el RPC el que avisa (y así un problema al leer el turno
-  // no deja a nadie sin poder cargar el pago donde corresponde).
-  const origenEfectivo = form.origen === 'auto'
-    ? (turnoAbierto ? 'caja' : 'caja_fuerte')
-    : form.origen
+  // De dónde sale la plata, ya resuelto para que el select nunca mienta:
+  //   · efectivo      → caja del día | caja fuerte | ninguno
+  //   · transferencia → cuenta del negocio (banco) | ninguno
+  //   · resto         → no mueve nada
+  // 'auto' es el default de la base. Las opciones elegidas por el usuario no
+  // se pisan ni se bloquean: si algo no cierra, lo valida el RPC.
+  const origenResuelto = useMemo(() => {
+    if (pendiente) return 'ninguno'
+    if (esEfectivo) {
+      return ['caja', 'caja_fuerte', 'ninguno'].includes(form.origen)
+        ? form.origen
+        : (turnoAbierto ? 'caja' : 'caja_fuerte')
+    }
+    if (esTransferencia) {
+      return ['banco', 'ninguno'].includes(form.origen) ? form.origen : 'banco'
+    }
+    return 'ninguno'
+  }, [pendiente, esEfectivo, esTransferencia, form.origen, turnoAbierto])
 
   const efectoCaja = useMemo(() => {
     if (pendiente) return 'Queda como cuenta por pagar: no toca la caja hasta que lo marques pagado.'
-    if (!esEfectivo) return turnoAbierto
-      ? 'Se vincula al turno abierto, pero al no ser efectivo no toca el arqueo.'
-      : 'No es efectivo: se registra sin tocar ninguna caja.'
-    if (origenEfectivo === 'caja_fuerte') return 'Sale de la CAJA FUERTE: descuenta de su saldo, no toca el arqueo del turno.'
-    if (origenEfectivo === 'caja') return turnoAbierto
-      ? 'Sale de la CAJA DEL DÍA (turno abierto): el arqueo lo descuenta automáticamente.'
-      : 'No veo ningún turno de caja abierto. Si guardás así, la base va a rechazar el pago: abrí el turno en Arqueo o elegí otro origen.'
-    return 'Efectivo sin origen registrado: no descuenta de la caja ni de la caja fuerte.'
-  }, [pendiente, turnoAbierto, esEfectivo, origenEfectivo])
+    if (esEfectivo) {
+      if (origenResuelto === 'caja_fuerte') return 'Sale de la CAJA FUERTE: descuenta de su saldo, no toca el arqueo del turno.'
+      if (origenResuelto === 'caja') return turnoAbierto
+        ? 'Sale de la CAJA DEL DÍA (turno abierto): el arqueo lo descuenta automáticamente.'
+        : 'No veo ningún turno de caja abierto. Si guardás así, la base va a rechazar el pago: abrí el turno en Arqueo o elegí otro origen.'
+      return 'Efectivo sin origen registrado: no descuenta de la caja ni de la caja fuerte.'
+    }
+    if (esTransferencia) {
+      if (origenResuelto === 'banco') return turnoAbierto
+        ? `Sale de ${bancoCuenta}: descuenta del ESPERADO EN TRANSFERENCIAS del turno abierto. No toca la caja fuerte, que es efectivo.`
+        : `Sale de ${bancoCuenta}. Como no hay turno abierto, queda registrado sin imputarse a ningún arqueo.`
+      return 'Transferencia sin origen registrado: queda anotada, sin descontar de ninguna cuenta.'
+    }
+    return 'No es efectivo ni transferencia: se registra sin tocar la caja ni la cuenta del banco.'
+  }, [pendiente, turnoAbierto, esEfectivo, esTransferencia, origenResuelto, bancoCuenta])
 
   const valido = form.descripcion.trim() && Number(form.monto) > 0 && (!esSueldo || form.empleado_id)
 
   const guardar = async () => {
     setBusy(true); setError(null)
     try {
-      const resultado = await registrarPago({ ...form, origen: origenEfectivo })
+      const resultado = await registrarPago({ ...form, origen: origenResuelto })
       onRegistrado?.(
-        resultado?.descuenta_arqueo
+        resultado?.origen === 'banco'
+          ? (resultado?.descuenta_arqueo
+              ? `Pago registrado. Salió de ${bancoCuenta}: el esperado en transferencias del turno ya lo descuenta.`
+              : `Pago registrado. Salió de ${bancoCuenta} (no había turno abierto al que imputarlo).`)
+          : resultado?.descuenta_arqueo
           ? 'Pago registrado. Salió de la caja del día: el arqueo ya lo descuenta.'
           : resultado?.origen === 'caja_fuerte'
             ? 'Pago registrado. Salió de la caja fuerte: su saldo ya lo descuenta.'
@@ -91,7 +113,7 @@ export default function RegistrarPagoModal({ onClose, onRegistrado, origenInicia
         </div>
 
         {esEfectivo && !pendiente && (
-          <Select label="¿De dónde sale el efectivo?" value={origenEfectivo} onChange={set('origen')}
+          <Select label="¿De dónde sale el efectivo?" value={origenResuelto} onChange={set('origen')}
             options={[
               // Siempre seleccionable: si no hay turno abierto se avisa en el
               // texto de abajo y, en última instancia, lo valida la base.
@@ -103,6 +125,14 @@ export default function RegistrarPagoModal({ onClose, onRegistrado, origenInicia
               },
               { value: 'caja_fuerte', label: 'Caja fuerte (descuenta de su saldo)' },
               { value: 'ninguno', label: 'Otro efectivo / sin registrar origen' },
+            ]} />
+        )}
+
+        {esTransferencia && !pendiente && (
+          <Select label="¿De qué cuenta sale la transferencia?" value={origenResuelto} onChange={set('origen')}
+            options={[
+              { value: 'banco', label: `${bancoCuenta} (descuenta del esperado en transferencias)` },
+              { value: 'ninguno', label: 'Otra cuenta / sin registrar origen' },
             ]} />
         )}
 

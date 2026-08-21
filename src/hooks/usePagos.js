@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
+// Texto por defecto si la instalación todavía no cargó el nombre de su cuenta.
+const BANCO_FALLBACK = 'Cuenta bancaria del negocio'
+
 // Pagos centralizados (Caja → botón Pagos). Un pago ES un egreso: misma tabla
 // que ve Finanzas, sin duplicados ni sincronización.
 //
@@ -28,6 +31,8 @@ export function usePagos(opciones = {}) {
   const [pagos, setPagos]         = useState([])
   const [empleados, setEmpleados] = useState([])
   const [turnoAbierto, setTurnoAbierto] = useState(null)
+  // Nombre de la cuenta bancaria del negocio (white-label, sale de web_config).
+  const [bancoCuenta, setBancoCuenta] = useState(BANCO_FALLBACK)
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
 
@@ -49,7 +54,7 @@ export function usePagos(opciones = {}) {
         pagosQuery = q
       }
 
-      const [pagosRes, empRes, turnoRes] = await Promise.all([
+      const [pagosRes, empRes, turnoRes, cfgRes] = await Promise.all([
         pagosQuery || Promise.resolve({ data: [], error: null }),
         // Solo id y nombre, vía RPC: no expone sueldo_base ni el legajo.
         supabase.rpc('empleados_para_pagos'),
@@ -60,6 +65,7 @@ export function usePagos(opciones = {}) {
         supabase.from('caja_turnos').select('id, apertura_monto, business_date, created_at')
           .eq('estado', 'abierto')
           .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('web_config').select('banco_cuenta').eq('id', 1).maybeSingle(),
       ])
       if (pagosRes.error) throw pagosRes.error
       // empleados puede fallar sin permiso; no bloquea el resto
@@ -69,6 +75,8 @@ export function usePagos(opciones = {}) {
       // asume caja cerrada. Se avisa por consola para que no pase inadvertido.
       if (turnoRes.error) console.warn('[usePagos] no se pudo leer el turno de caja:', turnoRes.error.message)
       setTurnoAbierto(turnoRes.error ? null : turnoRes.data)
+      // Si falta la columna (migración sin correr) se usa el texto genérico.
+      setBancoCuenta(cfgRes.error ? BANCO_FALLBACK : (cfgRes.data?.banco_cuenta?.trim() || BANCO_FALLBACK))
     } catch (err) {
       setError(err.message)
     } finally {
@@ -101,5 +109,5 @@ export function usePagos(opciones = {}) {
     return data
   }, [cargar])
 
-  return { pagos, empleados, turnoAbierto, loading, error, registrarPago, recargar: cargar }
+  return { pagos, empleados, turnoAbierto, bancoCuenta, loading, error, registrarPago, recargar: cargar }
 }

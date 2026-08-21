@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 // White-label: la identidad del dashboard sale de acá, no del código.
 // Cambiá el nombre y el color y el sistema entero se re-tiñe — es lo que
 // permite instalarlo para otro gastronómico sin tocar una línea.
-const DEFAULTS = { negocio_nombre: 'KIKU SUSHI', negocio_subtitulo: 'Sistema de gestión', negocio_color: '#2a1d3d' }
+const DEFAULTS = { negocio_nombre: 'KIKU SUSHI', negocio_subtitulo: 'Sistema de gestión', negocio_color: '#2a1d3d', banco_cuenta: '' }
 
 export default function NegocioTab() {
   const [form, setForm] = useState(DEFAULTS)
@@ -16,7 +16,7 @@ export default function NegocioTab() {
   useEffect(() => {
     let alive = true
     supabase.from('web_config')
-      .select('negocio_nombre, negocio_subtitulo, negocio_color')
+      .select('negocio_nombre, negocio_subtitulo, negocio_color, banco_cuenta')
       .eq('id', 1).maybeSingle()
       .then(({ data, error: err }) => {
         if (!alive) return
@@ -40,6 +40,7 @@ export default function NegocioTab() {
       negocio_nombre: form.negocio_nombre.trim(),
       negocio_subtitulo: form.negocio_subtitulo.trim(),
       negocio_color: form.negocio_color.toLowerCase(),
+      banco_cuenta: form.banco_cuenta.trim() || null,
       updated_at: new Date().toISOString(),
     })
     if (err) { setSaveState('error'); setError(err.message); return }
@@ -83,6 +84,15 @@ export default function NegocioTab() {
           <input value={form.negocio_subtitulo} onChange={set('negocio_subtitulo')}
             className="mt-1.5 w-full rounded-lg px-3 py-2 text-sm outline-none"
             style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+        </div>
+        <div>
+          <label className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Cuenta bancaria</label>
+          <input value={form.banco_cuenta} onChange={set('banco_cuenta')} placeholder="Ej: Kiku SAS — Galicia"
+            className="mt-1.5 w-full rounded-lg px-3 py-2 text-sm outline-none"
+            style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+          <p className="mt-1 text-[11px]" style={{ color: 'var(--text-xmuted)' }}>
+            De esta cuenta salen las transferencias del negocio. Aparece al registrar un pago por transferencia.
+          </p>
         </div>
         <div>
           <label className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Color de acento</label>
