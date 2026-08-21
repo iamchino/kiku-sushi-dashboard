@@ -41,6 +41,7 @@ export default function EgresoModal({ initial, defaults, proveedores = [], emple
     if (!form.descripcion.trim()) { setErr('La descripción es obligatoria.'); return }
     const monto = Number(form.monto)
     if (!monto || monto <= 0) { setErr('El monto debe ser mayor a 0.'); return }
+    if (!form.comprobante_nro?.trim()) { setErr('El número de factura o recibo es obligatorio.'); return }
     setSaving(true); setErr(null)
 
     const payload = {
@@ -120,7 +121,7 @@ export default function EgresoModal({ initial, defaults, proveedores = [], emple
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Nro. comprobante" value={form.comprobante_nro} onChange={v => set('comprobante_nro', v)}
-            placeholder="Factura / recibo" />
+            placeholder="Factura / recibo" required />
         </div>
 
         <TextArea label="Notas" value={form.notas} onChange={v => set('notas', v)}
