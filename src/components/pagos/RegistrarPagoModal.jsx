@@ -3,7 +3,7 @@ import { Wallet } from 'lucide-react'
 import { usePagos } from '../../hooks/usePagos'
 import { useProveedores } from '../../hooks/useProveedores'
 import { ModalShell, Field, Select, TextArea } from '../finanzas/fields'
-import { CATEGORIAS, MEDIOS_PAGO, localDateISO } from '../../lib/finanzas'
+import { CATEGORIAS, MEDIOS_PAGO, localDateISO, DIAS_ANTES_DE_SER_DEUDA, naturalezaPendiente } from '../../lib/finanzas'
 
 // Alta centralizada de pagos: ESTE es el único formulario para registrar un
 // egreso del negocio. Lo usan Caja → Pagos, el arqueo del turno abierto
@@ -27,6 +27,10 @@ export default function RegistrarPagoModal({
   // no mueve plata todavía y pide fecha de vencimiento.
   estadoInicial = 'pagado',
   titulo = 'Registrar pago',
+  // Modo proyección: el pago SIEMPRE queda pendiente y no se ofrece marcarlo
+  // pagado desde acá. Una proyección no es una deuda: se convierte sola en
+  // deuda cuando faltan DIAS_ANTES_DE_SER_DEUDA días para el vencimiento.
+  modoProyeccion = false,
 }) {
   const { empleados, turnoAbierto, bancoCuenta, registrarPago } = usePagos({ lista: false })
   const { proveedores } = useProveedores()
@@ -66,6 +70,15 @@ export default function RegistrarPagoModal({
   }, [pendiente, esEfectivo, esTransferencia, form.origen, turnoAbierto])
 
   const efectoCaja = useMemo(() => {
+    if (modoProyeccion) {
+      const natural = naturalezaPendiente(form.vencimiento || null)
+      if (!form.vencimiento) {
+        return 'Sin fecha de vencimiento entra como PROYECCIÓN. Todavía no es deuda y no toca ninguna caja.'
+      }
+      return natural === 'deuda'
+        ? `Ojo: con ese vencimiento entra directo como DEUDA (falta${DIAS_ANTES_DE_SER_DEUDA === 1 ? '' : 'n'} menos de ${DIAS_ANTES_DE_SER_DEUDA} días). Poné una fecha más lejana si querés que quede como proyección.`
+        : `Entra como PROYECCIÓN. Va a pasar a DEUDA solo, ${DIAS_ANTES_DE_SER_DEUDA} días antes del vencimiento. No toca ninguna caja.`
+    }
     if (pendiente) return 'Queda como cuenta por pagar: no toca la caja hasta que lo marques pagado.'
     if (esEfectivo) {
       if (origenResuelto === 'caja_fuerte') return 'Sale de la CAJA FUERTE: descuenta de su saldo, no toca el arqueo del turno.'
@@ -81,17 +94,23 @@ export default function RegistrarPagoModal({
       return 'Transferencia sin origen registrado: queda anotada, sin descontar de ninguna cuenta.'
     }
     return 'No es efectivo ni transferencia: se registra sin tocar la caja ni la cuenta del banco.'
-  }, [pendiente, turnoAbierto, esEfectivo, esTransferencia, origenResuelto, bancoCuenta])
+  }, [modoProyeccion, form.vencimiento, pendiente, turnoAbierto, esEfectivo, esTransferencia, origenResuelto, bancoCuenta])
 
   const valido = form.descripcion.trim() && Number(form.monto) > 0 && (!esSueldo || form.empleado_id)
 
   const guardar = async () => {
     setBusy(true); setError(null)
     try {
-      const resultado = await registrarPago({ ...form, origen: origenResuelto })
+      const resultado = await registrarPago({
+        ...form,
+        estado: modoProyeccion ? 'pendiente' : form.estado,
+        origen: origenResuelto,
+      })
       onRegistrado?.(
         form.estado === 'pendiente'
-          ? 'Pago pendiente agregado a la proyección. Cuando lo pagues, marcalo pagado con el lápiz.'
+          ? (naturalezaPendiente(form.vencimiento || null) === 'deuda'
+              ? 'Guardado. Como vence enseguida, entró directo como DEUDA.'
+              : 'Guardado como PROYECCIÓN. Va a pasar a deuda solo, cerca del vencimiento.')
           : resultado?.origen === 'banco'
           ? (resultado?.descuenta_arqueo
               ? `Pago registrado. Salió de ${bancoCuenta}: el esperado en transferencias del turno ya lo descuenta.`
@@ -118,7 +137,8 @@ export default function RegistrarPagoModal({
         <div className="grid grid-cols-2 gap-3">
           <Select label="Categoría" value={form.categoria} onChange={set('categoria')} required
             options={CATEGORIAS.map(c => ({ value: c.id, label: c.label }))} />
-          <Select label="Medio de pago" value={form.medio_pago} onChange={set('medio_pago')} required
+          <Select label={modoProyeccion ? 'Medio de pago previsto' : 'Medio de pago'}
+            value={form.medio_pago} onChange={set('medio_pago')} required
             options={MEDIOS_PAGO.map(m => ({ value: m.id, label: m.label }))} />
         </div>
 
@@ -164,13 +184,20 @@ export default function RegistrarPagoModal({
               ...(proveedores || []).map(p => ({ value: p.id, label: p.razon_social }))]} />
         )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <Select label="Estado" value={form.estado} onChange={set('estado')}
-            options={[{ value: 'pagado', label: 'Pagado' }, { value: 'pendiente', label: 'Pendiente (cta. por pagar)' }]} />
-          {pendiente
-            ? <Field label="Vencimiento" type="date" value={form.vencimiento} onChange={set('vencimiento')} />
-            : <Field label="Comprobante (opcional)" value={form.comprobante_nro} onChange={set('comprobante_nro')} placeholder="Nº factura / recibo" />}
-        </div>
+        {modoProyeccion ? (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Vence el" type="date" value={form.vencimiento} onChange={set('vencimiento')} />
+            <Field label="Comprobante (opcional)" value={form.comprobante_nro} onChange={set('comprobante_nro')} placeholder="Nº factura / recibo" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Estado" value={form.estado} onChange={set('estado')}
+              options={[{ value: 'pagado', label: 'Pagado' }, { value: 'pendiente', label: 'Pendiente (cta. por pagar)' }]} />
+            {pendiente
+              ? <Field label="Vencimiento" type="date" value={form.vencimiento} onChange={set('vencimiento')} />
+              : <Field label="Comprobante (opcional)" value={form.comprobante_nro} onChange={set('comprobante_nro')} placeholder="Nº factura / recibo" />}
+          </div>
+        )}
 
         <TextArea label="Notas (opcional)" value={form.notas} onChange={set('notas')} rows={2}
           placeholder="Lo que haga falta para que Finanzas entienda el pago sin preguntar" />
@@ -185,7 +212,7 @@ export default function RegistrarPagoModal({
         <button onClick={guardar} disabled={busy || !valido}
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
-          {busy ? 'Registrando…' : (pendiente ? 'Agregar a la proyección' : 'Registrar pago')}
+          {busy ? 'Registrando…' : (modoProyeccion ? 'Agregar a la proyección' : (pendiente ? 'Agregar a pendientes' : 'Registrar pago'))}
         </button>
       </div>
     </ModalShell>

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { QrCode, CheckCircle2, XCircle, MapPin, LogIn, LogOut, Clock, AlertTriangle, Loader2 } from 'lucide-react'
 import { useFichaje } from '../hooks/useFichaje'
-import { fmtMinutos, fmtHora } from '../lib/horas'
+import { fmtMinutos, fmtHora, fmtFechaHora } from '../lib/horas'
 import EmpleadoHeader from '../components/layout/EmpleadoHeader'
 
 // Pantalla de fichaje. El QR del local codifica /fichar?ficha=TOKEN:
@@ -12,7 +12,10 @@ export default function FicharPage() {
   const navigate = useNavigate()
   const token = params.get('ficha')
 
-  const { empleado, marcasHoy, dentro, minutosHoy, loading, error, fichar } = useFichaje()
+  const {
+    empleado, marcasJornada, dentro, abandonada, entradaAbierta,
+    minutosJornada, loading, error, fichar,
+  } = useFichaje()
 
   // null | { fase: 'ubicando' } | { fase: 'ok', res } | { fase: 'error', msg }
   const [resultado, setResultado] = useState(null)
@@ -141,18 +144,36 @@ export default function FicharPage() {
                     style={{ background: dentro ? '#22c55e' : 'var(--text-xmuted)' }} />
                   {dentro ? 'Trabajando' : 'Fuera'}
                 </p>
+                {/* Un turno que cruza la medianoche sigue siendo el mismo turno:
+                    se dice desde cuándo, así nadie duda de que falta la salida. */}
+                {dentro && entradaAbierta && (
+                  <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    Desde {fmtFechaHora(entradaAbierta)} · el próximo escaneo marca la SALIDA
+                  </p>
+                )}
               </div>
               <div className="text-right">
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Hoy</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Este turno</p>
                 <p className="text-lg font-bold flex items-center gap-1.5" style={{ color: 'var(--accent-lift)' }}>
-                  <Clock size={15} /> {fmtMinutos(minutosHoy)}
+                  <Clock size={15} /> {fmtMinutos(minutosJornada)}
                 </p>
               </div>
             </div>
 
-            {marcasHoy.length > 0 && (
+            {abandonada && (
+              <div className="rounded-xl px-3 py-2.5 flex items-start gap-2 text-xs"
+                style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' }}>
+                <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+                <span>
+                  Quedó una entrada sin salida de hace más de 16 horas. Tu próximo escaneo cuenta
+                  como entrada nueva; avisale al encargado para que cargue la salida que falta.
+                </span>
+              </div>
+            )}
+
+            {marcasJornada.length > 0 && (
               <div className="space-y-1.5 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
-                {marcasHoy.map(m => (
+                {marcasJornada.map(m => (
                   <div key={m.id} className="flex items-center justify-between text-sm pt-1.5">
                     <span className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                       {m.tipo === 'entrada'

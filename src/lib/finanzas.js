@@ -21,6 +21,20 @@ export const MEDIOS_PAGO = [
   { id: 'otro',            label: 'Otro' },
 ]
 
+// Un pago pendiente vive en dos estados según su vencimiento:
+//   PROYECCIÓN → falta más que esto para vencer (o no tiene fecha)
+//   DEUDA      → vence dentro de este plazo, o ya venció
+// El pase es automático: lo decide el calendario, no una acción del usuario.
+export const DIAS_ANTES_DE_SER_DEUDA = 3
+
+/** 'proyeccion' | 'deuda' para un vencimiento 'YYYY-MM-DD' (null = proyección). */
+export function naturalezaPendiente(vencimiento, hoyISO = localDateISO()) {
+  if (!vencimiento) return 'proyeccion'
+  const limite = new Date(`${hoyISO}T00:00:00`)
+  limite.setDate(limite.getDate() + DIAS_ANTES_DE_SER_DEUDA)
+  return vencimiento <= localDateISO(limite) ? 'deuda' : 'proyeccion'
+}
+
 export const catLabel  = (id) => CATEGORIAS.find(c => c.id === id)?.label || id
 export const catColor  = (id) => CATEGORIAS.find(c => c.id === id)?.color || '#94a3b8'
 export const medioLabel = (id) => MEDIOS_PAGO.find(m => m.id === id)?.label || id

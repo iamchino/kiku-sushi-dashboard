@@ -3,7 +3,7 @@ import { AlertTriangle, CalendarClock, CheckCircle2, Edit2, Flame, Plus } from '
 import { useEgresos } from '../../hooks/useEgresos'
 import { useProveedores } from '../../hooks/useProveedores'
 import { useEmpleados } from '../../hooks/useEmpleados'
-import { fmtMoney, fmtFecha, catLabel, catColor, localDateISO } from '../../lib/finanzas'
+import { fmtMoney, fmtFecha, catLabel, catColor, localDateISO, DIAS_ANTES_DE_SER_DEUDA } from '../../lib/finanzas'
 import EgresoModal from './EgresoModal'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 
@@ -17,7 +17,6 @@ import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 // Un pendiente pasa de proyección a deuda solo, cuando el calendario lo
 // alcanza. Se marca pagado editándolo con el lápiz.
 
-const DIAS_ANTES_DE_SER_DEUDA = 3
 
 function sumar(items) {
   return items.reduce((s, e) => s + Number(e.monto || 0), 0)
@@ -225,6 +224,7 @@ export default function ProyeccionPagos() {
       {nueva && (
         <RegistrarPagoModal
           estadoInicial="pendiente"
+          modoProyeccion
           titulo="Nueva proyección de pago"
           onClose={() => setNueva(false)}
           onRegistrado={(mensaje) => { setAviso(mensaje); refetch() }}
