@@ -66,6 +66,21 @@ export function diasDeLaSemana(inicio) {
   })
 }
 
+// ── Redondeo de horas ───────────────────────────────────────────────────────
+// Las horas se pagan en bloques de 30 min, redondeando SIEMPRE hacia arriba y
+// SOBRE EL TOTAL DEL DÍA (no por fichaje suelto: si no, dos tramos del mismo
+// día se redondean por separado y el día termina pagándose de menos).
+//   5h47 → 6h00 · 5h40 → 6h00 · 5h10 → 5h30 · 5h00 → 5h00
+// Espeja a public.redondear_bloque_30() en la base, que es quien manda para la
+// plata; acá se usa solo para mostrar.
+export const BLOQUE_MIN = 30
+
+export function redondearBloque(min) {
+  const m = Number(min || 0)
+  if (m <= 0) return 0
+  return Math.ceil(m / BLOQUE_MIN) * BLOQUE_MIN
+}
+
 // Compacto para la tira por día: 0 → '—', 420 → '7h', 450 → '7h30'.
 export function fmtHorasCompacto(min) {
   const m = Math.max(0, Math.round(Number(min || 0)))

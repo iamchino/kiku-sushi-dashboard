@@ -1,9 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
-import { BadgeDollarSign, Lock, Trash2, Clock, CalendarDays, Pencil } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
-import { fmtMoney, fmtFecha, MEDIOS_PAGO, localDateISO } from '../../lib/finanzas'
+import { useState, useMemo } from 'react'
+import { BadgeDollarSign, Trash2, Clock, Pencil } from 'lucide-react'
+import { fmtMoney, fmtFecha } from '../../lib/finanzas'
 import { fmtMinutos, fmtHorasCompacto, fmtHora, diasDeLaSemana } from '../../lib/horas'
-import { ModalShell, Field, Select } from '../finanzas/fields'
+import { ModalShell, Field } from '../finanzas/fields'
 import ConfirmDelete from '../finanzas/ConfirmDelete'
 
 const CHIP = {
@@ -13,38 +12,17 @@ const CHIP = {
   sin_liquidar: { label: 'Sin liquidar', bg: 'var(--bg-active)',      color: 'var(--text-muted)' },
 }
 
-// Liquidación semanal (lunes → domingo) con estados + pago por DÍA (jornal):
-//   Semana:  En curso → Cerrar semana → Pendiente → Pagar → Pagada
-//   Día:     "Pagar día" → jornal pendiente + egreso → Pagado
-// Un día pagado por jornal queda excluido del cierre semanal (sin dobles pagos).
+// Liquidación semanal (lunes → domingo): SOLO consulta y corrección de horas.
+// Muestra cuánto le corresponde a cada empleado, el desglose por día y permite
+// corregir una jornada mal fichada. Los pagos NO se hacen acá: van por el alta
+// centralizada de Caja → Pagos, igual que cualquier otro egreso.
+// Las liquidaciones ya existentes (cierres semanales y jornales) se siguen
+// viendo y se pueden anular.
 export default function LiquidacionSection({ horas, enCurso }) {
   const {
     semana, resumen, liquidaciones, liquidacionesDia, horasDia, jornadasDia, sueldos,
-    fichajes, actualizarFichaje,
-    generarLiquidacion, generarLiquidacionDia, anularLiquidacionDia,
-    actualizarLiquidacion, eliminarLiquidacion, loading,
+    fichajes, actualizarFichaje, anularLiquidacionDia, eliminarLiquidacion, loading,
   } = horas
-  // El pago de sueldos va por el RPC central de pagos: si hay un turno de
-  // caja abierto y se paga en efectivo, el arqueo lo descuenta — igual que
-  // cualquier pago hecho desde Caja → Pagos. Devuelve { egreso_id }.
-  const registrarPagoSueldo = async (form) => {
-    const { data, error: e } = await supabase.rpc('registrar_pago', {
-      p_categoria: 'sueldos',
-      p_descripcion: form.descripcion,
-      p_monto: Number(form.monto),
-      p_medio_pago: form.medio_pago,
-      p_estado: 'pagado',
-      p_fecha: form.fecha,
-      p_empleado_id: form.empleado_id,
-      p_subtipo: form.subtipo,
-      p_periodo: form.periodo,
-    })
-    if (e) throw new Error(e.message)
-    return { id: data.egreso_id }
-  }
-
-  const [pagando, setPagando]     = useState(null)  // liq semanal a pagar
-  const [pagandoDia, setPagandoDia] = useState(null) // { empleado_id, nombre, valor_hora }
   const [editJornada, setEditJornada] = useState(null) // { jornada, empleado_id, nombre }
   const [delLiq, setDelLiq]       = useState(null)
   const [delDia, setDelDia]       = useState(null)
@@ -72,48 +50,6 @@ export default function LiquidacionSection({ horas, enCurso }) {
 
   const totalSemana = filas.reduce((s, f) => s + Number(f.liq ? f.liq.total : f.total), 0)
   const totalJornales = liquidacionesDia.reduce((s, l) => s + Number(l.total || 0), 0)
-  const hayPorHora = filas.some(f => f.tipo_sueldo === 'hora' && f.minutos > 0)
-  const empleadosHora = useMemo(
-    () => resumen.filter(r => r.tipo_sueldo === 'hora'),
-    [resumen],
-  )
-
-  const handleCerrar = async () => {
-    setBusy(true); setError(null)
-    try { await generarLiquidacion() }
-    catch (err) { setError(err.message) }
-    finally { setBusy(false) }
-  }
-
-  // Pago de cierre SEMANAL (crea egreso + marca pagada).
-  const handlePagar = async ({ fechaPago, medioPago }) => {
-    if (!pagando) return
-    setBusy(true); setError(null)
-    try {
-      const nombre = `${pagando.empleado?.nombre || ''} ${pagando.empleado?.apellido || ''}`.trim() || 'empleado'
-      const egreso = await registrarPagoSueldo({
-        fecha: fechaPago,
-        subtipo: 'sueldo',
-        descripcion: `Sueldo semanal ${nombre} · ${pagando.semana_inicio} → ${pagando.semana_fin}`,
-        monto: pagando.total,
-        empleado_id: pagando.empleado_id,
-        periodo: String(pagando.semana_inicio).slice(0, 7),
-        medio_pago: medioPago,
-        estado: 'pagado',
-      })
-      await actualizarLiquidacion(pagando.id, {
-        estado: 'pagado',
-        egreso_id: egreso.id,
-        pagado_at: new Date().toISOString(),
-      })
-      setPagando(null)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
   // Corrección de una jornada desde la tira: ajusta las marcas reales de
   // fichaje (entrada/salida). Queda como corrección manual y recalcula todo.
   const handleEditarJornada = async ({ fecha, horaEntrada, horaSalida }) => {
@@ -151,40 +87,11 @@ export default function LiquidacionSection({ horas, enCurso }) {
     }
   }
 
-  // Pago de JORNAL: genera la fila 'dia' y la paga en el acto.
-  const handlePagarDia = async ({ empleado_id, nombre, fecha, fechaPago, medioPago }) => {
-    if (!empleado_id) return
-    setBusy(true); setError(null)
-    try {
-      const liq = await generarLiquidacionDia(empleado_id, fecha)
-      const egreso = await registrarPagoSueldo({
-        fecha: fechaPago,
-        subtipo: 'jornal',
-        descripcion: `Jornal ${nombre} · ${fecha}`,
-        monto: liq.total,
-        empleado_id,
-        periodo: String(fecha).slice(0, 7),
-        medio_pago: medioPago,
-        estado: 'pagado',
-      })
-      await actualizarLiquidacion(liq.id, {
-        estado: 'pagado',
-        egreso_id: egreso.id,
-        pagado_at: new Date().toISOString(),
-      })
-      setPagandoDia(null)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Pendiente de cierre semanal</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>A pagar por las horas de la semana</p>
           <p className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>{fmtMoney(totalSemana)}</p>
           {totalJornales > 0 && (
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-xmuted)' }}>
@@ -192,20 +99,12 @@ export default function LiquidacionSection({ horas, enCurso }) {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => { setPagandoDia({ elegir: true }); setError(null) }}
-            disabled={empleadosHora.length === 0}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-40"
-            style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}>
-            <CalendarDays size={14} /> Pagar día
-          </button>
-          <button onClick={handleCerrar} disabled={busy || loading || !hayPorHora}
-            title={enCurso ? 'La semana sigue en curso: podés cerrarla igual y regenerarla después' : ''}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-40"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
-            <Lock size={14} /> {busy ? 'Procesando…' : (enCurso ? 'Cerrar semana (en curso)' : 'Cerrar semana')}
-          </button>
-        </div>
+        {/* Los sueldos se pagan desde Caja → Pagos, como cualquier otro egreso:
+            acá solo se consultan y corrigen las horas. */}
+        <span className="flex items-center gap-1.5 text-[11px] px-3 py-2 rounded-lg"
+          style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)' }}>
+          <BadgeDollarSign size={12} /> Los sueldos se pagan en Caja y facturación → Pagos
+        </span>
       </div>
 
       {error && (
@@ -271,21 +170,6 @@ export default function LiquidacionSection({ horas, enCurso }) {
                       <span className="text-[10px] font-normal" style={{ color: 'var(--text-xmuted)' }}> /mes</span>
                     </span>
                   )}
-                  {f.tipo_sueldo === 'hora' && !f.liq && (
-                    <button onClick={() => { setPagandoDia({ empleado_id: f.empleado_id, nombre: f.nombre, valor_hora: f.valor_hora }); setError(null) }}
-                      title="Pagar un día suelto (jornal)"
-                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
-                      style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}>
-                      Día
-                    </button>
-                  )}
-                  {f.estado === 'pendiente' && (
-                    <button onClick={() => { setPagando(f.liq); setError(null) }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
-                      style={{ background: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.25)' }}>
-                      <BadgeDollarSign size={12} /> Pagar
-                    </button>
-                  )}
                   {f.liq && f.estado !== 'pagado' && (
                     <button onClick={() => setDelLiq(f.liq)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.1)'; e.currentTarget.style.color = '#f87171' }}
@@ -346,24 +230,6 @@ export default function LiquidacionSection({ horas, enCurso }) {
             ))}
           </div>
         </div>
-      )}
-
-      {/* Modal de pago semanal */}
-      {pagando && (
-        <PagoSemanaModal pagando={pagando} busy={busy} error={error}
-          onClose={() => setPagando(null)} onConfirm={handlePagar} />
-      )}
-
-      {/* Modal de pago por día */}
-      {pagandoDia && (
-        <PagoDiaModal
-          seed={pagandoDia}
-          empleados={empleadosHora}
-          busy={busy}
-          error={error}
-          onClose={() => setPagandoDia(null)}
-          onConfirm={handlePagarDia}
-        />
       )}
 
       {/* Modal de corrección de jornada */}
@@ -510,110 +376,6 @@ function EditarJornadaModal({ seed, busy, error, onClose, onConfirm }) {
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
           {busy ? 'Guardando…' : 'Guardar corrección'}
-        </button>
-      </div>
-    </ModalShell>
-  )
-}
-
-function PagoSemanaModal({ pagando, busy, error, onClose, onConfirm }) {
-  const [medioPago, setMedioPago] = useState('transferencia')
-  const [fechaPago, setFechaPago] = useState(() => localDateISO())
-
-  return (
-    <ModalShell title={`Pagar semana · ${pagando.empleado?.nombre || ''}`} icon={BadgeDollarSign} onClose={onClose} maxW="max-w-sm">
-      <div className="p-5 space-y-4">
-        <div className="rounded-xl px-4 py-3 text-center" style={{ background: 'var(--bg-active)' }}>
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            {fmtMinutos(pagando.minutos)} × {fmtMoney(pagando.valor_hora)}/h
-          </p>
-          <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{fmtMoney(pagando.total)}</p>
-        </div>
-        <Field label="Fecha de pago" type="date" value={fechaPago} onChange={setFechaPago} required />
-        <Select label="Medio de pago" value={medioPago} onChange={setMedioPago}
-          options={MEDIOS_PAGO.map(m => ({ value: m.id, label: m.label }))} />
-        <p className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>
-          Se registra como egreso en Finanzas (categoría sueldos) y la semana queda Pagada.
-        </p>
-        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
-        <button onClick={() => onConfirm({ fechaPago, medioPago })} disabled={busy}
-          className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
-          {busy ? 'Registrando…' : `Confirmar pago de ${fmtMoney(pagando.total)}`}
-        </button>
-      </div>
-    </ModalShell>
-  )
-}
-
-// Modal de jornal: elegí empleado (si no vino pre-elegido) y día → muestra las
-// horas cerradas de ese día → confirma el pago (jornal + egreso en un paso).
-function PagoDiaModal({ seed, empleados, busy, error, onClose, onConfirm }) {
-  const [empleadoId, setEmpleadoId] = useState(seed?.empleado_id || empleados[0]?.empleado_id || '')
-  const [fecha, setFecha]           = useState(() => localDateISO())
-  const [fechaPago, setFechaPago]   = useState(() => localDateISO())
-  const [medioPago, setMedioPago]   = useState('efectivo')
-  const [preview, setPreview]       = useState(null)   // { minutos, total, valor_hora } | null
-  const [cargando, setCargando]     = useState(false)
-
-  // Horas cerradas del día elegido (excluye días ya pagados por jornal).
-  useEffect(() => {
-    let vivo = true
-    if (!empleadoId || !fecha) { setPreview(null); return }
-    setCargando(true)
-    supabase.rpc('liquidacion_horas', { p_desde: fecha, p_hasta: fecha })
-      .then(({ data, error: e }) => {
-        if (!vivo) return
-        if (e) { setPreview(null); return }
-        const fila = (data || []).find(r => r.empleado_id === empleadoId)
-        setPreview(fila || null)
-      })
-      .finally(() => { if (vivo) setCargando(false) })
-    return () => { vivo = false }
-  }, [empleadoId, fecha])
-
-  const sinHoras = !cargando && (!preview || preview.minutos <= 0)
-  const nombre = empleados.find(r => r.empleado_id === empleadoId)?.nombre || seed?.nombre || ''
-
-  return (
-    <ModalShell title="Pagar día (jornal)" icon={CalendarDays} onClose={onClose} maxW="max-w-sm">
-      <div className="p-5 space-y-4">
-        <Select label="Empleado" value={empleadoId} onChange={setEmpleadoId} required
-          options={empleados.map(r => ({ value: r.empleado_id, label: r.nombre }))} />
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Día trabajado" type="date" value={fecha} onChange={setFecha} required />
-          <Field label="Fecha de pago" type="date" value={fechaPago} onChange={setFechaPago} required />
-        </div>
-
-        <div className="rounded-xl px-4 py-3 text-center" style={{ background: 'var(--bg-active)' }}>
-          {cargando ? (
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Calculando…</p>
-          ) : preview && preview.minutos > 0 ? (
-            <>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {fmtMinutos(preview.minutos)} × {fmtMoney(preview.valor_hora)}/h
-              </p>
-              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{fmtMoney(preview.total)}</p>
-            </>
-          ) : (
-            <p className="text-xs" style={{ color: '#f59e0b' }}>
-              Sin horas cerradas ese día (jornada abierta, sin fichajes, o ya pagado).
-            </p>
-          )}
-        </div>
-
-        <Select label="Medio de pago" value={medioPago} onChange={setMedioPago}
-          options={MEDIOS_PAGO.map(m => ({ value: m.id, label: m.label }))} />
-        <p className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>
-          El jornal queda Pagado, genera su egreso en Finanzas y ese día se descuenta del cierre semanal.
-        </p>
-        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
-        <button
-          onClick={() => onConfirm({ empleado_id: empleadoId, nombre, fecha, fechaPago, medioPago })}
-          disabled={busy || sinHoras || !empleadoId}
-          className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
-          {busy ? 'Registrando…' : `Confirmar jornal${preview?.total ? ` de ${fmtMoney(preview.total)}` : ''}`}
         </button>
       </div>
     </ModalShell>

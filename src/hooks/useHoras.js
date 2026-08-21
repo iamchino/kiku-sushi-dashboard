@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { rangoSemana, arDateISO } from '../lib/horas'
+import { rangoSemana, arDateISO, redondearBloque } from '../lib/horas'
 
 const FICHAJE_SELECT = '*, empleado:empleados(nombre, apellido), punto:puntos_fichaje(nombre)'
 const LIQ_SELECT = '*, empleado:empleados(nombre, apellido)'
@@ -56,10 +56,12 @@ export function useHoras(refDate) {
           .select('*')
           .order('created_at', { ascending: true }),
         // Jornadas cerradas de la semana (todas las de la semana, Finanzas por RLS),
-        // para desglosar las horas por día. Mismo redondeo de 30 min que el resumen.
+        // para desglosar las horas por día. Se traen los minutos REALES de cada
+        // tramo: el redondeo a bloques de 30 se aplica al total del día, igual
+        // que hace la base en vista_jornadas_dia.
         supabase
           .from('vista_jornadas')
-          .select('empleado_id, entrada, salida, minutos')
+          .select('empleado_id, entrada, salida, minutos, minutos_reales')
           .gte('entrada', semana.inicioISO)
           .lt('entrada', semana.finExclusivoISO),
         supabase
@@ -88,9 +90,16 @@ export function useHoras(refDate) {
         const fecha = arDateISO(j.entrada)
         if (jornalDias.has(`${j.empleado_id}|${fecha}`)) continue
         ;(mapa[j.empleado_id] ||= {})
-        mapa[j.empleado_id][fecha] = (mapa[j.empleado_id][fecha] || 0) + (j.minutos || 0)
+        // Se acumulan los minutos reales del día; el bloque se aplica después.
+        mapa[j.empleado_id][fecha] = (mapa[j.empleado_id][fecha] || 0) + (j.minutos_reales ?? j.minutos ?? 0)
         ;(detalle[j.empleado_id] ||= {})
         ;(detalle[j.empleado_id][fecha] ||= []).push(j)
+      }
+      // Redondeo a bloques de 30 min, hacia arriba, sobre el total de cada día.
+      for (const porFecha of Object.values(mapa)) {
+        for (const fecha of Object.keys(porFecha)) {
+          porFecha[fecha] = redondearBloque(porFecha[fecha])
+        }
       }
       for (const porEmpleado of Object.values(detalle)) {
         for (const lista of Object.values(porEmpleado)) {
