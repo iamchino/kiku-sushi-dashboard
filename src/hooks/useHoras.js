@@ -1,10 +1,19 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { rangoSemana, arDateISO, redondearBloque } from '../lib/horas'
+import { armarTurnos } from '../lib/turnos'
 import { borrarFila } from '../lib/borrar'
 
 const FICHAJE_SELECT = '*, empleado:empleados(nombre, apellido), punto:puntos_fichaje(nombre)'
 const LIQ_SELECT = '*, empleado:empleados(nombre, apellido)'
+
+// Las marcas se piden con un margen a cada lado de la semana: un turno que
+// empieza el domingo 18:00 termina el lunes 00:08, y sin ese margen la marca
+// de salida queda afuera y el turno se ve partido (o directamente abierto).
+const MARGEN_MS = 14 * 60 * 60 * 1000
+// Para "quién está adentro ahora" miramos más atrás: un turno que quedó
+// abierto hace días tiene que verse igual (es una salida que nadie fichó).
+const DIAS_ABIERTOS = 7
 
 // Administración de horas (solo Finanzas, por RLS) para la semana lunes→domingo
 // que contiene `refDate`:
@@ -28,6 +37,11 @@ export function useHoras(refDate) {
   // salida, minutos}]}}): alimenta el "de qué hora a qué hora" al clickear
   // un día en la tira de Liquidación.
   const [jornadasDia, setJornadasDia]             = useState({})
+  // Turnos (entrada → salida) de la semana, ya emparejados y atribuidos al día
+  // de la ENTRADA: un turno de 18:00 a 00:08 es UN turno del día que empezó.
+  const [turnos, setTurnos]                       = useState([])
+  // Turnos sin salida: quién está adentro ahora (o se olvidó de fichar).
+  const [turnosAbiertos, setTurnosAbiertos]       = useState([])
   // Sueldo base por empleado (para mostrar el monto de los de sueldo fijo:
   // liquidacion_horas devuelve total=0 para ellos y el monto vive en el legajo)
   const [sueldos, setSueldos]                     = useState({})
@@ -39,12 +53,16 @@ export function useHoras(refDate) {
   const fetchTodo = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const [fic, res, liq, pun, jor, emp] = await Promise.all([
+      const desdeMarcas = new Date(Date.parse(semana.inicioISO) - MARGEN_MS).toISOString()
+      const hastaMarcas = new Date(Date.parse(semana.finExclusivoISO) + MARGEN_MS).toISOString()
+      const desdeAbiertos = new Date(Date.now() - DIAS_ABIERTOS * 24 * 60 * 60 * 1000).toISOString()
+
+      const [fic, res, liq, pun, jor, emp, rec] = await Promise.all([
         supabase
           .from('fichajes')
           .select(FICHAJE_SELECT)
-          .gte('ts', semana.inicioISO)
-          .lt('ts', semana.finExclusivoISO)
+          .gte('ts', desdeMarcas)
+          .lt('ts', hastaMarcas)
           .order('ts', { ascending: false }),
         supabase.rpc('liquidacion_horas', { p_desde: semana.desde, p_hasta: semana.hasta }),
         supabase
@@ -69,9 +87,17 @@ export function useHoras(refDate) {
           .from('empleados')
           .select('id, sueldo_base, tipo_sueldo')
           .eq('activo', true),
+        // Marcas recientes (independientes de la semana que se esté mirando)
+        // para saber quién tiene un turno abierto AHORA.
+        supabase
+          .from('fichajes')
+          .select(FICHAJE_SELECT)
+          .gte('ts', desdeAbiertos)
+          .order('ts', { ascending: false }),
       ])
-      for (const r of [fic, res, liq, pun, jor, emp]) if (r.error) throw r.error
-      setFichajes(fic.data || [])
+      for (const r of [fic, res, liq, pun, jor, emp, rec]) if (r.error) throw r.error
+      const marcas = fic.data || []
+      setFichajes(marcas)
       setResumen(res.data || [])
       const todas = liq.data || []
       const dias = todas.filter(l => l.tipo === 'dia')
@@ -102,6 +128,30 @@ export function useHoras(refDate) {
           porFecha[fecha] = redondearBloque(porFecha[fecha])
         }
       }
+      // Turnos emparejados de la semana. El día de un turno es el día de la
+      // ENTRADA en hora de Argentina: si entró 18:00 y salió 00:08, es UN
+      // turno del día que empezó, no dos días distintos.
+      const todosLosTurnos = armarTurnos(marcas)
+      const deLaSemana = todosLosTurnos.filter(t => t.dia >= semana.desde && t.dia <= semana.hasta)
+      setTurnos(deLaSemana)
+      setTurnosAbiertos(armarTurnos(rec.data || []).filter(t => t.abierto))
+
+      // Los turnos sin salida entran al desglose por día para que se vean,
+      // pero NO suman minutos: mientras no haya salida no hay horas que pagar.
+      for (const t of deLaSemana) {
+        if (t.salida) continue
+        if (jornalDias.has(`${t.empleado_id}|${t.dia}`)) continue
+        ;(detalle[t.empleado_id] ||= {})
+        ;(detalle[t.empleado_id][t.dia] ||= []).push({
+          entrada: t.entrada,
+          salida: null,
+          minutos: null,
+          minutos_reales: null,
+          abierta: t.abierto,
+          transcurrido: t.transcurrido,
+        })
+      }
+
       for (const porEmpleado of Object.values(detalle)) {
         for (const lista of Object.values(porEmpleado)) {
           lista.sort((a, b) => new Date(a.entrada) - new Date(b.entrada))
@@ -209,7 +259,8 @@ export function useHoras(refDate) {
   }, [fetchTodo])
 
   return {
-    semana, fichajes, resumen, liquidaciones, liquidacionesDia, puntos, horasDia, jornadasDia, sueldos, loading, error,
+    semana, fichajes, turnos, turnosAbiertos, resumen, liquidaciones, liquidacionesDia,
+    puntos, horasDia, jornadasDia, sueldos, loading, error,
     refetch: fetchTodo,
     crearFichaje, actualizarFichaje, eliminarFichaje,
     generarLiquidacion, generarLiquidacionDia, anularLiquidacionDia,

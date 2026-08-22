@@ -106,6 +106,12 @@ export function fmtHora(ts) {
   return format(new Date(ts), 'HH:mm')
 }
 
+// '2026-08-18' (día operativo) → "martes 18/08"
+export function fmtDiaOperativo(iso) {
+  if (!iso) return '—'
+  return format(new Date(`${iso}T12:00:00`), 'EEEE dd/MM', { locale: es })
+}
+
 // timestamptz → "mar 14/07 18:03"
 export function fmtFechaHora(ts) {
   if (!ts) return '—'

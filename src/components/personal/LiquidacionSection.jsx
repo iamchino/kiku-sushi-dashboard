@@ -157,10 +157,12 @@ export default function LiquidacionSection({ horas, enCurso }) {
             const minutosMostrar = f.liq ? f.liq.minutos : f.minutos
             const totalMostrar = f.liq ? f.liq.total : f.total
             const porDia = horasDia[f.empleado_id] || {}
+            const detallePorDia = jornadasDia?.[f.empleado_id] || {}
             // La tira Lun→Dom se muestra para TODOS los que tengan horas,
             // también sueldo fijo: sus horas se contabilizan igual (solo que
-            // no generan monto en el cierre).
-            const tieneDetalle = dias.some(d => (porDia[d.iso] || 0) > 0)
+            // no generan monto en el cierre). Un día con un turno todavía
+            // abierto también se muestra, aunque aún no sume minutos.
+            const tieneDetalle = dias.some(d => (porDia[d.iso] || 0) > 0 || (detallePorDia[d.iso]?.length || 0) > 0)
             return (
               <div key={f.empleado_id} className="rounded-xl px-4 py-3"
                 style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
@@ -210,7 +212,7 @@ export default function LiquidacionSection({ horas, enCurso }) {
                    pagados por jornal se excluyen (aparecen abajo, en "Pagos por día"). */}
                {tieneDetalle && (
                  <DiaStrip dias={dias} porDia={porDia}
-                   detalles={jornadasDia?.[f.empleado_id] || {}}
+                   detalles={detallePorDia}
                    onEditar={f.liq
                      ? null // con la semana ya cerrada, primero eliminar el cierre
                      : (j) => { setError(null); setEditJornada({ jornada: j, empleado_id: f.empleado_id, nombre: f.nombre }) }}
@@ -269,7 +271,9 @@ export default function LiquidacionSection({ horas, enCurso }) {
 
       {delJornada && (
         <ConfirmDelete titulo="Eliminar jornada"
-          mensaje={`¿Borrás la jornada de ${delJornada.nombre} del ${fmtFechaHora(delJornada.jornada.entrada)} (${fmtHora(delJornada.jornada.entrada)} → ${fmtHora(delJornada.jornada.salida)})? Se eliminan las DOS marcas, la de entrada y la de salida. Cambia el cálculo de horas.`}
+          mensaje={delJornada.jornada.salida
+            ? `¿Borrás la jornada de ${delJornada.nombre} del ${fmtFechaHora(delJornada.jornada.entrada)} (${fmtHora(delJornada.jornada.entrada)} → ${fmtHora(delJornada.jornada.salida)})? Se eliminan las DOS marcas, la de entrada y la de salida. Cambia el cálculo de horas.`
+            : `¿Borrás la entrada sin salida de ${delJornada.nombre} del ${fmtFechaHora(delJornada.jornada.entrada)}? Se elimina esa marca de entrada.`}
           onClose={() => setDelJornada(null)} onConfirm={handleEliminarJornada} />
       )}
 
@@ -301,19 +305,23 @@ function DiaStrip({ dias, porDia, detalles, onEditar, onEliminar }) {
       <div className="grid grid-cols-7 gap-1">
         {dias.map(d => {
           const min = porDia[d.iso] || 0
-          const activo = min > 0
+          const delDia = detalles?.[d.iso] || []
+          // Turno sin salida: el día se puede abrir aunque todavía no sume.
+          const enCurso = delDia.some(j => !j.salida)
+          const activo = min > 0 || delDia.length > 0
           const abierto = sel === d.iso
+          const borde = abierto ? 'var(--accent-lift)' : enCurso ? '#f59e0b' : activo ? 'var(--accent-border)' : 'var(--border)'
           return (
             <button
               key={d.iso}
               type="button"
               disabled={!activo}
               onClick={() => setSel(abierto ? null : d.iso)}
-              title={`${d.etiqueta} ${d.num}: ${activo ? `${fmtMinutos(min)} — tocá para ver los horarios` : 'sin horas'}`}
+              title={`${d.etiqueta} ${d.num}: ${activo ? `${fmtMinutos(min)}${enCurso ? ' + un turno sin cerrar' : ''} — tocá para ver los horarios` : 'sin horas'}`}
               className="flex flex-col items-center justify-center rounded-lg py-1.5 gap-0.5 transition-all"
               style={{
                 background: abierto ? 'rgba(var(--accent-rgb),0.18)' : activo ? 'var(--accent-soft)' : 'var(--bg-input)',
-                border: `1px solid ${abierto ? 'var(--accent-lift)' : activo ? 'var(--accent-border)' : 'var(--border)'}`,
+                border: `1px solid ${borde}`,
                 cursor: activo ? 'pointer' : 'default',
               }}
             >
@@ -325,9 +333,9 @@ function DiaStrip({ dias, porDia, detalles, onEditar, onEliminar }) {
               </span>
               <span
                 className="text-[11px] tabular-nums font-medium"
-                style={{ color: activo ? 'var(--text-primary)' : 'var(--text-xmuted)' }}
+                style={{ color: min > 0 ? 'var(--text-primary)' : enCurso ? '#f59e0b' : 'var(--text-xmuted)' }}
               >
-                {fmtHorasCompacto(min)}
+                {min > 0 ? fmtHorasCompacto(min) : enCurso ? 'abierto' : fmtHorasCompacto(min)}
               </span>
             </button>
           )
@@ -350,11 +358,21 @@ function DiaStrip({ dias, porDia, detalles, onEditar, onEliminar }) {
           {jornadasSel.map((j, i) => (
             <div key={i} className="flex items-center justify-between gap-2 text-[11px] tabular-nums">
               <span style={{ color: 'var(--text-primary)' }}>
-                {fmtHora(j.entrada)} → {fmtHora(j.salida)}
+                {fmtHora(j.entrada)} → {j.salida
+                  ? fmtHora(j.salida)
+                  : <span style={{ color: '#f59e0b' }}>{j.abierta ? 'en curso' : 'sin salida'}</span>}
+                {/* Un turno que termina al día siguiente sigue siendo el mismo turno */}
+                {j.salida && new Date(j.salida).getDate() !== new Date(j.entrada).getDate() && (
+                  <span className="ml-1 text-[9px] normal-case" style={{ color: 'var(--text-xmuted)' }}>(+1 día)</span>
+                )}
               </span>
               <span className="flex items-center gap-2">
-                <span style={{ color: 'var(--text-muted)' }}>{fmtMinutos(j.minutos_reales ?? j.minutos)}</span>
-                {onEditar && (
+                <span style={{ color: j.salida ? 'var(--text-muted)' : '#f59e0b' }}>
+                  {j.salida
+                    ? fmtMinutos(j.minutos_reales ?? j.minutos)
+                    : (j.abierta ? `${fmtMinutos(j.transcurrido || 0)} y contando` : 'no suma')}
+                </span>
+                {onEditar && j.salida && (
                   <button type="button" onClick={() => onEditar(j)} title="Corregir entrada/salida"
                     className="p-1 rounded transition-colors" style={{ color: 'var(--accent-lift)' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
