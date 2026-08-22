@@ -44,7 +44,7 @@ export default function PersonalPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Personal</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            Fichaje y horas · semana lunes → domingo · bloques de 30 min
+            Fichaje y horas · semana lunes → domingo · minutos exactos
           </p>
         </div>
       </div>

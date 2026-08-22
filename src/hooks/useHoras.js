@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { rangoSemana, arDateISO, redondearBloque } from '../lib/horas'
+import { rangoSemana, arDateISO, minutosExactos } from '../lib/horas'
 import { armarTurnos } from '../lib/turnos'
 import { borrarFila } from '../lib/borrar'
 
@@ -76,8 +76,8 @@ export function useHoras(refDate) {
           .order('created_at', { ascending: true }),
         // Jornadas cerradas de la semana (todas las de la semana, Finanzas por RLS),
         // para desglosar las horas por día. Se traen los minutos REALES de cada
-        // tramo: el redondeo a bloques de 30 se aplica al total del día, igual
-        // que hace la base en vista_jornadas_dia.
+        // tramo: se suman tal cual, sin bloques ni redondeo, igual que hace la
+        // base en vista_jornadas_dia.
         supabase
           .from('vista_jornadas')
           .select('empleado_id, entrada, salida, minutos, minutos_reales')
@@ -117,15 +117,15 @@ export function useHoras(refDate) {
         const fecha = arDateISO(j.entrada)
         if (jornalDias.has(`${j.empleado_id}|${fecha}`)) continue
         ;(mapa[j.empleado_id] ||= {})
-        // Se acumulan los minutos reales del día; el bloque se aplica después.
+        // Se acumulan los minutos reales del día: lo fichado es lo que se paga.
         mapa[j.empleado_id][fecha] = (mapa[j.empleado_id][fecha] || 0) + (j.minutos_reales ?? j.minutos ?? 0)
         ;(detalle[j.empleado_id] ||= {})
         ;(detalle[j.empleado_id][fecha] ||= []).push(j)
       }
-      // Redondeo a bloques de 30 min, hacia arriba, sobre el total de cada día.
+      // Sin redondeo: el total del día son los minutos exactos fichados.
       for (const porFecha of Object.values(mapa)) {
         for (const fecha of Object.keys(porFecha)) {
-          porFecha[fecha] = redondearBloque(porFecha[fecha])
+          porFecha[fecha] = minutosExactos(porFecha[fecha])
         }
       }
       // Turnos emparejados de la semana. El día de un turno es el día de la

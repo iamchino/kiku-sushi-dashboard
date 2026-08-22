@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { rangoSemana, arDateISO, redondearBloque } from '../lib/horas'
+import { rangoSemana, minutosExactos } from '../lib/horas'
 
 // Horas del empleado logueado para la semana (lunes → domingo) que contiene
 // `refDate`. RLS self: solo ve lo suyo.
 //  - jornadas: pares entrada/salida de vista_jornadas (salida null = abierta)
-//  - minutos: total de la semana con el redondeo a bloques de 30 aplicado por día
+//  - minutos: total de la semana en minutos exactos (sin bloques ni redondeo)
 //  - estimado: minutos/60 × sueldo_base (si tipo_sueldo = 'hora')
 //  - liquidacion: fila de `liquidaciones` de esa semana (estado pagado/pendiente)
 export function useMisHoras(refDate) {
@@ -64,16 +64,15 @@ export function useMisHoras(refDate) {
 
   useEffect(() => { fetchDatos() }, [fetchDatos])
 
-  // Total de la semana: se suman los minutos REALES de cada día y recién ahí
-  // se redondea a bloques de 30 hacia arriba, día por día (igual que la base).
+  // Total de la semana: la suma de los minutos REALES de cada jornada cerrada.
+  // Sin bloques ni redondeo — igual que la base.
   const minutos = useMemo(() => {
-    const porDia = {}
+    let total = 0
     for (const j of jornadas) {
       if (!j.salida) continue
-      const fecha = arDateISO(j.entrada)
-      porDia[fecha] = (porDia[fecha] || 0) + (j.minutos_reales ?? j.minutos ?? 0)
+      total += minutosExactos(j.minutos_reales ?? j.minutos ?? 0)
     }
-    return Object.values(porDia).reduce((s, m) => s + redondearBloque(m), 0)
+    return total
   }, [jornadas])
   const esPorHora = empleado?.tipo_sueldo === 'hora'
   const estimado = esPorHora ? (minutos / 60) * Number(empleado?.sueldo_base || 0) : 0

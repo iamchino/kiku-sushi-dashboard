@@ -39,7 +39,7 @@ export default function MisHorasPage() {
             Mis horas
           </h1>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            Semana de liquidación: lunes a domingo · bloques de 30 min
+            Semana de liquidación: lunes a domingo · se pagan los minutos exactos
           </p>
         </div>
 
