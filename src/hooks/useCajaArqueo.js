@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { endOfDay, startOfDay } from 'date-fns'
 import { supabase } from '../lib/supabase'
+import { borrarFila } from '../lib/borrar'
 
 // Medios cobrados (provienen de la tabla pagos). Se usan en la conciliacion
 // y en el cierre por medio.
@@ -468,6 +469,64 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
     await fetchData()
   }, [fetchData])
 
+  /**
+   * Corrige los datos de un turno SIN importar si está abierto, reabierto o
+   * cerrado. Antes la apertura (caja, fecha operativa, fondo inicial, hora y
+   * notas) solo se podía cargar al abrir el turno y después quedaba congelada:
+   * si el encargado se equivocaba en el fondo inicial, había que cerrar el
+   * turno y reabrirlo para tocarlo. Ahora se edita en el momento.
+   *
+   * No toca el estado ni los datos del cierre: para eso están cerrarTurno y
+   * reabrirTurno.
+   */
+  const editarTurno = useCallback(async ({
+    turno_id,
+    caja_nombre,
+    business_date,
+    apertura_monto,
+    apertura_at,
+    notas_apertura,
+  }) => {
+    if (!turno_id) throw new Error('Falta el turno a editar.')
+
+    const patch = { updated_at: new Date().toISOString() }
+    if (caja_nombre !== undefined) {
+      const nombre = String(caja_nombre).trim()
+      if (!nombre) throw new Error('La caja necesita un nombre.')
+      patch.caja_nombre = nombre
+    }
+    if (business_date !== undefined) {
+      if (!business_date) throw new Error('La fecha operativa es obligatoria.')
+      patch.business_date = business_date
+    }
+    if (apertura_monto !== undefined) {
+      const monto = parseAmount(apertura_monto)
+      if (monto < 0) throw new Error('El fondo inicial no puede ser negativo.')
+      patch.apertura_monto = monto
+    }
+    if (apertura_at !== undefined && apertura_at) patch.apertura_at = apertura_at
+    if (notas_apertura !== undefined) patch.notas_apertura = notas_apertura?.trim() || null
+
+    const { data, error: updateError } = await supabase
+      .from('caja_turnos')
+      .update(patch)
+      .eq('id', turno_id)
+      .select('id')
+
+    if (updateError) {
+      // La base solo admite un turno abierto por nombre de caja.
+      if (updateError.code === '23505') {
+        throw new Error('Ya hay otro turno abierto con ese nombre de caja. Elegí otro nombre.')
+      }
+      throw updateError
+    }
+    // RLS no da error cuando bloquea un UPDATE: no toca ninguna fila y listo.
+    if (!data || data.length === 0) {
+      throw new Error('No se pudo guardar: tu usuario no tiene permiso para editar la caja.')
+    }
+    await fetchData()
+  }, [fetchData])
+
   const cerrarTurno = useCallback(async ({
     turno_id,
     contado_por_medio = {},
@@ -613,12 +672,9 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
   /** Elimina un movimiento manual (queda auditado si el turno está reabierto). */
   const eliminarMovimiento = useCallback(async (id) => {
     if (!id) throw new Error('Falta el movimiento a eliminar.')
-    const { error: delError } = await supabase
-      .from('caja_movimientos')
-      .delete()
-      .eq('id', id)
-
-    if (delError) throw delError
+    // borrarFila avisa si RLS bloqueó el borrado (Postgres no da error: borra
+    // cero filas y devuelve éxito).
+    await borrarFila('caja_movimientos', id, 'el movimiento')
     await fetchData()
   }, [fetchData])
 
@@ -662,6 +718,7 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
     abrirTurno,
     registrarMovimiento,
     cerrarTurno,
+    editarTurno,
     vincularPagosAlTurno,
     asignarPagosAlTurno,
     reabrirTurno,

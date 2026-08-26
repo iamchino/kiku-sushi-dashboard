@@ -14,6 +14,7 @@ import {
   Link2,
   Loader2,
   LockKeyhole,
+  Pencil,
   PlusCircle,
   RefreshCw,
   Trash2,
@@ -34,6 +35,19 @@ const CANAL_LABEL = {
   whatsapp: 'WhatsApp',
   pedidosya: 'PedidosYa',
   rappi: 'Rappi',
+}
+
+// timestamptz -> 'YYYY-MM-DD' / 'HH:MM' en hora local, para inputs date/time.
+function fechaLocalInput(ts) {
+  const d = new Date(ts)
+  const p = (x) => String(x).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+function horaLocalInput(ts) {
+  const d = new Date(ts)
+  const p = (x) => String(x).padStart(2, '0')
+  return `${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 function localDateISO(d = new Date()) {
@@ -563,7 +577,9 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
   )
 }
 
-function MovimientosList({ movimientos }) {
+function MovimientosList({ movimientos, busy, onEdit, onDelete }) {
+  const [verTodos, setVerTodos] = useState(false)
+  const editable = Boolean(onEdit && onDelete)
   if (movimientos.length === 0) {
     return (
       <Panel>
@@ -580,7 +596,12 @@ function MovimientosList({ movimientos }) {
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{movimientos.length} registros</span>
       </div>
       <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-        {movimientos.slice(0, 8).map(mov => {
+        {(verTodos ? movimientos : movimientos.slice(0, 8)).map(mov => {
+          // Con el turno abierto cada movimiento se corrige o se borra en el
+          // momento: antes había que cerrar el turno y reabrirlo para tocarlo.
+          if (editable) {
+            return <MovimientoEditableRow key={mov.id} mov={mov} busy={busy} onEdit={onEdit} onDelete={onDelete} />
+          }
           const sign = tipoConfig(mov.tipo).sign
           const color = movimientoColor(mov.tipo)
           const Icon = sign < 0 ? ArrowDownCircle : sign > 0 ? ArrowUpCircle : Clock3
@@ -602,6 +623,13 @@ function MovimientosList({ movimientos }) {
           )
         })}
       </div>
+      {movimientos.length > 8 && (
+        <button type="button" onClick={() => setVerTodos(v => !v)}
+          className="mt-2 w-full rounded-lg py-1.5 text-[11px] font-semibold"
+          style={{ color: 'var(--accent-lift)', border: '1px dashed var(--accent-border)' }}>
+          {verTodos ? 'Ver menos' : `Ver los ${movimientos.length} movimientos`}
+        </button>
+      )}
     </Panel>
   )
 }
@@ -1008,17 +1036,184 @@ function AuditoriaList({ auditoria }) {
   )
 }
 
+// Chip chico reutilizable para elegir tipo/medio en las ediciones inline.
+function Chip({ activo, color, onClick, children }) {
+  const c = color || 'var(--accent-lift)'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors"
+      style={activo
+        ? { background: 'var(--accent-soft)', color: c, border: `1px solid ${c}` }
+        : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+    >
+      {children}
+    </button>
+  )
+}
+
+// Pagos ya asignados a un turno, con la opción de sacarlos. Se usa tanto en el
+// turno abierto como en uno reabierto: un pago que entró en la caja
+// equivocada se saca de acá, sin tener que cerrar el turno.
+function PagosTurnoLista({ pagos, busy, onQuitar }) {
+  if (!pagos || pagos.length === 0) {
+    return <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sin pagos asignados.</p>
+  }
+  return (
+    <div className="divide-y rounded" style={{ borderColor: 'var(--border)', border: '1px solid var(--border)' }}>
+      {pagos.map(pago => (
+        <div key={pago.id} className="flex items-center justify-between gap-2 px-2 py-1.5 text-xs">
+          <span className="truncate" style={{ color: 'var(--text-secondary)' }}>
+            {medioLabel(pago.medio_pago)} · ${formatMoney(pago.monto)} · {timeLabel(pago.created_at)}
+          </span>
+          <button
+            type="button"
+            onClick={() => onQuitar(pago.id)}
+            disabled={busy === `pago-${pago.id}`}
+            className="rounded px-2 py-1 font-semibold disabled:opacity-50"
+            style={{ color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}
+          >
+            {busy === `pago-${pago.id}` ? <Loader2 size={12} className="animate-spin" /> : 'Quitar'}
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Corrección de los datos de apertura de un turno que YA está abierto.
+// Antes esto solo se podía cargar al abrir: si el fondo inicial o la fecha
+// operativa salían mal, había que cerrar el turno y reabrirlo para tocarlos.
+function EditarTurnoModal({ turno, saving, onClose, onGuardar }) {
+  const [form, setForm] = useState(() => ({
+    caja_nombre: turno?.caja_nombre || '',
+    business_date: turno?.business_date || localDateISO(),
+    apertura_monto: String(turno?.apertura_monto ?? ''),
+    apertura_fecha: turno?.apertura_at ? fechaLocalInput(turno.apertura_at) : '',
+    apertura_hora: turno?.apertura_at ? horaLocalInput(turno.apertura_at) : '',
+    notas_apertura: turno?.notas_apertura || '',
+  }))
+  const [error, setError] = useState(null)
+  if (!turno) return null
+
+  const update = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
+
+  const guardar = async () => {
+    if (!form.caja_nombre.trim()) { setError('La caja necesita un nombre.'); return }
+    if (!form.business_date) { setError('La fecha operativa es obligatoria.'); return }
+    if (parseAmount(form.apertura_monto) < 0) { setError('El fondo inicial no puede ser negativo.'); return }
+    setError(null)
+    await onGuardar({
+      turno_id: turno.id,
+      caja_nombre: form.caja_nombre,
+      business_date: form.business_date,
+      apertura_monto: form.apertura_monto,
+      apertura_at: form.apertura_fecha && form.apertura_hora
+        ? new Date(`${form.apertura_fecha}T${form.apertura_hora}`).toISOString()
+        : undefined,
+      notas_apertura: form.notas_apertura,
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center p-0 sm:items-center sm:p-4"
+      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} onClick={onClose}>
+      <div className="w-full max-w-md overflow-hidden rounded-t-2xl sm:rounded-2xl"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between gap-3 px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-2">
+            <Pencil size={15} style={{ color: 'var(--accent-lift)' }} />
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Editar el turno</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded p-1" style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
+        </div>
+
+        <div className="space-y-3 px-5 py-4">
+          <Field label="Caja">
+            <input value={form.caja_nombre} onChange={e => update('caja_nombre', e.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle()} />
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Fecha operativa">
+              <input type="date" value={form.business_date} onChange={e => update('business_date', e.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle()} />
+            </Field>
+            <Field label="Fondo inicial">
+              <input inputMode="decimal" value={form.apertura_monto} onChange={e => update('apertura_monto', e.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle()} />
+            </Field>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Día de apertura">
+              <input type="date" value={form.apertura_fecha} onChange={e => update('apertura_fecha', e.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle()} />
+            </Field>
+            <Field label="Hora de apertura">
+              <input type="time" value={form.apertura_hora} onChange={e => update('apertura_hora', e.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle()} />
+            </Field>
+          </div>
+          <Field label="Notas de apertura">
+            <textarea rows={2} value={form.notas_apertura} onChange={e => update('notas_apertura', e.target.value)}
+              placeholder="Ej: faltaba cambio, se agregaron $5.000"
+              className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle()} />
+          </Field>
+
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            Cambiar el fondo inicial mueve el efectivo esperado del arqueo. Queda registrado en la auditoría del turno.
+          </p>
+          {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose}
+              className="rounded-lg px-4 py-2 text-sm font-medium"
+              style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+              Cancelar
+            </button>
+            <button type="button" onClick={guardar} disabled={saving}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+              {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+              Guardar cambios
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function MovimientoEditableRow({ mov, busy, onEdit, onDelete }) {
   const [editando, setEditando] = useState(false)
   const [monto, setMonto] = useState(String(mov.monto ?? ''))
   const [descripcion, setDescripcion] = useState(mov.descripcion || '')
+  const [tipo, setTipo] = useState(mov.tipo)
+  const [medio, setMedio] = useState(mov.medio_pago)
   const sign = tipoConfig(mov.tipo).sign
   const color = movimientoColor(mov.tipo)
   const guardando = busy === `editmov-${mov.id}`
   const eliminando = busy === `delmov-${mov.id}`
 
+  // Al abrir la edición se relee el movimiento: si otro lo cambió mientras
+  // tanto, no se pisa con valores viejos.
+  const abrir = () => {
+    setMonto(String(mov.monto ?? ''))
+    setDescripcion(mov.descripcion || '')
+    setTipo(mov.tipo)
+    setMedio(mov.medio_pago)
+    setEditando(v => !v)
+  }
+
   const guardar = async () => {
-    await onEdit({ id: mov.id, monto, descripcion: descripcion.trim() || mov.descripcion })
+    await onEdit({
+      id: mov.id,
+      tipo,
+      medio_pago: medio,
+      monto,
+      descripcion: descripcion.trim() || mov.descripcion,
+    })
     setEditando(false)
   }
 
@@ -1035,7 +1230,7 @@ function MovimientoEditableRow({ mov, busy, onEdit, onDelete }) {
           <span className="font-bold" style={{ color }}>
             {sign < 0 ? '-' : sign > 0 ? '+' : ''}${formatMoney(mov.monto)}
           </span>
-          <button type="button" onClick={() => setEditando(v => !v)} className="rounded p-1" style={{ color: 'var(--text-muted)' }} title="Editar">
+          <button type="button" onClick={abrir} className="rounded p-1" style={{ color: 'var(--text-muted)' }} title="Editar">
             <RefreshCw size={13} />
           </button>
           <button type="button" onClick={() => onDelete(mov.id)} disabled={eliminando} className="rounded p-1 disabled:opacity-50" style={{ color: '#f87171' }} title="Eliminar">
@@ -1044,12 +1239,27 @@ function MovimientoEditableRow({ mov, busy, onEdit, onDelete }) {
         </div>
       </div>
       {editando && (
-        <div className="mt-2 grid gap-2 sm:grid-cols-[120px_1fr_auto]">
-          <input inputMode="decimal" value={monto} onChange={e => setMonto(e.target.value)} placeholder="Monto" className="rounded-lg px-2 py-1.5 text-xs outline-none" style={inputStyle()} />
-          <input value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Descripción" className="rounded-lg px-2 py-1.5 text-xs outline-none" style={inputStyle()} />
-          <button type="button" onClick={guardar} disabled={guardando} className="inline-flex items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50" style={{ background: 'var(--accent)' }}>
-            {guardando ? <Loader2 size={12} className="animate-spin" /> : 'Guardar'}
-          </button>
+        <div className="mt-2 space-y-2">
+          {/* Tipo y medio también se pueden corregir: un ingreso cargado como
+              egreso deja el arqueo al revés y antes había que borrarlo. */}
+          <div className="flex flex-wrap gap-1.5">
+            {TIPOS_MOVIMIENTO_CAJA.map(item => (
+              <Chip key={item.id} activo={tipo === item.id} color={movimientoColor(item.id)}
+                onClick={() => setTipo(item.id)}>{item.short}</Chip>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {MEDIOS_MOVIMIENTO.map(item => (
+              <Chip key={item.id} activo={medio === item.id} onClick={() => setMedio(item.id)}>{item.short}</Chip>
+            ))}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-[120px_1fr_auto]">
+            <input inputMode="decimal" value={monto} onChange={e => setMonto(e.target.value)} placeholder="Monto" className="rounded-lg px-2 py-1.5 text-xs outline-none" style={inputStyle()} />
+            <input value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Descripción" className="rounded-lg px-2 py-1.5 text-xs outline-none" style={inputStyle()} />
+            <button type="button" onClick={guardar} disabled={guardando} className="inline-flex items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50" style={{ background: 'var(--accent)' }}>
+              {guardando ? <Loader2 size={12} className="animate-spin" /> : 'Guardar'}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -1128,28 +1338,7 @@ function TurnoReabiertoPanel({
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
             Pagos del turno ({pagosTurno.length})
           </p>
-          {pagosTurno.length === 0 ? (
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sin pagos asignados.</p>
-          ) : (
-            <div className="divide-y rounded" style={{ borderColor: 'var(--border)', border: '1px solid var(--border)' }}>
-              {pagosTurno.map(pago => (
-                <div key={pago.id} className="flex items-center justify-between gap-2 px-2 py-1.5 text-xs">
-                  <span className="truncate" style={{ color: 'var(--text-secondary)' }}>
-                    {medioLabel(pago.medio_pago)} · ${formatMoney(pago.monto)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onQuitarPago(pago.id)}
-                    disabled={busy === `pago-${pago.id}`}
-                    className="rounded px-2 py-1 font-semibold disabled:opacity-50"
-                    style={{ color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}
-                  >
-                    {busy === `pago-${pago.id}` ? <Loader2 size={12} className="animate-spin" /> : 'Quitar'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <PagosTurnoLista pagos={pagosTurno} busy={busy} onQuitar={onQuitarPago} />
         </div>
         <div>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
@@ -1283,6 +1472,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
     abrirTurno,
     registrarMovimiento,
     cerrarTurno,
+    editarTurno,
     vincularPagosAlTurno,
     asignarPagosAlTurno,
     reabrirTurno,
@@ -1297,6 +1487,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
   const [busy, setBusy] = useState(null)
   const [notice, setNotice] = useState(null)
   const [reabrirTarget, setReabrirTarget] = useState(null)
+  const [editandoTurno, setEditandoTurno] = useState(false)
   // Alta de egresos centralizada: el botón "Egreso" del formulario manual abre
   // el mismo modal de Registrar pago que usan Caja → Pagos y Finanzas.
   const [pagoModal, setPagoModal] = useState(false)
@@ -1397,10 +1588,27 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
                     Turno abierto
                   </span>
                   <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{turnoActual.caja_nombre}</span>
+                  {/* El turno abierto se corrige acá mismo: caja, fecha
+                      operativa, fondo inicial, hora de apertura y notas. */}
+                  <button
+                    type="button"
+                    onClick={() => setEditandoTurno(true)}
+                    title="Corregir los datos del turno"
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors"
+                    style={{ color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}
+                  >
+                    <Pencil size={11} /> Editar
+                  </button>
                 </div>
                 <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
                   Apertura {timeLabel(turnoActual.apertura_at)} - Fecha operativa {turnoActual.business_date}
+                  {' · '}Fondo inicial ${formatMoney(turnoActual.apertura_monto)}
                 </p>
+                {turnoActual.notas_apertura && (
+                  <p className="mt-0.5 text-xs italic" style={{ color: 'var(--text-xmuted)' }}>
+                    {turnoActual.notas_apertura}
+                  </p>
+                )}
               </div>
               {resumen.pagosSinTurno.length > 0 && (
                 <button
@@ -1470,8 +1678,40 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
               saving={busy === 'cerrar'}
               onClose={(values) => run('cerrar', () => cerrarTurno(values), 'Turno cerrado.')}
             />
-            <MovimientosList movimientos={resumen.movimientosTurno} />
+            <div className="space-y-4">
+              <MovimientosList
+                movimientos={resumen.movimientosTurno}
+                busy={busy}
+                onEdit={(values) => run(`editmov-${values.id}`, () => editarMovimiento(values), 'Movimiento editado.')}
+                onDelete={(id) => run(`delmov-${id}`, () => eliminarMovimiento(id), 'Movimiento eliminado.')}
+              />
+
+              {/* Un pago que entró en la caja equivocada se saca de acá, sin
+                  tener que cerrar el turno y reabrirlo. */}
+              <Panel>
+                <p className="mb-2 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  Pagos del turno ({resumen.pagosTurno.length})
+                </p>
+                <PagosTurnoLista
+                  pagos={resumen.pagosTurno}
+                  busy={busy}
+                  onQuitar={(pagoId) => run(`pago-${pagoId}`, () => reasignarPago({ pago_id: pagoId, turno_id: null }), 'Pago quitado del turno.')}
+                />
+              </Panel>
+            </div>
           </div>
+
+          {editandoTurno && (
+            <EditarTurnoModal
+              turno={turnoActual}
+              saving={busy === 'editar-turno'}
+              onClose={() => setEditandoTurno(false)}
+              onGuardar={async (values) => {
+                await run('editar-turno', () => editarTurno(values), 'Turno actualizado.')
+                setEditandoTurno(false)
+              }}
+            />
+          )}
         </>
       )}
 
