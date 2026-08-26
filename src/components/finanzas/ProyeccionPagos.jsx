@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, CalendarClock, CheckCircle2, Edit2, Flame, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CheckCircle2, Edit2, Flame, History, Plus, Trash2 } from 'lucide-react'
 import { useEgresos } from '../../hooks/useEgresos'
 import { useProveedores } from '../../hooks/useProveedores'
 import { useEmpleados } from '../../hooks/useEmpleados'
 import { fmtMoney, fmtFecha, catLabel, catColor, localDateISO, DIAS_ANTES_DE_SER_DEUDA, naturalezaPendiente } from '../../lib/finanzas'
 import EgresoModal from './EgresoModal'
 import ConfirmDelete from './ConfirmDelete'
+import HistorialPago from '../pagos/HistorialPago'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 
 // Proyección de pagos: lo pendiente de pagar, separado en dos naturalezas:
@@ -47,8 +48,9 @@ function tiempoLabel(e, hoy) {
 
 function FilaPendiente({ e, hoy, onEditar, onEliminar }) {
   const urgente = e.vencimiento && diasHasta(e.vencimiento, hoy) <= 0
+  const [historial, setHistorial] = useState(false)
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5"
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg px-3 py-2.5"
       style={{ background: 'var(--bg-input)' }}>
       <div className="flex min-w-0 items-center gap-2.5">
         <span className="h-9 w-1.5 flex-shrink-0 rounded-full" style={{ background: catColor(e.categoria) }} />
@@ -72,6 +74,13 @@ function FilaPendiente({ e, hoy, onEditar, onEliminar }) {
       </div>
       <div className="flex flex-shrink-0 items-center gap-1.5">
         <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{fmtMoney(e.monto)}</span>
+        <button onClick={() => setHistorial(v => !v)} title="Ver el historial de este pago"
+          className="p-1 rounded-md transition-colors"
+          style={{ color: historial ? 'var(--accent-lift)' : 'var(--text-xmuted)' }}
+          onMouseEnter={ev => ev.currentTarget.style.background = 'var(--bg-hover)'}
+          onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
+          <History size={12} />
+        </button>
         <button onClick={() => onEditar(e)} title="Editar / marcar pagado"
           className="p-1 rounded-md transition-colors" style={{ color: 'var(--text-xmuted)' }}
           onMouseEnter={ev => ev.currentTarget.style.background = 'var(--bg-hover)'}
@@ -85,6 +94,12 @@ function FilaPendiente({ e, hoy, onEditar, onEliminar }) {
           <Trash2 size={12} />
         </button>
       </div>
+
+      {historial && (
+        <div className="w-full pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+          <HistorialPago pagoId={e.id} />
+        </div>
+      )}
     </div>
   )
 }
@@ -254,7 +269,7 @@ export default function ProyeccionPagos() {
 
       {borrando && (
         <ConfirmDelete titulo="Eliminar de la proyección"
-          mensaje={`¿Borrás "${borrando.descripcion}" por ${fmtMoney(borrando.monto)}? Se elimina del listado de pendientes y no queda registro del pago.`}
+          mensaje={`¿Borrás "${borrando.descripcion}" por ${fmtMoney(borrando.monto)}? Se elimina del listado de pendientes, pero queda en el historial del pago con la fecha y quién lo hizo.`}
           onClose={() => setBorrando(null)}
           onConfirm={async () => { await eliminarEgreso(borrando.id) }} />
       )}

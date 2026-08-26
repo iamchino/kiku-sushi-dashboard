@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { borrarFila } from '../lib/borrar'
+import { editarPago, anularPago, historialDePago } from '../lib/pagos'
 
 const SELECT = '*, proveedor:proveedores(razon_social), empleado:empleados(nombre, apellido)'
 
@@ -56,26 +56,34 @@ export function useEgresos(desde, hasta) {
     return data
   }, [fetchEgresos])
 
-  const actualizarEgreso = useCallback(async (id, form) => {
-    const { data, error: e } = await supabase
-      .from('egresos')
-      .update(form)
-      .eq('id', id)
-      .select(SELECT)
-      .single()
-    if (e) throw e
+  // Editar y anular pasan por los RPC de pagos: un egreso que salió de una
+  // caja tiene un movimiento espejo en `caja_movimientos` o en
+  // `caja_fuerte_movimientos`, y tocar solo el egreso dejaba el arqueo y el
+  // saldo de la caja fuerte mal, en silencio. Los RPC mueven las dos mitades
+  // juntas y dejan el cambio en el historial del pago.
+  //
+  // Se acepta el id suelto o la fila entera; con la fila se puede avisar
+  // mejor cuando falta correr la migración.
+  const actualizarEgreso = useCallback(async (idOFila, form, motivo) => {
+    const pago = typeof idOFila === 'string'
+      ? (egresos.find(e => e.id === idOFila) || pendientes.find(e => e.id === idOFila) || { id: idOFila })
+      : idOFila
+    const data = await editarPago(pago, form, motivo)
     await fetchEgresos()
     return data
-  }, [fetchEgresos])
+  }, [fetchEgresos, egresos, pendientes])
 
-  const eliminarEgreso = useCallback(async (id) => {
-    await borrarFila('egresos', id, 'el pago')
+  const eliminarEgreso = useCallback(async (idOFila, motivo) => {
+    const pago = typeof idOFila === 'string'
+      ? (egresos.find(e => e.id === idOFila) || pendientes.find(e => e.id === idOFila) || { id: idOFila })
+      : idOFila
+    await anularPago(pago, motivo)
     await fetchEgresos()
-  }, [fetchEgresos])
+  }, [fetchEgresos, egresos, pendientes])
 
   return {
     egresos, pendientes, loading, error,
     refetch: fetchEgresos,
-    crearEgreso, actualizarEgreso, eliminarEgreso,
+    crearEgreso, actualizarEgreso, eliminarEgreso, historialDePago,
   }
 }

@@ -10,6 +10,7 @@ import { useEmpleados } from '../../hooks/useEmpleados'
 import { fmtMoney, fmtFecha, catLabel, catColor, medioLabel } from '../../lib/finanzas'
 import EgresoModal from './EgresoModal'
 import ConfirmDelete from './ConfirmDelete'
+import HistorialPago from '../pagos/HistorialPago'
 import CajaFuerteResumen from './CajaFuerteResumen'
 
 // Resumen de Finanzas: la "foto del negocio" en una sola pantalla, pensada
@@ -164,6 +165,7 @@ function HistorialDePagos({ desde, hasta }) {
   const [verTodos, setVerTodos] = useState(false)
   const [editando, setEditando] = useState(null)
   const [borrando, setBorrando] = useState(null)
+  const [historial, setHistorial] = useState(null)
 
   const visibles = verTodos ? egresos : egresos.slice(0, 6)
 
@@ -177,7 +179,7 @@ function HistorialDePagos({ desde, hasta }) {
     <div>
       <div className="space-y-1.5">
         {visibles.map(e => (
-          <div key={e.id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2"
+          <div key={e.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg px-3 py-2"
             style={{ background: 'var(--bg-input)' }}>
             <div className="flex items-center gap-2.5 min-w-0">
               <span className="h-8 w-1.5 flex-shrink-0 rounded-full" style={{ background: catColor(e.categoria) }} />
@@ -195,6 +197,13 @@ function HistorialDePagos({ desde, hasta }) {
             </div>
             <div className="flex flex-shrink-0 items-center gap-1.5">
               <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{fmtMoney(e.monto)}</span>
+              <button onClick={() => setHistorial(h => h === e.id ? null : e.id)} title="Ver el historial de este pago"
+                className="p-1 rounded-md transition-colors"
+                style={{ color: historial === e.id ? 'var(--accent-lift)' : 'var(--text-xmuted)' }}
+                onMouseEnter={ev => ev.currentTarget.style.background = 'var(--bg-hover)'}
+                onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
+                <History size={12} />
+              </button>
               <button onClick={() => setEditando(e)} title="Corregir este pago"
                 className="p-1 rounded-md transition-colors" style={{ color: 'var(--text-xmuted)' }}
                 onMouseEnter={ev => ev.currentTarget.style.background = 'var(--bg-hover)'}
@@ -208,6 +217,12 @@ function HistorialDePagos({ desde, hasta }) {
                 <Trash2 size={12} />
               </button>
             </div>
+
+            {historial === e.id && (
+              <div className="w-full pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+                <HistorialPago pagoId={e.id} />
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -235,7 +250,7 @@ function HistorialDePagos({ desde, hasta }) {
 
       {borrando && (
         <ConfirmDelete titulo="Eliminar pago"
-          mensaje={`¿Borrás "${borrando.descripcion}" por ${fmtMoney(borrando.monto)}? Desaparece del historial y de los totales del período. Si salió de una caja, el movimiento de esa caja NO se revierte solo.`}
+          mensaje={`¿Borrás "${borrando.descripcion}" por ${fmtMoney(borrando.monto)}? Desaparece del historial y de los totales del período. Si salió de una caja, la plata vuelve a esa caja y el arqueo se corrige solo. Queda en el historial del pago.`}
           onClose={() => setBorrando(null)}
           onConfirm={async () => { await eliminarEgreso(borrando.id) }} />
       )}

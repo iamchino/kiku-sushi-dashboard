@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { editarPago as editarPagoRpc, anularPago as anularPagoRpc, historialDePago } from '../lib/pagos'
 
 // Texto por defecto si la instalación todavía no cargó el nombre de su cuenta.
 const BANCO_FALLBACK = 'Cuenta bancaria del negocio'
@@ -109,5 +110,27 @@ export function usePagos(opciones = {}) {
     return data
   }, [cargar])
 
-  return { pagos, empleados, turnoAbierto, bancoCuenta, loading, error, registrarPago, recargar: cargar }
+  /**
+   * Corrige un pago YA registrado. Va por editar_pago(), que además mueve el
+   * reflejo del pago en la caja del día o en la caja fuerte: editar solo el
+   * egreso dejaba el arqueo mal sin avisar.
+   */
+  const editarPago = useCallback(async (pago, form, motivo) => {
+    const data = await editarPagoRpc(pago, form, motivo)
+    await cargar()
+    return data
+  }, [cargar])
+
+  /** Anula un pago y revierte su movimiento de caja. */
+  const anularPago = useCallback(async (pago, motivo) => {
+    const data = await anularPagoRpc(pago, motivo)
+    await cargar()
+    return data
+  }, [cargar])
+
+  return {
+    pagos, empleados, turnoAbierto, bancoCuenta, loading, error,
+    registrarPago, editarPago, anularPago, historialDePago,
+    recargar: cargar,
+  }
 }

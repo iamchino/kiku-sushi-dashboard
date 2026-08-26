@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Wallet, Plus, AlertTriangle, Link2, Clock, CheckCircle2 } from 'lucide-react'
+import { Wallet, Plus, AlertTriangle, Link2, Clock, CheckCircle2, Pencil, Trash2, History } from 'lucide-react'
 import { usePagos } from '../../hooks/usePagos'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
+import HistorialPago from '../pagos/HistorialPago'
+import ConfirmDelete from '../finanzas/ConfirmDelete'
 import { CATEGORIAS, fmtMoney, fmtFecha, catLabel, catColor, medioLabel, localDateISO } from '../../lib/finanzas'
 
 // Pagos centralizados: TODOS los egresos del negocio se registran acá, con la
@@ -42,9 +44,11 @@ export default function PagosPanel() {
     [rango, desdeCustom, hastaCustom],
   )
 
-  const { pagos, turnoAbierto, loading, error, recargar } = usePagos({ desde, hasta, categoria, estado })
-  const [modal, setModal] = useState(false)
+  const { pagos, turnoAbierto, loading, error, recargar, anularPago } = usePagos({ desde, hasta, categoria, estado })
+  const [modal, setModal] = useState(false)      // false | true (alta) | fila (edición)
   const [aviso, setAviso] = useState(null)
+  const [anulando, setAnulando] = useState(null)
+  const [verHistorial, setVerHistorial] = useState(null)
 
   const total = useMemo(
     () => pagos.filter(p => p.estado === 'pagado').reduce((acc, p) => acc + Number(p.monto || 0), 0),
@@ -173,9 +177,31 @@ export default function PagosPanel() {
                     )}
                   </div>
                 </div>
-                <span className="text-sm font-semibold flex-shrink-0" style={{ color: 'var(--text-primary)' }}>
-                  {fmtMoney(p.monto)}
-                </span>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    {fmtMoney(p.monto)}
+                  </span>
+                  {/* Se corrige desde la misma pantalla donde se cargó: antes
+                      había que ir a Finanzas para arreglar un tipeo. */}
+                  <IconoAccion titulo="Ver el historial de este pago" activo={verHistorial === p.id}
+                    onClick={() => setVerHistorial(v => v === p.id ? null : p.id)}>
+                    <History size={13} />
+                  </IconoAccion>
+                  <IconoAccion titulo="Corregir este pago"
+                    onClick={() => { setAviso(null); setModal(p) }}>
+                    <Pencil size={13} />
+                  </IconoAccion>
+                  <IconoAccion titulo="Anular este pago" peligro
+                    onClick={() => { setAviso(null); setAnulando(p) }}>
+                    <Trash2 size={13} />
+                  </IconoAccion>
+                </div>
+
+                {verHistorial === p.id && (
+                  <div className="w-full pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+                    <HistorialPago pagoId={p.id} />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -184,10 +210,45 @@ export default function PagosPanel() {
 
       {modal && (
         <RegistrarPagoModal
+          initial={modal === true ? null : modal}
           onClose={() => setModal(false)}
           onRegistrado={(mensaje) => { setAviso(mensaje); recargar() }}
         />
       )}
+
+      {anulando && (
+        <ConfirmDelete
+          titulo="Anular pago"
+          mensaje={`¿Anulás "${anulando.descripcion}" por ${fmtMoney(anulando.monto)}?${
+            anulando.pagado_desde
+              ? ' La plata vuelve a la caja de donde había salido y el arqueo se corrige solo.'
+              : ' No había salido de ninguna caja.'
+          } Queda en el historial del pago con la fecha y quién lo hizo.`}
+          onClose={() => setAnulando(null)}
+          onConfirm={async () => {
+            await anularPago(anulando)
+            setAviso('Pago anulado. Si salía de una caja, el movimiento se revirtió con él.')
+          }}
+        />
+      )}
     </section>
+  )
+}
+
+function IconoAccion({ children, onClick, titulo, peligro, activo }) {
+  return (
+    <button type="button" onClick={onClick} title={titulo}
+      className="rounded-lg p-1.5 transition-colors"
+      style={{ color: activo ? 'var(--accent-lift)' : 'var(--text-muted)' }}
+      onMouseEnter={e => {
+        e.currentTarget.style.background = peligro ? 'rgba(248,113,113,0.1)' : 'var(--bg-hover)'
+        if (peligro) e.currentTarget.style.color = '#f87171'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = 'transparent'
+        e.currentTarget.style.color = activo ? 'var(--accent-lift)' : 'var(--text-muted)'
+      }}>
+      {children}
+    </button>
   )
 }

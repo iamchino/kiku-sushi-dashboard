@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Wallet } from 'lucide-react'
+import { Wallet, Pencil } from 'lucide-react'
 import { usePagos } from '../../hooks/usePagos'
 import { useProveedores } from '../../hooks/useProveedores'
 import { ModalShell, Field, Select, TextArea } from '../finanzas/fields'
@@ -22,6 +22,10 @@ import { CATEGORIAS, MEDIOS_PAGO, localDateISO, DIAS_ANTES_DE_SER_DEUDA, natural
 export default function RegistrarPagoModal({
   onClose,
   onRegistrado,
+  // Fila de un pago ya registrado: el formulario pasa a modo EDICIÓN y el
+  // guardado va por editar_pago(), que además mueve el reflejo del pago en la
+  // caja del día o en la caja fuerte.
+  initial = null,
   origenInicial = null,
   // 'pendiente' arranca el formulario como cuenta por pagar (una proyección):
   // no mueve plata todavía y pide fecha de vencimiento.
@@ -32,15 +36,36 @@ export default function RegistrarPagoModal({
   // deuda cuando faltan DIAS_ANTES_DE_SER_DEUDA días para el vencimiento.
   modoProyeccion = false,
 }) {
-  const { empleados, turnoAbierto, bancoCuenta, registrarPago } = usePagos({ lista: false })
+  const { empleados, turnoAbierto, bancoCuenta, registrarPago, editarPago } = usePagos({ lista: false })
   const { proveedores } = useProveedores()
 
-  const [form, setForm] = useState({
-    categoria: 'proveedores', descripcion: '', monto: '', medio_pago: 'efectivo',
-    estado: estadoInicial, fecha: localDateISO(), proveedor_id: '', empleado_id: '',
-    subtipo: '', periodo: '', vencimiento: '', comprobante_nro: '', notas: '',
-    origen: origenInicial || 'auto',
-  })
+  const edicion = Boolean(initial)
+
+  const [form, setForm] = useState(() => edicion
+    ? {
+        categoria: initial.categoria || 'proveedores',
+        descripcion: initial.descripcion || '',
+        monto: String(initial.monto ?? ''),
+        medio_pago: initial.medio_pago || 'efectivo',
+        estado: initial.estado || 'pagado',
+        fecha: initial.fecha?.slice(0, 10) || localDateISO(),
+        proveedor_id: initial.proveedor_id || '',
+        empleado_id: initial.empleado_id || '',
+        subtipo: initial.subtipo || '',
+        periodo: initial.periodo || '',
+        vencimiento: initial.vencimiento?.slice(0, 10) || '',
+        comprobante_nro: initial.comprobante_nro || '',
+        notas: initial.notas || '',
+        // 'auto' mantiene el origen que ya tenía el pago.
+        origen: initial.pagado_desde || 'auto',
+      }
+    : {
+        categoria: 'proveedores', descripcion: '', monto: '', medio_pago: 'efectivo',
+        estado: estadoInicial, fecha: localDateISO(), proveedor_id: '', empleado_id: '',
+        subtipo: '', periodo: '', vencimiento: '', comprobante_nro: '', notas: '',
+        origen: origenInicial || 'auto',
+      })
+  const [motivo, setMotivo] = useState('')
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState(null)
 
@@ -79,7 +104,9 @@ export default function RegistrarPagoModal({
         ? `Ojo: con ese vencimiento entra directo como DEUDA (falta${DIAS_ANTES_DE_SER_DEUDA === 1 ? '' : 'n'} menos de ${DIAS_ANTES_DE_SER_DEUDA} días). Poné una fecha más lejana si querés que quede como proyección.`
         : `Entra como PROYECCIÓN. Va a pasar a DEUDA solo, ${DIAS_ANTES_DE_SER_DEUDA} días antes del vencimiento. No toca ninguna caja.`
     }
-    if (pendiente) return 'Queda como cuenta por pagar: no toca la caja hasta que lo marques pagado.'
+    if (pendiente) return edicion
+      ? 'Vuelve a quedar como cuenta por pagar: si ya había salido de una caja, la plata se le devuelve a esa caja.'
+      : 'Queda como cuenta por pagar: no toca la caja hasta que lo marques pagado.'
     if (esEfectivo) {
       if (origenResuelto === 'caja_fuerte') return 'Sale de la CAJA FUERTE: descuenta de su saldo, no toca el arqueo del turno.'
       if (origenResuelto === 'caja') return turnoAbierto
@@ -94,13 +121,26 @@ export default function RegistrarPagoModal({
       return 'Transferencia sin origen registrado: queda anotada, sin descontar de ninguna cuenta.'
     }
     return 'No es efectivo ni transferencia: se registra sin tocar la caja ni la cuenta del banco.'
-  }, [modoProyeccion, form.vencimiento, pendiente, turnoAbierto, esEfectivo, esTransferencia, origenResuelto, bancoCuenta])
+  }, [modoProyeccion, form.vencimiento, pendiente, turnoAbierto, esEfectivo, esTransferencia, origenResuelto, bancoCuenta, edicion])
 
   const valido = form.descripcion.trim() && Number(form.monto) > 0 && (!esSueldo || form.empleado_id)
 
   const guardar = async () => {
     setBusy(true); setError(null)
     try {
+      if (edicion) {
+        const resultado = await editarPago(initial, { ...form, origen: origenResuelto }, motivo)
+        onRegistrado?.(
+          resultado?.descuenta_arqueo
+            ? 'Pago corregido. El movimiento de la caja del día se actualizó con él.'
+            : resultado?.origen === 'caja_fuerte'
+              ? 'Pago corregido. El movimiento de la caja fuerte se actualizó con él.'
+              : 'Pago corregido.',
+          resultado,
+        )
+        onClose()
+        return
+      }
       const resultado = await registrarPago({
         ...form,
         estado: modoProyeccion ? 'pendiente' : form.estado,
@@ -132,7 +172,7 @@ export default function RegistrarPagoModal({
   }
 
   return (
-    <ModalShell title={titulo} icon={Wallet} onClose={onClose} maxW="max-w-md">
+    <ModalShell title={edicion ? 'Editar pago' : titulo} icon={edicion ? Pencil : Wallet} onClose={onClose} maxW="max-w-md">
       <div className="p-5 space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <Select label="Categoría" value={form.categoria} onChange={set('categoria')} required
@@ -208,11 +248,22 @@ export default function RegistrarPagoModal({
           {efectoCaja}
         </p>
 
+        {/* En una corrección conviene dejar dicho por qué: queda en el
+            historial del pago, junto al antes y el después de cada campo. */}
+        {edicion && (
+          <Field label="Motivo del cambio (opcional)" value={motivo} onChange={setMotivo}
+            placeholder="Ej: el monto de la factura era otro" />
+        )}
+
         {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
         <button onClick={guardar} disabled={busy || !valido}
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
-          {busy ? 'Registrando…' : (modoProyeccion ? 'Agregar a la proyección' : (pendiente ? 'Agregar a pendientes' : 'Registrar pago'))}
+          {busy
+            ? (edicion ? 'Guardando…' : 'Registrando…')
+            : edicion
+              ? 'Guardar cambios'
+              : (modoProyeccion ? 'Agregar a la proyección' : (pendiente ? 'Agregar a pendientes' : 'Registrar pago'))}
         </button>
       </div>
     </ModalShell>
