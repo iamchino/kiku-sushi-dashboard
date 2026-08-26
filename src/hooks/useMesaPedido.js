@@ -4,6 +4,15 @@ import { calculateOrderSubtotal, clampDiscount, parseCurrencyValue, applyStoredD
 import { aplicarDescuentoPedido, quitarDescuentoPedido } from '../lib/descuento'
 import { getAuthorizedComprobante } from '../lib/fiscal'
 
+// Un RPC que todavía no está instalado en la base: PostgREST no lo encuentra
+// en su caché de esquema. Sirve para decidir si vale la pena el plan B.
+function faltaLaFuncion(err) {
+  const code = err?.code || ''
+  const msg = String(err?.message || '').toLowerCase()
+  return code === 'PGRST202' || code === '42883' ||
+    msg.includes('could not find the function') || msg.includes('does not exist')
+}
+
 /**
  * Hook que maneja el pedido abierto de UNA mesa.
  */
@@ -108,6 +117,72 @@ export function useMesaPedido({ mesaId } = {}) {
     })
     if (!rpcErr) fetchPedido()
     return { pedidoId: data, error: rpcErr }
+  }
+
+  // ── Mover el pedido a otra mesa ──────────────────────────────────────────
+  // Los clientes se cambian de mesa habiendo consumido: en vez de cancelar y
+  // volver a cargar todo, el pedido entero (items, descuento, repes, mozo,
+  // hora de apertura) se reapunta a la mesa nueva y la vieja queda libre.
+  //
+  // Camino preferido: el RPC, que valida del lado de la base y es atómico. Si
+  // el RPC todavía no está instalado, se hace el mismo movimiento desde acá
+  // con las mismas validaciones, así la función no depende de haber corrido
+  // la migración.
+  const moverDeMesa = async (mesaDestinoId) => {
+    if (!pedido) return { error: new Error('No hay pedido abierto') }
+    if (!mesaDestinoId) return { error: new Error('Elegí la mesa destino') }
+    if (mesaDestinoId === pedido.mesa_id) return { error: new Error('El pedido ya está en esa mesa.') }
+    if (facturada) {
+      return { error: new Error('La mesa ya está facturada: el número de mesa salió impreso en el comprobante y no se puede cambiar.') }
+    }
+
+    const { error: rpcErr } = await supabase.rpc('mover_pedido_de_mesa', {
+      p_pedido_id:       pedido.id,
+      p_mesa_destino_id: mesaDestinoId,
+    })
+    if (!rpcErr) { fetchPedido(); return { error: null } }
+    if (!faltaLaFuncion(rpcErr)) return { error: rpcErr }
+
+    // ── Plan B: sin el RPC ────────────────────────────────────────────────
+    const { data: destino, error: e1 } = await supabase
+      .from('mesas')
+      .select('id, numero, activa, mesa_grupo_id')
+      .eq('id', mesaDestinoId)
+      .maybeSingle()
+    if (e1) return { error: e1 }
+    if (!destino) return { error: new Error('Mesa inexistente.') }
+    if (!destino.activa) return { error: new Error(`La mesa ${destino.numero} está desactivada.`) }
+    if (destino.mesa_grupo_id) {
+      return { error: new Error(`La mesa ${destino.numero} está unida a otra mesa. Desagrupala primero.`) }
+    }
+
+    // Mismo criterio que el índice único de la base (un solo pedido abierto
+    // por mesa): así el mensaje es entendible y no un error de unicidad.
+    const { data: ocupada, error: e2 } = await supabase
+      .from('pedidos')
+      .select('id')
+      .eq('mesa_id', mesaDestinoId)
+      .not('estado', 'in', '("entregado","cancelado")')
+      .limit(1)
+    if (e2) return { error: e2 }
+    if (ocupada?.length) {
+      return { error: new Error(`La mesa ${destino.numero} ya está abierta con otro pedido.`) }
+    }
+
+    // `mesa` es la copia de texto del número que imprimen la comanda y el
+    // ticket: si no se actualiza, la impresora sigue diciendo la mesa vieja.
+    const { data: movido, error: e3 } = await supabase
+      .from('pedidos')
+      .update({ mesa_id: mesaDestinoId, mesa: String(destino.numero), updated_at: new Date().toISOString() })
+      .eq('id', pedido.id)
+      .select('id')
+    if (e3) return { error: e3 }
+    if (!movido?.length) {
+      // RLS no da error cuando bloquea un UPDATE: simplemente no toca filas.
+      return { error: new Error('No se pudo mover la mesa: tu usuario no tiene permiso para editar pedidos.') }
+    }
+    fetchPedido()
+    return { error: null }
   }
 
   const agregarItems = async (newItems) => {
@@ -343,6 +418,7 @@ export function useMesaPedido({ mesaId } = {}) {
     enviarACocina,
     cerrarMesa,
     cancelarMesa,
+    moverDeMesa,
     updatePedidoPatch,
     setDescuento,
     aplicarDescuento,

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   X, Users, Clock, User, Plus, Minus, Trash2, Printer,
   Receipt, AlertCircle, Loader2, Ban, Tag, FileText, Link2, Unlink, ChevronDown,
+  ArrowRightLeft,
 } from 'lucide-react'
 import { useMesaPedido } from '../../hooks/useMesaPedido'
 import { useMinutesSince } from '../../hooks/useNowTick'
@@ -10,6 +11,7 @@ import { getEstadoConfig } from './mesaColors'
 import AgregarItemsModal from './AgregarItemsModal'
 import CobrarMesaModal from './CobrarMesaModal'
 import UnirMesaModal from './UnirMesaModal'
+import MoverMesaModal from './MoverMesaModal'
 import DescuentoModal from '../pedidos/DescuentoModal'
 import ComandaModal from '../pedidos/ComandaModal'
 
@@ -35,7 +37,7 @@ export default function MesaDetallePanel({
     facturada, comprobanteAutorizado,
     loading, error: pedidoError,
     agregarItems, updateItemCantidad, removeItem,
-    enviarACocina, cerrarMesa, cancelarMesa,
+    enviarACocina, cerrarMesa, cancelarMesa, moverDeMesa,
     aplicarDescuento, quitarDescuento,
     rondasKiku, rondasHistorial, platosKiku, totalPlatosKiku,
     ajustarRondaKiku, setPlatosKiku,
@@ -44,6 +46,7 @@ export default function MesaDetallePanel({
   const [showAgregar,   setShowAgregar]   = useState(false)
   const [showCobrar,    setShowCobrar]    = useState(false)
   const [showUnir,      setShowUnir]      = useState(false)
+  const [showMover,     setShowMover]     = useState(false)
   const [showDescuento, setShowDescuento] = useState(false)
   const [showComanda,   setShowComanda]   = useState(false)
   const [enviando,      setEnviando]      = useState(false)
@@ -167,6 +170,22 @@ export default function MesaDetallePanel({
     const { error } = await onDesagrupar?.(mesa.id) || {}
     setDesagrupando(false)
     if (error) setActionErr(error.message || 'Error al desagrupar')
+  }
+
+  // Mudar el pedido a otra mesa. Si esta mesa era líder de un grupo, primero
+  // se desagrupa: las mesas unidas no pueden quedar colgadas de una mesa que
+  // se acaba de liberar.
+  const handleMover = async (mesaDestinoId) => {
+    setActionErr(null)
+    if (esLider && miembros.length > 0) {
+      const { error } = await onDesagrupar?.(mesa.id) || {}
+      if (error) return { error }
+    }
+    const { error } = await moverDeMesa(mesaDestinoId)
+    if (error) return { error }
+    onMesaChanged?.()
+    onClose?.()
+    return { error: null }
   }
 
   const accionPrincipal = facturada
@@ -643,18 +662,31 @@ export default function MesaDetallePanel({
             ) : null}
           </div>
 
-          {!facturada && ((esLider && miembros.length > 0) || puedeUnir) && (
-            <div className="px-3 pb-3">
+          {!facturada && (
+            <div className="px-3 pb-3 flex gap-2">
+              {/* Los clientes se cambian de mesa habiendo consumido: en vez de
+                  cancelar y volver a cargar todo, el pedido se muda entero. */}
               <button
                 type="button"
-                onClick={handleCancelar}
-                disabled={cancelando}
-                className="w-full py-2 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
-                style={{ background: 'transparent', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}
+                onClick={() => setShowMover(true)}
+                className="flex-1 py-2 rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}
               >
-                {cancelando ? <Loader2 size={11} className="animate-spin" /> : <Ban size={11} />}
-                Cancelar mesa
+                <ArrowRightLeft size={11} />
+                Mover a otra mesa
               </button>
+              {((esLider && miembros.length > 0) || puedeUnir) && (
+                <button
+                  type="button"
+                  onClick={handleCancelar}
+                  disabled={cancelando}
+                  className="flex-1 py-2 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                  style={{ background: 'transparent', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}
+                >
+                  {cancelando ? <Loader2 size={11} className="animate-spin" /> : <Ban size={11} />}
+                  Cancelar mesa
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -685,6 +717,14 @@ export default function MesaDetallePanel({
           if (!error) { onMesaChanged?.(); onClose?.() }
           return { error }
         }}
+      />
+
+      <MoverMesaModal
+        open={showMover}
+        mesaActual={mesa}
+        personas={parseInt(pedido?.personas) || 0}
+        onClose={() => setShowMover(false)}
+        onMover={handleMover}
       />
 
       <UnirMesaModal
