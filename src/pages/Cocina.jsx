@@ -54,10 +54,35 @@ function Elapsed({ createdAt, now }) {
 }
 
 // ── Tarjeta grande de cocina ──────────────────────────────────────────────────
+/**
+ * Ítems de la última tanda enviada a cocina.
+ *
+ * Cada vez que se manda comida a cocina, enviar_a_cocina() sella todos esos
+ * ítems con el mismo `enviado_at`. Si un pedido tiene más de un `enviado_at`
+ * distinto, es que se agregó comida después de abrirlo: los del sello más
+ * nuevo son los que cocina todavía no vio.
+ *
+ * Si hay un solo sello (o ninguno) no hay nada que destacar: el pedido entero
+ * es nuevo y marcar todo sería ruido.
+ */
+function idsUltimaTanda(items) {
+  // Los ítems viejos pueden tener enviado_at en null (pedidos anteriores a que
+  // existiera la columna, o canales que nunca pasaron por enviar_a_cocina).
+  // Se tratan como la tanda original, no se descartan: si no, un pedido con
+  // ítems sin sello + uno agregado quedaría con un solo grupo y sin badge.
+  const sello = i => i.enviado_at || ''
+  const sellos = [...new Set(items.map(sello))]
+  if (sellos.length < 2) return new Set()
+  const ultimo = sellos.sort().at(-1)
+  if (!ultimo) return new Set()
+  return new Set(items.filter(i => sello(i) === ultimo).map(i => i.id))
+}
+
 function KdsCard({ pedido, estado, onAction }) {
   const now = useTick()
   const shortId = pedido.id.slice(-4).toUpperCase()
   const items   = pedido.pedido_items || []
+  const agregados = idsUltimaTanda(items)
 
   const config = {
     pendiente:  {
@@ -108,12 +133,24 @@ function KdsCard({ pedido, estado, onAction }) {
             <div key={item.id} className="flex items-baseline gap-3">
               <span
                 className="text-xl font-black leading-none flex-shrink-0 w-7 text-right"
-                style={{ color: estado === 'pendiente' ? 'var(--accent-lift)' : '#4f8ef7' }}
+                style={{
+                  color: agregados.has(item.id)
+                    ? '#34d399'
+                    : estado === 'pendiente' ? 'var(--accent-lift)' : '#4f8ef7',
+                }}
               >
                 {item.cantidad}×
               </span>
               <span className="text-base font-medium leading-snug" style={{ color: 'var(--text-primary)' }}>
                 {item.nombre}
+                {agregados.has(item.id) && (
+                  <span
+                    className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider align-middle"
+                    style={{ background: 'rgba(52,211,153,0.18)', color: '#34d399' }}
+                  >
+                    NUEVO
+                  </span>
+                )}
               </span>
             </div>
           ))

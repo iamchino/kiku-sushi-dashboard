@@ -112,7 +112,7 @@ export function usePedidos(options = {}) {
   const fetchPedidos = useCallback(async () => {
     let query = supabase
       .from('pedidos')
-      .select('*, pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id), comprobantes_fiscales(*), pagos(id, medio_pago, monto, numero_operacion, notas, created_at)')
+      .select('*, pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id, enviado_at), comprobantes_fiscales(*), pagos(id, medio_pago, monto, numero_operacion, notas, created_at)')
       .order('created_at', { ascending: false })
 
     if (mode === 'today') {
