@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ConciergeBell, ChefHat, CheckCircle2, Clock, Flame, WifiOff } from 'lucide-react'
+import { ConciergeBell, ChefHat, CheckCircle2, Circle, Clock, Flame, WifiOff } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { usePedidos, getTipoPedido } from '../hooks/usePedidos'
 
@@ -65,22 +65,34 @@ function PlatoCard({ pedido, listo, onServir, busy }) {
       </div>
 
       <div className="space-y-1.5 flex-1">
-        {items.map(item => (
-          <div key={item.id} className="flex items-baseline gap-2.5">
-            <span
-              className="text-lg font-black leading-none flex-shrink-0 w-7 text-right"
-              style={{ color: listo ? '#34d399' : '#4f8ef7' }}
-            >
-              {item.cantidad}×
-            </span>
-            <span className="text-[15px] font-medium leading-snug" style={{ color: 'var(--text-primary)' }}>
-              {item.nombre}
-              {item.notas && (
-                <span className="block text-xs italic" style={{ color: '#fbbf24' }}>📝 {item.notas}</span>
-              )}
-            </span>
-          </div>
-        ))}
+        {items.map(item => {
+          // Cada plato tiene su propio estado: sushi y cocina marchan por
+          // separado, así que en un mismo pedido puede haber cosas listas y
+          // cosas todavía en curso.
+          const itemListo = listo || Boolean(item.listo_at)
+          return (
+            <div key={item.id} className="flex items-baseline gap-2.5">
+              <span className="flex-shrink-0 w-4 self-center" style={{ color: itemListo ? '#34d399' : 'var(--text-xmuted)' }}>
+                {itemListo ? <CheckCircle2 size={15} /> : <Circle size={15} />}
+              </span>
+              <span
+                className="text-lg font-black leading-none flex-shrink-0 w-7 text-right"
+                style={{ color: itemListo ? '#34d399' : '#4f8ef7' }}
+              >
+                {item.cantidad}×
+              </span>
+              <span
+                className="text-[15px] font-medium leading-snug"
+                style={{ color: itemListo ? 'var(--text-primary)' : 'var(--text-muted)' }}
+              >
+                {item.nombre}
+                {item.notas && (
+                  <span className="block text-xs italic" style={{ color: '#fbbf24' }}>📝 {item.notas}</span>
+                )}
+              </span>
+            </div>
+          )
+        })}
         {pedido.notas && (
           <p className="text-xs italic pt-2 mt-1" style={{ color: '#fbbf24', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
             📝 {pedido.notas}
@@ -147,9 +159,21 @@ export default function PlatosPage() {
     () => (grouped.listo || []).filter(p => !p.servido_at),
     [grouped]
   )
-  const enPreparacion = useMemo(
+  const enCurso = useMemo(
     () => [...(grouped.preparando || []), ...(grouped.pendiente || [])],
     [grouped]
+  )
+
+  // Pedidos que todavía no están completos pero YA tienen algún plato listo.
+  // Es el caso que motivó todo esto: salieron los rolls y el ramen sigue en el
+  // fuego — el mozo puede llevar los rolls ahora en vez de esperar.
+  const paraAdelantar = useMemo(
+    () => enCurso.filter(p => (p.pedido_items || []).some(i => i.listo_at)),
+    [enCurso]
+  )
+  const enPreparacion = useMemo(
+    () => enCurso.filter(p => !(p.pedido_items || []).some(i => i.listo_at)),
+    [enCurso]
   )
 
   const servir = async (pedido) => {
@@ -235,6 +259,22 @@ export default function PlatosPage() {
           </section>
 
           <div className="hidden lg:block flex-shrink-0 w-px self-stretch" style={{ background: 'var(--border)' }} />
+
+          {/* Para adelantar — el pedido sigue en curso, pero hay platos listos */}
+          {paraAdelantar.length > 0 && (
+            <>
+              <section className="flex flex-col gap-3 flex-1 min-w-0">
+                <SectionHeader icon={ConciergeBell} label="Para adelantar" color="#fbbf24" count={paraAdelantar.length} />
+                <p className="text-xs -mt-1 px-1" style={{ color: 'var(--text-xmuted)' }}>
+                  El pedido no está completo, pero lo tildado ya se puede llevar.
+                </p>
+                {paraAdelantar.map(p => (
+                  <PlatoCard key={p.id} pedido={p} listo={false} onServir={servir} busy={false} />
+                ))}
+              </section>
+              <div className="hidden lg:block flex-shrink-0 w-px self-stretch" style={{ background: 'var(--border)' }} />
+            </>
+          )}
 
           {/* En preparación — solo lectura */}
           <section className="flex flex-col gap-3 flex-1 min-w-0">

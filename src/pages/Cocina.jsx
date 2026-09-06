@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChefHat, CheckCircle2, Flame, ArrowLeft, Clock, WifiOff } from 'lucide-react'
+import { ChefHat, CheckCircle2, Circle, Flame, ArrowLeft, Clock, WifiOff } from 'lucide-react'
 import { usePedidos } from '../hooks/usePedidos'
 import { useNavigate } from 'react-router-dom'
 
@@ -78,7 +78,7 @@ function idsUltimaTanda(items) {
   return new Set(items.filter(i => sello(i) === ultimo).map(i => i.id))
 }
 
-function KdsCard({ pedido, estado, onAction }) {
+function KdsCard({ pedido, estado, onAction, onItem }) {
   const now = useTick()
   const shortId = pedido.id.slice(-4).toUpperCase()
   const items   = pedido.pedido_items || []
@@ -130,20 +130,37 @@ function KdsCard({ pedido, estado, onAction }) {
           <p className="text-base italic" style={{ color: 'var(--text-xmuted)' }}>Sin ítems</p>
         ) : (
           items.map(item => (
-            <div key={item.id} className="flex items-baseline gap-3">
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onItem(item, !item.listo_at)}
+              className="w-full flex items-baseline gap-3 text-left rounded-lg px-1 py-1.5 transition-colors active:scale-[0.99]"
+              style={{ background: item.listo_at ? 'rgba(52,211,153,0.10)' : 'transparent' }}
+            >
+              <span className="flex-shrink-0 w-5 self-center" style={{ color: item.listo_at ? '#34d399' : 'var(--text-xmuted)' }}>
+                {item.listo_at ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+              </span>
               <span
                 className="text-xl font-black leading-none flex-shrink-0 w-7 text-right"
                 style={{
-                  color: agregados.has(item.id)
-                    ? '#34d399'
-                    : estado === 'pendiente' ? 'var(--accent-lift)' : '#4f8ef7',
+                  color: item.listo_at
+                    ? 'var(--text-xmuted)'
+                    : agregados.has(item.id)
+                      ? '#34d399'
+                      : estado === 'pendiente' ? 'var(--accent-lift)' : '#4f8ef7',
                 }}
               >
                 {item.cantidad}×
               </span>
-              <span className="text-base font-medium leading-snug" style={{ color: 'var(--text-primary)' }}>
+              <span
+                className="text-base font-medium leading-snug"
+                style={{
+                  color: item.listo_at ? 'var(--text-xmuted)' : 'var(--text-primary)',
+                  textDecoration: item.listo_at ? 'line-through' : 'none',
+                }}
+              >
                 {item.nombre}
-                {agregados.has(item.id) && (
+                {agregados.has(item.id) && !item.listo_at && (
                   <span
                     className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider align-middle"
                     style={{ background: 'rgba(52,211,153,0.18)', color: '#34d399' }}
@@ -151,8 +168,11 @@ function KdsCard({ pedido, estado, onAction }) {
                     NUEVO
                   </span>
                 )}
+                {item.notas && (
+                  <span className="block text-xs italic" style={{ color: '#fbbf24' }}>📝 {item.notas}</span>
+                )}
               </span>
-            </div>
+            </button>
           ))
         )}
         {pedido.notas && (
@@ -184,7 +204,7 @@ function KdsCard({ pedido, estado, onAction }) {
 }
 
 // ── Columna del Kanban ────────────────────────────────────────────────────────
-function Column({ estado, cards, onAction }) {
+function Column({ estado, cards, onAction, onItem }) {
   const config = {
     pendiente:  { label: 'NUEVOS',          icon: Flame,       color: 'var(--accent-lift)' },
     preparando: { label: 'EN PREPARACIÓN',  icon: ChefHat,     color: '#4f8ef7' },
@@ -219,7 +239,7 @@ function Column({ estado, cards, onAction }) {
           </div>
         ) : (
           cards.map(p => (
-            <KdsCard key={p.id} pedido={p} estado={estado} onAction={onAction} />
+            <KdsCard key={p.id} pedido={p} estado={estado} onAction={onAction} onItem={onItem} />
           ))
         )}
       </div>
@@ -230,7 +250,7 @@ function Column({ estado, cards, onAction }) {
 // ── Página KDS principal ──────────────────────────────────────────────────────
 export default function CocinaKDS() {
   const navigate = useNavigate()
-  const { grouped, loading, error, avanzarEstado } = usePedidos()
+  const { grouped, loading, error, avanzarEstado, marcarItemListo } = usePedidos()
   const [connected, setConnected] = useState(true)
 
   // Escucha de conectividad
@@ -244,6 +264,13 @@ export default function CocinaKDS() {
       window.removeEventListener('offline', onOffline)
     }
   }, [])
+
+  // Marcar un plato suelto: cada estación marcha lo suyo sin esperar a la otra.
+  // Si era el último del pedido, la RPC pasa el pedido a 'listo' sola.
+  const marcarItem = async (item, listo) => {
+    const err = await marcarItemListo(item.id, listo)
+    if (err) console.warn('[kds] no se pudo marcar el ítem:', err.message)
+  }
 
   const pendientes  = grouped.pendiente  || []
   const preparando  = grouped.preparando || []
@@ -323,12 +350,12 @@ export default function CocinaKDS() {
           </div>
         ) : (
           <div className="flex gap-5 md:gap-6 h-full">
-            <Column estado="pendiente"  cards={pendientes} onAction={avanzarEstado} />
+            <Column estado="pendiente"  cards={pendientes} onAction={avanzarEstado} onItem={marcarItem} />
 
             {/* Divider */}
             <div className="flex-shrink-0 w-px self-stretch" style={{ background: 'var(--border)' }} />
 
-            <Column estado="preparando" cards={preparando} onAction={avanzarEstado} />
+            <Column estado="preparando" cards={preparando} onAction={avanzarEstado} onItem={marcarItem} />
           </div>
         )}
       </div>

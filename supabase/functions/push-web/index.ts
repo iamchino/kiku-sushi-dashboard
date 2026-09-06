@@ -21,7 +21,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 type WebhookPayload = {
-  type: "INSERT" | "UPDATE" | "DELETE";
+  // INSERT/UPDATE/DELETE vienen del trigger sobre `pedidos`.
+  // ITEM_LISTO lo manda marcar_item_listo() cuando una estación termina un
+  // plato y el resto del pedido sigue en curso.
+  type: "INSERT" | "UPDATE" | "DELETE" | "ITEM_LISTO";
   table: string;
   record: Record<string, unknown> | null;
   old_record: Record<string, unknown> | null;
@@ -157,7 +160,9 @@ async function sendOne(sub: Sub, payload: string, pub: string, priv: string, sub
 Deno.serve(async (req) => {
   try {
     const payload = (await req.json()) as WebhookPayload;
-    if (payload.table !== "pedidos") return new Response("ignored", { status: 200 });
+    if (payload.table !== "pedidos" && payload.table !== "pedido_items") {
+      return new Response("ignored", { status: 200 });
+    }
 
     const record = payload.record ?? {};
     const old = payload.old_record ?? {};
@@ -170,7 +175,18 @@ Deno.serve(async (req) => {
     let body = "";
     let url = "/";
 
-    if (payload.type === "INSERT") {
+    if (payload.type === "ITEM_LISTO") {
+      // Un plato salió y el pedido todavía no está completo: el mozo puede
+      // adelantarlo en vez de esperar a que termine la otra estación.
+      const nombre = record["nombre"] ?? "Un plato";
+      const cantidad = record["cantidad"] ?? 1;
+      const restantes = Number(record["restantes"] ?? 0);
+      targetRoles = ["mozo", "admin"];
+      title = "🍱 Podés adelantar un plato";
+      body = `${mesa ? `Mesa ${mesa}` : `Pedido #${shortId}`}: ${cantidad}× ${nombre}`
+        + (restantes > 0 ? ` · faltan ${restantes}` : "");
+      url = "/platos";
+    } else if (payload.type === "INSERT") {
       targetRoles = ["cocina", "admin"];
       title = "🔥 Nuevo pedido";
       body = mesa ? `Mesa ${mesa} hizo un pedido` : `Pedido #${shortId} (${canal ?? "mostrador"})`;
@@ -211,7 +227,12 @@ Deno.serve(async (req) => {
       title,
       body,
       url,
-      tag: `pedido-${record["id"] ?? Date.now()}`,
+      // Un tag por pedido reemplaza la notificación anterior del mismo pedido.
+      // Los avisos por ítem llevan su propio tag: si no, el segundo plato
+      // listo borraría al primero de la pantalla del mozo.
+      tag: payload.type === "ITEM_LISTO"
+        ? `item-${record["pedido_id"]}-${record["nombre"]}`
+        : `pedido-${record["id"] ?? Date.now()}`,
     });
 
     const stale: string[] = [];

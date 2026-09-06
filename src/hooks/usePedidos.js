@@ -112,7 +112,7 @@ export function usePedidos(options = {}) {
   const fetchPedidos = useCallback(async () => {
     let query = supabase
       .from('pedidos')
-      .select('*, pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id, enviado_at), comprobantes_fiscales(*), pagos(id, medio_pago, monto, numero_operacion, notas, created_at)')
+      .select('*, pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id, enviado_at, listo_at), comprobantes_fiscales(*), pagos(id, medio_pago, monto, numero_operacion, notas, created_at)')
       .order('created_at', { ascending: false })
 
     if (mode === 'today') {
@@ -689,6 +689,24 @@ export function usePedidos(options = {}) {
   }
 
   /** Agrega items a un pedido existente (órdenes web / para llevar / salón). */
+  /**
+   * Marca (o desmarca) un plato como listo para despachar.
+   *
+   * La cocina está partida en sushi y caliente: cada estación marcha lo suyo
+   * cuando lo termina, sin esperar a la otra. Si era el último ítem del
+   * pedido, la RPC pasa el pedido entero a 'listo' y el mozo recibe el aviso
+   * de siempre; si no, le llega un aviso de "podés adelantar este plato".
+   */
+  const marcarItemListo = async (itemId, listo = true) => {
+    const { error } = await supabase.rpc('marcar_item_listo', {
+      p_item_id: itemId,
+      p_listo:   listo,
+    })
+    if (error) return error
+    fetchPedidos()
+    return null
+  }
+
   const agregarItemsPedido = async (pedidoId, newItems) => {
     const normalized = (newItems || [])
       .filter(i => i.nombre && (parseInt(i.cantidad) || 0) > 0)
@@ -828,7 +846,7 @@ export function usePedidos(options = {}) {
   return {
     pedidos, grouped, stats,
     loading, error,
-    createPedido, avanzarEstado, cerrarPedido, cancelarPedido,
+    createPedido, avanzarEstado, marcarItemListo, cerrarPedido, cancelarPedido,
     reabrirPedido, reactivarPedido, agregarItemsPedido, updateItemCantidadPedido, removeItemPedido,
     aplicarDescuentoOrden, quitarDescuentoOrden, actualizarEnvioPedido, actualizarDatosPedido,
     refetch: fetchPedidos,
