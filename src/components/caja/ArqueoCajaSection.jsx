@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, afectaArqueo, parseAmount, useCajaArqueo } from '../../hooks/useCajaArqueo'
 import { useHistorialCierres } from '../../hooks/useHistorialCierres'
+import { supabase } from '../../lib/supabase'
 import { formatMoney } from '../../lib/printing'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 import { usePermisos } from '../../context/usePermisos'
@@ -238,6 +239,112 @@ function EmptyTurnoForm({ onOpen, saving, aperturaSugerida }) {
           {error && <p className="mt-2 text-xs" style={{ color: '#f87171' }}>{error}</p>}
         </div>
       </form>
+    </Panel>
+  )
+}
+
+/**
+ * Guardar efectivo del cajón en la caja fuerte, sin pasar por la sección Caja
+ * fuerte y sin ver el saldo.
+ *
+ * Existe porque son dos permisos distintos: el encargado tiene que poder
+ * GUARDAR el excedente al cerrar (`editar`) sin tener por qué saber CUÁNTO hay
+ * guardado (`ver`). El único lugar donde se podía depositar era el panel de la
+ * caja fuerte, que muestra el saldo y el historial: ocultarlo le sacaba el
+ * depósito del cierre.
+ *
+ * Llama la RPC directo, sin useCajaFuerte: ese hook además pide el saldo y los
+ * movimientos, que es justo lo que acá no queremos ni traer. La RPC devuelve el
+ * saldo resultante en su respuesta y se descarta a propósito.
+ */
+function GuardarEnCajaFuerte({ onListo }) {
+  const [abierto, setAbierto] = useState(false)
+  const [monto, setMonto] = useState('')
+  const [notas, setNotas] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  const cerrar = () => { setAbierto(false); setMonto(''); setNotas(''); setError(null) }
+
+  const guardar = async () => {
+    const importe = parseAmount(monto)
+    if (importe <= 0) { setError('Poné un monto mayor a cero.'); return }
+    setSaving(true); setError(null)
+    try {
+      const { error: e } = await supabase.rpc('retirar_a_caja_fuerte', {
+        p_monto: importe,
+        p_notas: notas.trim() || null,
+      })
+      if (e) throw new Error(e.message)
+      onListo(`Guardaste $${formatMoney(importe)} en la caja fuerte. El arqueo ya lo descuenta.`)
+      cerrar()
+    } catch (err) {
+      setError(err.message || 'No se pudo guardar en la caja fuerte.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Panel>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Landmark size={15} style={{ color: 'var(--accent-lift)' }} />
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Guardar en caja fuerte</p>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              Saca el efectivo del cajón y lo deposita. El arqueo lo descuenta.
+            </p>
+          </div>
+        </div>
+        {!abierto && (
+          <button type="button" onClick={() => setAbierto(true)}
+            className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
+            style={{ color: 'var(--accent-lift)', border: '1px solid var(--accent-border)', background: 'var(--accent-soft)' }}>
+            <ArrowUpRight size={13} /> Guardar plata
+          </button>
+        )}
+      </div>
+
+      {abierto && (
+        <div className="mt-3 space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Field label="Monto">
+              <input
+                autoFocus
+                inputMode="decimal"
+                value={monto}
+                onChange={e => { setMonto(e.target.value); setError(null) }}
+                placeholder="0"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                style={inputStyle()}
+              />
+            </Field>
+            <Field label="Nota (opcional)">
+              <input
+                value={notas}
+                onChange={e => setNotas(e.target.value)}
+                placeholder="Ej: excedente del sábado"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                style={inputStyle()}
+              />
+            </Field>
+          </div>
+          {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={cerrar} disabled={saving}
+              className="rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+              style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+              Cancelar
+            </button>
+            <button type="button" onClick={guardar} disabled={saving}
+              className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+              {saving ? <Loader2 size={13} className="animate-spin" /> : <ArrowUpRight size={13} />}
+              Guardar
+            </button>
+          </div>
+        </div>
+      )}
     </Panel>
   )
 }
@@ -1716,12 +1823,12 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
   // Alta de egresos centralizada: el botón "Egreso" del formulario manual abre
   // el mismo modal de Registrar pago que usan Caja → Pagos y Finanzas.
   const [pagoModal, setPagoModal] = useState(false)
-  const { puede, puedeEditar } = usePermisos()
+  const { puedeEditar } = usePermisos()
   const puedeRegistrarPagos = puedeEditar('pagos')
-  // El historial de cierres es la foto del negocio hacia atras, no la
-  // operacion del turno: va detras de caja_historico (ver la migracion
-  // 20260906040000_recurso_caja_historico.sql).
-  const veHistorico = puede('caja_historico')
+  // Depositar en la caja fuerte es una accion del cierre, asi que el boton vive
+  // aca y no dentro de la seccion Caja fuerte: quien tiene 'editar' sin 'ver'
+  // guarda el excedente sin pasar por ninguna pantalla que muestre el saldo.
+  const puedeGuardarEnCajaFuerte = puedeEditar('caja_fuerte')
 
   const turnosReabiertos = useMemo(
     () => turnos.filter(turno => turno.estado === 'reabierto'),
@@ -1915,6 +2022,10 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
                 onDelete={(id) => run(`delmov-${id}`, () => eliminarMovimiento(id), 'Movimiento eliminado.')}
               />
 
+              {puedeGuardarEnCajaFuerte && (
+                <GuardarEnCajaFuerte onListo={(texto) => { setNotice({ type: 'ok', text: texto }); refetch() }} />
+              )}
+
               <PagosBancoList movimientos={resumen.movimientosBanco} />
 
               {/* Un pago que entró en la caja equivocada se saca de acá, sin
@@ -1964,7 +2075,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
       ))}
 
       {/* Historial completo: se carga solo, no depende del rango de la pagina. */}
-      {veHistorico && <CierresHistorial onReabrir={(turno) => setReabrirTarget(turno)} />}
+      <CierresHistorial onReabrir={(turno) => setReabrirTarget(turno)} />
 
       <ReabrirMotivoModal
         turno={reabrirTarget}

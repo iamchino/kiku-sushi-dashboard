@@ -729,7 +729,7 @@ export default function CajaPage() {
   const [customFrom, setCustomFrom] = useState('')
   const [customTo,   setCustomTo]   = useState('')
 
-  const { puede, puedeEditar } = usePermisos()
+  const { puede } = usePermisos()
 
   // `caja_historico` separa operar el turno de ver la foto del negocio. Sin ese
   // permiso la pantalla queda fija en HOY: se factura, se cargan pagos y se
@@ -770,13 +770,10 @@ export default function CajaPage() {
   const [facturarTarget, setFacturarTarget] = useState(null)        // { pedido }
   const [ncTarget, setNcTarget] = useState(null)                     // { pedido, comprobante }
   const [seccion, setSeccion] = useState('facturacion')
-  // Alcanza con PODER OPERAR la seccion para llegar a ella: la caja fuerte se
-  // reparte en ver el saldo (`ver`) y poder depositar o pagar desde ella
-  // (`editar`). Quien solo tiene `editar` entra, usa el formulario y no ve ni
-  // el saldo ni el historial (ver CajaFuertePanel).
-  const seccionesVisibles = SECCIONES_CAJA.filter(
-    t => !t.recurso || puede(t.recurso) || puedeEditar(t.recurso),
-  )
+  // La seccion Caja fuerte ES la vista del saldo, asi que pide `ver`. Poder
+  // depositar (`editar`) no la abre: para eso esta el boton "Guardar en caja
+  // fuerte" dentro de Arqueo, que no muestra ningun total.
+  const seccionesVisibles = SECCIONES_CAJA.filter(t => !t.recurso || puede(t.recurso))
 
   const resumenPagos = useMemo(() => resumenMediosPago(pedidos), [pedidos])
 
