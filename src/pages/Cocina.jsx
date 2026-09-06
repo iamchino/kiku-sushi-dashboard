@@ -55,34 +55,63 @@ function Elapsed({ createdAt, now }) {
 
 // ── Tarjeta grande de cocina ──────────────────────────────────────────────────
 /**
- * Ítems de la última tanda enviada a cocina.
+ * Convierte los pedidos en TARJETAS: una por cada tanda enviada a cocina.
  *
- * Cada vez que se manda comida a cocina, enviar_a_cocina() sella todos esos
- * ítems con el mismo `enviado_at`. Si un pedido tiene más de un `enviado_at`
- * distinto, es que se agregó comida después de abrirlo: los del sello más
- * nuevo son los que cocina todavía no vio.
+ * El quiebre está acá. Antes había una tarjeta por pedido, así que sumar un
+ * plato a una mesa en curso obligaba a elegir entre dos males: mover toda la
+ * tarjeta de vuelta a NUEVOS (y que cocina revea lo que ya estaba haciendo) o
+ * dejarla quieta (y que el plato nuevo pase inadvertido).
  *
- * Si hay un solo sello (o ninguno) no hay nada que destacar: el pedido entero
- * es nuevo y marcar todo sería ruido.
+ * Con una tarjeta por tanda no hace falta elegir: lo que ya se está cocinando
+ * se queda en EN PREPARACIÓN, y lo agregado aparece solo, en NUEVOS, con la
+ * misma mesa y el cartel AGREGADO.
+ *
+ * Cada tanda comparte `enviado_at` (lo sella enviar_a_cocina en una sola
+ * sentencia) y decide su columna sola:
+ *   algún ítem sin tomar   → NUEVOS
+ *   todos tomados          → EN PREPARACIÓN
+ *   todos listos           → sale del tablero
  */
-function idsUltimaTanda(items) {
-  // Los ítems viejos pueden tener enviado_at en null (pedidos anteriores a que
-  // existiera la columna, o canales que nunca pasaron por enviar_a_cocina).
-  // Se tratan como la tanda original, no se descartan: si no, un pedido con
-  // ítems sin sello + uno agregado quedaría con un solo grupo y sin badge.
-  const sello = i => i.enviado_at || ''
-  const sellos = [...new Set(items.map(sello))]
-  if (sellos.length < 2) return new Set()
-  const ultimo = sellos.sort().at(-1)
-  if (!ultimo) return new Set()
-  return new Set(items.filter(i => sello(i) === ultimo).map(i => i.id))
+function construirTarjetas(pedidos) {
+  const tarjetas = []
+
+  for (const pedido of pedidos) {
+    const porTanda = new Map()
+    for (const item of pedido.pedido_items || []) {
+      const clave = item.enviado_at || ''
+      if (!porTanda.has(clave)) porTanda.set(clave, [])
+      porTanda.get(clave).push(item)
+    }
+
+    const tandas = [...porTanda.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+
+    tandas.forEach(([enviadoAt, items], indice) => {
+      if (items.every(i => i.listo_at)) return   // ya salió de cocina
+
+      tarjetas.push({
+        key:       `${pedido.id}-${enviadoAt || 'sin-tanda'}`,
+        pedido,
+        items,
+        enviadoAt: enviadoAt || null,
+        // La primera tanda es el pedido original; las siguientes son agregados
+        // del mozo sobre una mesa que ya estaba en curso.
+        esAgregado: indice > 0,
+        columna:    items.some(i => !i.tomado_at) ? 'pendiente' : 'preparando',
+        // El cronómetro cuenta desde que ESTA tanda entró a cocina, no desde
+        // que se abrió la mesa: si no, un agregado nace con 40 minutos.
+        desde: enviadoAt || pedido.created_at,
+      })
+    })
+  }
+
+  return tarjetas
 }
 
-function KdsCard({ pedido, estado, onAction, onItem }) {
+function KdsCard({ tarjeta, onAccion, onItem }) {
   const now = useTick()
+  const { pedido, items, esAgregado, columna, desde } = tarjeta
   const shortId = pedido.id.slice(-4).toUpperCase()
-  const items   = pedido.pedido_items || []
-  const agregados = idsUltimaTanda(items)
+  const estado = columna
 
   const config = {
     pendiente:  {
@@ -121,7 +150,17 @@ function KdsCard({ pedido, estado, onAction, onItem }) {
             : <span className="text-sm font-semibold capitalize" style={{ color: '#4f8ef7' }}>{pedido.canal}</span>
           }
         </div>
-        <Elapsed createdAt={pedido.created_at} now={now} />
+        <div className="flex items-center gap-2">
+          {esAgregado && (
+            <span
+              className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider"
+              style={{ background: 'rgba(52,211,153,0.18)', color: '#34d399' }}
+            >
+              AGREGADO
+            </span>
+          )}
+          <Elapsed createdAt={desde} now={now} />
+        </div>
       </div>
 
       {/* Items — grandes y legibles */}
@@ -145,9 +184,7 @@ function KdsCard({ pedido, estado, onAction, onItem }) {
                 style={{
                   color: item.listo_at
                     ? 'var(--text-xmuted)'
-                    : agregados.has(item.id)
-                      ? '#34d399'
-                      : estado === 'pendiente' ? 'var(--accent-lift)' : '#4f8ef7',
+                    : estado === 'pendiente' ? 'var(--accent-lift)' : '#4f8ef7',
                 }}
               >
                 {item.cantidad}×
@@ -160,14 +197,6 @@ function KdsCard({ pedido, estado, onAction, onItem }) {
                 }}
               >
                 {item.nombre}
-                {agregados.has(item.id) && !item.listo_at && (
-                  <span
-                    className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider align-middle"
-                    style={{ background: 'rgba(52,211,153,0.18)', color: '#34d399' }}
-                  >
-                    NUEVO
-                  </span>
-                )}
                 {item.notas && (
                   <span className="block text-xs italic" style={{ color: '#fbbf24' }}>📝 {item.notas}</span>
                 )}
@@ -184,7 +213,7 @@ function KdsCard({ pedido, estado, onAction, onItem }) {
 
       {/* Action button — grande, fácil de tocar */}
       <button
-        onClick={() => onAction(pedido.id, estado)}
+        onClick={() => onAccion(tarjeta)}
         className="w-full flex items-center justify-center gap-3 rounded-xl font-bold text-white transition-all active:scale-95 hover:opacity-90"
         style={{
           background: config.btnBg,
@@ -204,7 +233,7 @@ function KdsCard({ pedido, estado, onAction, onItem }) {
 }
 
 // ── Columna del Kanban ────────────────────────────────────────────────────────
-function Column({ estado, cards, onAction, onItem }) {
+function Column({ estado, cards, onAccion, onItem }) {
   const config = {
     pendiente:  { label: 'NUEVOS',          icon: Flame,       color: 'var(--accent-lift)' },
     preparando: { label: 'EN PREPARACIÓN',  icon: ChefHat,     color: '#4f8ef7' },
@@ -238,8 +267,8 @@ function Column({ estado, cards, onAction, onItem }) {
             </p>
           </div>
         ) : (
-          cards.map(p => (
-            <KdsCard key={p.id} pedido={p} estado={estado} onAction={onAction} onItem={onItem} />
+          cards.map(t => (
+            <KdsCard key={t.key} tarjeta={t} onAccion={onAccion} onItem={onItem} />
           ))
         )}
       </div>
@@ -250,7 +279,7 @@ function Column({ estado, cards, onAction, onItem }) {
 // ── Página KDS principal ──────────────────────────────────────────────────────
 export default function CocinaKDS() {
   const navigate = useNavigate()
-  const { grouped, loading, error, avanzarEstado, marcarItemListo } = usePedidos()
+  const { grouped, loading, error, marcarItemListo, tomarTanda, marcarTandaLista } = usePedidos()
   const [connected, setConnected] = useState(true)
 
   // Escucha de conectividad
@@ -272,9 +301,20 @@ export default function CocinaKDS() {
     if (err) console.warn('[kds] no se pudo marcar el ítem:', err.message)
   }
 
-  const pendientes  = grouped.pendiente  || []
-  const preparando  = grouped.preparando || []
-  const totalActivo = pendientes.length + preparando.length
+  // El botón grande hace lo que corresponda a la columna en la que está la
+  // tarjeta, y siempre sobre SU tanda — nunca sobre el pedido entero, que es
+  // lo que arrastraría los platos de la otra tarjeta de la misma mesa.
+  const accionTarjeta = async (tarjeta) => {
+    const err = tarjeta.columna === 'pendiente'
+      ? await tomarTanda(tarjeta.pedido.id, tarjeta.enviadoAt)
+      : await marcarTandaLista(tarjeta.pedido.id, tarjeta.enviadoAt)
+    if (err) console.warn('[kds] no se pudo actualizar la tanda:', err.message)
+  }
+
+  const tarjetas    = construirTarjetas([...(grouped.pendiente || []), ...(grouped.preparando || [])])
+  const pendientes  = tarjetas.filter(t => t.columna === 'pendiente')
+  const preparando  = tarjetas.filter(t => t.columna === 'preparando')
+  const totalActivo = tarjetas.length
 
   return (
     <div
@@ -315,7 +355,7 @@ export default function CocinaKDS() {
           {totalActivo > 0 && (
             <span className="text-xs font-bold px-3 py-1 rounded-full animate-pulse"
               style={{ background: 'rgba(var(--accent-rgb),0.15)', color: 'var(--accent-lift)', border: '1px solid rgba(var(--accent-rgb),0.3)' }}>
-              {totalActivo} {totalActivo === 1 ? 'pedido activo' : 'pedidos activos'}
+              {totalActivo} {totalActivo === 1 ? 'tarjeta activa' : 'tarjetas activas'}
             </span>
           )}
         </div>
@@ -350,12 +390,12 @@ export default function CocinaKDS() {
           </div>
         ) : (
           <div className="flex gap-5 md:gap-6 h-full">
-            <Column estado="pendiente"  cards={pendientes} onAction={avanzarEstado} onItem={marcarItem} />
+            <Column estado="pendiente"  cards={pendientes} onAccion={accionTarjeta} onItem={marcarItem} />
 
             {/* Divider */}
             <div className="flex-shrink-0 w-px self-stretch" style={{ background: 'var(--border)' }} />
 
-            <Column estado="preparando" cards={preparando} onAction={avanzarEstado} onItem={marcarItem} />
+            <Column estado="preparando" cards={preparando} onAccion={accionTarjeta} onItem={marcarItem} />
           </div>
         )}
       </div>

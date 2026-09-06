@@ -112,7 +112,7 @@ export function usePedidos(options = {}) {
   const fetchPedidos = useCallback(async () => {
     let query = supabase
       .from('pedidos')
-      .select('*, pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id, enviado_at, listo_at), comprobantes_fiscales(*), pagos(id, medio_pago, monto, numero_operacion, notas, created_at)')
+      .select('*, pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id, enviado_at, listo_at, tomado_at), comprobantes_fiscales(*), pagos(id, medio_pago, monto, numero_operacion, notas, created_at)')
       .order('created_at', { ascending: false })
 
     if (mode === 'today') {
@@ -690,6 +690,39 @@ export function usePedidos(options = {}) {
 
   /** Agrega items a un pedido existente (órdenes web / para llevar / salón). */
   /**
+   * Cocina toma una tanda: la tarjeta pasa de NUEVOS a EN PREPARACIÓN.
+   *
+   * Es por TANDA y no por pedido: si a una mesa en curso le suman un plato,
+   * ese plato es su propia tarjeta en NUEVOS y se toma por separado, sin
+   * mover lo que ya se estaba cocinando.
+   */
+  const tomarTanda = async (pedidoId, enviadoAt) => {
+    const { error } = await supabase.rpc('tomar_tanda', {
+      p_pedido_id:  pedidoId,
+      p_enviado_at: enviadoAt,
+    })
+    if (error) return error
+    fetchPedidos()
+    return null
+  }
+
+  /**
+   * Marca lista una tanda entera de una sola vez.
+   *
+   * Existe como RPC en vez de un bucle de marcarItemListo para que el mozo
+   * reciba UNA notificación con toda la tanda y no una por plato.
+   */
+  const marcarTandaLista = async (pedidoId, enviadoAt) => {
+    const { error } = await supabase.rpc('marcar_tanda_lista', {
+      p_pedido_id:  pedidoId,
+      p_enviado_at: enviadoAt,
+    })
+    if (error) return error
+    fetchPedidos()
+    return null
+  }
+
+  /**
    * Marca (o desmarca) un plato como listo para despachar.
    *
    * La cocina está partida en sushi y caliente: cada estación marcha lo suyo
@@ -846,7 +879,7 @@ export function usePedidos(options = {}) {
   return {
     pedidos, grouped, stats,
     loading, error,
-    createPedido, avanzarEstado, marcarItemListo, cerrarPedido, cancelarPedido,
+    createPedido, avanzarEstado, marcarItemListo, tomarTanda, marcarTandaLista, cerrarPedido, cancelarPedido,
     reabrirPedido, reactivarPedido, agregarItemsPedido, updateItemCantidadPedido, removeItemPedido,
     aplicarDescuentoOrden, quitarDescuentoOrden, actualizarEnvioPedido, actualizarDatosPedido,
     refetch: fetchPedidos,

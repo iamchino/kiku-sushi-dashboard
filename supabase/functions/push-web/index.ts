@@ -24,7 +24,7 @@ type WebhookPayload = {
   // INSERT/UPDATE/DELETE vienen del trigger sobre `pedidos`.
   // ITEM_LISTO lo manda marcar_item_listo() cuando una estación termina un
   // plato y el resto del pedido sigue en curso.
-  type: "INSERT" | "UPDATE" | "DELETE" | "ITEM_LISTO";
+  type: "INSERT" | "UPDATE" | "DELETE" | "ITEM_LISTO" | "ITEMS_AGREGADOS";
   table: string;
   record: Record<string, unknown> | null;
   old_record: Record<string, unknown> | null;
@@ -175,7 +175,14 @@ Deno.serve(async (req) => {
     let body = "";
     let url = "/";
 
-    if (payload.type === "ITEM_LISTO") {
+    if (payload.type === "ITEMS_AGREGADOS") {
+      // El mozo sumó platos a una mesa que ya estaba en cocina. Va a cocina,
+      // no al mozo: es una tarjeta nueva que alguien tiene que tomar.
+      targetRoles = ["cocina", "admin"];
+      title = "➕ Se agregó a un pedido";
+      body = `${mesa ? `Mesa ${mesa}` : `Pedido #${shortId}`}: ${record["detalle"] ?? "platos nuevos"}`;
+      url = "/cocina";
+    } else if (payload.type === "ITEM_LISTO") {
       // Un plato salió y el pedido todavía no está completo: el mozo puede
       // adelantarlo en vez de esperar a que termine la otra estación.
       const nombre = record["nombre"] ?? "Un plato";
@@ -230,8 +237,8 @@ Deno.serve(async (req) => {
       // Un tag por pedido reemplaza la notificación anterior del mismo pedido.
       // Los avisos por ítem llevan su propio tag: si no, el segundo plato
       // listo borraría al primero de la pantalla del mozo.
-      tag: payload.type === "ITEM_LISTO"
-        ? `item-${record["pedido_id"]}-${record["nombre"]}`
+      tag: payload.table === "pedido_items"
+        ? `${payload.type}-${record["pedido_id"]}-${Date.now()}`
         : `pedido-${record["id"] ?? Date.now()}`,
     });
 
