@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   Clock3,
+  Download,
   History,
   Link2,
   Loader2,
@@ -23,6 +24,7 @@ import {
   X,
 } from 'lucide-react'
 import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, useCajaArqueo } from '../../hooks/useCajaArqueo'
+import { useHistorialCierres } from '../../hooks/useHistorialCierres'
 import { formatMoney } from '../../lib/printing'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 import { usePermisos } from '../../context/usePermisos'
@@ -74,6 +76,14 @@ function timeLabel(value) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+// 'YYYY-MM-DD' -> 'DD/MM/YYYY'. En el historial hace falta el año: timeLabel
+// muestra solo dia y mes, y ahi conviven cierres de años distintos.
+function fechaOperativaLabel(value) {
+  if (!value) return ''
+  const [y, m, d] = String(value).slice(0, 10).split('-')
+  return (y && m && d) ? `${d}/${m}/${y}` : value
 }
 
 function tipoConfig(tipo) {
@@ -861,27 +871,160 @@ function CierreDetalle({ turno, movimientos, pagos }) {
   )
 }
 
-function CierresHistorial({ turnos, movimientos, pagos, onReabrir, auditoriaDeTurno }) {
+/**
+ * Historial COMPLETO de cierres. No depende del rango de fechas de la pagina:
+ * tiene su propia consulta paginada (ver useHistorialCierres). El detalle de
+ * cada turno se pide recien al desplegarlo.
+ */
+function CierresHistorial({ onReabrir }) {
   const [abierto, setAbierto] = useState(null)
-  const cerrados = turnos.filter(turno => turno.estado === 'cerrado').slice(0, 5)
+  const [exportando, setExportando] = useState(false)
+  const [avisoExport, setAvisoExport] = useState(null)
+  const {
+    turnos: cerrados,
+    cajas,
+    total,
+    filtros,
+    setFiltros,
+    limpiarFiltros,
+    hayMas,
+    loading,
+    loadingMas,
+    error,
+    setupWarning,
+    detalles,
+    cargarDetalle,
+    cargarMas,
+    exportarCSV,
+  } = useHistorialCierres()
+
+  const hayFiltros = Boolean(filtros.desde || filtros.hasta || filtros.caja)
+
+  const toggle = (turno) => setAbierto(abierto === turno.id ? null : turno.id)
+
+  // El detalle se pide desde un efecto, no desde el click: el hook vacia el
+  // cache cuando entra un cierre nuevo por realtime, y si la carga colgara del
+  // click la fila que quedo desplegada se veria vacia hasta volver a tocarla.
+  useEffect(() => {
+    if (!abierto || detalles[abierto]) return
+    const turno = cerrados.find(t => t.id === abierto)
+    if (turno) cargarDetalle(turno)
+  }, [abierto, detalles, cerrados, cargarDetalle])
+
+  const exportar = async () => {
+    setExportando(true)
+    setAvisoExport(null)
+    try {
+      const cantidad = await exportarCSV()
+      setAvisoExport({ tipo: 'ok', texto: `${cantidad} ${cantidad === 1 ? 'cierre exportado' : 'cierres exportados'}.` })
+    } catch (err) {
+      setAvisoExport({ tipo: 'error', texto: err.message || 'No se pudo exportar.' })
+    } finally {
+      setExportando(false)
+    }
+  }
 
   return (
     <Panel>
-      <div className="mb-3 flex items-center gap-2">
-        <Clock3 size={16} style={{ color: 'var(--accent-lift)' }} />
-        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Ultimos cierres</p>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Clock3 size={16} style={{ color: 'var(--accent-lift)' }} />
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Historial de cierres</p>
+          {total !== null && (
+            <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'var(--bg-input)', color: 'var(--text-muted)' }}>
+              {total} {total === 1 ? 'cierre' : 'cierres'}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={exportar}
+          disabled={exportando || loading || cerrados.length === 0}
+          className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+          style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+        >
+          {exportando ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+          Exportar CSV
+        </button>
       </div>
-      <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+
+      <p className="mb-3 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+        Todos los turnos cerrados, del mas nuevo al mas viejo. No usa el filtro de fechas de arriba: se filtra aca.
+      </p>
+
+      {/* Filtros propios del historial */}
+      <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
+        <Field label="Desde">
+          <input
+            type="date"
+            value={filtros.desde}
+            max={filtros.hasta || undefined}
+            onChange={e => setFiltros(f => ({ ...f, desde: e.target.value }))}
+            className="w-full rounded-lg px-2 py-1.5 text-xs outline-none"
+            style={inputStyle()}
+          />
+        </Field>
+        <Field label="Hasta">
+          <input
+            type="date"
+            value={filtros.hasta}
+            min={filtros.desde || undefined}
+            onChange={e => setFiltros(f => ({ ...f, hasta: e.target.value }))}
+            className="w-full rounded-lg px-2 py-1.5 text-xs outline-none"
+            style={inputStyle()}
+          />
+        </Field>
+        <Field label="Caja">
+          <select
+            value={filtros.caja}
+            onChange={e => setFiltros(f => ({ ...f, caja: e.target.value }))}
+            className="w-full rounded-lg px-2 py-1.5 text-xs outline-none"
+            style={inputStyle()}
+          >
+            <option value="">Todas</option>
+            {cajas.map(nombre => <option key={nombre} value={nombre}>{nombre}</option>)}
+          </select>
+        </Field>
+        <button
+          type="button"
+          onClick={limpiarFiltros}
+          disabled={!hayFiltros}
+          className="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40"
+          style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+        >
+          Limpiar
+        </button>
+      </div>
+
+      {avisoExport && (
+        <p className="mb-2 text-xs" style={{ color: avisoExport.tipo === 'ok' ? '#34d399' : '#f87171' }}>
+          {avisoExport.texto}
+        </p>
+      )}
+      {setupWarning && <p className="mb-2 text-xs" style={{ color: '#fbbf24' }}>{setupWarning}</p>}
+      {error && <p className="mb-2 text-xs" style={{ color: '#f87171' }}>{error}</p>}
+
+      {loading ? (
+        <div className="flex items-center gap-2 py-6 text-xs" style={{ color: 'var(--text-muted)' }}>
+          <Loader2 size={14} className="animate-spin" /> Cargando historial...
+        </div>
+      ) : cerrados.length === 0 ? (
+        <p className="py-6 text-xs" style={{ color: 'var(--text-muted)' }}>
+          {hayFiltros ? 'No hay cierres con estos filtros.' : 'Todavia no hay turnos cerrados.'}
+        </p>
+      ) : (
+        <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
         {cerrados.map(turno => {
           const expanded = abierto === turno.id
           const dif = Number(turno.diferencia || 0)
-          const eventos = auditoriaDeTurno ? auditoriaDeTurno(turno.id) : []
+          const detalle = detalles[turno.id]
+          const eventos = detalle?.auditoria || []
           const fueReabierto = eventos.some(e => e.evento === 'reapertura')
           return (
             <div key={turno.id} className="py-2">
               <button
                 type="button"
-                onClick={() => setAbierto(expanded ? null : turno.id)}
+                onClick={() => toggle(turno)}
                 className="grid w-full items-center gap-2 py-1 text-left text-sm sm:grid-cols-[20px_1fr_140px_140px_140px] sm:items-center"
               >
                 <span style={{ color: 'var(--text-muted)' }}>
@@ -896,7 +1039,9 @@ function CierresHistorial({ turnos, movimientos, pagos, onReabrir, auditoriaDeTu
                       </span>
                     )}
                   </p>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{timeLabel(turno.apertura_at)} a {timeLabel(turno.cierre_at)}</p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {fechaOperativaLabel(turno.business_date)} · {timeLabel(turno.apertura_at)} a {timeLabel(turno.cierre_at)}
+                  </p>
                 </div>
                 <p style={{ color: 'var(--text-secondary)' }}>Esperado ${formatMoney(turno.efectivo_esperado || 0)}</p>
                 <p style={{ color: 'var(--text-secondary)' }}>Contado ${formatMoney(turno.cierre_monto || 0)}</p>
@@ -904,9 +1049,17 @@ function CierresHistorial({ turnos, movimientos, pagos, onReabrir, auditoriaDeTu
                   {dif >= 0 ? '+' : '-'}${formatMoney(Math.abs(dif))}
                 </p>
               </button>
-              {expanded && (
+              {expanded && (!detalle || detalle.loading) && (
+                <div className="mt-1 flex items-center gap-2 rounded-lg p-3 text-xs" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                  <Loader2 size={13} className="animate-spin" /> Cargando el detalle del turno...
+                </div>
+              )}
+              {expanded && detalle && !detalle.loading && (
                 <>
-                  <CierreDetalle turno={turno} movimientos={movimientos} pagos={pagos} />
+                  {detalle.error && (
+                    <p className="mt-1 text-xs" style={{ color: '#f87171' }}>{detalle.error}</p>
+                  )}
+                  <CierreDetalle turno={turno} movimientos={detalle.movimientos} pagos={detalle.pagos} />
                   {eventos.length > 0 && (
                     <div className="mt-3">
                       <div className="mb-2 flex items-center gap-2">
@@ -933,7 +1086,28 @@ function CierresHistorial({ turnos, movimientos, pagos, onReabrir, auditoriaDeTu
             </div>
           )
         })}
-      </div>
+        </div>
+      )}
+
+      {!loading && cerrados.length > 0 && (
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            Mostrando {cerrados.length}{total !== null ? ` de ${total}` : ''}
+          </p>
+          {hayMas && (
+            <button
+              type="button"
+              onClick={cargarMas}
+              disabled={loadingMas}
+              className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+              style={{ color: 'var(--accent-lift)', border: '1px solid var(--accent-border)', background: 'var(--accent-soft)' }}
+            >
+              {loadingMas ? <Loader2 size={13} className="animate-spin" /> : <ChevronDown size={13} />}
+              Cargar mas
+            </button>
+          )}
+        </div>
+      )}
     </Panel>
   )
 }
@@ -1461,7 +1635,6 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
   const {
     turnoActual,
     turnos,
-    movimientos,
     pagos,
     pedidos,
     resumen,
@@ -1732,15 +1905,8 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
         />
       ))}
 
-      {turnos.filter(turno => turno.estado === 'cerrado').length > 0 && (
-        <CierresHistorial
-          turnos={turnos}
-          movimientos={movimientos}
-          pagos={pagos}
-          auditoriaDeTurno={auditoriaDeTurno}
-          onReabrir={(turno) => setReabrirTarget(turno)}
-        />
-      )}
+      {/* Historial completo: se carga solo, no depende del rango de la pagina. */}
+      <CierresHistorial onReabrir={(turno) => setReabrirTarget(turno)} />
 
       <ReabrirMotivoModal
         turno={reabrirTarget}

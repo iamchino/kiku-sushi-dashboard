@@ -58,7 +58,7 @@ function toRange(dateFrom, dateTo) {
   return { start: from.toISOString(), end: to.toISOString() }
 }
 
-function isMissingSchema(error) {
+export function isMissingSchema(error) {
   const msg = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`
   return /PGRST202|PGRST205|42P01|42703|schema cache|Could not find|does not exist|column .* not found/i.test(msg)
 }
