@@ -23,7 +23,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react'
-import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, useCajaArqueo } from '../../hooks/useCajaArqueo'
+import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, parseAmount, useCajaArqueo } from '../../hooks/useCajaArqueo'
 import { useHistorialCierres } from '../../hooks/useHistorialCierres'
 import { formatMoney } from '../../lib/printing'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
@@ -57,15 +57,6 @@ function localDateISO(d = new Date()) {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
-}
-
-function parseAmount(value) {
-  const cleaned = String(value ?? '')
-    .replace(/\./g, '')
-    .replace(',', '.')
-    .replace(/[^\d.-]/g, '')
-  const number = Number(cleaned)
-  return Number.isFinite(number) ? number : 0
 }
 
 function timeLabel(value) {

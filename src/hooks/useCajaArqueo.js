@@ -39,13 +39,47 @@ export const TIPOS_MOVIMIENTO_DISPLAY = [
 // que un egreso. No está en el form manual (se crea solo vía RPC).
 const NEGATIVE_TYPES = new Set(['egreso', 'retiro'])
 
-function parseAmount(value) {
-  const cleaned = String(value ?? '')
-    .replace(/\./g, '')
-    .replace(',', '.')
-    .replace(/[^\d.-]/g, '')
-  const number = Number(cleaned)
-  return Number.isFinite(number) ? number : 0
+/**
+ * Convierte a numero un monto que puede llegar como texto tecleado en formato
+ * es-AR ("1.234.567,89") o como numero ya calculado.
+ *
+ * El `typeof number` de la primera linea NO es una optimizacion: es el arreglo
+ * de un bug que rompio cierres reales. La version anterior hacia
+ * `String(value).replace(/\./g, '')` sobre TODO, asi que un esperado calculado
+ * como 377345.65 perdia el punto decimal y se guardaba como 37.734.565 — cien
+ * veces mas. Solo se notaba cuando el esperado tenia centavos: con montos
+ * redondos (529800) no hay punto que borrar y el resultado salia bien, por eso
+ * el error aparecia salteado y parecia aleatorio.
+ */
+export function parseAmount(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+
+  let limpio = String(value ?? '').trim().replace(/[^\d.,-]/g, '')
+  if (!limpio) return 0
+
+  const ultimaComa = limpio.lastIndexOf(',')
+  const ultimoPunto = limpio.lastIndexOf('.')
+
+  if (ultimaComa > -1 && ultimoPunto > -1) {
+    // Conviven los dos separadores: el que esta mas a la derecha es el decimal.
+    limpio = ultimaComa > ultimoPunto
+      ? limpio.replace(/\./g, '').replace(',', '.')
+      : limpio.replace(/,/g, '')
+  } else if (ultimaComa > -1) {
+    // Solo comas: en es-AR la coma es el decimal. Si hay mas de una, no puede
+    // serlo: son separadores de miles.
+    limpio = (limpio.match(/,/g) || []).length > 1
+      ? limpio.replace(/,/g, '')
+      : limpio.replace(',', '.')
+  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(limpio)) {
+    // Solo puntos y con forma de miles ("529.800", "1.234.567"): separadores.
+    // Cualquier otro uso del punto ("377345.65") ya es parseable tal cual, y es
+    // justamente el caso que antes se rompia.
+    limpio = limpio.replace(/\./g, '')
+  }
+
+  const numero = Number(limpio)
+  return Number.isFinite(numero) ? numero : 0
 }
 
 function toRange(dateFrom, dateTo) {
