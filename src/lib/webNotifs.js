@@ -145,15 +145,16 @@ export async function suscribirPush(session = sesionActual) {
 
   try {
     const json = sub.toJSON()
-    const { error } = await supabase.from('web_push_subs').upsert({
-      endpoint: sub.endpoint,
-      user_id: session.user.id,
-      role: getRoleFromUser(session.user),
-      p256dh: json.keys?.p256dh ?? bufToB64u(sub.getKey('p256dh')),
-      auth: json.keys?.auth ?? bufToB64u(sub.getKey('auth')),
-      user_agent: navigator.userAgent.slice(0, 300),
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'endpoint' })
+    // Por RPC y no por upsert directo: el endpoint identifica al NAVEGADOR, así
+    // que en un equipo compartido la fila puede ser de otra sesión y el RLS no
+    // dejaba pisarla. La RPC reasigna el dueño, y de paso el rol lo pone el
+    // servidor desde el JWT en vez de mandarlo el cliente.
+    const { error } = await supabase.rpc('guardar_suscripcion_push', {
+      p_endpoint:   sub.endpoint,
+      p_p256dh:     json.keys?.p256dh ?? bufToB64u(sub.getKey('p256dh')),
+      p_auth:       json.keys?.auth ?? bufToB64u(sub.getKey('auth')),
+      p_user_agent: navigator.userAgent.slice(0, 300),
+    })
 
     if (error) {
       console.warn('[notifs] no se pudo guardar la suscripción:', error.message)
