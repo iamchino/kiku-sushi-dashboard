@@ -100,25 +100,50 @@ function bufToB64u(buf) {
 
 /**
  * Crea (o reutiliza) la suscripción Web Push y la guarda en `web_push_subs`.
- * Requiere permiso ya concedido. Devuelve true si quedó suscripto.
+ *
+ * Devuelve un motivo, no un booleano: cuando esto falla, el síntoma que ve el
+ * usuario es siempre el mismo ("solo suena con la app abierta") pero la causa
+ * puede ser cualquiera de cinco, y algunas son del servidor y otras del
+ * teléfono. Sin el motivo hay que adivinar.
+ *
+ *   'ok'                → quedó suscripto
+ *   'sin-clave'         → falta VITE_VAPID_PUBLIC_KEY en el build del sitio
+ *   'sin-sw'            → el navegador no registró el service worker
+ *   'no-soportado'      → el navegador no tiene Push API (iOS fuera de la PWA)
+ *   'error-suscripcion' → el navegador rechazó la suscripción
+ *   'error-guardado'    → no se pudo guardar en Supabase (permisos, red)
  */
 export async function suscribirPush(session = sesionActual) {
   if (!VAPID_PUBLIC_KEY) {
     console.warn('[notifs] falta VITE_VAPID_PUBLIC_KEY: no hay push con la app cerrada')
-    return false
+    return { ok: false, motivo: 'sin-clave' }
   }
-  if (!session?.user || !swReg || typeof Notification === 'undefined') return false
-  if (Notification.permission !== 'granted') return false
+  if (!session?.user) return { ok: false, motivo: 'sin-sesion' }
+  if (!swReg) return { ok: false, motivo: 'sin-sw' }
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+    return { ok: false, motivo: 'sin-permiso' }
+  }
+  // iOS solo expone PushManager cuando el sitio se abre desde la pantalla de
+  // inicio. En una pestaña de Safari este objeto directamente no existe.
+  if (!('PushManager' in window) || !swReg.pushManager) {
+    return { ok: false, motivo: 'no-soportado' }
+  }
 
+  let sub
   try {
-    let sub = await swReg.pushManager.getSubscription()
+    sub = await swReg.pushManager.getSubscription()
     if (!sub) {
       sub = await swReg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       })
     }
+  } catch (e) {
+    console.warn('[notifs] el navegador rechazó la suscripción:', e)
+    return { ok: false, motivo: 'error-suscripcion', detalle: e?.message }
+  }
 
+  try {
     const json = sub.toJSON()
     const { error } = await supabase.from('web_push_subs').upsert({
       endpoint: sub.endpoint,
@@ -132,13 +157,24 @@ export async function suscribirPush(session = sesionActual) {
 
     if (error) {
       console.warn('[notifs] no se pudo guardar la suscripción:', error.message)
-      return false
+      return { ok: false, motivo: 'error-guardado', detalle: error.message }
     }
-    return true
   } catch (e) {
-    console.warn('[notifs] error suscribiendo a push:', e)
-    return false
+    return { ok: false, motivo: 'error-guardado', detalle: e?.message }
   }
+
+  return { ok: true, motivo: 'ok' }
+}
+
+/** Texto para el usuario, por motivo. */
+export const MOTIVO_TEXTO = {
+  'sin-clave':         'falta la clave VAPID en el deploy del sitio (avisale a Manu)',
+  'sin-sw':            'el navegador no registró el service worker; probá recargar',
+  'no-soportado':      'este navegador no soporta avisos en segundo plano. En iPhone/iPad hay que agregar el sitio a la pantalla de inicio y abrirlo desde ahí',
+  'error-suscripcion': 'el navegador rechazó el registro',
+  'error-guardado':    'no se pudo guardar el registro en el servidor',
+  'sin-permiso':       'falta el permiso de notificaciones',
+  'sin-sesion':        'no hay sesión iniciada',
 }
 
 /**
@@ -165,16 +201,16 @@ export async function activarNotificaciones() {
   if (!swReg && 'serviceWorker' in navigator) {
     try { swReg = await navigator.serviceWorker.register('/sw.js') } catch { /* sin SW */ }
   }
-  const push = await suscribirPush()
+  const res = await suscribirPush()
 
   await notificar(
-    push ? '✅ Notificaciones activadas' : '⚠️ Notificaciones a medias',
-    push
+    res.ok ? '✅ Notificaciones activadas' : '⚠️ Notificaciones a medias',
+    res.ok
       ? 'Vas a recibir los avisos aunque el celular esté bloqueado.'
-      : 'Solo van a sonar con la app abierta. Avisale a Manu.',
+      : `Solo van a sonar con la app abierta: ${MOTIVO_TEXTO[res.motivo] || res.motivo}.`,
     { tag: 'kiku-test' },
   )
-  return { permiso: 'granted', push }
+  return { permiso: 'granted', push: res.ok, motivo: res.motivo, detalle: res.detalle }
 }
 
 export function estadoNotificaciones() {
@@ -191,6 +227,7 @@ export async function diagnosticoPush() {
   if (Notification.permission !== 'granted') return 'sin-permiso'
   if (!VAPID_PUBLIC_KEY) return 'sin-clave'
   if (!('serviceWorker' in navigator)) return 'sin-sw'
+  if (!('PushManager' in window)) return 'no-soportado'
   try {
     const reg = swReg || await navigator.serviceWorker.getRegistration('/sw.js')
     if (!reg) return 'sin-sw'

@@ -4,6 +4,7 @@ import {
   activarNotificaciones,
   diagnosticoPush,
   estadoNotificaciones,
+  MOTIVO_TEXTO,
 } from '../lib/webNotifs'
 import { isNativeApp } from '../lib/native'
 
@@ -24,6 +25,7 @@ import { isNativeApp } from '../lib/native'
 export default function BotonNotifs() {
   const [permiso, setPermiso] = useState('default')
   const [push, setPush] = useState('sin-permiso')
+  const [motivo, setMotivo] = useState(null)
   const [trabajando, setTrabajando] = useState(false)
 
   const revisar = useCallback(async () => {
@@ -38,6 +40,9 @@ export default function BotonNotifs() {
     const res = await activarNotificaciones()
     setPermiso(res.permiso)
     setPush(await diagnosticoPush())
+    // El motivo concreto del fallo: sin esto el usuario ve "a medias" y nadie
+    // sabe si el problema es el deploy, el navegador o el servidor.
+    setMotivo(res.push ? null : (MOTIVO_TEXTO[res.motivo] || res.motivo))
     setTrabajando(false)
   }, [])
 
@@ -60,7 +65,11 @@ export default function BotonNotifs() {
       : parcial
         ? {
             color: '#fbbf24', fondo: 'rgba(251,191,36,0.12)', Icono: Bell, texto: 'A medias',
-            titulo: 'Solo suena con la app abierta. Tocá para reintentar el registro.',
+            titulo: motivo
+              ? `Solo suena con la app abierta: ${motivo}. Tocá para reintentar.`
+              : (MOTIVO_TEXTO[push]
+                  ? `Solo suena con la app abierta: ${MOTIVO_TEXTO[push]}. Tocá para reintentar.`
+                  : 'Solo suena con la app abierta. Tocá para reintentar el registro.'),
           }
         : {
             color: 'var(--text-muted)', fondo: 'transparent', Icono: Bell, texto: 'Activar avisos',
@@ -78,6 +87,11 @@ export default function BotonNotifs() {
     >
       {trabajando ? <Loader2 size={14} className="animate-spin" /> : <Icono size={14} />}
       <span className="hidden sm:inline">{texto}</span>
+      {parcial && (motivo || MOTIVO_TEXTO[push]) && (
+        <span className="hidden lg:inline font-normal opacity-80 max-w-[22rem] truncate">
+          · {motivo || MOTIVO_TEXTO[push]}
+        </span>
+      )}
     </button>
   )
 }
