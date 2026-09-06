@@ -233,8 +233,14 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
 
     // Plan B mientras la migración no esté aplicada: mismo cálculo en el
     // cliente. Solo es exacto si el usuario ve la caja fuerte.
+    //
+    // El `if` envuelve el bloque en vez de saltarlo con un throw: la versión
+    // anterior hacía `if (arrastreResuelto) throw` y ese throw caía en el
+    // `catch { setAperturaSugerida(null) }` del final, borrando el valor que la
+    // RPC acababa de dejar. Resultado: el arrastre se calculaba bien y se
+    // perdía en el camino, y el turno abría en cero.
+    if (!arrastreResuelto) {
     try {
-      if (arrastreResuelto) throw new Error('ya resuelto')
       const { data: ult } = await supabase
         .from('caja_turnos')
         .select('id, business_date, cierre_at, denominaciones_cierre')
@@ -271,6 +277,7 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
         setAperturaSugerida(null)
       }
     } catch { setAperturaSugerida(null) }
+    }
 
     try {
       const openTurnoRes = await supabase
