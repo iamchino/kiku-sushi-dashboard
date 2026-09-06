@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { ConciergeBell, ChefHat, CheckCircle2, Circle, Clock, Flame, WifiOff } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { usePedidos, getTipoPedido } from '../hooks/usePedidos'
+import BotonNotifs from '../components/BotonNotifs'
 
 // ── Timer: re-render cada 10s para refrescar tiempos ─────────────────────────
 function useTick() {
@@ -213,6 +214,7 @@ export default function PlatosPage() {
           <h1 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Platos</h1>
         </div>
         <div className="flex items-center gap-2">
+          <BotonNotifs />
           {!connected && (
             <span className="flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full"
               style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>

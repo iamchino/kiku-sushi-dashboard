@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ChefHat, CheckCircle2, Circle, Flame, ArrowLeft, Clock, WifiOff } from 'lucide-react'
 import { usePedidos } from '../hooks/usePedidos'
+import BotonNotifs from '../components/BotonNotifs'
 import { useNavigate } from 'react-router-dom'
 
 // ── Timer hook: fuerza re-render cada 10s para actualizar tiempos ─────────────
@@ -362,6 +363,7 @@ export default function CocinaKDS() {
 
         {/* Right — clock + back */}
         <div className="flex items-center gap-4">
+          <BotonNotifs />
           <LiveClock />
           <button
             onClick={() => navigate('/')}
