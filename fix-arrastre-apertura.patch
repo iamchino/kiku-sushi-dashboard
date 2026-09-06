@@ -1,0 +1,64 @@
+From 42cedae02e3cf9e8c10967a2e5344d8f1cc42299 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 6 Sep 2026 18:18:56 +0000
+Subject: [PATCH] Arqueo: el arrastre de la apertura se perdia antes de llegar
+ a la pantalla
+
+Bug que introduje hoy junto con apertura_sugerida(). El bloque quedo asi:
+
+    try { ...RPC...; arrastreResuelto = true } catch {}
+
+    try {
+      if (arrastreResuelto) throw new Error('ya resuelto')
+      ...plan B...
+    } catch { setAperturaSugerida(null) }
+
+Use un throw para saltear el plan B, pero ese throw cae en el catch del final,
+que justamente pone la sugerencia en null. Resultado: la RPC devolvia el numero
+correcto, se guardaba, y una linea despues se borraba. El formulario de apertura
+no encontraba nada que precargar y el turno abria en cero.
+
+En la base de Manu el calculo daba $373.900 (efectivo contado del cierre del
+05/09, sin depositos posteriores) y el turno del 06/09 arranco en 0.00.
+
+El plan B ahora va envuelto en `if (!arrastreResuelto)` en vez de saltearse con
+una excepcion. Saltear con throw un bloque cuyo catch tiene efectos es una
+trampa: el catch no distingue "fallo" de "no hacia falta".
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01XPkwEcgxyTActXcBX4uwSh
+---
+ src/hooks/useCajaArqueo.js | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/hooks/useCajaArqueo.js b/src/hooks/useCajaArqueo.js
+index 2d42141..f992ad9 100644
+--- a/src/hooks/useCajaArqueo.js
++++ b/src/hooks/useCajaArqueo.js
+@@ -233,8 +233,14 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
+ 
+     // Plan B mientras la migración no esté aplicada: mismo cálculo en el
+     // cliente. Solo es exacto si el usuario ve la caja fuerte.
++    //
++    // El `if` envuelve el bloque en vez de saltarlo con un throw: la versión
++    // anterior hacía `if (arrastreResuelto) throw` y ese throw caía en el
++    // `catch { setAperturaSugerida(null) }` del final, borrando el valor que la
++    // RPC acababa de dejar. Resultado: el arrastre se calculaba bien y se
++    // perdía en el camino, y el turno abría en cero.
++    if (!arrastreResuelto) {
+     try {
+-      if (arrastreResuelto) throw new Error('ya resuelto')
+       const { data: ult } = await supabase
+         .from('caja_turnos')
+         .select('id, business_date, cierre_at, denominaciones_cierre')
+@@ -271,6 +277,7 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
+         setAperturaSugerida(null)
+       }
+     } catch { setAperturaSugerida(null) }
++    }
+ 
+     try {
+       const openTurnoRes = await supabase
+-- 
+2.43.0
+

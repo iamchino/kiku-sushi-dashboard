@@ -1,0 +1,294 @@
+From bd199ba315654ce5a078157545b5f9b3535ced73 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 6 Sep 2026 15:55:05 +0000
+Subject: [PATCH] Caja: el esperado del cierre deja de guardarse multiplicado
+ por cien
+
+Al cerrar un turno el panel mandaba el esperado de cada medio como numero ya
+calculado (377345.65) y el hook lo pasaba por parseAmount(), escrito para
+texto en formato es-AR: hacia String(value).replace(/\./g, ''), o sea le
+borraba el punto decimal. El esperado se guardaba x100 y la diferencia del
+cierre salia disparada.
+
+Solo pasaba cuando el esperado tenia centavos: con montos redondos no hay
+punto que borrar, por eso el error aparecia salteado y parecia aleatorio. El
+contado nunca se vio afectado, viene de un input de texto en es-AR que era
+justo el formato que la funcion esperaba.
+
+parseAmount ahora devuelve los numeros tal cual y, para texto, decide el
+separador decimal mirando cual queda mas a la derecha. Se deja una sola copia
+(estaba duplicada en el hook y en el componente).
+
+La migracion recalcula el esperado de los cierres ya guardados con la misma
+formula que usa la pantalla, respeta el contado, y solo toca las filas que
+difieren. Probada contra Postgres real: reproduce el cierre del 21/08 y lo
+deja en diferencia $0,00.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01XPkwEcgxyTActXcBX4uwSh
+---
+ src/components/caja/ArqueoCajaSection.jsx     |  11 +-
+ src/hooks/useCajaArqueo.js                    |  48 +++++-
+ ...260906000000_fix_esperado_cierres_x100.sql | 162 ++++++++++++++++++
+ 3 files changed, 204 insertions(+), 17 deletions(-)
+ create mode 100644 supabase/migrations/20260906000000_fix_esperado_cierres_x100.sql
+
+diff --git a/src/components/caja/ArqueoCajaSection.jsx b/src/components/caja/ArqueoCajaSection.jsx
+index cb06540..3840711 100644
+--- a/src/components/caja/ArqueoCajaSection.jsx
++++ b/src/components/caja/ArqueoCajaSection.jsx
+@@ -23,7 +23,7 @@ import {
+   WalletCards,
+   X,
+ } from 'lucide-react'
+-import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, useCajaArqueo } from '../../hooks/useCajaArqueo'
++import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, parseAmount, useCajaArqueo } from '../../hooks/useCajaArqueo'
+ import { useHistorialCierres } from '../../hooks/useHistorialCierres'
+ import { formatMoney } from '../../lib/printing'
+ import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
+@@ -59,15 +59,6 @@ function localDateISO(d = new Date()) {
+   return `${y}-${m}-${day}`
+ }
+ 
+-function parseAmount(value) {
+-  const cleaned = String(value ?? '')
+-    .replace(/\./g, '')
+-    .replace(',', '.')
+-    .replace(/[^\d.-]/g, '')
+-  const number = Number(cleaned)
+-  return Number.isFinite(number) ? number : 0
+-}
+-
+ function timeLabel(value) {
+   if (!value) return '-'
+   return new Date(value).toLocaleString('es-AR', {
+diff --git a/src/hooks/useCajaArqueo.js b/src/hooks/useCajaArqueo.js
+index a5ece8d..0f47a1e 100644
+--- a/src/hooks/useCajaArqueo.js
++++ b/src/hooks/useCajaArqueo.js
+@@ -39,13 +39,47 @@ export const TIPOS_MOVIMIENTO_DISPLAY = [
+ // que un egreso. No está en el form manual (se crea solo vía RPC).
+ const NEGATIVE_TYPES = new Set(['egreso', 'retiro'])
+ 
+-function parseAmount(value) {
+-  const cleaned = String(value ?? '')
+-    .replace(/\./g, '')
+-    .replace(',', '.')
+-    .replace(/[^\d.-]/g, '')
+-  const number = Number(cleaned)
+-  return Number.isFinite(number) ? number : 0
++/**
++ * Convierte a numero un monto que puede llegar como texto tecleado en formato
++ * es-AR ("1.234.567,89") o como numero ya calculado.
++ *
++ * El `typeof number` de la primera linea NO es una optimizacion: es el arreglo
++ * de un bug que rompio cierres reales. La version anterior hacia
++ * `String(value).replace(/\./g, '')` sobre TODO, asi que un esperado calculado
++ * como 377345.65 perdia el punto decimal y se guardaba como 37.734.565 — cien
++ * veces mas. Solo se notaba cuando el esperado tenia centavos: con montos
++ * redondos (529800) no hay punto que borrar y el resultado salia bien, por eso
++ * el error aparecia salteado y parecia aleatorio.
++ */
++export function parseAmount(value) {
++  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
++
++  let limpio = String(value ?? '').trim().replace(/[^\d.,-]/g, '')
++  if (!limpio) return 0
++
++  const ultimaComa = limpio.lastIndexOf(',')
++  const ultimoPunto = limpio.lastIndexOf('.')
++
++  if (ultimaComa > -1 && ultimoPunto > -1) {
++    // Conviven los dos separadores: el que esta mas a la derecha es el decimal.
++    limpio = ultimaComa > ultimoPunto
++      ? limpio.replace(/\./g, '').replace(',', '.')
++      : limpio.replace(/,/g, '')
++  } else if (ultimaComa > -1) {
++    // Solo comas: en es-AR la coma es el decimal. Si hay mas de una, no puede
++    // serlo: son separadores de miles.
++    limpio = (limpio.match(/,/g) || []).length > 1
++      ? limpio.replace(/,/g, '')
++      : limpio.replace(',', '.')
++  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(limpio)) {
++    // Solo puntos y con forma de miles ("529.800", "1.234.567"): separadores.
++    // Cualquier otro uso del punto ("377345.65") ya es parseable tal cual, y es
++    // justamente el caso que antes se rompia.
++    limpio = limpio.replace(/\./g, '')
++  }
++
++  const numero = Number(limpio)
++  return Number.isFinite(numero) ? numero : 0
+ }
+ 
+ function toRange(dateFrom, dateTo) {
+diff --git a/supabase/migrations/20260906000000_fix_esperado_cierres_x100.sql b/supabase/migrations/20260906000000_fix_esperado_cierres_x100.sql
+new file mode 100644
+index 0000000..b727d25
+--- /dev/null
++++ b/supabase/migrations/20260906000000_fix_esperado_cierres_x100.sql
+@@ -0,0 +1,162 @@
++-- ============================================================
++-- Migración: reparar SOLO los cierres cuyo "esperado" quedó inflado por el
++--            bug de parseo decimal. Todo lo demás se deja intacto.
++--
++-- EL BUG (front, corregido en el mismo commit que esta migración)
++-- --------------------------------------------------------------------------
++-- Al cerrar un turno, el panel mandaba el esperado de cada medio como NUMERO
++-- ya calculado (p. ej. 377345.65) y el hook lo pasaba por parseAmount(), que
++-- estaba escrito para texto en formato es-AR: hacía
++--
++--     String(value).replace(/\./g, '')      -- "377345.65" -> "37734565"
++--
++-- es decir, borraba el punto decimal. El esperado se guardaba corrido tantos
++-- lugares como decimales tuviera (x100 con centavos, x10 con un decimal) y la
++-- diferencia del cierre salía disparada. Con montos redondos no hay punto que
++-- borrar y el número salía bien, por eso el error aparecía salteado.
++--
++-- El CONTADO nunca se vio afectado: viene de un input de texto en es-AR, que
++-- era justo el formato que parseAmount esperaba.
++--
++-- POR QUÉ NO RECALCULA TODO
++-- --------------------------------------------------------------------------
++-- Tentaba recalcular el esperado de todos los cierres con la fórmula de la
++-- pantalla. Es incorrecto: un turno cuyos pagos se reasignaron o cuyos
++-- movimientos se editaron DESPUÉS del cierre (cosa que el dashboard permite a
++-- propósito) da hoy un esperado distinto del que tenía ese día, sin que haya
++-- ningún bug. Recalcularlo pisaría el registro histórico de lo que realmente
++-- se cerró.
++--
++-- Por eso esta migración toca un medio sólo cuando puede DEMOSTRAR que está
++-- corrupto, reproduciendo la huella exacta del bug:
++--
++--     guardado = real_sin_ceros_a_la_derecha * 10 ^ (cantidad de decimales)
++--
++-- Esa igualdad no se da por casualidad. Si un medio no la cumple, se deja como
++-- está, aunque hoy el recalculo diera otra cosa.
++--
++-- QUÉ ESCRIBE
++-- --------------------------------------------------------------------------
++--   · denominaciones_cierre.medios[medio].esperado  -> sólo en los corruptos
++--   · efectivo_esperado (el total)                  -> suma de los esperados ya corregidos
++--   · diferencia                                    -> contado − total corregido
++-- El contado no se toca nunca: es lo que contó una persona.
++--
++-- Es idempotente: una vez corregido, el medio deja de cumplir la huella y la
++-- segunda corrida no cambia ninguna fila.
++-- ============================================================
++
++begin;
++
++with medios(medio) as (
++  values ('efectivo'), ('transferencia'), ('tarjeta_debito'), ('tarjeta_credito')
++),
++
++-- Esperado real de cada (turno, medio), con la misma fórmula y el mismo
++-- criterio de pertenencia al turno que usa la pantalla en vivo: por
++-- turno_id / caja_turno_id y, si la fila no quedó vinculada, por caer dentro
++-- de la ventana apertura_at → cierre_at.
++calculado as (
++  select
++    t.id as turno_id,
++    m.medio,
++    (t.denominaciones_cierre -> 'medios' -> m.medio ->> 'esperado')::numeric as esperado_guardado,
++    (case when m.medio = 'efectivo' then coalesce(t.apertura_monto, 0) else 0 end)
++    + coalesce((
++        select sum(p.monto)
++        from public.pagos p
++        join public.pedidos ped on ped.id = p.pedido_id
++        where p.medio_pago = m.medio
++          and (
++            p.caja_turno_id = t.id
++            or (p.caja_turno_id is null
++                and p.created_at >= t.apertura_at
++                and p.created_at <= t.cierre_at)
++          )
++      ), 0)
++    + coalesce((
++        select sum(
++          case
++            when cm.tipo = 'ajuste' then
++              case when cm.categoria = 'faltante' then -1 else 1 end
++            when cm.tipo in ('egreso', 'retiro') then -1
++            else 1
++          end * cm.monto
++        )
++        from public.caja_movimientos cm
++        where coalesce(cm.medio_pago, 'efectivo') = m.medio
++          and (
++            cm.turno_id = t.id
++            or (cm.turno_id is null
++                and cm.created_at >= t.apertura_at
++                and cm.created_at <= t.cierre_at)
++          )
++      ), 0) as esperado_real
++  from public.caja_turnos t
++  cross join medios m
++  where t.estado = 'cerrado'
++    and t.cierre_at is not null
++),
++
++-- La huella del bug. trim_scale saca los ceros a la derecha para que la
++-- cantidad de decimales coincida con la que veía JavaScript: en la base
++-- 331729.00 tiene escala 2, pero String(331729) en el navegador no tiene punto
++-- y por lo tanto ese medio nunca se corrompió.
++marcado as (
++  select
++    c.*,
++    trim_scale(c.esperado_real) as real_norm,
++    scale(trim_scale(c.esperado_real)) as decimales
++  from calculado c
++),
++evaluado as (
++  select
++    m.*,
++    (
++      m.decimales > 0
++      and m.esperado_guardado is not null
++      and m.esperado_guardado = m.real_norm * (10::numeric ^ m.decimales)
++    ) as es_corrupto
++  from marcado m
++),
++
++-- Un renglón por turno: el jsonb nuevo (corregido sólo donde corresponde) y el
++-- total resultante.
++armado as (
++  select
++    e.turno_id,
++    bool_or(e.es_corrupto) as tiene_corruptos,
++    jsonb_build_object(
++      'medios',
++      jsonb_object_agg(
++        e.medio,
++        jsonb_build_object(
++          'esperado', case when e.es_corrupto
++                           then e.real_norm
++                           else coalesce(e.esperado_guardado, 0) end,
++          'contado', round(coalesce(
++            (t.denominaciones_cierre -> 'medios' -> e.medio ->> 'contado')::numeric, 0
++          ), 2)
++        )
++      )
++    ) as medios_nuevo,
++    sum(case when e.es_corrupto
++             then e.real_norm
++             else coalesce(e.esperado_guardado, 0) end) as esperado_total_nuevo
++  from evaluado e
++  join public.caja_turnos t on t.id = e.turno_id
++  group by e.turno_id
++)
++
++update public.caja_turnos t
++set
++  denominaciones_cierre = coalesce(t.denominaciones_cierre, '{}'::jsonb) || a.medios_nuevo,
++  efectivo_esperado     = round(a.esperado_total_nuevo, 2),
++  diferencia            = round(coalesce(t.cierre_monto, 0) - a.esperado_total_nuevo, 2),
++  updated_at            = now()
++from armado a
++where t.id = a.turno_id
++  -- Sólo turnos con al menos un medio que probadamente cargó el bug.
++  and a.tiene_corruptos;
++
++commit;
+-- 
+2.43.0
+

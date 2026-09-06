@@ -1,0 +1,222 @@
+From dee2a639d601abef81cfb0162b7e3315dc8a3cef Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 6 Sep 2026 17:31:42 +0000
+Subject: [PATCH] Caja: separar la foto del negocio de la operacion del turno
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Caja y facturacion mezclaba dos cosas distintas en una sola pantalla: operar el
+turno (facturar, cargar movimientos, cerrar la caja) y ver la foto del negocio
+(totales acumulados, historial de cierres, saldo de la caja fuerte). El permiso
+'caja' era todo o nada: o le sacabas la pantalla entera al encargado y no podia
+trabajar, o veia la facturacion acumulada del mes.
+
+Recurso nuevo 'caja_historico' que gobierna las tres cosas que miran hacia
+atras: el selector de rango de fechas, la banda de totales de facturacion y el
+panel de historial de cierres con su export.
+
+El rango se FUERZA a hoy, no se esconde el selector nada mas: si el filtro
+siguiera en 'ultimos 30 dias', tapar los totales no escondería nada, solo lo
+mueve de lugar.
+
+Queda para el rol finanzas; a admin se le siembra explicitamente en false, que
+es el sentido del recurso. Se tilda desde Personal - Permisos si algun dia hace
+falta, y la migracion no pisa esa decision al volver a correr.
+
+Es una restriccion de pantalla, no de datos: las policies de caja_turnos siguen
+colgando del recurso 'caja', que el encargado necesita para el turno abierto y
+no se puede partir por fila sin romperle el arrastre de la apertura. Para el
+saldo de la caja fuerte ya existe 'caja_fuerte' desde 20260808000000, que si
+gatea las RPC en la base y se destilda por separado.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01XPkwEcgxyTActXcBX4uwSh
+---
+ src/components/caja/ArqueoCajaSection.jsx     |  8 ++-
+ src/pages/Caja.jsx                            | 27 +++++--
+ .../20260906040000_recurso_caja_historico.sql | 70 +++++++++++++++++++
+ 3 files changed, 98 insertions(+), 7 deletions(-)
+ create mode 100644 supabase/migrations/20260906040000_recurso_caja_historico.sql
+
+diff --git a/src/components/caja/ArqueoCajaSection.jsx b/src/components/caja/ArqueoCajaSection.jsx
+index 1f826df..3bed7db 100644
+--- a/src/components/caja/ArqueoCajaSection.jsx
++++ b/src/components/caja/ArqueoCajaSection.jsx
+@@ -1716,8 +1716,12 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
+   // Alta de egresos centralizada: el botón "Egreso" del formulario manual abre
+   // el mismo modal de Registrar pago que usan Caja → Pagos y Finanzas.
+   const [pagoModal, setPagoModal] = useState(false)
+-  const { puedeEditar } = usePermisos()
++  const { puede, puedeEditar } = usePermisos()
+   const puedeRegistrarPagos = puedeEditar('pagos')
++  // El historial de cierres es la foto del negocio hacia atras, no la
++  // operacion del turno: va detras de caja_historico (ver la migracion
++  // 20260906040000_recurso_caja_historico.sql).
++  const veHistorico = puede('caja_historico')
+ 
+   const turnosReabiertos = useMemo(
+     () => turnos.filter(turno => turno.estado === 'reabierto'),
+@@ -1960,7 +1964,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
+       ))}
+ 
+       {/* Historial completo: se carga solo, no depende del rango de la pagina. */}
+-      <CierresHistorial onReabrir={(turno) => setReabrirTarget(turno)} />
++      {veHistorico && <CierresHistorial onReabrir={(turno) => setReabrirTarget(turno)} />}
+ 
+       <ReabrirMotivoModal
+         turno={reabrirTarget}
+diff --git a/src/pages/Caja.jsx b/src/pages/Caja.jsx
+index 0a3fa0e..02af89b 100644
+--- a/src/pages/Caja.jsx
++++ b/src/pages/Caja.jsx
+@@ -729,9 +729,20 @@ export default function CajaPage() {
+   const [customFrom, setCustomFrom] = useState('')
+   const [customTo,   setCustomTo]   = useState('')
+ 
++  const { puede } = usePermisos()
++
++  // `caja_historico` separa operar el turno de ver la foto del negocio. Sin ese
++  // permiso la pantalla queda fija en HOY: se factura, se cargan pagos y se
++  // cierra la caja igual, pero no se ven totales acumulados ni cierres viejos.
++  const veHistorico = puede('caja_historico')
++
++  // El rango se fuerza acá, no solo se esconde el selector: si el filtro
++  // siguiera en "últimos 30 días", tapar los totales no escondería nada.
++  const rangoEfectivo = veHistorico ? rango : 'hoy'
++
+   const { from: dateFrom, to: dateTo } = useMemo(
+-    () => calcularRango(rango, customFrom, customTo),
+-    [rango, customFrom, customTo],
++    () => calcularRango(rangoEfectivo, customFrom, customTo),
++    [rangoEfectivo, customFrom, customTo],
+   )
+ 
+   const {
+@@ -759,7 +770,6 @@ export default function CajaPage() {
+   const [facturarTarget, setFacturarTarget] = useState(null)        // { pedido }
+   const [ncTarget, setNcTarget] = useState(null)                     // { pedido, comprobante }
+   const [seccion, setSeccion] = useState('facturacion')
+-  const { puede } = usePermisos()
+   const seccionesVisibles = SECCIONES_CAJA.filter(t => !t.recurso || puede(t.recurso))
+ 
+   const resumenPagos = useMemo(() => resumenMediosPago(pedidos), [pedidos])
+@@ -901,7 +911,9 @@ export default function CajaPage() {
+           </button>
+         </header>
+ 
+-        {/* Filtro de fecha */}
++        {/* Filtro de fecha. Sin caja_historico no se muestra: la pantalla
++            queda fija en hoy (ver rangoEfectivo). */}
++        {veHistorico && (
+         <section className="mb-4 flex flex-wrap items-end gap-2">
+           {RANGOS_RAPIDOS.map(r => (
+             <button
+@@ -940,8 +952,9 @@ export default function CajaPage() {
+             </>
+           )}
+         </section>
++        )}
+ 
+-        <section className="grid gap-3 lg:grid-cols-3">
++        <section className={`grid gap-3 ${veHistorico ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
+           <GrupoMetricas titulo="Facturación" color="#f97316" icon={Receipt}>
+             <FilaMetrica label="Pedidos" value={stats.pedidos} />
+             <FilaMetrica label="Pendientes facturación" value={stats.pendientes} color="#fbbf24" apagado={stats.pendientes === 0} />
+@@ -970,6 +983,9 @@ export default function CajaPage() {
+             <FilaMetrica label="Total cobrado" value={`$${formatMoney(resumenPagos.totalCobrado)}`} fuerte />
+           </GrupoMetricas>
+ 
++          {/* Totales acumulados del período: es la foto del negocio, no la
++              operación del turno. Va detrás de caja_historico. */}
++          {veHistorico && (
+           <GrupoMetricas titulo="Totales" color="#34d399" icon={WalletCards}>
+             <FilaMetrica label="Vendido (pedidos)" value={`$${formatMoney(stats.total)}`} />
+             <FilaMetrica label="Total facturado" value={`$${formatMoney(stats.totalFacturado)}`} color="#4f8ef7" />
+@@ -981,6 +997,7 @@ export default function CajaPage() {
+             />
+             <FilaMetrica label="Neto (post-NC)" value={`$${formatMoney(stats.netoFacturado)}`} color="var(--accent-lift)" fuerte />
+           </GrupoMetricas>
++          )}
+         </section>
+ 
+         {(error || setupWarning || notice || !arcaReady) && (
+diff --git a/supabase/migrations/20260906040000_recurso_caja_historico.sql b/supabase/migrations/20260906040000_recurso_caja_historico.sql
+new file mode 100644
+index 0000000..2853337
+--- /dev/null
++++ b/supabase/migrations/20260906040000_recurso_caja_historico.sql
+@@ -0,0 +1,70 @@
++-- ============================================================
++-- Migración: recurso `caja_historico` — separar la foto del negocio de la
++--            operación del turno
++--
++-- EL PROBLEMA
++-- --------------------------------------------------------------------------
++-- Caja y facturación es una sola pantalla que mezcla dos cosas muy distintas:
++--
++--   OPERAR EL TURNO           ver la foto del negocio
++--   facturar pedidos          Vendido / Facturado / Neto de los últimos 30 días
++--   cargar movimientos        el historial completo de cierres, con su export
++--   cerrar la caja del día    el saldo de la caja fuerte
++--
++-- El encargado necesita la columna de la izquierda todos los días. La de la
++-- derecha es información del dueño. Hasta ahora el permiso `caja` era todo o
++-- nada: o le sacabas la pantalla entera —y entonces no podía trabajar— o veía
++-- la facturación acumulada del mes.
++--
++-- LA GRANULARIDAD NUEVA
++-- --------------------------------------------------------------------------
++-- `caja_historico` (ver) gobierna las tres cosas que miran hacia atrás:
++--
++--   1) el selector de rango de fechas (Hoy / 7 días / 30 días / custom),
++--   2) la banda de totales de facturación (Vendido, Facturado, NC, Neto),
++--   3) el panel Historial de cierres, con su exportación a CSV.
++--
++-- Sin el permiso, la página queda fija en HOY y sin totales acumulados. Se
++-- factura, se cargan pagos y movimientos, y se cierra el turno igual que antes.
++--
++-- El punto 1 no es decorativo: es la llave de los otros dos. Tapar los totales
++-- dejando elegir "últimos 30 días" no esconde nada, solo lo mueve de lugar.
++--
++-- ALCANCE HONESTO
++-- --------------------------------------------------------------------------
++-- Esto es una restricción de PANTALLA, no de datos. Las policies de caja_turnos
++-- siguen colgando del recurso `caja`, que el encargado necesita para operar el
++-- turno abierto; no se puede partir por fila sin romperle el arrastre de la
++-- apertura. Alcanza para que la información no esté a la vista de quien no le
++-- corresponde, no para frenar a alguien que consulte la API a mano.
++--
++-- Para el saldo de la caja fuerte ya existe el recurso `caja_fuerte` desde
++-- 20260808000000, y ese sí gatea las RPC en la base. Se destilda por separado.
++--
++-- Sigue el mismo patrón que caja_fuerte: recurso sin `ruta` (vive dentro de
++-- otra pantalla), grupo Dinero, marcado como sensible.
++-- ============================================================
++
++begin;
++
++insert into public.recursos (id, nombre, descripcion, ruta, grupo, sensible, orden) values
++  ('caja_historico', 'Caja · histórico y totales',
++   'El rango de fechas, los totales de facturación acumulados y el historial de cierres pasados. Vive dentro de Caja y facturación. Sin esto se ve y se opera solo el día de hoy.',
++   null, 'Dinero', true, 214)
++on conflict (id) do update
++  set nombre = excluded.nombre, descripcion = excluded.descripcion,
++      grupo = excluded.grupo, sensible = excluded.sensible, orden = excluded.orden;
++
++-- Solo finanzas. A admin se le da explícitamente NO: es justamente el rol del
++-- encargado que carga los pagos y maneja los turnos, y el sentido de este
++-- recurso es que vea el día en curso sin la acumulación del negocio.
++-- Si algún día querés dárselo, se tilda desde Personal → Permisos.
++insert into public.rol_permisos (rol_id, recurso_id, ver, editar)
++select r.rol, 'caja_historico', r.ver, r.ver
++from (values ('finanzas', true), ('admin', false)) as r(rol, ver)
++where exists (select 1 from public.roles where id = r.rol)
++on conflict (rol_id, recurso_id) do nothing;
++
++commit;
++
++notify pgrst, 'reload schema';
+-- 
+2.43.0
+

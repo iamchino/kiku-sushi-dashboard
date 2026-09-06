@@ -1,0 +1,382 @@
+From 62fd0ffa9ffd149f6422efd80bdf4ec5ea1a67e7 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 6 Sep 2026 17:44:39 +0000
+Subject: [PATCH] Caja fuerte: se puede depositar y pagar sin ver cuanto hay
+
+Ver el saldo y poder operar la caja fuerte pasan a ser dos permisos distintos.
+El encargado deposita el excedente al cerrar el turno y paga proveedores desde
+ahi, pero no tiene por que saber cuanto hay guardado.
+
+No alcanzaba con destildar el recurso: el boton de depositar vive DENTRO de la
+seccion Caja fuerte, asi que ocultarla le sacaba el deposito del cierre. Ahora
+a la seccion se entra con 'ver' O con 'editar'; con solo editar se ve el
+formulario y no el saldo, ni el historial de movimientos, ni el boton de
+correccion (corregir un saldo que no se ve no tiene sentido), y los avisos de
+exito dejan de informar el saldo resultante.
+
+Aparte, un bug que este cambio hubiera destapado: el arrastre de la apertura
+restaba los depositos posteriores al ultimo cierre leyendo
+caja_fuerte_movimientos desde el cliente. Sin permiso de ver la caja fuerte la
+RLS no da error, devuelve CERO FILAS, y el calculo concluia 'no hubo
+depositos', sugiriendo arrastrar plata que ya estaba guardada. Un permiso menos
+no puede cambiar un numero: el calculo se movio a apertura_sugerida(), security
+definer, que devuelve solo el agregado y nunca el saldo ni los movimientos. El
+front cae al calculo viejo si la migracion todavia no corrio.
+
+RPC probada contra Postgres real: 9 casos, incluidos que lo contado manda sobre
+lo esperado, que un deposito anterior al cierre no cuenta, que nunca sugiere
+negativo y que sin permiso de ver caja rechaza.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01XPkwEcgxyTActXcBX4uwSh
+---
+ src/components/caja/CajaFuertePanel.jsx       |  58 ++++++----
+ src/hooks/useCajaArqueo.js                    |  15 +++
+ src/hooks/useCajaFuerte.js                    |  29 ++++-
+ src/pages/Caja.jsx                            |  10 +-
+ .../20260906050000_apertura_sugerida_rpc.sql  | 100 ++++++++++++++++++
+ 5 files changed, 185 insertions(+), 27 deletions(-)
+ create mode 100644 supabase/migrations/20260906050000_apertura_sugerida_rpc.sql
+
+diff --git a/src/components/caja/CajaFuertePanel.jsx b/src/components/caja/CajaFuertePanel.jsx
+index 5c2d44c..d547077 100644
+--- a/src/components/caja/CajaFuertePanel.jsx
++++ b/src/components/caja/CajaFuertePanel.jsx
+@@ -3,12 +3,20 @@ import { Landmark, ArrowDownToLine, Scale, AlertTriangle, CheckCircle2, ArrowUpR
+ import { useCajaFuerte } from '../../hooks/useCajaFuerte'
+ import { ModalShell, Field, Select, TextArea } from '../finanzas/fields'
+ import { fmtMoney, fmtFecha, catLabel } from '../../lib/finanzas'
++import { usePermisos } from '../../context/usePermisos'
+ 
+ // La caja fuerte: dónde queda el efectivo cuando no está en la caja
+ // registradora. Entra al cerrar el turno (retiro), sale por pagos (desde
+ // Pagos, eligiendo origen "caja fuerte") o por ajustes.
+ export default function CajaFuertePanel() {
+-  const { movimientos, saldo, turnoAbierto, ultimoCierre, loading, error, retirar, ajustar } = useCajaFuerte()
++  // Ver el saldo y poder operar la caja fuerte son dos permisos distintos. El
++  // encargado deposita el excedente al cerrar y paga proveedores desde aca,
++  // pero no tiene por que saber cuanto hay guardado: con `editar` sin `ver`
++  // entra a la seccion, usa el formulario, y no ve ni el saldo ni el historial.
++  const { puede } = usePermisos()
++  const veSaldo = puede('caja_fuerte')
++  const { movimientos, saldo, turnoAbierto, ultimoCierre, loading, error, retirar, ajustar } =
++    useCajaFuerte({ verSaldo: veSaldo })
+   const [modal, setModal] = useState(null)   // 'agregar' | 'ajuste' | null
+   const [aviso, setAviso] = useState(null)
+ 
+@@ -29,12 +37,15 @@ export default function CajaFuertePanel() {
+           </div>
+         </div>
+         <div className="flex items-center gap-2">
+-          <button onClick={() => abrir('ajuste')}
+-            title="Corregir el saldo tras un conteo (sobrante o faltante)"
+-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold"
+-            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+-            <Scale size={13} /> Corrección
+-          </button>
++          {/* Corregir un saldo que no se puede ver no tiene sentido. */}
++          {veSaldo && (
++            <button onClick={() => abrir('ajuste')}
++              title="Corregir el saldo tras un conteo (sobrante o faltante)"
++              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold"
++              style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
++              <Scale size={13} /> Corrección
++            </button>
++          )}
+           <button onClick={() => abrir('agregar')}
+             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
+             style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+@@ -44,13 +55,20 @@ export default function CajaFuertePanel() {
+       </div>
+ 
+       {/* Saldo */}
+-      <div className="rounded-xl px-4 py-3 flex items-center justify-between"
+-        style={{ background: 'var(--bg-app)', border: '1px solid var(--border-card)' }}>
+-        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Efectivo en caja fuerte</span>
+-        <span className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+-          {saldo === null ? '…' : fmtMoney(saldo)}
+-        </span>
+-      </div>
++      {veSaldo ? (
++        <div className="rounded-xl px-4 py-3 flex items-center justify-between"
++          style={{ background: 'var(--bg-app)', border: '1px solid var(--border-card)' }}>
++          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Efectivo en caja fuerte</span>
++          <span className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
++            {saldo === null ? '…' : fmtMoney(saldo)}
++          </span>
++        </div>
++      ) : (
++        <p className="rounded-xl px-4 py-3 text-xs" style={{ background: 'var(--bg-app)', border: '1px solid var(--border-card)', color: 'var(--text-muted)' }}>
++          Podés depositar efectivo acá y pagar desde la caja fuerte. El saldo y el
++          detalle de movimientos no están habilitados para tu usuario.
++        </p>
++      )}
+ 
+       {!turnoAbierto && (
+         <p className="text-[11px] px-3 py-2 rounded-lg" style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', color: 'var(--accent-lift)' }}>
+@@ -78,8 +96,8 @@ export default function CajaFuertePanel() {
+         </div>
+       )}
+ 
+-      {/* Movimientos */}
+-      {loading ? (
++      {/* Movimientos: son el historial de la caja fuerte, van con `ver`. */}
++      {!veSaldo ? null : loading ? (
+         <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="skeleton h-12 rounded-xl" />)}</div>
+       ) : movimientos.length === 0 ? (
+         <p className="text-xs py-2" style={{ color: 'var(--text-xmuted)' }}>
+@@ -132,14 +150,14 @@ export default function CajaFuertePanel() {
+             if (origen === 'caja') {
+               const r = await retirar(monto, nota)
+               setAviso(r?.modo === 'post_cierre'
+-                ? `Depósito del cierre registrado. La próxima apertura de caja ya no arrastra esa plata. Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.`
+-                : `Retiro registrado: salió de la caja del día (el arqueo ya lo descuenta). Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.`)
++                ? `Depósito del cierre registrado. La próxima apertura de caja ya no arrastra esa plata.${veSaldo ? ` Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.` : ''}`
++                : `Retiro registrado: salió de la caja del día (el arqueo ya lo descuenta).${veSaldo ? ` Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.` : ''}`)
+             } else {
+               const descripcion = nota.trim()
+                 ? `Depósito externo: ${nota.trim()}`
+                 : 'Depósito de efectivo externo'
+               const r = await ajustar(monto, 'sobrante', descripcion)
+-              setAviso(`Depósito externo registrado. No toca la caja del día. Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.`)
++              setAviso(`Depósito externo registrado. No toca la caja del día.${veSaldo ? ` Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.` : ''}`)
+             }
+           }} />
+       )}
+@@ -147,7 +165,7 @@ export default function CajaFuertePanel() {
+         <AjusteModal onClose={() => setModal(null)}
+           onSave={async (monto, direccion, descripcion) => {
+             const r = await ajustar(monto, direccion, descripcion)
+-            setAviso(`Corrección registrada. Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.`)
++            setAviso(`Corrección registrada.${veSaldo ? ` Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.` : ''}`)
+           }} />
+       )}
+     </section>
+diff --git a/src/hooks/useCajaArqueo.js b/src/hooks/useCajaArqueo.js
+index 6e66fe0..2d42141 100644
+--- a/src/hooks/useCajaArqueo.js
++++ b/src/hooks/useCajaArqueo.js
+@@ -219,7 +219,22 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
+     // Sugerencia = efectivo CONTADO en el último cierre − depósitos a caja
+     // fuerte hechos después de ese cierre. Best-effort: si algo falla (sin
+     // permiso de caja fuerte, migración sin aplicar), no bloquea la carga.
++    // Vía preferida: RPC security definer. El cálculo NO puede depender de que
++    // quien abre el turno tenga permiso de ver la caja fuerte: sin ese permiso
++    // la RLS devuelve cero depósitos —sin error— y el arrastre sugiere de más.
++    let arrastreResuelto = false
+     try {
++      const { data: sug, error: sugErr } = await supabase.rpc('apertura_sugerida')
++      if (!sugErr) {
++        setAperturaSugerida(sug ? { monto: Number(sug.monto || 0), fecha: sug.fecha } : null)
++        arrastreResuelto = true
++      }
++    } catch { /* cae al cálculo de abajo */ }
++
++    // Plan B mientras la migración no esté aplicada: mismo cálculo en el
++    // cliente. Solo es exacto si el usuario ve la caja fuerte.
++    try {
++      if (arrastreResuelto) throw new Error('ya resuelto')
+       const { data: ult } = await supabase
+         .from('caja_turnos')
+         .select('id, business_date, cierre_at, denominaciones_cierre')
+diff --git a/src/hooks/useCajaFuerte.js b/src/hooks/useCajaFuerte.js
+index 405fb2d..daf79b0 100644
+--- a/src/hooks/useCajaFuerte.js
++++ b/src/hooks/useCajaFuerte.js
+@@ -7,7 +7,12 @@ import { supabase } from '../lib/supabase'
+ // la tabla no acepta escrituras directas.
+ // Opciones: { desde, hasta } en 'YYYY-MM-DD' acotan los MOVIMIENTOS al
+ // período (el saldo siempre es el actual, no tiene sentido "a fecha").
+-export function useCajaFuerte({ desde = null, hasta = null } = {}) {
++// `verSaldo`: quien puede OPERAR la caja fuerte (depositar, pagar desde ella)
++// no necesariamente puede VER cuanto hay. Con verSaldo=false no se piden ni el
++// saldo ni los movimientos —las RPC lo rechazarian y la RLS devolveria cero
++// filas— y el arrastre pendiente se resuelve por apertura_sugerida(), que es
++// security definer y devuelve solo el agregado.
++export function useCajaFuerte({ desde = null, hasta = null, verSaldo = true } = {}) {
+   const [movimientos, setMovimientos] = useState([])
+   const [saldo, setSaldo]     = useState(null)
+   const [turnoAbierto, setTurnoAbierto] = useState(null)
+@@ -27,19 +32,33 @@ export function useCajaFuerte({ desde = null, hasta = null } = {}) {
+       if (hasta) movsQuery = movsQuery.lte('created_at', new Date(`${hasta}T23:59:59.999`).toISOString())
+ 
+       const [movs, saldoRes, turnoRes] = await Promise.all([
+-        movsQuery,
+-        supabase.rpc('saldo_caja_fuerte'),
++        verSaldo ? movsQuery : Promise.resolve({ data: [], error: null }),
++        verSaldo ? supabase.rpc('saldo_caja_fuerte') : Promise.resolve({ data: null, error: null }),
+         supabase.from('caja_turnos').select('id').eq('estado', 'abierto').limit(1).maybeSingle(),
+       ])
+       if (movs.error) throw movs.error
+       if (saldoRes.error) throw saldoRes.error
+       setMovimientos(movs.data || [])
+-      setSaldo(Number(saldoRes.data ?? 0))
++      setSaldo(verSaldo ? Number(saldoRes.data ?? 0) : null)
+       setTurnoAbierto(turnoRes.error ? null : turnoRes.data)
+ 
+       // Último cierre: cuánto efectivo dejó y cuánto ya se depositó después.
+       // Es lo que se puede retirar con la caja cerrada (y lo que el arrastre
+       // le sugiere a la próxima apertura). Best-effort.
++      // Sin permiso de ver la caja fuerte, los depositos no se pueden contar
++      // desde el cliente (la RLS devuelve cero, sin error, y "lo que queda por
++      // retirar" saldria inflado). La RPC hace la cuenta del lado del servidor
++      // y devuelve solo el numero.
++      if (!verSaldo) {
++        try {
++          const { data: sug, error: e } = await supabase.rpc('apertura_sugerida')
++          setUltimoCierre(!e && sug
++            ? { fecha: sug.fecha, efectivo: null, depositado: null, disponible: Number(sug.monto || 0) }
++            : null)
++        } catch { setUltimoCierre(null) }
++        return
++      }
++
+       try {
+         const { data: ult } = await supabase
+           .from('caja_turnos')
+@@ -74,7 +93,7 @@ export function useCajaFuerte({ desde = null, hasta = null } = {}) {
+     } finally {
+       setLoading(false)
+     }
+-  }, [desde, hasta])
++  }, [desde, hasta, verSaldo])
+ 
+   useEffect(() => { cargar() }, [cargar])
+ 
+diff --git a/src/pages/Caja.jsx b/src/pages/Caja.jsx
+index 02af89b..de88bf2 100644
+--- a/src/pages/Caja.jsx
++++ b/src/pages/Caja.jsx
+@@ -729,7 +729,7 @@ export default function CajaPage() {
+   const [customFrom, setCustomFrom] = useState('')
+   const [customTo,   setCustomTo]   = useState('')
+ 
+-  const { puede } = usePermisos()
++  const { puede, puedeEditar } = usePermisos()
+ 
+   // `caja_historico` separa operar el turno de ver la foto del negocio. Sin ese
+   // permiso la pantalla queda fija en HOY: se factura, se cargan pagos y se
+@@ -770,7 +770,13 @@ export default function CajaPage() {
+   const [facturarTarget, setFacturarTarget] = useState(null)        // { pedido }
+   const [ncTarget, setNcTarget] = useState(null)                     // { pedido, comprobante }
+   const [seccion, setSeccion] = useState('facturacion')
+-  const seccionesVisibles = SECCIONES_CAJA.filter(t => !t.recurso || puede(t.recurso))
++  // Alcanza con PODER OPERAR la seccion para llegar a ella: la caja fuerte se
++  // reparte en ver el saldo (`ver`) y poder depositar o pagar desde ella
++  // (`editar`). Quien solo tiene `editar` entra, usa el formulario y no ve ni
++  // el saldo ni el historial (ver CajaFuertePanel).
++  const seccionesVisibles = SECCIONES_CAJA.filter(
++    t => !t.recurso || puede(t.recurso) || puedeEditar(t.recurso),
++  )
+ 
+   const resumenPagos = useMemo(() => resumenMediosPago(pedidos), [pedidos])
+ 
+diff --git a/supabase/migrations/20260906050000_apertura_sugerida_rpc.sql b/supabase/migrations/20260906050000_apertura_sugerida_rpc.sql
+new file mode 100644
+index 0000000..da70e90
+--- /dev/null
++++ b/supabase/migrations/20260906050000_apertura_sugerida_rpc.sql
+@@ -0,0 +1,100 @@
++-- ============================================================
++-- Migración: `apertura_sugerida()` — el arrastre deja de depender de ver la
++--            caja fuerte
++--
++-- EL PROBLEMA
++-- --------------------------------------------------------------------------
++-- Al abrir un turno, el dashboard sugiere el fondo inicial con el arrastre:
++--
++--     efectivo contado en el último cierre
++--   − depósitos a la caja fuerte hechos DESPUÉS de ese cierre
++--
++-- Ese segundo término lo calculaba el front leyendo `caja_fuerte_movimientos`
++-- directo. Funciona mientras quien abre el turno tenga permiso de VER la caja
++-- fuerte. En cuanto se le saca —que es justo lo que se quiere para el
++-- encargado: que deposite pero no vea el saldo— la RLS no da error: devuelve
++-- CERO FILAS. El cálculo entonces da "no hubo depósitos" y sugiere arrastrar
++-- toda la plata del cierre anterior, incluida la que ya está guardada.
++--
++-- Un permiso menos no puede cambiar un número. Ese es el bug.
++--
++-- LA SOLUCIÓN
++-- --------------------------------------------------------------------------
++-- Mover el cálculo a una función `security definer`: corre con los privilegios
++-- del dueño de la función, así que lee los depósitos completos sin importar qué
++-- ve quien la llama. Devuelve solo el número agregado y la fecha del cierre —
++-- nunca el saldo ni el detalle de movimientos, que es lo que se está
++-- protegiendo.
++--
++-- Requiere permiso de VER caja: es información del arqueo, y sin eso no se
++-- abre ningún turno.
++-- ============================================================
++
++begin;
++
++create or replace function public.apertura_sugerida()
++returns jsonb
++language plpgsql
++stable
++security definer
++set search_path = ''
++as $$
++declare
++  v_turno      record;
++  v_efectivo   numeric;
++  v_depositado numeric;
++begin
++  if not (public.tiene_permiso('caja', 'ver') or public.is_finanzas_user()) then
++    raise exception 'No tenés permiso para ver la caja.';
++  end if;
++
++  -- Último cierre. Desempate por created_at: dos cierres con el mismo
++  -- cierre_at (p. ej. corregidos en la misma operación) no deben devolver el
++  -- turno viejo.
++  select t.id, t.business_date, t.cierre_at, t.denominaciones_cierre
++    into v_turno
++  from public.caja_turnos t
++  where t.estado = 'cerrado'
++  order by t.cierre_at desc nulls last, t.created_at desc
++  limit 1;
++
++  if v_turno.id is null then
++    return null;
++  end if;
++
++  -- Lo CONTADO manda sobre lo esperado: es lo que quedó de verdad en el cajón.
++  v_efectivo := coalesce(
++    (v_turno.denominaciones_cierre -> 'medios' -> 'efectivo' ->> 'contado')::numeric,
++    (v_turno.denominaciones_cierre -> 'medios' -> 'efectivo' ->> 'esperado')::numeric
++  );
++
++  if v_efectivo is null then
++    return null;
++  end if;
++
++  select coalesce(sum(m.monto), 0) into v_depositado
++  from public.caja_fuerte_movimientos m
++  where m.turno_id = v_turno.id
++    and m.tipo = 'deposito'
++    and m.created_at > v_turno.cierre_at;
++
++  return jsonb_build_object(
++    'monto', greatest(0, v_efectivo - v_depositado),
++    'fecha', v_turno.business_date
++  );
++end $$;
++
++comment on function public.apertura_sugerida() is
++  'Fondo inicial sugerido para el proximo turno: efectivo contado en el ultimo '
++  'cierre menos los depositos a la caja fuerte posteriores. Es security definer '
++  'a proposito: el calculo no puede depender de que quien abre el turno tenga '
++  'permiso de ver la caja fuerte (sin el, la RLS devuelve cero depositos y el '
++  'arrastre sugiere de mas). Devuelve solo el agregado, nunca el saldo ni los '
++  'movimientos.';
++
++revoke execute on function public.apertura_sugerida() from public;
++grant  execute on function public.apertura_sugerida() to authenticated;
++
++commit;
++
++notify pgrst, 'reload schema';
+-- 
+2.43.0
+

@@ -1,0 +1,274 @@
+From 68f65d11ce87972be5a6a76fa35ef619928ecd41 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 6 Sep 2026 17:55:04 +0000
+Subject: [PATCH] Caja: el historial de cierres se ve siempre, y se guarda en
+ caja fuerte desde Arqueo
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Dos correcciones sobre lo anterior.
+
+El historial de cierres vuelve a verse sin permiso especial. Lo habia puesto
+detras de caja_historico tratandolo como foto del negocio, y no lo es: es la
+trazabilidad del arqueo — quien cerro, con cuanta diferencia, que se reabrio y
+por que. El encargado tiene que poder consultarlo por cualquier cosa. El
+recurso queda gobernando solo el rango de fechas y la banda de totales de
+facturacion, que si son informacion acumulada del negocio.
+
+Y el deposito a la caja fuerte sale de la seccion Caja fuerte: boton "Guardar
+en caja fuerte" dentro de Arqueo, donde el cierre realmente ocurre. Pide monto
+y nota, llama la RPC directo y no muestra ningun total: ni el saldo, ni el
+historial, ni el saldo resultante que la propia RPC devuelve. Va sin pasar por
+useCajaFuerte a proposito, porque ese hook ademas pide el saldo y los
+movimientos, que es justo lo que aca no queremos ni traer.
+
+Con eso la seccion Caja fuerte vuelve a pedir 'ver' a secas: ES la vista del
+saldo. Poder depositar ya no obliga a abrirla.
+
+Configuracion resultante para el encargado: caja_fuerte con ver destildado y
+editar tildado.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01XPkwEcgxyTActXcBX4uwSh
+---
+ src/components/caja/ArqueoCajaSection.jsx     | 123 +++++++++++++++++-
+ src/pages/Caja.jsx                            |  13 +-
+ ...0906060000_caja_historico_alcance_real.sql |  31 +++++
+ 3 files changed, 153 insertions(+), 14 deletions(-)
+ create mode 100644 supabase/migrations/20260906060000_caja_historico_alcance_real.sql
+
+diff --git a/src/components/caja/ArqueoCajaSection.jsx b/src/components/caja/ArqueoCajaSection.jsx
+index 3bed7db..009e1c1 100644
+--- a/src/components/caja/ArqueoCajaSection.jsx
++++ b/src/components/caja/ArqueoCajaSection.jsx
+@@ -26,6 +26,7 @@ import {
+ } from 'lucide-react'
+ import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, afectaArqueo, parseAmount, useCajaArqueo } from '../../hooks/useCajaArqueo'
+ import { useHistorialCierres } from '../../hooks/useHistorialCierres'
++import { supabase } from '../../lib/supabase'
+ import { formatMoney } from '../../lib/printing'
+ import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
+ import { usePermisos } from '../../context/usePermisos'
+@@ -242,6 +243,112 @@ function EmptyTurnoForm({ onOpen, saving, aperturaSugerida }) {
+   )
+ }
+ 
++/**
++ * Guardar efectivo del cajón en la caja fuerte, sin pasar por la sección Caja
++ * fuerte y sin ver el saldo.
++ *
++ * Existe porque son dos permisos distintos: el encargado tiene que poder
++ * GUARDAR el excedente al cerrar (`editar`) sin tener por qué saber CUÁNTO hay
++ * guardado (`ver`). El único lugar donde se podía depositar era el panel de la
++ * caja fuerte, que muestra el saldo y el historial: ocultarlo le sacaba el
++ * depósito del cierre.
++ *
++ * Llama la RPC directo, sin useCajaFuerte: ese hook además pide el saldo y los
++ * movimientos, que es justo lo que acá no queremos ni traer. La RPC devuelve el
++ * saldo resultante en su respuesta y se descarta a propósito.
++ */
++function GuardarEnCajaFuerte({ onListo }) {
++  const [abierto, setAbierto] = useState(false)
++  const [monto, setMonto] = useState('')
++  const [notas, setNotas] = useState('')
++  const [saving, setSaving] = useState(false)
++  const [error, setError] = useState(null)
++
++  const cerrar = () => { setAbierto(false); setMonto(''); setNotas(''); setError(null) }
++
++  const guardar = async () => {
++    const importe = parseAmount(monto)
++    if (importe <= 0) { setError('Poné un monto mayor a cero.'); return }
++    setSaving(true); setError(null)
++    try {
++      const { error: e } = await supabase.rpc('retirar_a_caja_fuerte', {
++        p_monto: importe,
++        p_notas: notas.trim() || null,
++      })
++      if (e) throw new Error(e.message)
++      onListo(`Guardaste $${formatMoney(importe)} en la caja fuerte. El arqueo ya lo descuenta.`)
++      cerrar()
++    } catch (err) {
++      setError(err.message || 'No se pudo guardar en la caja fuerte.')
++      setSaving(false)
++    }
++  }
++
++  return (
++    <Panel>
++      <div className="flex items-center justify-between gap-3 flex-wrap">
++        <div className="flex items-center gap-2">
++          <Landmark size={15} style={{ color: 'var(--accent-lift)' }} />
++          <div>
++            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Guardar en caja fuerte</p>
++            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
++              Saca el efectivo del cajón y lo deposita. El arqueo lo descuenta.
++            </p>
++          </div>
++        </div>
++        {!abierto && (
++          <button type="button" onClick={() => setAbierto(true)}
++            className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors"
++            style={{ color: 'var(--accent-lift)', border: '1px solid var(--accent-border)', background: 'var(--accent-soft)' }}>
++            <ArrowUpRight size={13} /> Guardar plata
++          </button>
++        )}
++      </div>
++
++      {abierto && (
++        <div className="mt-3 space-y-3">
++          <div className="grid gap-2 sm:grid-cols-2">
++            <Field label="Monto">
++              <input
++                autoFocus
++                inputMode="decimal"
++                value={monto}
++                onChange={e => { setMonto(e.target.value); setError(null) }}
++                placeholder="0"
++                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
++                style={inputStyle()}
++              />
++            </Field>
++            <Field label="Nota (opcional)">
++              <input
++                value={notas}
++                onChange={e => setNotas(e.target.value)}
++                placeholder="Ej: excedente del sábado"
++                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
++                style={inputStyle()}
++              />
++            </Field>
++          </div>
++          {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
++          <div className="flex justify-end gap-2">
++            <button type="button" onClick={cerrar} disabled={saving}
++              className="rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
++              style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
++              Cancelar
++            </button>
++            <button type="button" onClick={guardar} disabled={saving}
++              className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
++              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
++              {saving ? <Loader2 size={13} className="animate-spin" /> : <ArrowUpRight size={13} />}
++              Guardar
++            </button>
++          </div>
++        </div>
++      )}
++    </Panel>
++  )
++}
++
+ function MovimientoForm({ turno, onSubmit, saving, onRegistrarPago }) {
+   const [tipo, setTipo] = useState('ingreso')
+   const [medio, setMedio] = useState('efectivo')
+@@ -1716,12 +1823,12 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
+   // Alta de egresos centralizada: el botón "Egreso" del formulario manual abre
+   // el mismo modal de Registrar pago que usan Caja → Pagos y Finanzas.
+   const [pagoModal, setPagoModal] = useState(false)
+-  const { puede, puedeEditar } = usePermisos()
++  const { puedeEditar } = usePermisos()
+   const puedeRegistrarPagos = puedeEditar('pagos')
+-  // El historial de cierres es la foto del negocio hacia atras, no la
+-  // operacion del turno: va detras de caja_historico (ver la migracion
+-  // 20260906040000_recurso_caja_historico.sql).
+-  const veHistorico = puede('caja_historico')
++  // Depositar en la caja fuerte es una accion del cierre, asi que el boton vive
++  // aca y no dentro de la seccion Caja fuerte: quien tiene 'editar' sin 'ver'
++  // guarda el excedente sin pasar por ninguna pantalla que muestre el saldo.
++  const puedeGuardarEnCajaFuerte = puedeEditar('caja_fuerte')
+ 
+   const turnosReabiertos = useMemo(
+     () => turnos.filter(turno => turno.estado === 'reabierto'),
+@@ -1915,6 +2022,10 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
+                 onDelete={(id) => run(`delmov-${id}`, () => eliminarMovimiento(id), 'Movimiento eliminado.')}
+               />
+ 
++              {puedeGuardarEnCajaFuerte && (
++                <GuardarEnCajaFuerte onListo={(texto) => { setNotice({ type: 'ok', text: texto }); refetch() }} />
++              )}
++
+               <PagosBancoList movimientos={resumen.movimientosBanco} />
+ 
+               {/* Un pago que entró en la caja equivocada se saca de acá, sin
+@@ -1964,7 +2075,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
+       ))}
+ 
+       {/* Historial completo: se carga solo, no depende del rango de la pagina. */}
+-      {veHistorico && <CierresHistorial onReabrir={(turno) => setReabrirTarget(turno)} />}
++      <CierresHistorial onReabrir={(turno) => setReabrirTarget(turno)} />
+ 
+       <ReabrirMotivoModal
+         turno={reabrirTarget}
+diff --git a/src/pages/Caja.jsx b/src/pages/Caja.jsx
+index de88bf2..751223d 100644
+--- a/src/pages/Caja.jsx
++++ b/src/pages/Caja.jsx
+@@ -729,7 +729,7 @@ export default function CajaPage() {
+   const [customFrom, setCustomFrom] = useState('')
+   const [customTo,   setCustomTo]   = useState('')
+ 
+-  const { puede, puedeEditar } = usePermisos()
++  const { puede } = usePermisos()
+ 
+   // `caja_historico` separa operar el turno de ver la foto del negocio. Sin ese
+   // permiso la pantalla queda fija en HOY: se factura, se cargan pagos y se
+@@ -770,13 +770,10 @@ export default function CajaPage() {
+   const [facturarTarget, setFacturarTarget] = useState(null)        // { pedido }
+   const [ncTarget, setNcTarget] = useState(null)                     // { pedido, comprobante }
+   const [seccion, setSeccion] = useState('facturacion')
+-  // Alcanza con PODER OPERAR la seccion para llegar a ella: la caja fuerte se
+-  // reparte en ver el saldo (`ver`) y poder depositar o pagar desde ella
+-  // (`editar`). Quien solo tiene `editar` entra, usa el formulario y no ve ni
+-  // el saldo ni el historial (ver CajaFuertePanel).
+-  const seccionesVisibles = SECCIONES_CAJA.filter(
+-    t => !t.recurso || puede(t.recurso) || puedeEditar(t.recurso),
+-  )
++  // La seccion Caja fuerte ES la vista del saldo, asi que pide `ver`. Poder
++  // depositar (`editar`) no la abre: para eso esta el boton "Guardar en caja
++  // fuerte" dentro de Arqueo, que no muestra ningun total.
++  const seccionesVisibles = SECCIONES_CAJA.filter(t => !t.recurso || puede(t.recurso))
+ 
+   const resumenPagos = useMemo(() => resumenMediosPago(pedidos), [pedidos])
+ 
+diff --git a/supabase/migrations/20260906060000_caja_historico_alcance_real.sql b/supabase/migrations/20260906060000_caja_historico_alcance_real.sql
+new file mode 100644
+index 0000000..605d725
+--- /dev/null
++++ b/supabase/migrations/20260906060000_caja_historico_alcance_real.sql
+@@ -0,0 +1,31 @@
++-- ============================================================
++-- Migración: corregir la descripción de `caja_historico`
++--
++-- La migración 20260906040000 lo definió gobernando tres cosas, incluido el
++-- panel Historial de cierres. Ese tercer punto se revirtió: el historial de
++-- cierres es la TRAZABILIDAD del arqueo —quién cerró, con cuánta diferencia,
++-- qué se reabrió y por qué— y el encargado tiene que poder consultarlo por
++-- cualquier cosa. No es la foto del negocio.
++--
++-- El recurso queda gobernando solo lo que efectivamente es información
++-- acumulada del negocio:
++--   1) el selector de rango de fechas (Hoy / 7 días / 30 días / custom),
++--   2) la banda de totales de facturación (Vendido, Facturado, NC, Neto).
++--
++-- Solo cambia el texto que se lee en Personal → Permisos. No toca la matriz:
++-- quien lo tenga tildado o destildado sigue igual.
++-- ============================================================
++
++begin;
++
++update public.recursos
++   set descripcion = 'El rango de fechas y los totales de facturación acumulados '
++                     '(Vendido, Facturado, Notas de crédito, Neto). Vive dentro de '
++                     'Caja y facturación. Sin esto se ve y se opera solo el día de '
++                     'hoy. El historial de cierres NO depende de este permiso: es '
++                     'la trazabilidad del arqueo y se ve siempre.'
++ where id = 'caja_historico';
++
++commit;
++
++notify pgrst, 'reload schema';
+-- 
+2.43.0
+

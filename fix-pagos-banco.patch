@@ -1,0 +1,452 @@
+From 3c66050b5700144ca66a0c8adac97f1a41aeaaa3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 6 Sep 2026 16:22:24 +0000
+Subject: [PATCH] Caja: los pagos que salen del banco dejan de descontar del
+ arqueo
+
+La migracion del 21/08 partia de que el cierre del turno iba a cuadrar contra
+el resumen del banco, asi que un pago con origen 'banco' restaba del esperado
+en transferencias. La premisa no se sostiene: el dashboard no ve la cuenta. El
+contado de transferencias es lo que entro de los CLIENTES, no el saldo
+bancario, y restarle ahi los pagos a proveedores mezcla dos libros. Cuando los
+pagos del dia superan a los cobros por transferencia el esperado se va a
+negativo, como en los turnos del 02/09 y 04/09.
+
+Ahora esos pagos se siguen registrando y se siguen viendo en el turno, en una
+seccion aparte y sin signo, pero no entran en ninguna suma del arqueo.
+
+En la base: columna afecta_arqueo en caja_movimientos, mantenida por un
+trigger que la deriva de egresos.pagado_desde. Se eligio el trigger antes que
+reescribir registrar_pago() y editar_pago(): la fuente de verdad pasa a ser el
+origen del egreso y queda cubierto cualquier camino que cree o mueva un
+movimiento, incluido el cambio de origen de un pago ya hecho.
+
+La migracion no recalcula los turnos: les devuelve exactamente lo que estos
+movimientos habian restado, para no pisar valores de turnos editados despues
+del cierre. Deja la marca banco_revertido y es idempotente.
+
+En el front, afectaArqueo() trata el campo ausente como true, asi que el
+dashboard sigue funcionando igual si la migracion todavia no corrio.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01XPkwEcgxyTActXcBX4uwSh
+---
+ src/components/caja/ArqueoCajaSection.jsx     |  67 ++++++-
+ src/components/pagos/RegistrarPagoModal.jsx   |  15 +-
+ src/hooks/useCajaArqueo.js                    |  24 ++-
+ ...06010000_pagos_banco_no_afectan_arqueo.sql | 164 ++++++++++++++++++
+ 4 files changed, 258 insertions(+), 12 deletions(-)
+ create mode 100644 supabase/migrations/20260906010000_pagos_banco_no_afectan_arqueo.sql
+
+diff --git a/src/components/caja/ArqueoCajaSection.jsx b/src/components/caja/ArqueoCajaSection.jsx
+index 3840711..1f826df 100644
+--- a/src/components/caja/ArqueoCajaSection.jsx
++++ b/src/components/caja/ArqueoCajaSection.jsx
+@@ -12,6 +12,7 @@ import {
+   Clock3,
+   Download,
+   History,
++  Landmark,
+   Link2,
+   Loader2,
+   LockKeyhole,
+@@ -23,7 +24,7 @@ import {
+   WalletCards,
+   X,
+ } from 'lucide-react'
+-import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, parseAmount, useCajaArqueo } from '../../hooks/useCajaArqueo'
++import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, afectaArqueo, parseAmount, useCajaArqueo } from '../../hooks/useCajaArqueo'
+ import { useHistorialCierres } from '../../hooks/useHistorialCierres'
+ import { formatMoney } from '../../lib/printing'
+ import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
+@@ -578,6 +579,59 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
+   )
+ }
+ 
++/**
++ * Pagos que salieron de la cuenta bancaria del negocio. Se muestran para que el
++ * encargado sepa qué se pagó ese día, pero NO entran en ninguna suma del
++ * arqueo: la caja del local no tiene acceso a esa cuenta, y restarlos del
++ * esperado en transferencias (que es lo que cobraron los CLIENTES) mezclaba dos
++ * libros distintos. Por eso van sin signo y en gris.
++ */
++function PagosBancoList({ movimientos, compacto = false }) {
++  const filas = movimientos || []
++  if (filas.length === 0) return null
++
++  const total = filas.reduce((acc, mov) => acc + Number(mov.monto || 0), 0)
++
++  const cuerpo = (
++    <>
++      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
++        <div className="flex items-center gap-2">
++          <Landmark size={compacto ? 13 : 15} style={{ color: 'var(--text-muted)' }} />
++          <p className={compacto
++            ? 'text-[10px] font-semibold uppercase tracking-widest'
++            : 'text-sm font-semibold'}
++            style={{ color: compacto ? 'var(--text-muted)' : 'var(--text-primary)' }}>
++            Pagos del banco ({filas.length})
++          </p>
++        </div>
++        <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
++          ${formatMoney(total)}
++        </span>
++      </div>
++      <p className="mb-2 text-[11px] leading-4" style={{ color: 'var(--text-muted)' }}>
++        Salieron de la cuenta bancaria del negocio. No afectan el arqueo ni la diferencia del turno.
++      </p>
++      <div className="divide-y rounded" style={{ borderColor: 'var(--border)', border: '1px solid var(--border)' }}>
++        {filas.map(mov => (
++          <div key={mov.id} className="flex items-center justify-between gap-3 px-2 py-1.5 text-xs">
++            <div className="min-w-0">
++              <p className="truncate" style={{ color: 'var(--text-secondary)' }}>{mov.descripcion}</p>
++              <p className="truncate" style={{ color: 'var(--text-muted)' }}>
++                {medioLabel(mov.medio_pago)} · {timeLabel(mov.created_at)}
++              </p>
++            </div>
++            <span className="shrink-0 font-semibold" style={{ color: 'var(--text-muted)' }}>
++              ${formatMoney(mov.monto)}
++            </span>
++          </div>
++        ))}
++      </div>
++    </>
++  )
++
++  return compacto ? <div>{cuerpo}</div> : <Panel>{cuerpo}</Panel>
++}
++
+ function MovimientosList({ movimientos, busy, onEdit, onDelete }) {
+   const [verTodos, setVerTodos] = useState(false)
+   const editable = Boolean(onEdit && onDelete)
+@@ -761,7 +815,9 @@ function belongsToTurnLocal(row, turno, fieldName) {
+ 
+ function CierreDetalle({ turno, movimientos, pagos }) {
+   const detalleMedios = turno.denominaciones_cierre?.medios || null
+-  const movs = movimientos.filter(mov => belongsToTurnLocal(mov, turno, 'turno_id'))
++  const movsDelTurno = movimientos.filter(mov => belongsToTurnLocal(mov, turno, 'turno_id'))
++  const movs = movsDelTurno.filter(afectaArqueo)
++  const movsBanco = movsDelTurno.filter(mov => !afectaArqueo(mov))
+   const turnoPagos = pagos.filter(pago => belongsToTurnLocal(pago, turno, 'caja_turno_id'))
+ 
+   const cobrosPorMedio = MEDIOS_ARQUEO.map(medio => {
+@@ -858,6 +914,8 @@ function CierreDetalle({ turno, movimientos, pagos }) {
+           </div>
+         )}
+       </div>
++
++      <PagosBancoList movimientos={movsBanco} compacto />
+     </div>
+   )
+ }
+@@ -1437,6 +1495,7 @@ function TurnoReabiertoPanel({
+   onReasignarPago, onQuitarPago, onRecerrar,
+ }) {
+   const movs = resumen.movimientosTurno || []
++  const movsBanco = resumen.movimientosBanco || []
+   const pagosTurno = resumen.pagosTurno || []
+   // Última reapertura registrada (para mostrar el motivo bien visible arriba).
+   const ultimaReapertura = (auditoria || []).find(a => a.evento === 'reapertura')
+@@ -1534,6 +1593,8 @@ function TurnoReabiertoPanel({
+         </div>
+       </div>
+ 
++      <PagosBancoList movimientos={movsBanco} compacto />
++
+       {/* Volver a cerrar */}
+       <CierreTurnoPanel
+         turno={turno}
+@@ -1850,6 +1911,8 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
+                 onDelete={(id) => run(`delmov-${id}`, () => eliminarMovimiento(id), 'Movimiento eliminado.')}
+               />
+ 
++              <PagosBancoList movimientos={resumen.movimientosBanco} />
++
+               {/* Un pago que entró en la caja equivocada se saca de acá, sin
+                   tener que cerrar el turno y reabrirlo. */}
+               <Panel>
+diff --git a/src/components/pagos/RegistrarPagoModal.jsx b/src/components/pagos/RegistrarPagoModal.jsx
+index 64bffa2..8e3ec5d 100644
+--- a/src/components/pagos/RegistrarPagoModal.jsx
++++ b/src/components/pagos/RegistrarPagoModal.jsx
+@@ -14,8 +14,9 @@ import { CATEGORIAS, MEDIOS_PAGO, localDateISO, DIAS_ANTES_DE_SER_DEUDA, natural
+ //   · efectivo + "caja del día"    → descuenta del arqueo del turno abierto
+ //   · efectivo + "caja fuerte"     → descuenta del saldo de la caja fuerte
+ //   · efectivo sin origen          → no toca ninguna caja
+-//   · transferencia + cuenta banco → descuenta del ESPERADO EN TRANSFERENCIAS
+-//                                    del turno; nunca toca la caja fuerte
++//   · transferencia + cuenta banco → queda registrado y se lista en el turno,
++//                                    pero NO afecta el arqueo: esa cuenta no la
++//                                    controla la caja del local
+ //   · tarjetas / cheque            → se registran sin mover caja ni banco
+ //
+ // El trabajo transaccional lo hace el RPC registrar_pago().
+@@ -116,8 +117,8 @@ export default function RegistrarPagoModal({
+     }
+     if (esTransferencia) {
+       if (origenResuelto === 'banco') return turnoAbierto
+-        ? `Sale de ${bancoCuenta}: descuenta del ESPERADO EN TRANSFERENCIAS del turno abierto. No toca la caja fuerte, que es efectivo.`
+-        : `Sale de ${bancoCuenta}. Como no hay turno abierto, queda registrado sin imputarse a ningún arqueo.`
++        ? `Sale de ${bancoCuenta}: se lista en el turno abierto pero NO afecta el arqueo ni la diferencia del cierre. Esa cuenta no pasa por la caja del local.`
++        : `Sale de ${bancoCuenta}. Queda registrado como egreso; no afecta ningún arqueo.`
+       return 'Transferencia sin origen registrado: queda anotada, sin descontar de ninguna cuenta.'
+     }
+     return 'No es efectivo ni transferencia: se registra sin tocar la caja ni la cuenta del banco.'
+@@ -152,9 +153,7 @@ export default function RegistrarPagoModal({
+               ? 'Guardado. Como vence enseguida, entró directo como DEUDA.'
+               : 'Guardado como PROYECCIÓN. Va a pasar a deuda solo, cerca del vencimiento.')
+           : resultado?.origen === 'banco'
+-          ? (resultado?.descuenta_arqueo
+-              ? `Pago registrado. Salió de ${bancoCuenta}: el esperado en transferencias del turno ya lo descuenta.`
+-              : `Pago registrado. Salió de ${bancoCuenta} (no había turno abierto al que imputarlo).`)
++          ? `Pago registrado. Salió de ${bancoCuenta}: queda a la vista en el turno, sin afectar el arqueo.`
+           : resultado?.descuenta_arqueo
+           ? 'Pago registrado. Salió de la caja del día: el arqueo ya lo descuenta.'
+           : resultado?.origen === 'caja_fuerte'
+@@ -201,7 +200,7 @@ export default function RegistrarPagoModal({
+         {esTransferencia && !pendiente && (
+           <Select label="¿De qué cuenta sale la transferencia?" value={origenResuelto} onChange={set('origen')}
+             options={[
+-              { value: 'banco', label: `${bancoCuenta} (descuenta del esperado en transferencias)` },
++              { value: 'banco', label: `${bancoCuenta} (no afecta el arqueo del turno)` },
+               { value: 'ninguno', label: 'Otra cuenta / sin registrar origen' },
+             ]} />
+         )}
+diff --git a/src/hooks/useCajaArqueo.js b/src/hooks/useCajaArqueo.js
+index 0f47a1e..6e66fe0 100644
+--- a/src/hooks/useCajaArqueo.js
++++ b/src/hooks/useCajaArqueo.js
+@@ -111,6 +111,20 @@ function belongsToTurn(row, turno, fieldName) {
+   return isInsideTurn(row, turno)
+ }
+ 
++/**
++ * Un movimiento cuenta para el arqueo salvo que este marcado explicitamente
++ * como que no. Hoy los unicos que no cuentan son los pagos con origen 'banco':
++ * salen de la cuenta bancaria del negocio, que la caja del local no controla,
++ * asi que se muestran pero no suman ni restan.
++ *
++ * El `!== false` no es capricho: si la migracion que agrega la columna todavia
++ * no corrio, el campo llega undefined y el movimiento tiene que seguir
++ * contando como antes.
++ */
++export function afectaArqueo(movimiento) {
++  return movimiento?.afecta_arqueo !== false
++}
++
+ function movimientoSign(movimiento) {
+   if (!movimiento) return 0
+   if (movimiento.tipo === 'ajuste') {
+@@ -132,9 +146,13 @@ function resumenDeTurno(turno, pagos, movimientos) {
+   const pagosTurno = turno
+     ? pagos.filter(pago => belongsToTurn(pago, turno, 'caja_turno_id'))
+     : []
+-  const movimientosTurno = turno
++  const movimientosDelTurno = turno
+     ? movimientos.filter(mov => belongsToTurn(mov, turno, 'turno_id'))
+     : []
++  // Los del banco quedan afuera de TODAS las cuentas del arqueo, pero se
++  // devuelven aparte para poder listarlos en pantalla.
++  const movimientosTurno = movimientosDelTurno.filter(afectaArqueo)
++  const movimientosBanco = movimientosDelTurno.filter(mov => !afectaArqueo(mov))
+ 
+   const apertura = Number(turno?.apertura_monto || 0)
+ 
+@@ -167,6 +185,7 @@ function resumenDeTurno(turno, pagos, movimientos) {
+   return {
+     pagosTurno,
+     movimientosTurno,
++    movimientosBanco,
+     apertura,
+     esperadoPorMedio,
+     ventasPorMedio,
+@@ -412,7 +431,7 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
+ 
+   const resumen = useMemo(() => {
+     const base = resumenDeTurno(turnoActual, pagos, movimientos)
+-    const { pagosTurno, movimientosTurno, apertura, esperadoPorMedio, ventasPorMedio } = base
++    const { pagosTurno, movimientosTurno, movimientosBanco, apertura, esperadoPorMedio, ventasPorMedio } = base
+ 
+     const pagosEfectivo = ventasPorMedio.find(medio => medio.id === 'efectivo')?.total || 0
+     const movimientosFirmados = movimientosTurno.reduce((acc, mov) => (
+@@ -440,6 +459,7 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
+     return {
+       pagosTurno,
+       movimientosTurno,
++      movimientosBanco,
+       ventasPorMedio,
+       esperadoPorMedio,
+       apertura,
+diff --git a/supabase/migrations/20260906010000_pagos_banco_no_afectan_arqueo.sql b/supabase/migrations/20260906010000_pagos_banco_no_afectan_arqueo.sql
+new file mode 100644
+index 0000000..fc9dd72
+--- /dev/null
++++ b/supabase/migrations/20260906010000_pagos_banco_no_afectan_arqueo.sql
+@@ -0,0 +1,164 @@
++-- ============================================================
++-- Migración: los pagos que salen de la cuenta bancaria dejan de descontar
++--            del arqueo del turno
++--
++-- EL PROBLEMA
++-- --------------------------------------------------------------------------
++-- La migración 20260821010000_pago_desde_banco partía de esta premisa:
++--
++--   "La plata sale de la cuenta del negocio, así que tiene que verse en el
++--    arqueo — restando del ESPERADO EN TRANSFERENCIAS del turno [...] el
++--    cierre del turno cuadra contra el resumen del banco."
++--
++-- La premisa no se sostiene en la operación real: el dashboard no tiene acceso
++-- a la cuenta bancaria. El "contado" de transferencias es lo que ENTRÓ de los
++-- clientes, no el saldo del banco. Restarle ahí los pagos a proveedores mezcla
++-- dos libros distintos, y cuando los pagos del día superan a los cobros por
++-- transferencia el esperado se va a NEGATIVO (turnos del 02/09 y 04/09:
++-- −$2.707.241,17 y −$200.585,77).
++--
++-- LA REGLA NUEVA
++-- --------------------------------------------------------------------------
++-- Un pago con origen 'banco' se sigue registrando igual y se sigue viendo en
++-- la lista de movimientos del turno — pero NO entra en ninguna suma del
++-- arqueo. Sale de una cuenta que la caja no controla.
++--
++-- Se implementa con una columna `afecta_arqueo` en caja_movimientos y un
++-- trigger que la deriva de egresos.pagado_desde. Se eligió un trigger en vez
++-- de reescribir registrar_pago() y editar_pago(): la fuente de verdad pasa a
++-- ser el origen del egreso, queda cubierto cualquier camino que cree o mueva
++-- un movimiento (alta, edición, cambio de origen) y no hay que duplicar la
++-- regla en dos funciones largas.
++--
++-- IMPORTANTE — ORDEN DE EJECUCIÓN
++-- --------------------------------------------------------------------------
++-- Correr ANTES la reparación del bug del x100
++-- (20260906000000_fix_esperado_cierres_x100.sql). Esta migración AJUSTA el
++-- esperado guardado sumándole lo que se había descontado de más; si el valor
++-- guardado todavía está corrupto, el ajuste se aplica sobre un número basura.
++--
++-- Es idempotente: deja la marca `banco_revertido` en denominaciones_cierre y
++-- no vuelve a ajustar un turno ya ajustado.
++-- ============================================================
++
++begin;
++
++-- ── 1) La columna ───────────────────────────────────────────────────────────
++alter table public.caja_movimientos
++  add column if not exists afecta_arqueo boolean not null default true;
++
++comment on column public.caja_movimientos.afecta_arqueo is
++  'false = el movimiento se muestra en el turno pero no entra en ninguna suma del arqueo. Lo usan los pagos con origen "banco": salen de la cuenta bancaria del negocio, que la caja del local no controla. Lo mantiene el trigger caja_mov_afecta_arqueo a partir de egresos.pagado_desde.';
++
++-- ── 2) El trigger que la mantiene ───────────────────────────────────────────
++create or replace function public.caja_mov_set_afecta_arqueo()
++returns trigger
++language plpgsql
++security definer
++set search_path = ''
++as $$
++declare
++  v_origen text;
++begin
++  -- Movimiento manual (sin egreso detrás): no se toca, vale lo que venga.
++  if new.egreso_id is null then
++    return new;
++  end if;
++
++  select e.pagado_desde into v_origen
++  from public.egresos e
++  where e.id = new.egreso_id;
++
++  -- La plata del banco no pasa por la caja del local.
++  new.afecta_arqueo := (v_origen is distinct from 'banco');
++  return new;
++end $$;
++
++drop trigger if exists trg_caja_mov_afecta_arqueo on public.caja_movimientos;
++
++create trigger trg_caja_mov_afecta_arqueo
++  before insert or update of egreso_id, medio_pago, tipo
++  on public.caja_movimientos
++  for each row
++  execute function public.caja_mov_set_afecta_arqueo();
++
++-- ── 3) Backfill de los movimientos ya cargados ──────────────────────────────
++-- Por el egreso, que es la fuente de verdad.
++update public.caja_movimientos cm
++set afecta_arqueo = false
++from public.egresos e
++where e.id = cm.egreso_id
++  and e.pagado_desde = 'banco'
++  and cm.afecta_arqueo;
++
++-- Huérfanos: movimientos cuyo egreso ya no está pero que llevan la descripción
++-- exacta que escribe registrar_pago() para el origen banco.
++update public.caja_movimientos cm
++set afecta_arqueo = false
++where cm.egreso_id is null
++  and cm.tipo = 'egreso'
++  and cm.medio_pago = 'transferencia'
++  and cm.descripcion like 'Pago por transferencia: %'
++  and cm.afecta_arqueo;
++
++-- ── 4) Revertir lo que ya habían descontado en los cierres ──────────────────
++-- No se recalcula el turno entero: se le SUMA de vuelta exactamente lo que
++-- estos movimientos habían restado. Así no se pisa ningún otro valor guardado
++-- (por ejemplo turnos editados después del cierre, que tienen su propio
++-- historial legítimo).
++with medios(medio) as (
++  values ('efectivo'), ('transferencia'), ('tarjeta_debito'), ('tarjeta_credito')
++),
++base as (
++  select
++    t.id as turno_id,
++    m.medio,
++    coalesce((t.denominaciones_cierre -> 'medios' -> m.medio ->> 'esperado')::numeric, 0) as esperado_guardado,
++    coalesce((t.denominaciones_cierre -> 'medios' -> m.medio ->> 'contado')::numeric, 0)  as contado,
++    coalesce((
++      select sum(cm.monto)
++      from public.caja_movimientos cm
++      where cm.turno_id = t.id
++        and cm.afecta_arqueo = false
++        and cm.tipo = 'egreso'            -- eran los que restaban
++        and coalesce(cm.medio_pago, 'efectivo') = m.medio
++    ), 0) as reverso
++  from public.caja_turnos t
++  cross join medios m
++  where t.estado = 'cerrado'
++    and t.cierre_at is not null
++    and coalesce((t.denominaciones_cierre ->> 'banco_revertido')::boolean, false) = false
++),
++armado as (
++  select
++    b.turno_id,
++    sum(b.reverso) as reverso_total,
++    jsonb_build_object(
++      'medios',
++      jsonb_object_agg(
++        b.medio,
++        jsonb_build_object(
++          'esperado', b.esperado_guardado + b.reverso,
++          'contado',  b.contado
++        )
++      )
++    ) as medios_nuevo,
++    sum(b.esperado_guardado + b.reverso) as esperado_total_nuevo
++  from base b
++  group by b.turno_id
++)
++update public.caja_turnos t
++set
++  denominaciones_cierre = coalesce(t.denominaciones_cierre, '{}'::jsonb)
++                          || a.medios_nuevo
++                          || jsonb_build_object('banco_revertido', true),
++  efectivo_esperado     = round(a.esperado_total_nuevo, 2),
++  diferencia            = round(coalesce(t.cierre_monto, 0) - a.esperado_total_nuevo, 2),
++  updated_at            = now()
++from armado a
++where t.id = a.turno_id
++  and a.reverso_total > 0;
++
++commit;
++
++notify pgrst, 'reload schema';
+-- 
+2.43.0
+
