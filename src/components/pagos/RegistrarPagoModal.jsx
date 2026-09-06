@@ -14,8 +14,9 @@ import { CATEGORIAS, MEDIOS_PAGO, localDateISO, DIAS_ANTES_DE_SER_DEUDA, natural
 //   · efectivo + "caja del día"    → descuenta del arqueo del turno abierto
 //   · efectivo + "caja fuerte"     → descuenta del saldo de la caja fuerte
 //   · efectivo sin origen          → no toca ninguna caja
-//   · transferencia + cuenta banco → descuenta del ESPERADO EN TRANSFERENCIAS
-//                                    del turno; nunca toca la caja fuerte
+//   · transferencia + cuenta banco → queda registrado y se lista en el turno,
+//                                    pero NO afecta el arqueo: esa cuenta no la
+//                                    controla la caja del local
 //   · tarjetas / cheque            → se registran sin mover caja ni banco
 //
 // El trabajo transaccional lo hace el RPC registrar_pago().
@@ -116,8 +117,8 @@ export default function RegistrarPagoModal({
     }
     if (esTransferencia) {
       if (origenResuelto === 'banco') return turnoAbierto
-        ? `Sale de ${bancoCuenta}: descuenta del ESPERADO EN TRANSFERENCIAS del turno abierto. No toca la caja fuerte, que es efectivo.`
-        : `Sale de ${bancoCuenta}. Como no hay turno abierto, queda registrado sin imputarse a ningún arqueo.`
+        ? `Sale de ${bancoCuenta}: se lista en el turno abierto pero NO afecta el arqueo ni la diferencia del cierre. Esa cuenta no pasa por la caja del local.`
+        : `Sale de ${bancoCuenta}. Queda registrado como egreso; no afecta ningún arqueo.`
       return 'Transferencia sin origen registrado: queda anotada, sin descontar de ninguna cuenta.'
     }
     return 'No es efectivo ni transferencia: se registra sin tocar la caja ni la cuenta del banco.'
@@ -152,9 +153,7 @@ export default function RegistrarPagoModal({
               ? 'Guardado. Como vence enseguida, entró directo como DEUDA.'
               : 'Guardado como PROYECCIÓN. Va a pasar a deuda solo, cerca del vencimiento.')
           : resultado?.origen === 'banco'
-          ? (resultado?.descuenta_arqueo
-              ? `Pago registrado. Salió de ${bancoCuenta}: el esperado en transferencias del turno ya lo descuenta.`
-              : `Pago registrado. Salió de ${bancoCuenta} (no había turno abierto al que imputarlo).`)
+          ? `Pago registrado. Salió de ${bancoCuenta}: queda a la vista en el turno, sin afectar el arqueo.`
           : resultado?.descuenta_arqueo
           ? 'Pago registrado. Salió de la caja del día: el arqueo ya lo descuenta.'
           : resultado?.origen === 'caja_fuerte'
@@ -201,7 +200,7 @@ export default function RegistrarPagoModal({
         {esTransferencia && !pendiente && (
           <Select label="¿De qué cuenta sale la transferencia?" value={origenResuelto} onChange={set('origen')}
             options={[
-              { value: 'banco', label: `${bancoCuenta} (descuenta del esperado en transferencias)` },
+              { value: 'banco', label: `${bancoCuenta} (no afecta el arqueo del turno)` },
               { value: 'ninguno', label: 'Otra cuenta / sin registrar origen' },
             ]} />
         )}

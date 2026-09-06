@@ -12,6 +12,7 @@ import {
   Clock3,
   Download,
   History,
+  Landmark,
   Link2,
   Loader2,
   LockKeyhole,
@@ -23,7 +24,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react'
-import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, parseAmount, useCajaArqueo } from '../../hooks/useCajaArqueo'
+import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, afectaArqueo, parseAmount, useCajaArqueo } from '../../hooks/useCajaArqueo'
 import { useHistorialCierres } from '../../hooks/useHistorialCierres'
 import { formatMoney } from '../../lib/printing'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
@@ -578,6 +579,59 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
   )
 }
 
+/**
+ * Pagos que salieron de la cuenta bancaria del negocio. Se muestran para que el
+ * encargado sepa qué se pagó ese día, pero NO entran en ninguna suma del
+ * arqueo: la caja del local no tiene acceso a esa cuenta, y restarlos del
+ * esperado en transferencias (que es lo que cobraron los CLIENTES) mezclaba dos
+ * libros distintos. Por eso van sin signo y en gris.
+ */
+function PagosBancoList({ movimientos, compacto = false }) {
+  const filas = movimientos || []
+  if (filas.length === 0) return null
+
+  const total = filas.reduce((acc, mov) => acc + Number(mov.monto || 0), 0)
+
+  const cuerpo = (
+    <>
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <div className="flex items-center gap-2">
+          <Landmark size={compacto ? 13 : 15} style={{ color: 'var(--text-muted)' }} />
+          <p className={compacto
+            ? 'text-[10px] font-semibold uppercase tracking-widest'
+            : 'text-sm font-semibold'}
+            style={{ color: compacto ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+            Pagos del banco ({filas.length})
+          </p>
+        </div>
+        <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+          ${formatMoney(total)}
+        </span>
+      </div>
+      <p className="mb-2 text-[11px] leading-4" style={{ color: 'var(--text-muted)' }}>
+        Salieron de la cuenta bancaria del negocio. No afectan el arqueo ni la diferencia del turno.
+      </p>
+      <div className="divide-y rounded" style={{ borderColor: 'var(--border)', border: '1px solid var(--border)' }}>
+        {filas.map(mov => (
+          <div key={mov.id} className="flex items-center justify-between gap-3 px-2 py-1.5 text-xs">
+            <div className="min-w-0">
+              <p className="truncate" style={{ color: 'var(--text-secondary)' }}>{mov.descripcion}</p>
+              <p className="truncate" style={{ color: 'var(--text-muted)' }}>
+                {medioLabel(mov.medio_pago)} · {timeLabel(mov.created_at)}
+              </p>
+            </div>
+            <span className="shrink-0 font-semibold" style={{ color: 'var(--text-muted)' }}>
+              ${formatMoney(mov.monto)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+
+  return compacto ? <div>{cuerpo}</div> : <Panel>{cuerpo}</Panel>
+}
+
 function MovimientosList({ movimientos, busy, onEdit, onDelete }) {
   const [verTodos, setVerTodos] = useState(false)
   const editable = Boolean(onEdit && onDelete)
@@ -761,7 +815,9 @@ function belongsToTurnLocal(row, turno, fieldName) {
 
 function CierreDetalle({ turno, movimientos, pagos }) {
   const detalleMedios = turno.denominaciones_cierre?.medios || null
-  const movs = movimientos.filter(mov => belongsToTurnLocal(mov, turno, 'turno_id'))
+  const movsDelTurno = movimientos.filter(mov => belongsToTurnLocal(mov, turno, 'turno_id'))
+  const movs = movsDelTurno.filter(afectaArqueo)
+  const movsBanco = movsDelTurno.filter(mov => !afectaArqueo(mov))
   const turnoPagos = pagos.filter(pago => belongsToTurnLocal(pago, turno, 'caja_turno_id'))
 
   const cobrosPorMedio = MEDIOS_ARQUEO.map(medio => {
@@ -858,6 +914,8 @@ function CierreDetalle({ turno, movimientos, pagos }) {
           </div>
         )}
       </div>
+
+      <PagosBancoList movimientos={movsBanco} compacto />
     </div>
   )
 }
@@ -1437,6 +1495,7 @@ function TurnoReabiertoPanel({
   onReasignarPago, onQuitarPago, onRecerrar,
 }) {
   const movs = resumen.movimientosTurno || []
+  const movsBanco = resumen.movimientosBanco || []
   const pagosTurno = resumen.pagosTurno || []
   // Última reapertura registrada (para mostrar el motivo bien visible arriba).
   const ultimaReapertura = (auditoria || []).find(a => a.evento === 'reapertura')
@@ -1533,6 +1592,8 @@ function TurnoReabiertoPanel({
           )}
         </div>
       </div>
+
+      <PagosBancoList movimientos={movsBanco} compacto />
 
       {/* Volver a cerrar */}
       <CierreTurnoPanel
@@ -1849,6 +1910,8 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
                 onEdit={(values) => run(`editmov-${values.id}`, () => editarMovimiento(values), 'Movimiento editado.')}
                 onDelete={(id) => run(`delmov-${id}`, () => eliminarMovimiento(id), 'Movimiento eliminado.')}
               />
+
+              <PagosBancoList movimientos={resumen.movimientosBanco} />
 
               {/* Un pago que entró en la caja equivocada se saca de acá, sin
                   tener que cerrar el turno y reabrirlo. */}

@@ -111,6 +111,20 @@ function belongsToTurn(row, turno, fieldName) {
   return isInsideTurn(row, turno)
 }
 
+/**
+ * Un movimiento cuenta para el arqueo salvo que este marcado explicitamente
+ * como que no. Hoy los unicos que no cuentan son los pagos con origen 'banco':
+ * salen de la cuenta bancaria del negocio, que la caja del local no controla,
+ * asi que se muestran pero no suman ni restan.
+ *
+ * El `!== false` no es capricho: si la migracion que agrega la columna todavia
+ * no corrio, el campo llega undefined y el movimiento tiene que seguir
+ * contando como antes.
+ */
+export function afectaArqueo(movimiento) {
+  return movimiento?.afecta_arqueo !== false
+}
+
 function movimientoSign(movimiento) {
   if (!movimiento) return 0
   if (movimiento.tipo === 'ajuste') {
@@ -132,9 +146,13 @@ function resumenDeTurno(turno, pagos, movimientos) {
   const pagosTurno = turno
     ? pagos.filter(pago => belongsToTurn(pago, turno, 'caja_turno_id'))
     : []
-  const movimientosTurno = turno
+  const movimientosDelTurno = turno
     ? movimientos.filter(mov => belongsToTurn(mov, turno, 'turno_id'))
     : []
+  // Los del banco quedan afuera de TODAS las cuentas del arqueo, pero se
+  // devuelven aparte para poder listarlos en pantalla.
+  const movimientosTurno = movimientosDelTurno.filter(afectaArqueo)
+  const movimientosBanco = movimientosDelTurno.filter(mov => !afectaArqueo(mov))
 
   const apertura = Number(turno?.apertura_monto || 0)
 
@@ -167,6 +185,7 @@ function resumenDeTurno(turno, pagos, movimientos) {
   return {
     pagosTurno,
     movimientosTurno,
+    movimientosBanco,
     apertura,
     esperadoPorMedio,
     ventasPorMedio,
@@ -412,7 +431,7 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
 
   const resumen = useMemo(() => {
     const base = resumenDeTurno(turnoActual, pagos, movimientos)
-    const { pagosTurno, movimientosTurno, apertura, esperadoPorMedio, ventasPorMedio } = base
+    const { pagosTurno, movimientosTurno, movimientosBanco, apertura, esperadoPorMedio, ventasPorMedio } = base
 
     const pagosEfectivo = ventasPorMedio.find(medio => medio.id === 'efectivo')?.total || 0
     const movimientosFirmados = movimientosTurno.reduce((acc, mov) => (
@@ -440,6 +459,7 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
     return {
       pagosTurno,
       movimientosTurno,
+      movimientosBanco,
       ventasPorMedio,
       esperadoPorMedio,
       apertura,
