@@ -69,6 +69,11 @@ export function useUsuarios() {
   }, [fetchUsuarios])
 
   // Vincular/desvincular un login a una fila de empleados (directo por RLS).
+  //
+  // El .select('id') del final no es decorativo: cuando RLS bloquea un UPDATE,
+  // Postgres NO devuelve error — actualiza cero filas y contesta éxito. Sin
+  // este chequeo el modal decía "guardado" y el vínculo no existía, que es
+  // justo el síntoma de tener que borrar el usuario y volver a crearlo.
   const vincularEmpleado = useCallback(async (empleadoId, userId) => {
     if (userId) {
       // un login solo puede estar vinculado a un empleado: limpiamos vínculos previos
@@ -78,11 +83,15 @@ export function useUsuarios() {
         .eq('user_id', userId)
       if (e0) throw e0
     }
-    const { error: e } = await supabase
+    const { data, error: e } = await supabase
       .from('empleados')
       .update({ user_id: userId })
       .eq('id', empleadoId)
+      .select('id')
     if (e) throw e
+    if (!data || data.length === 0) {
+      throw new Error('No se guardó el vínculo: tu usuario no tiene permiso para editar el legajo. No se modificó ninguna fila.')
+    }
     await fetchUsuarios()
   }, [fetchUsuarios])
 

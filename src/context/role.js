@@ -9,19 +9,21 @@ export const DEFAULT_ROLE = 'cocina'
 // Mismo formato que el CHECK de public.roles.id.
 export const SLUG_ROL = /^[a-z][a-z0-9_]{1,30}$/
 
-// La sección Finanzas es exclusiva. Se habilita por DOS vías equivalentes:
-//   1) email en esta lista blanca (histórico, se mantiene),
-//   2) rol 'finanzas' en app_metadata (preferido para usuarios nuevos).
-// El resto de los admin (p. ej. el dueño) NO ve Finanzas.
-// Si tocás esto, actualizá también is_finanzas_user() en la BD
-// (supabase/migrations/20260801000000_rol_finanzas.sql), que aplica la MISMA
-// regla sobre las RLS de empleados/egresos. Si el front y la BD se
-// desincronizan, la persona ve la pantalla pero sin datos.
-export const FINANZAS_EMAILS = new Set(['finanzas@kikusushi.com.ar'])
-
+// La sección Finanzas es exclusiva del rol 'finanzas'. El resto de los admin
+// (p. ej. el dueño) NO la ve.
+//
+// Antes también se habilitaba por una lista blanca de emails. Se fue: un email
+// hardcodeado en tres archivos no es una regla de negocio, es una excepción que
+// se volvió estructura, y dejaba a esa cuenta con el rol trabado en 'admin'
+// para siempre (ver 20260906030000_roles_sin_lista_blanca.sql). Ahora el rol es
+// la única fuente de verdad.
+//
+// En la BD, is_finanzas_user() acepta 'finanzas' Y 'admin': gobierna las RLS de
+// empleados/egresos y quién administra los logins, donde admin tiene que ser
+// superconjunto. Es a propósito más permisiva que esto. La divergencia es
+// segura en esa dirección — sobra acceso en la base y falta en la pantalla — y
+// no al revés, que sería ver la pantalla sin datos.
 export function canAccessFinanzas(user) {
-  const email = (user?.email || '').toLowerCase()
-  if (FINANZAS_EMAILS.has(email)) return true
   return user?.app_metadata?.role === 'finanzas'
 }
 

@@ -45,7 +45,10 @@ for (const m of bloqueMatriz.matchAll(new RegExp(`\\('(${ID})',\\s*'(${ID})'\\)`
 
 const ROLES = ['admin', 'cocina', 'mozo', 'empleado', 'finanzas']
 const usuario = (rol, email = `alguien@kikusushi.com`) => ({ email, app_metadata: { role: rol } })
-const HISTORICO = { email: 'finanzas@kikusushi.com.ar', app_metadata: { role: 'admin' } }
+// La cuenta que ANTES tenia bypass por email. Hoy es un admin como cualquier
+// otro: el email dejo de dar acceso (ver 20260906030000_roles_sin_lista_blanca).
+const EX_HISTORICO = { email: 'finanzas@kikusushi.com.ar', app_metadata: { role: 'admin' } }
+const CON_ROL_FINANZAS = { email: 'quien.sea@kikusushi.com.ar', app_metadata: { role: 'finanzas' } }
 
 let ok = 0
 const fallas = []
@@ -83,14 +86,20 @@ for (const rol of ROLES) {
   chequear(`soloFichaje(${rol})`, soloFichaje(permisosDe(rol, usuario(rol))), rol === 'empleado')
 }
 
-// ── 4. Bypass por email de la cuenta histórica de Finanzas ─────────────────
-// Tiene rol `admin`. Sin el bypass perdería Finanzas y Personal al pasar el
-// menú a la matriz — sería una regresión directa en producción.
-const pHistorico = permisosDe('admin', HISTORICO)
-chequear('histórico ve finanzas', puedeVer(pHistorico, 'finanzas'), true)
-chequear('histórico ve personal', puedeVer(pHistorico, 'personal'), true)
-chequear('histórico ve permisos', puedeVer(pHistorico, 'permisos'), true)
-chequear('histórico conserva caja (es admin)', puedeVer(pHistorico, 'caja'), true)
+// ── 4. Se fue el bypass por email: manda el rol ────────────────────────────
+// La cuenta historica tiene rol 'admin', asi que ahora se comporta como
+// cualquier admin. El acceso a Finanzas lo da el ROL, no el email: es lo que
+// permite moverle el rol a esa cuenta sin trabarla en 'admin' para siempre.
+const pExHistorico = permisosDe('admin', EX_HISTORICO)
+chequear('el email ya NO da finanzas', puedeVer(pExHistorico, 'finanzas'), false)
+chequear('el email ya NO da personal', puedeVer(pExHistorico, 'personal'), false)
+chequear('el email ya NO da permisos', puedeVer(pExHistorico, 'permisos'), false)
+chequear('sigue siendo admin: ve caja', puedeVer(pExHistorico, 'caja'), true)
+
+// El mismo acceso, ahora por rol y para cualquier email.
+const pRolFinanzas = permisosDe('finanzas', CON_ROL_FINANZAS)
+chequear('rol finanzas ve finanzas', puedeVer(pRolFinanzas, 'finanzas'), true)
+chequear('rol finanzas ve personal', puedeVer(pRolFinanzas, 'personal'), true)
 
 const pAdminComun = permisosDe('admin', usuario('admin'))
 chequear('admin común NO ve finanzas', puedeVer(pAdminComun, 'finanzas'), false)
@@ -110,7 +119,10 @@ for (const rol of ROLES) {
   }
   chequear(`fallback: ruta por defecto de ${rol}`, rutaPorDefecto(p), DEFAULTS[rol])
 }
-chequear('fallback: histórico ve finanzas', puedeVer(permisosFallback('admin', HISTORICO), 'finanzas'), true)
+chequear('fallback: el email ya NO da finanzas',
+  puedeVer(permisosFallback('admin', EX_HISTORICO), 'finanzas'), false)
+chequear('fallback: el rol finanzas si da finanzas',
+  puedeVer(permisosFallback('finanzas', CON_ROL_FINANZAS), 'finanzas'), true)
 
 // ── 7. Rutas sin recurso: se dejan pasar (las resuelve el router) ──────────
 const pAdmin = permisosDe('admin', usuario('admin'))

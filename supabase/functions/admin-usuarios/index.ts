@@ -43,14 +43,53 @@ function errorResponse(message: string, status = 400): Response {
   return jsonResponse({ ok: false, error: message }, status);
 }
 
+type AdminClient = ReturnType<typeof createClient>;
+
+/** Todos los logins, paginado (con perPage fijo se truncaba a partir del 201). */
+async function listarTodos(admin: AdminClient) {
+  const todos: Awaited<ReturnType<typeof admin.auth.admin.listUsers>>["data"]["users"] = [];
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw error;
+    todos.push(...(data?.users ?? []));
+    if ((data?.users ?? []).length < 200) break;
+  }
+  return todos;
+}
+
+const rolDe = (u: { app_metadata?: unknown }) =>
+  ((u?.app_metadata as Record<string, unknown>)?.role as string) ?? "cocina";
+
+/**
+ * La única red de seguridad que queda al mover roles: no se puede dejar el
+ * sistema sin ningún admin. Sin admin nadie puede volver a repartir roles desde
+ * la pantalla, y destrabarlo obliga a entrar al panel de Supabase a mano.
+ *
+ * Devuelve el mensaje de error si la operación dejaría cero admins, o null si
+ * se puede seguir. `excluyendo` es el usuario que se está por degradar o borrar.
+ */
+async function bloqueaPorUltimoAdmin(
+  admin: AdminClient,
+  excluyendo: string,
+  accion: "degradar" | "eliminar",
+): Promise<string | null> {
+  const todos = await listarTodos(admin);
+  const quedan = todos.filter((u) => u.id !== excluyendo && rolDe(u) === "admin");
+  if (quedan.length > 0) return null;
+  const que = accion === "eliminar" ? "eliminar" : "cambiarle el rol";
+  return `No se puede ${que}: es el único admin y el sistema no puede quedarse sin ninguno. Dale rol admin a otro usuario primero.`;
+}
+
 // 'finanzas': acceso a Finanzas + Personal + fichaje propio, sin la operación
 // del restaurante. Habilita las RLS vía is_finanzas_user() (que lee
 // app_metadata.role, escrito solo con la service key desde acá).
 const VALID_ROLES = ["empleado", "mozo", "cocina", "finanzas", "admin"];
 
-// Emails con acceso a Finanzas por lista blanca histórica. Espeja
-// is_finanzas_user() en la BD y FINANZAS_EMAILS en src/context/role.js.
-const PROTEGIDOS = ["finanzas@kikusushi.com.ar"];
+// Acá había una lista blanca de emails (PROTEGIDOS) que espejaba
+// is_finanzas_user() y FINANZAS_EMAILS. Se fue: el rol es la única fuente de
+// verdad (ver 20260906030000_roles_sin_lista_blanca.sql). La única regla que
+// queda es estructural y no nombra a nadie: el sistema nunca se puede quedar
+// sin ningún admin.
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -94,16 +133,7 @@ Deno.serve(async (req) => {
   try {
     // ── listar ────────────────────────────────────────────────────────────
     if (action === "listar") {
-      // Paginado: con perPage fijo, a partir del usuario 201 la lista quedaba
-      // truncada sin ninguna señal.
-      const todos: Awaited<ReturnType<typeof admin.auth.admin.listUsers>>["data"]["users"] = [];
-      for (let page = 1; page <= 20; page++) {
-        const { data: d, error: e } = await admin.auth.admin.listUsers({ page, perPage: 200 });
-        if (e) throw e;
-        todos.push(...(d?.users ?? []));
-        if ((d?.users ?? []).length < 200) break;
-      }
-      const data = { users: todos };
+      const data = { users: await listarTodos(admin) };
 
       // Vínculo usuario ↔ empleado para mostrar en la UI.
       const { data: empleados } = await admin
@@ -162,10 +192,9 @@ Deno.serve(async (req) => {
       const { data: target, error: getErr } = await admin.auth.admin.getUserById(userId);
       if (getErr) throw getErr;
 
-      // Protección extra: nunca borrar un usuario habilitado para Finanzas.
-      const emailTarget = (target?.user?.email ?? "").toLowerCase();
-      if (PROTEGIDOS.includes(emailTarget)) {
-        return errorResponse("No se puede eliminar el usuario de Finanzas");
+      if (rolDe(target?.user ?? {}) === "admin") {
+        const bloqueo = await bloqueaPorUltimoAdmin(admin, userId, "eliminar");
+        if (bloqueo) return errorResponse(bloqueo);
       }
 
       // Desvincular el empleado (si lo hay) antes de borrar el login.
@@ -186,24 +215,19 @@ Deno.serve(async (req) => {
       if (!userId) return errorResponse("Falta user_id");
       if (!VALID_ROLES.includes(role)) return errorResponse(`Rol inválido: ${role}`);
 
-      // No cambiarse el rol a uno mismo: si Finanzas se auto-degrada pierde el
-      // acceso a esta misma función y queda sin forma de revertirlo.
-      if (userId === callerId) {
-        return errorResponse("No podés cambiar tu propio rol. Pedíselo a otro usuario de Finanzas.");
-      }
-
       const { data: target, error: getErr } = await admin.auth.admin.getUserById(userId);
       if (getErr) throw getErr;
 
       const emailTarget = (target?.user?.email ?? "").toLowerCase();
-      // El usuario histórico de Finanzas es admin + whitelist de email. Si lo
-      // pasáramos a rol 'finanzas' perdería is_admin() (y con eso caja, stock,
-      // configuración) sin poder revertirlo solo, porque no puede cambiarse el
-      // rol a sí mismo. Solo se le permite quedar en 'admin'.
-      if (PROTEGIDOS.includes(emailTarget) && role !== "admin") {
-        return errorResponse(
-          "El usuario histórico de Finanzas tiene que seguir siendo admin: ya accede a Finanzas por email.",
-        );
+
+      // Cambiarse el rol a uno mismo AHORA SE PUEDE. Antes estaba prohibido de
+      // plano, y eso —sumado a la lista blanca— era lo que dejaba a finanzas@
+      // trabado en 'admin' para siempre. Lo que sí se sigue impidiendo es
+      // quedarse sin ningún admin: esa es la única condición que no tiene
+      // vuelta atrás desde la pantalla.
+      if (rolDe(target?.user ?? {}) === "admin" && role !== "admin") {
+        const bloqueo = await bloqueaPorUltimoAdmin(admin, userId, "degradar");
+        if (bloqueo) return errorResponse(bloqueo);
       }
 
       // Merge: preservamos el resto de app_metadata (provider, providers, etc.).
