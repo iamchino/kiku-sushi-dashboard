@@ -1826,9 +1826,11 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
   const { puedeEditar } = usePermisos()
   const puedeRegistrarPagos = puedeEditar('pagos')
   // Depositar en la caja fuerte es una accion del cierre, asi que el boton vive
-  // aca y no dentro de la seccion Caja fuerte: quien tiene 'editar' sin 'ver'
-  // guarda el excedente sin pasar por ninguna pantalla que muestre el saldo.
-  const puedeGuardarEnCajaFuerte = puedeEditar('caja_fuerte')
+  // aca y no dentro de la seccion Caja fuerte. Alcanza con "Caja fuerte +"
+  // (caja_fuerte_agregar), el permiso que habilita solo sumar plata; quien
+  // administra la caja fuerte entera obviamente tambien puede.
+  const puedeGuardarEnCajaFuerte =
+    puedeEditar('caja_fuerte_agregar') || puedeEditar('caja_fuerte')
 
   const turnosReabiertos = useMemo(
     () => turnos.filter(turno => turno.estado === 'reabierto'),
