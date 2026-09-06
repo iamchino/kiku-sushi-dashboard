@@ -143,32 +143,62 @@ export async function suscribirPush(session = sesionActual) {
 
 /**
  * Pide permiso (tiene que llamarse desde un click) y deja todo suscripto.
- * Devuelve 'granted' | 'denied' | 'default' | 'no-soportado'.
+ * Devuelve { permiso, push }:
+ *   permiso: 'granted' | 'denied' | 'default' | 'no-soportado'
+ *   push:    true si además quedó la suscripción Web Push (celu bloqueado).
+ *
+ * Los dos datos son distintos a propósito. El permiso alcanza para que suene
+ * con la app abierta; SIN la suscripción push no suena con el celu bloqueado,
+ * que es justamente el caso que importa en el salón. Antes esto se devolvía
+ * como un solo 'granted' y un fallo de push quedaba invisible.
  */
 export async function activarNotificaciones() {
-  if (typeof Notification === 'undefined') return 'no-soportado'
+  if (typeof Notification === 'undefined') return { permiso: 'no-soportado', push: false }
   ensureAudio()
 
   let permiso = Notification.permission
   if (permiso === 'default') {
     permiso = await Notification.requestPermission()
   }
-  if (permiso !== 'granted') return permiso
+  if (permiso !== 'granted') return { permiso, push: false }
 
   if (!swReg && 'serviceWorker' in navigator) {
     try { swReg = await navigator.serviceWorker.register('/sw.js') } catch { /* sin SW */ }
   }
-  await suscribirPush()
-  // Aviso de confirmación: sin esto no hay forma de saber si quedó andando.
-  await notificar('✅ Notificaciones activadas', 'Vas a recibir los avisos de pedidos en este teléfono.', {
-    tag: 'kiku-test',
-  })
-  return 'granted'
+  const push = await suscribirPush()
+
+  await notificar(
+    push ? '✅ Notificaciones activadas' : '⚠️ Notificaciones a medias',
+    push
+      ? 'Vas a recibir los avisos aunque el celular esté bloqueado.'
+      : 'Solo van a sonar con la app abierta. Avisale a Manu.',
+    { tag: 'kiku-test' },
+  )
+  return { permiso: 'granted', push }
 }
 
 export function estadoNotificaciones() {
   if (typeof Notification === 'undefined') return 'no-soportado'
   return Notification.permission
+}
+
+/**
+ * Diagnóstico: ¿este teléfono va a sonar con la pantalla bloqueada?
+ * Devuelve 'ok' | 'sin-clave' | 'sin-sw' | 'sin-suscripcion' | 'sin-permiso'.
+ */
+export async function diagnosticoPush() {
+  if (typeof Notification === 'undefined') return 'sin-permiso'
+  if (Notification.permission !== 'granted') return 'sin-permiso'
+  if (!VAPID_PUBLIC_KEY) return 'sin-clave'
+  if (!('serviceWorker' in navigator)) return 'sin-sw'
+  try {
+    const reg = swReg || await navigator.serviceWorker.getRegistration('/sw.js')
+    if (!reg) return 'sin-sw'
+    const sub = await reg.pushManager.getSubscription()
+    return sub ? 'ok' : 'sin-suscripcion'
+  } catch {
+    return 'sin-suscripcion'
+  }
 }
 
 // ── Realtime (refuerzo con la pestaña abierta) ──────────────────────────────

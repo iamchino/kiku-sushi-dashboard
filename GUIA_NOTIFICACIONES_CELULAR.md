@@ -131,6 +131,36 @@ pedido. Si la función falla, el pedido se crea igual.
 2. En cocina, marcá el pedido como listo.
    → Debería sonar 🍣 *Listo para servir* en el celu del mozo.
 
+### Caso típico: suena con la app abierta, pero no con el celu bloqueado
+
+Eso significa que el **realtime funciona y el push no**. Se diagnostica de
+arriba hacia abajo, y el primer paso que falle es la causa:
+
+1. **¿Se registró el teléfono?**
+   ```sql
+   select role, user_agent, updated_at from web_push_subs order by updated_at desc;
+   ```
+   Vacío = ningún celular llegó a suscribirse. Casi siempre es que
+   `VITE_VAPID_PUBLIC_KEY` no estaba en Vercel cuando corrió el build (Vite la
+   compila adentro del bundle: agregarla después no sirve sin redeploy).
+   El dashboard ahora avisa esto solo, con una barra naranja.
+
+2. **¿El trigger llamó a la función?**
+   ```sql
+   select status_code, content, created from net._http_response
+   order by created desc limit 5;
+   ```
+   - Sin filas → el trigger no está. Revisá el paso 5.
+   - `401` → la función tiene "Verify JWT" activado. Desactivalo.
+   - `500` → faltan los secrets VAPID en la edge function.
+   - `200` → el servidor hizo su parte; el problema es del teléfono (punto 3).
+
+3. **¿El teléfono deja pasar el push?** Instalá el dashboard como app
+   (Chrome → ⋮ → Añadir a pantalla de inicio) y, en Android, sacá la app del
+   ahorro de batería: Ajustes → Aplicaciones → Kiku Ops → Batería →
+   **Sin restricciones**. El ahorro de energía agresivo (Xiaomi, Samsung,
+   Huawei) mata los push de las pestañas sueltas de Chrome.
+
 Si no llega:
 
 - Supabase → **Edge Functions → push-web → Logs**: ahí se ve `enviadas: N` o el

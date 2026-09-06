@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { BellRing, BellOff, CheckCircle2, Loader2 } from 'lucide-react'
+import { BellRing, BellOff, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react'
 import { useRole } from '../context/useRole'
 import {
   activarNotificaciones,
+  diagnosticoPush,
   estadoNotificaciones,
   rolRecibeNotifs,
 } from '../lib/webNotifs'
@@ -22,19 +23,22 @@ import { isNativeApp } from '../lib/native'
 export default function NotifStatusBanner() {
   const role = useRole()
   const [estado, setEstado] = useState('default')
+  const [push, setPush] = useState('ok')
   const [trabajando, setTrabajando] = useState(false)
   const [ok, setOk] = useState(false)
 
   useEffect(() => {
     setEstado(estadoNotificaciones())
+    diagnosticoPush().then(setPush)
   }, [])
 
   const activar = useCallback(async () => {
     setTrabajando(true)
     const res = await activarNotificaciones()
-    setEstado(res)
+    setEstado(res.permiso)
+    setPush(await diagnosticoPush())
     setTrabajando(false)
-    if (res === 'granted') {
+    if (res.permiso === 'granted' && res.push) {
       setOk(true)
       setTimeout(() => setOk(false), 6000)
     }
@@ -56,7 +60,44 @@ export default function NotifStatusBanner() {
     )
   }
 
-  if (estado === 'granted' || estado === 'no-soportado') return null
+  if (estado === 'no-soportado') return null
+
+  // Permiso dado pero SIN suscripción push: suena con la app abierta y se
+  // queda mudo con el celular bloqueado. Antes esto no se veía en ningún lado
+  // y parecía que todo estaba bien.
+  if (estado === 'granted' && push !== 'ok') {
+    const detalle = {
+      'sin-clave': 'falta la variable VITE_VAPID_PUBLIC_KEY en el deploy del sitio',
+      'sin-sw': 'este navegador no registró el service worker',
+      'sin-suscripcion': 'no se pudo registrar el dispositivo; probá con "Reintentar"',
+    }[push] || 'falta registrar el dispositivo'
+
+    return (
+      <div
+        className="flex items-center gap-2 px-4 py-2 text-xs flex-wrap"
+        style={{ background: '#78350f', color: '#ffffff' }}
+        role="alert"
+      >
+        <AlertTriangle size={15} className="flex-shrink-0" />
+        <span className="flex-1 min-w-[200px]">
+          <strong>Los avisos solo suenan con la app abierta.</strong> Con el celular
+          bloqueado no vas a recibir nada — {detalle}.
+        </span>
+        <button
+          type="button"
+          onClick={activar}
+          disabled={trabajando}
+          className="px-3 py-1.5 rounded-md text-[11px] font-semibold flex items-center gap-1.5 disabled:opacity-50"
+          style={{ background: '#ffffff', color: '#78350f' }}
+        >
+          {trabajando ? <Loader2 size={12} className="animate-spin" /> : <BellRing size={12} />}
+          Reintentar
+        </button>
+      </div>
+    )
+  }
+
+  if (estado === 'granted') return null
 
   if (estado === 'denied') {
     return (
