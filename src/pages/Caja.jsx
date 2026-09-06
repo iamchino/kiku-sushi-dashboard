@@ -729,9 +729,20 @@ export default function CajaPage() {
   const [customFrom, setCustomFrom] = useState('')
   const [customTo,   setCustomTo]   = useState('')
 
+  const { puede } = usePermisos()
+
+  // `caja_historico` separa operar el turno de ver la foto del negocio. Sin ese
+  // permiso la pantalla queda fija en HOY: se factura, se cargan pagos y se
+  // cierra la caja igual, pero no se ven totales acumulados ni cierres viejos.
+  const veHistorico = puede('caja_historico')
+
+  // El rango se fuerza acá, no solo se esconde el selector: si el filtro
+  // siguiera en "últimos 30 días", tapar los totales no escondería nada.
+  const rangoEfectivo = veHistorico ? rango : 'hoy'
+
   const { from: dateFrom, to: dateTo } = useMemo(
-    () => calcularRango(rango, customFrom, customTo),
-    [rango, customFrom, customTo],
+    () => calcularRango(rangoEfectivo, customFrom, customTo),
+    [rangoEfectivo, customFrom, customTo],
   )
 
   const {
@@ -759,7 +770,6 @@ export default function CajaPage() {
   const [facturarTarget, setFacturarTarget] = useState(null)        // { pedido }
   const [ncTarget, setNcTarget] = useState(null)                     // { pedido, comprobante }
   const [seccion, setSeccion] = useState('facturacion')
-  const { puede } = usePermisos()
   const seccionesVisibles = SECCIONES_CAJA.filter(t => !t.recurso || puede(t.recurso))
 
   const resumenPagos = useMemo(() => resumenMediosPago(pedidos), [pedidos])
@@ -901,7 +911,9 @@ export default function CajaPage() {
           </button>
         </header>
 
-        {/* Filtro de fecha */}
+        {/* Filtro de fecha. Sin caja_historico no se muestra: la pantalla
+            queda fija en hoy (ver rangoEfectivo). */}
+        {veHistorico && (
         <section className="mb-4 flex flex-wrap items-end gap-2">
           {RANGOS_RAPIDOS.map(r => (
             <button
@@ -940,8 +952,9 @@ export default function CajaPage() {
             </>
           )}
         </section>
+        )}
 
-        <section className="grid gap-3 lg:grid-cols-3">
+        <section className={`grid gap-3 ${veHistorico ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
           <GrupoMetricas titulo="Facturación" color="#f97316" icon={Receipt}>
             <FilaMetrica label="Pedidos" value={stats.pedidos} />
             <FilaMetrica label="Pendientes facturación" value={stats.pendientes} color="#fbbf24" apagado={stats.pendientes === 0} />
@@ -970,6 +983,9 @@ export default function CajaPage() {
             <FilaMetrica label="Total cobrado" value={`$${formatMoney(resumenPagos.totalCobrado)}`} fuerte />
           </GrupoMetricas>
 
+          {/* Totales acumulados del período: es la foto del negocio, no la
+              operación del turno. Va detrás de caja_historico. */}
+          {veHistorico && (
           <GrupoMetricas titulo="Totales" color="#34d399" icon={WalletCards}>
             <FilaMetrica label="Vendido (pedidos)" value={`$${formatMoney(stats.total)}`} />
             <FilaMetrica label="Total facturado" value={`$${formatMoney(stats.totalFacturado)}`} color="#4f8ef7" />
@@ -981,6 +997,7 @@ export default function CajaPage() {
             />
             <FilaMetrica label="Neto (post-NC)" value={`$${formatMoney(stats.netoFacturado)}`} color="var(--accent-lift)" fuerte />
           </GrupoMetricas>
+          )}
         </section>
 
         {(error || setupWarning || notice || !arcaReady) && (

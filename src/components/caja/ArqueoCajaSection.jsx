@@ -1716,8 +1716,12 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
   // Alta de egresos centralizada: el botón "Egreso" del formulario manual abre
   // el mismo modal de Registrar pago que usan Caja → Pagos y Finanzas.
   const [pagoModal, setPagoModal] = useState(false)
-  const { puedeEditar } = usePermisos()
+  const { puede, puedeEditar } = usePermisos()
   const puedeRegistrarPagos = puedeEditar('pagos')
+  // El historial de cierres es la foto del negocio hacia atras, no la
+  // operacion del turno: va detras de caja_historico (ver la migracion
+  // 20260906040000_recurso_caja_historico.sql).
+  const veHistorico = puede('caja_historico')
 
   const turnosReabiertos = useMemo(
     () => turnos.filter(turno => turno.estado === 'reabierto'),
@@ -1960,7 +1964,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
       ))}
 
       {/* Historial completo: se carga solo, no depende del rango de la pagina. */}
-      <CierresHistorial onReabrir={(turno) => setReabrirTarget(turno)} />
+      {veHistorico && <CierresHistorial onReabrir={(turno) => setReabrirTarget(turno)} />}
 
       <ReabrirMotivoModal
         turno={reabrirTarget}
