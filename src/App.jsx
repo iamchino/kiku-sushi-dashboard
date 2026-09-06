@@ -36,6 +36,7 @@ import { PermisosProvider } from './context/PermisosProvider'
 import { usePermisos } from './context/usePermisos'
 import { usePrinterStore } from './lib/printerStore'
 import PrinterStatusBanner from './components/PrinterStatusBanner'
+import NotifStatusBanner from './components/NotifStatusBanner'
 import { initNative } from './lib/native'
 import { initWebNotifs } from './lib/webNotifs'
 
@@ -48,6 +49,7 @@ function AdminLayout({ children }) {
       <Sidebar />
       <main className={`flex-1 overflow-y-auto pt-14 lg:pt-0 ${conBottomNav ? 'pb-20 lg:pb-0' : ''}`}>
         <DomainTabs />
+        <NotifStatusBanner />
         <PrinterStatusBanner />
         {children}
       </main>

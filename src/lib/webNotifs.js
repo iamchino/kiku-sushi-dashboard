@@ -1,27 +1,39 @@
 // ────────────────────────────────────────────────────────────────────────────
-// Notificaciones para el dashboard EN EL NAVEGADOR (el teléfono de cocina
-// abre la web, no la app nativa). Espejo web de src/lib/native.js:
+// Notificaciones del dashboard EN EL NAVEGADOR (cocina y mozos usan Chrome en
+// el celular, no la app nativa). Dos caminos que se complementan:
 //
-//   cocina / admin: INSERT en pedidos          → "🔥 Nuevo pedido" + sonido
-//   mozo   / admin: pedido pasa a 'listo'      → "🍣 Pedido listo" + sonido
+//   1. WEB PUSH (service worker + VAPID) → llega con Chrome CERRADO y el celu
+//      bloqueado. Lo dispara la edge function `push-web` desde un webhook de
+//      la tabla `pedidos`. Es el camino que importa en el salón.
+//   2. REALTIME (websocket de Supabase) → solo con la pestaña viva, pero es
+//      instantáneo y suena fuerte con la app en primer plano. Queda como
+//      refuerzo; `tag` por pedido evita que se dupliquen en pantalla.
 //
-// Funciona mientras el navegador esté abierto (la pestaña puede estar en
-// segundo plano). Con el navegador cerrado hace falta el push real (FCM),
-// que ya existe en la edge function push-pedidos + la app Android.
+//   cocina / admin: INSERT en pedidos       → "🔥 Nuevo pedido"
+//   mozo   / admin: pedido pasa a 'listo'   → "🍣 Listo para servir"
 //
-// Los navegadores exigen un gesto del usuario para permitir notificaciones
-// y para desbloquear el audio: se piden en el primer toque en la pantalla.
-// En Android Chrome `new Notification()` no existe: hay que pasar por un
-// service worker (public/sw.js) y reg.showNotification().
+// Los navegadores exigen un gesto del usuario para pedir permiso y para
+// desbloquear el audio. Por eso el permiso se pide desde el botón "Activar
+// notificaciones" (ver components/layout/ActivarNotifs.jsx) y no de arranque:
+// un prompt automático se rechaza solo y después no vuelve a aparecer.
 // ────────────────────────────────────────────────────────────────────────────
 import { supabase } from './supabase'
 import { getRoleFromUser } from '../context/role'
 import { isNativeApp } from './native'
 
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || ''
+
 let initialized = false
 let swReg = null
 let audioCtx = null
+let sesionActual = null
 
+// ── Roles que reciben avisos ────────────────────────────────────────────────
+export function rolRecibeNotifs(role) {
+  return role === 'cocina' || role === 'mozo' || role === 'admin'
+}
+
+// ── Audio (beep propio, para primer plano) ──────────────────────────────────
 function ensureAudio() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
@@ -48,17 +60,20 @@ function sonar() {
   } catch { /* sin audio */ }
 }
 
-async function notificar(title, body) {
+async function notificar(title, body, { tag, url } = {}) {
   sonar()
-  try { navigator.vibrate?.([220, 100, 220]) } catch { /* sin vibración */ }
+  try { navigator.vibrate?.([300, 120, 300]) } catch { /* sin vibración */ }
 
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
   const opts = {
     body,
     icon: '/favicon.svg',
     badge: '/favicon.svg',
-    tag: `pedidos-${Date.now()}`,
-    vibrate: [220, 100, 220],
+    tag: tag || `kiku-${Date.now()}`,
+    renotify: true,
+    requireInteraction: true,
+    vibrate: [300, 120, 300, 120, 300],
+    data: { url: url || '/' },
   }
   try {
     if (swReg) await swReg.showNotification(title, opts)
@@ -68,33 +83,98 @@ async function notificar(title, body) {
   }
 }
 
+// ── Web Push: suscripción ───────────────────────────────────────────────────
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const raw = atob(base64)
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0))
+}
+
+function bufToB64u(buf) {
+  const bytes = new Uint8Array(buf)
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
 /**
- * Punto de entrada. Llamar una vez cuando hay sesión.
- * En la app nativa no hace nada (de eso se encarga native.js).
+ * Crea (o reutiliza) la suscripción Web Push y la guarda en `web_push_subs`.
+ * Requiere permiso ya concedido. Devuelve true si quedó suscripto.
  */
-export async function initWebNotifs(session) {
-  if (initialized || !session || typeof window === 'undefined' || isNativeApp()) return
-  initialized = true
+export async function suscribirPush(session = sesionActual) {
+  if (!VAPID_PUBLIC_KEY) {
+    console.warn('[notifs] falta VITE_VAPID_PUBLIC_KEY: no hay push con la app cerrada')
+    return false
+  }
+  if (!session?.user || !swReg || typeof Notification === 'undefined') return false
+  if (Notification.permission !== 'granted') return false
 
-  const role = getRoleFromUser(session.user)
-  const notificaNuevos = role === 'cocina' || role === 'admin'
-  const notificaListos = role === 'mozo' || role === 'admin'
-  if (!notificaNuevos && !notificaListos) return
+  try {
+    let sub = await swReg.pushManager.getSubscription()
+    if (!sub) {
+      sub = await swReg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      })
+    }
 
-  if ('serviceWorker' in navigator) {
+    const json = sub.toJSON()
+    const { error } = await supabase.from('web_push_subs').upsert({
+      endpoint: sub.endpoint,
+      user_id: session.user.id,
+      role: getRoleFromUser(session.user),
+      p256dh: json.keys?.p256dh ?? bufToB64u(sub.getKey('p256dh')),
+      auth: json.keys?.auth ?? bufToB64u(sub.getKey('auth')),
+      user_agent: navigator.userAgent.slice(0, 300),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'endpoint' })
+
+    if (error) {
+      console.warn('[notifs] no se pudo guardar la suscripción:', error.message)
+      return false
+    }
+    return true
+  } catch (e) {
+    console.warn('[notifs] error suscribiendo a push:', e)
+    return false
+  }
+}
+
+/**
+ * Pide permiso (tiene que llamarse desde un click) y deja todo suscripto.
+ * Devuelve 'granted' | 'denied' | 'default' | 'no-soportado'.
+ */
+export async function activarNotificaciones() {
+  if (typeof Notification === 'undefined') return 'no-soportado'
+  ensureAudio()
+
+  let permiso = Notification.permission
+  if (permiso === 'default') {
+    permiso = await Notification.requestPermission()
+  }
+  if (permiso !== 'granted') return permiso
+
+  if (!swReg && 'serviceWorker' in navigator) {
     try { swReg = await navigator.serviceWorker.register('/sw.js') } catch { /* sin SW */ }
   }
+  await suscribirPush()
+  // Aviso de confirmación: sin esto no hay forma de saber si quedó andando.
+  await notificar('✅ Notificaciones activadas', 'Vas a recibir los avisos de pedidos en este teléfono.', {
+    tag: 'kiku-test',
+  })
+  return 'granted'
+}
 
-  // Permiso de notificaciones + desbloqueo de audio: en el primer toque.
-  const primerGesto = () => {
-    ensureAudio()
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {})
-    }
-    window.removeEventListener('pointerdown', primerGesto)
-  }
-  window.addEventListener('pointerdown', primerGesto)
+export function estadoNotificaciones() {
+  if (typeof Notification === 'undefined') return 'no-soportado'
+  return Notification.permission
+}
 
+// ── Realtime (refuerzo con la pestaña abierta) ──────────────────────────────
+function suscribirRealtime(role) {
+  const notificaNuevos = role === 'cocina' || role === 'admin'
+  const notificaListos = role === 'mozo' || role === 'admin'
   const channel = supabase.channel('web-notifs')
 
   if (notificaNuevos) {
@@ -102,10 +182,12 @@ export async function initWebNotifs(session) {
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'pedidos' },
       (payload) => {
-        const mesa = payload.new?.mesa
+        const p = payload.new || {}
+        const shortId = String(p.id || '').slice(-4).toUpperCase()
         notificar(
           '🔥 Nuevo pedido',
-          mesa ? `Mesa ${mesa} hizo un pedido` : `Pedido nuevo (${payload.new?.canal || 'mostrador'})`,
+          p.mesa ? `Mesa ${p.mesa} hizo un pedido` : `Pedido #${shortId} (${p.canal || 'mostrador'})`,
+          { tag: `pedido-${p.id}`, url: '/operaciones' },
         )
       },
     )
@@ -116,16 +198,49 @@ export async function initWebNotifs(session) {
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'pedidos' },
       (payload) => {
-        if (payload.new?.estado === 'listo' && payload.old?.estado !== 'listo') {
-          const mesa = payload.new?.mesa
-          notificar(
-            '🍣 Pedido listo',
-            mesa ? `Mesa ${mesa}: platos listos para servir` : 'Pedido listo para entregar',
-          )
-        }
+        const p = payload.new || {}
+        if (p.estado !== 'listo' || payload.old?.estado === 'listo') return
+        const shortId = String(p.id || '').slice(-4).toUpperCase()
+        notificar(
+          '🍣 Listo para servir',
+          p.mesa ? `Mesa ${p.mesa}: platos listos` : `Pedido #${shortId} listo para entregar`,
+          { tag: `pedido-${p.id}`, url: '/platos' },
+        )
       },
     )
   }
 
   channel.subscribe()
+}
+
+/**
+ * Punto de entrada. Llamar una vez cuando hay sesión.
+ * En la app nativa no hace nada (de eso se encarga native.js).
+ */
+export async function initWebNotifs(session) {
+  if (initialized || !session || typeof window === 'undefined' || isNativeApp()) return
+  initialized = true
+  sesionActual = session
+
+  const role = getRoleFromUser(session.user)
+  if (!rolRecibeNotifs(role)) return
+
+  if ('serviceWorker' in navigator) {
+    try { swReg = await navigator.serviceWorker.register('/sw.js') } catch { /* sin SW */ }
+  }
+
+  // Si el permiso ya estaba dado (celular que se usa todos los días), la
+  // suscripción se renueva sola en cada arranque: los endpoints caducan.
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    await suscribirPush(session)
+  }
+
+  // El audio del navegador queda bloqueado hasta el primer toque.
+  const primerGesto = () => {
+    ensureAudio()
+    window.removeEventListener('pointerdown', primerGesto)
+  }
+  window.addEventListener('pointerdown', primerGesto)
+
+  suscribirRealtime(role)
 }
