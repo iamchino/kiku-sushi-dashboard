@@ -219,7 +219,22 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
     // Sugerencia = efectivo CONTADO en el último cierre − depósitos a caja
     // fuerte hechos después de ese cierre. Best-effort: si algo falla (sin
     // permiso de caja fuerte, migración sin aplicar), no bloquea la carga.
+    // Vía preferida: RPC security definer. El cálculo NO puede depender de que
+    // quien abre el turno tenga permiso de ver la caja fuerte: sin ese permiso
+    // la RLS devuelve cero depósitos —sin error— y el arrastre sugiere de más.
+    let arrastreResuelto = false
     try {
+      const { data: sug, error: sugErr } = await supabase.rpc('apertura_sugerida')
+      if (!sugErr) {
+        setAperturaSugerida(sug ? { monto: Number(sug.monto || 0), fecha: sug.fecha } : null)
+        arrastreResuelto = true
+      }
+    } catch { /* cae al cálculo de abajo */ }
+
+    // Plan B mientras la migración no esté aplicada: mismo cálculo en el
+    // cliente. Solo es exacto si el usuario ve la caja fuerte.
+    try {
+      if (arrastreResuelto) throw new Error('ya resuelto')
       const { data: ult } = await supabase
         .from('caja_turnos')
         .select('id, business_date, cierre_at, denominaciones_cierre')

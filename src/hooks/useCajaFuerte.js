@@ -7,7 +7,12 @@ import { supabase } from '../lib/supabase'
 // la tabla no acepta escrituras directas.
 // Opciones: { desde, hasta } en 'YYYY-MM-DD' acotan los MOVIMIENTOS al
 // período (el saldo siempre es el actual, no tiene sentido "a fecha").
-export function useCajaFuerte({ desde = null, hasta = null } = {}) {
+// `verSaldo`: quien puede OPERAR la caja fuerte (depositar, pagar desde ella)
+// no necesariamente puede VER cuanto hay. Con verSaldo=false no se piden ni el
+// saldo ni los movimientos —las RPC lo rechazarian y la RLS devolveria cero
+// filas— y el arrastre pendiente se resuelve por apertura_sugerida(), que es
+// security definer y devuelve solo el agregado.
+export function useCajaFuerte({ desde = null, hasta = null, verSaldo = true } = {}) {
   const [movimientos, setMovimientos] = useState([])
   const [saldo, setSaldo]     = useState(null)
   const [turnoAbierto, setTurnoAbierto] = useState(null)
@@ -27,19 +32,33 @@ export function useCajaFuerte({ desde = null, hasta = null } = {}) {
       if (hasta) movsQuery = movsQuery.lte('created_at', new Date(`${hasta}T23:59:59.999`).toISOString())
 
       const [movs, saldoRes, turnoRes] = await Promise.all([
-        movsQuery,
-        supabase.rpc('saldo_caja_fuerte'),
+        verSaldo ? movsQuery : Promise.resolve({ data: [], error: null }),
+        verSaldo ? supabase.rpc('saldo_caja_fuerte') : Promise.resolve({ data: null, error: null }),
         supabase.from('caja_turnos').select('id').eq('estado', 'abierto').limit(1).maybeSingle(),
       ])
       if (movs.error) throw movs.error
       if (saldoRes.error) throw saldoRes.error
       setMovimientos(movs.data || [])
-      setSaldo(Number(saldoRes.data ?? 0))
+      setSaldo(verSaldo ? Number(saldoRes.data ?? 0) : null)
       setTurnoAbierto(turnoRes.error ? null : turnoRes.data)
 
       // Último cierre: cuánto efectivo dejó y cuánto ya se depositó después.
       // Es lo que se puede retirar con la caja cerrada (y lo que el arrastre
       // le sugiere a la próxima apertura). Best-effort.
+      // Sin permiso de ver la caja fuerte, los depositos no se pueden contar
+      // desde el cliente (la RLS devuelve cero, sin error, y "lo que queda por
+      // retirar" saldria inflado). La RPC hace la cuenta del lado del servidor
+      // y devuelve solo el numero.
+      if (!verSaldo) {
+        try {
+          const { data: sug, error: e } = await supabase.rpc('apertura_sugerida')
+          setUltimoCierre(!e && sug
+            ? { fecha: sug.fecha, efectivo: null, depositado: null, disponible: Number(sug.monto || 0) }
+            : null)
+        } catch { setUltimoCierre(null) }
+        return
+      }
+
       try {
         const { data: ult } = await supabase
           .from('caja_turnos')
@@ -74,7 +93,7 @@ export function useCajaFuerte({ desde = null, hasta = null } = {}) {
     } finally {
       setLoading(false)
     }
-  }, [desde, hasta])
+  }, [desde, hasta, verSaldo])
 
   useEffect(() => { cargar() }, [cargar])
 

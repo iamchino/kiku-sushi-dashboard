@@ -3,12 +3,20 @@ import { Landmark, ArrowDownToLine, Scale, AlertTriangle, CheckCircle2, ArrowUpR
 import { useCajaFuerte } from '../../hooks/useCajaFuerte'
 import { ModalShell, Field, Select, TextArea } from '../finanzas/fields'
 import { fmtMoney, fmtFecha, catLabel } from '../../lib/finanzas'
+import { usePermisos } from '../../context/usePermisos'
 
 // La caja fuerte: dónde queda el efectivo cuando no está en la caja
 // registradora. Entra al cerrar el turno (retiro), sale por pagos (desde
 // Pagos, eligiendo origen "caja fuerte") o por ajustes.
 export default function CajaFuertePanel() {
-  const { movimientos, saldo, turnoAbierto, ultimoCierre, loading, error, retirar, ajustar } = useCajaFuerte()
+  // Ver el saldo y poder operar la caja fuerte son dos permisos distintos. El
+  // encargado deposita el excedente al cerrar y paga proveedores desde aca,
+  // pero no tiene por que saber cuanto hay guardado: con `editar` sin `ver`
+  // entra a la seccion, usa el formulario, y no ve ni el saldo ni el historial.
+  const { puede } = usePermisos()
+  const veSaldo = puede('caja_fuerte')
+  const { movimientos, saldo, turnoAbierto, ultimoCierre, loading, error, retirar, ajustar } =
+    useCajaFuerte({ verSaldo: veSaldo })
   const [modal, setModal] = useState(null)   // 'agregar' | 'ajuste' | null
   const [aviso, setAviso] = useState(null)
 
@@ -29,12 +37,15 @@ export default function CajaFuertePanel() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => abrir('ajuste')}
-            title="Corregir el saldo tras un conteo (sobrante o faltante)"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold"
-            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-            <Scale size={13} /> Corrección
-          </button>
+          {/* Corregir un saldo que no se puede ver no tiene sentido. */}
+          {veSaldo && (
+            <button onClick={() => abrir('ajuste')}
+              title="Corregir el saldo tras un conteo (sobrante o faltante)"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold"
+              style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+              <Scale size={13} /> Corrección
+            </button>
+          )}
           <button onClick={() => abrir('agregar')}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
             style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
@@ -44,13 +55,20 @@ export default function CajaFuertePanel() {
       </div>
 
       {/* Saldo */}
-      <div className="rounded-xl px-4 py-3 flex items-center justify-between"
-        style={{ background: 'var(--bg-app)', border: '1px solid var(--border-card)' }}>
-        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Efectivo en caja fuerte</span>
-        <span className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-          {saldo === null ? '…' : fmtMoney(saldo)}
-        </span>
-      </div>
+      {veSaldo ? (
+        <div className="rounded-xl px-4 py-3 flex items-center justify-between"
+          style={{ background: 'var(--bg-app)', border: '1px solid var(--border-card)' }}>
+          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Efectivo en caja fuerte</span>
+          <span className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            {saldo === null ? '…' : fmtMoney(saldo)}
+          </span>
+        </div>
+      ) : (
+        <p className="rounded-xl px-4 py-3 text-xs" style={{ background: 'var(--bg-app)', border: '1px solid var(--border-card)', color: 'var(--text-muted)' }}>
+          Podés depositar efectivo acá y pagar desde la caja fuerte. El saldo y el
+          detalle de movimientos no están habilitados para tu usuario.
+        </p>
+      )}
 
       {!turnoAbierto && (
         <p className="text-[11px] px-3 py-2 rounded-lg" style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', color: 'var(--accent-lift)' }}>
@@ -78,8 +96,8 @@ export default function CajaFuertePanel() {
         </div>
       )}
 
-      {/* Movimientos */}
-      {loading ? (
+      {/* Movimientos: son el historial de la caja fuerte, van con `ver`. */}
+      {!veSaldo ? null : loading ? (
         <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="skeleton h-12 rounded-xl" />)}</div>
       ) : movimientos.length === 0 ? (
         <p className="text-xs py-2" style={{ color: 'var(--text-xmuted)' }}>
@@ -132,14 +150,14 @@ export default function CajaFuertePanel() {
             if (origen === 'caja') {
               const r = await retirar(monto, nota)
               setAviso(r?.modo === 'post_cierre'
-                ? `Depósito del cierre registrado. La próxima apertura de caja ya no arrastra esa plata. Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.`
-                : `Retiro registrado: salió de la caja del día (el arqueo ya lo descuenta). Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.`)
+                ? `Depósito del cierre registrado. La próxima apertura de caja ya no arrastra esa plata.${veSaldo ? ` Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.` : ''}`
+                : `Retiro registrado: salió de la caja del día (el arqueo ya lo descuenta).${veSaldo ? ` Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.` : ''}`)
             } else {
               const descripcion = nota.trim()
                 ? `Depósito externo: ${nota.trim()}`
                 : 'Depósito de efectivo externo'
               const r = await ajustar(monto, 'sobrante', descripcion)
-              setAviso(`Depósito externo registrado. No toca la caja del día. Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.`)
+              setAviso(`Depósito externo registrado. No toca la caja del día.${veSaldo ? ` Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.` : ''}`)
             }
           }} />
       )}
@@ -147,7 +165,7 @@ export default function CajaFuertePanel() {
         <AjusteModal onClose={() => setModal(null)}
           onSave={async (monto, direccion, descripcion) => {
             const r = await ajustar(monto, direccion, descripcion)
-            setAviso(`Corrección registrada. Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.`)
+            setAviso(`Corrección registrada.${veSaldo ? ` Saldo de caja fuerte: ${fmtMoney(r?.saldo ?? 0)}.` : ''}`)
           }} />
       )}
     </section>
