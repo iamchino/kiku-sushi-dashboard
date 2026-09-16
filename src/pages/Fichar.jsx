@@ -5,40 +5,75 @@ import { useFichaje } from '../hooks/useFichaje'
 import { fmtMinutos, fmtHora, fmtFechaHora } from '../lib/horas'
 import EmpleadoHeader from '../components/layout/EmpleadoHeader'
 
-// Pantalla de fichaje. El QR del local codifica /fichar?ficha=TOKEN:
-// al abrirse (ya logueado), pide la ubicación y llama a la RPC fichar().
+// Un escaneo sin confirmar vence a los 5 minutos: si la pantalla quedó
+// abierta, nadie ficha horas después por tocar sin mirar.
+const ESCANEO_VIGENTE_MS = 5 * 60 * 1000
+
+// Pantalla de fichaje. El QR del local codifica /fichar?ficha=TOKEN.
+//
+// Antes fichaba SOLA al abrirse y limpiaba el token de la URL recién cuando
+// la RPC respondía. Si el empleado bloqueaba el celu mientras se buscaba el
+// GPS, Chrome guardaba la pestaña con el token y, al reabrirla horas después,
+// volvía a fichar: una SALIDA fantasma a mitad del turno, y la salida real de
+// la madrugada terminaba registrada como ENTRADA.
+//
+// Ahora: el token se saca de la URL al instante (queda solo en memoria) y el
+// empleado confirma con un botón que dice qué se va a registrar.
 export default function FicharPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
-  const token = params.get('ficha')
+  const tokenUrl = params.get('ficha')
 
   const {
     empleado, marcasJornada, dentro, abandonada, entradaAbierta,
-    minutosJornada, loading, error, fichar,
+    minutosJornada, proximaMarca, ultimaMarca, salidaCorregible,
+    loading, error, fichar,
   } = useFichaje()
 
+  // Escaneo pendiente de confirmar: { token, en } (solo en memoria).
+  const [escaneo, setEscaneo] = useState(null)
   // null | { fase: 'ubicando' } | { fase: 'ok', res } | { fase: 'error', msg }
   const [resultado, setResultado] = useState(null)
-  const disparado = useRef(false)
+  const enCurso = useRef(false)
 
+  // Tomar el token y limpiar la URL YA: un refresh o una pestaña restaurada
+  // nunca más tiene con qué fichar.
   useEffect(() => {
-    if (!token || disparado.current || loading) return
-    if (!empleado) return // sin vínculo: se muestra el aviso de abajo
-    disparado.current = true
+    if (!tokenUrl) return
+    setEscaneo({ token: tokenUrl, en: Date.now() })
+    setResultado(null)
+    navigate('/fichar', { replace: true })
+  }, [tokenUrl, navigate])
 
-    ;(async () => {
-      setResultado({ fase: 'ubicando' })
-      try {
-        const res = await fichar(token)
-        setResultado({ fase: 'ok', res })
-      } catch (err) {
-        setResultado({ fase: 'error', msg: err.message })
-      } finally {
-        // limpiamos el token de la URL para que un refresh no re-fiche
-        navigate('/fichar', { replace: true })
-      }
-    })()
-  }, [token, loading, empleado, fichar, navigate])
+  // Vencimiento del escaneo sin confirmar.
+  useEffect(() => {
+    if (!escaneo) return
+    const resta = escaneo.en + ESCANEO_VIGENTE_MS - Date.now()
+    const t = setTimeout(() => setEscaneo(null), Math.max(0, resta))
+    return () => clearTimeout(t)
+  }, [escaneo])
+
+  const confirmar = async (opciones) => {
+    if (!escaneo || enCurso.current) return
+    enCurso.current = true
+    const { token } = escaneo
+    setEscaneo(null)
+    setResultado({ fase: 'ubicando' })
+    try {
+      const res = await fichar(token, opciones)
+      setResultado({ fase: 'ok', res })
+    } catch (err) {
+      setResultado({ fase: 'error', msg: err.message })
+    } finally {
+      enCurso.current = false
+    }
+  }
+
+  const pideConfirmacion = Boolean(escaneo && empleado && !loading && !resultado)
+  // "hace cuánto" se mide contra el momento del escaneo (no cambia al re-renderizar).
+  const haceCuanto = ultimaMarca && escaneo
+    ? fmtMinutos(Math.max(0, Math.round((escaneo.en - new Date(ultimaMarca.ts).getTime()) / 60000)))
+    : ''
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
@@ -52,6 +87,67 @@ export default function FicharPage() {
               {empleado.nombre} {empleado.apellido || ''}
             </span>
           </p>
+        )}
+
+        {/* Confirmación del escaneo */}
+        {pideConfirmacion && (
+          <div className="rounded-2xl p-5 space-y-4"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--accent-border)' }}>
+            {proximaMarca === 'salida' ? (
+              <>
+                <div className="text-center space-y-1">
+                  <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Vas a registrar tu</p>
+                  <p className="text-2xl font-bold" style={{ color: '#f87171' }}>SALIDA</p>
+                  {entradaAbierta && (
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      Trabajando desde {fmtFechaHora(entradaAbierta)} · {fmtMinutos(minutosJornada)}
+                    </p>
+                  )}
+                </div>
+                <BotonFichar tipo="salida" onClick={() => confirmar({ tipoEsperado: 'salida' })}>
+                  Registrar SALIDA
+                </BotonFichar>
+              </>
+            ) : (
+              <>
+                <div className="text-center space-y-1">
+                  <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Vas a registrar tu</p>
+                  <p className="text-2xl font-bold" style={{ color: '#22c55e' }}>ENTRADA</p>
+                </div>
+
+                {salidaCorregible && ultimaMarca && (
+                  <div className="rounded-xl px-3 py-2.5 flex items-start gap-2 text-xs"
+                    style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' }}>
+                    <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+                    <span>
+                      Ya figura una <b>salida</b> a las {fmtHora(ultimaMarca.ts)} (hace {haceCuanto}).
+                      Si recién estás terminando tu turno, esa salida fue un error: tocá
+                      &quot;Estoy terminando mi turno&quot; y se corrige a esta hora.
+                    </span>
+                  </div>
+                )}
+
+                {salidaCorregible ? (
+                  <div className="space-y-2">
+                    <BotonFichar tipo="salida" onClick={() => confirmar({ corregirSalida: true })}>
+                      Estoy terminando mi turno
+                    </BotonFichar>
+                    <BotonFichar tipo="entrada" secundario onClick={() => confirmar({ tipoEsperado: 'entrada' })}>
+                      Empiezo un turno nuevo (ENTRADA)
+                    </BotonFichar>
+                  </div>
+                ) : (
+                  <BotonFichar tipo="entrada" onClick={() => confirmar({ tipoEsperado: 'entrada' })}>
+                    Registrar ENTRADA
+                  </BotonFichar>
+                )}
+              </>
+            )}
+            <button onClick={() => setEscaneo(null)}
+              className="w-full text-xs py-1" style={{ color: 'var(--text-muted)' }}>
+              Cancelar
+            </button>
+          </div>
         )}
 
         {/* Resultado del escaneo */}
@@ -99,7 +195,7 @@ export default function FicharPage() {
         )}
 
         {/* Sin token: instrucción */}
-        {!token && !resultado && (
+        {!escaneo && !resultado && (
           <div className="rounded-2xl p-6 flex flex-col items-center gap-3 text-center"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
@@ -111,7 +207,7 @@ export default function FicharPage() {
             </p>
             <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               Abrí la cámara del celu y apuntá al QR pegado en el local.
-              La entrada o la salida se registran solas.
+              Después confirmás si es tu entrada o tu salida.
             </p>
           </div>
         )}
@@ -206,5 +302,19 @@ export default function FicharPage() {
         )}
       </div>
     </div>
+  )
+}
+
+function BotonFichar({ tipo, secundario = false, onClick, children }) {
+  const color = tipo === 'salida' ? '#ef4444' : '#16a34a'
+  const Icono = tipo === 'salida' ? LogOut : LogIn
+  return (
+    <button onClick={onClick}
+      className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl text-base font-bold transition-transform active:scale-[0.98]"
+      style={secundario
+        ? { background: 'transparent', color, border: `1px solid ${color}` }
+        : { background: color, color: '#fff' }}>
+      <Icono size={18} /> {children}
+    </button>
   )
 }

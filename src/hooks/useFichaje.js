@@ -18,6 +18,12 @@ const HORAS_VENTANA = 48
 // aplica public.fichar() en la base.
 const HORAS_TURNO_ABANDONADO = 16
 
+// Una salida por QR de hace menos de esto, que cierra una entrada, se puede
+// corregir desde el celu ("esa salida fue un error, estoy saliendo ahora").
+// Espeja el límite de public.fichar(p_corregir_salida).
+const HORAS_SALIDA_CORREGIBLE = 10
+const MS_HORA = 3600 * 1000
+
 // Fichaje del empleado logueado (RLS self):
 //  - empleado: su ficha (nombre, tipo_sueldo, sueldo_base)
 //  - marcas: fichajes de las últimas 48 h, en orden
@@ -97,8 +103,19 @@ export function useFichaje() {
     }
     if (abierta && dentro) minutos += (now - abierta) / 60000
 
+    // Salida reciente que cierra una entrada: si ahora le toca ENTRADA, puede
+    // ser que esa salida haya sido un escaneo fantasma a mitad del turno.
+    const previa = marcas[marcas.length - 2] || null
+    const salidaCorregible = Boolean(
+      ultima && ultima.tipo === 'salida' && ultima.origen === 'qr' &&
+      (now - new Date(ultima.ts)) < HORAS_SALIDA_CORREGIBLE * MS_HORA &&
+      previa && previa.tipo === 'entrada' &&
+      (now - new Date(previa.ts)) < HORAS_TURNO_ABANDONADO * MS_HORA,
+    )
+
     return {
       ultima,
+      salidaCorregible,
       dentro,
       abandonada,
       entradaAbierta,
@@ -109,15 +126,30 @@ export function useFichaje() {
     }
   }, [marcas, now])
 
-  // Escaneó el QR → pedimos GPS → RPC fichar(). Devuelve { tipo, ts, mensaje }.
-  const fichar = useCallback(async (token) => {
+  // El empleado confirmó en pantalla → pedimos GPS → RPC fichar().
+  //  - tipoEsperado: 'entrada' | 'salida' que confirmó (la base lo valida)
+  //  - corregirSalida: mover a ahora la última salida (fue un escaneo fantasma)
+  // Devuelve { tipo, ts, mensaje }.
+  const fichar = useCallback(async (token, { tipoEsperado = null, corregirSalida = false } = {}) => {
     const ubic = await obtenerUbicacion()
-    const { data, error: e } = await supabase.rpc('fichar', {
+    const base = {
       p_token: token,
       p_lat: ubic.lat,
       p_lng: ubic.lng,
       p_precision_m: ubic.precision_m,
+    }
+    let { data, error: e } = await supabase.rpc('fichar', {
+      ...base,
+      p_tipo_esperado: tipoEsperado,
+      p_corregir_salida: corregirSalida,
     })
+    // Base sin la migración 20260916000000: la firma nueva no existe.
+    if (e && (e.code === 'PGRST202' || e.code === '42883')) {
+      if (corregirSalida) {
+        throw new Error('La corrección de salida todavía no está habilitada. Avisale al encargado.')
+      }
+      ;({ data, error: e } = await supabase.rpc('fichar', base))
+    }
     if (e) throw new Error(e.message)
     const res = Array.isArray(data) ? data[0] : data
     await fetchEstado()
@@ -133,6 +165,8 @@ export function useFichaje() {
     entradaAbierta: estado.entradaAbierta,
     minutosJornada: estado.minutosJornada,
     proximaMarca: estado.proximaMarca,
+    ultimaMarca: estado.ultima,
+    salidaCorregible: estado.salidaCorregible,
     loading,
     error,
     fichar,
