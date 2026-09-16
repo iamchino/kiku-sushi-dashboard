@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { ChefHat, CheckCircle2, Circle, Flame, ArrowLeft, Clock, WifiOff } from 'lucide-react'
-import { usePedidos } from '../hooks/usePedidos'
+import { ChefHat, CheckCircle2, Flame, ArrowLeft, Clock, WifiOff, ConciergeBell } from 'lucide-react'
+import { usePedidos, getTipoPedido, itemVaACocina } from '../hooks/usePedidos'
 import BotonNotifs from '../components/BotonNotifs'
 import { useNavigate } from 'react-router-dom'
 
@@ -54,109 +54,105 @@ function Elapsed({ createdAt, now }) {
   )
 }
 
-// ── Tarjeta grande de cocina ──────────────────────────────────────────────────
+// ── Tarjeta por plato ─────────────────────────────────────────────────────────
 /**
- * Convierte los pedidos en TARJETAS: una por cada tanda enviada a cocina.
+ * Convierte los pedidos en TARJETAS: una por cada PLATO.
  *
- * El quiebre está acá. Antes había una tarjeta por pedido, así que sumar un
- * plato a una mesa en curso obligaba a elegir entre dos males: mover toda la
- * tarjeta de vuelta a NUEVOS (y que cocina revea lo que ya estaba haciendo) o
- * dejarla quieta (y que el plato nuevo pase inadvertido).
+ * Antes era una por tanda, y los mozos terminaron comandando de a un plato
+ * para que cocina viera cada cosa por separado. Ahora eso lo hace el sistema:
+ * cada renglón de la comanda es su propia tarjeta con su propio estado, y las
+ * bebidas (productos con "va a cocina" apagado) no aparecen.
  *
- * Con una tarjeta por tanda no hace falta elegir: lo que ya se está cocinando
- * se queda en EN PREPARACIÓN, y lo agregado aparece solo, en NUEVOS, con la
- * misma mesa y el cartel AGREGADO.
- *
- * Cada tanda comparte `enviado_at` (lo sella enviar_a_cocina en una sola
- * sentencia) y decide su columna sola:
- *   algún ítem sin tomar   → NUEVOS
- *   todos tomados          → EN PREPARACIÓN
- *   todos listos           → sale del tablero
+ *   sin tomar             → NUEVOS            (botón TOMAR PEDIDO)
+ *   tomado, sin terminar  → EN PREPARACIÓN    (botón MARCAR LISTO)
+ *   listo, sin servir     → LISTO PARA SERVIR (botón EN MESA, lo toca el mozo)
+ *   servido               → sale del tablero
  */
 function construirTarjetas(pedidos) {
   const tarjetas = []
 
   for (const pedido of pedidos) {
-    const porTanda = new Map()
-    for (const item of pedido.pedido_items || []) {
-      const clave = item.enviado_at || ''
-      if (!porTanda.has(clave)) porTanda.set(clave, [])
-      porTanda.get(clave).push(item)
-    }
+    if (['entregado', 'cancelado'].includes(pedido.estado)) continue
+    const esSalon = getTipoPedido(pedido) === 'salon'
+    const items = (pedido.pedido_items || []).filter(itemVaACocina)
+    // La primera tanda es el pedido original; lo que llegó después es un
+    // AGREGADO del mozo sobre una mesa en curso.
+    const primeraTanda = items
+      .map(i => i.enviado_at)
+      .filter(Boolean)
+      .sort()[0] || null
 
-    const tandas = [...porTanda.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-
-    tandas.forEach(([enviadoAt, items], indice) => {
-      if (items.every(i => i.listo_at)) return   // ya salió de cocina
+    for (const item of items) {
+      // En salón, lo que el mozo todavía no mandó a cocina no existe para cocina.
+      if (esSalon && !item.enviado_at && item.enviado_cocina === false) continue
+      if (item.servido_at) continue
 
       tarjetas.push({
-        key:       `${pedido.id}-${enviadoAt || 'sin-tanda'}`,
+        key:        item.id,
         pedido,
-        items,
-        enviadoAt: enviadoAt || null,
-        // La primera tanda es el pedido original; las siguientes son agregados
-        // del mozo sobre una mesa que ya estaba en curso.
-        esAgregado: indice > 0,
-        columna:    items.some(i => !i.tomado_at) ? 'pendiente' : 'preparando',
-        // El cronómetro cuenta desde que ESTA tanda entró a cocina, no desde
-        // que se abrió la mesa: si no, un agregado nace con 40 minutos.
-        desde: enviadoAt || pedido.created_at,
+        item,
+        esAgregado: Boolean(primeraTanda && item.enviado_at && item.enviado_at > primeraTanda),
+        columna:    !item.tomado_at ? 'pendiente' : !item.listo_at ? 'preparando' : 'listo',
+        // El cronómetro cuenta desde que ESTE plato entró a cocina; en LISTO,
+        // desde que salió (cuánto lleva esperando que lo lleven).
+        desde: item.listo_at || item.enviado_at || pedido.created_at,
       })
-    })
+    }
   }
 
   return tarjetas
 }
 
-function KdsCard({ tarjeta, onAccion, onItem }) {
+const COLUMNAS = {
+  pendiente:  {
+    label: 'NUEVOS', icon: Flame, color: 'var(--accent-lift)',
+    border: 'rgba(var(--accent-rgb),0.35)', bg: 'rgba(var(--accent-rgb),0.06)',
+    btnBg: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
+    btnShadow: '0 4px 20px rgba(var(--accent-rgb),0.3)',
+    btnLabel: 'TOMAR PEDIDO', btnIcon: ChefHat, qtyColor: 'var(--accent-lift)',
+  },
+  preparando: {
+    label: 'EN PREPARACIÓN', icon: ChefHat, color: '#4f8ef7',
+    border: 'rgba(79,142,247,0.35)', bg: 'rgba(79,142,247,0.06)',
+    btnBg: 'linear-gradient(135deg, #34d399, #059669)',
+    btnShadow: '0 4px 20px rgba(52,211,153,0.3)',
+    btnLabel: 'MARCAR LISTO', btnIcon: CheckCircle2, qtyColor: '#4f8ef7',
+  },
+  listo: {
+    label: 'LISTO PARA SERVIR', icon: ConciergeBell, color: '#34d399',
+    border: 'rgba(52,211,153,0.4)', bg: 'rgba(52,211,153,0.07)',
+    btnBg: 'linear-gradient(135deg, #f59e0b, #d97706)',
+    btnShadow: '0 4px 20px rgba(245,158,11,0.3)',
+    btnLabel: 'EN MESA', btnIcon: ConciergeBell, qtyColor: '#34d399',
+  },
+}
+
+function KdsCard({ tarjeta, onAccion }) {
   const now = useTick()
-  const { pedido, items, esAgregado, columna, desde } = tarjeta
+  const { pedido, item, esAgregado, columna, desde } = tarjeta
   const shortId = pedido.id.slice(-4).toUpperCase()
-  const estado = columna
-
-  const config = {
-    pendiente:  {
-      border: 'rgba(var(--accent-rgb),0.35)',
-      bg:     'rgba(var(--accent-rgb),0.06)',
-      btnBg:  'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-      btnLabel: 'TOMAR PEDIDO',
-      btnIcon: ChefHat,
-    },
-    preparando: {
-      border: 'rgba(79,142,247,0.35)',
-      bg:     'rgba(79,142,247,0.06)',
-      btnBg:  'linear-gradient(135deg, #34d399, #059669)',
-      btnLabel: 'MARCAR LISTO',
-      btnIcon: CheckCircle2,
-    },
-  }[estado]
-
+  const config = COLUMNAS[columna]
   const BtnIcon = config.btnIcon
+  const esSalon = getTipoPedido(pedido) === 'salon'
 
   return (
     <div
-      className="rounded-2xl flex flex-col gap-4 transition-all duration-200 hover:scale-[1.01]"
-      style={{
-        background: config.bg,
-        border: `2px solid ${config.border}`,
-        padding: '20px',
-      }}
+      className="rounded-2xl flex flex-col gap-3 transition-all duration-200 hover:scale-[1.01]"
+      style={{ background: config.bg, border: `2px solid ${config.border}`, padding: '16px 18px' }}
     >
       {/* Card header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-base font-bold" style={{ color: 'var(--text-xmuted)' }}>#{shortId}</span>
+          <span className="font-mono text-sm font-bold" style={{ color: 'var(--text-xmuted)' }}>#{shortId}</span>
           {pedido.mesa
-            ? <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Mesa {pedido.mesa}</span>
+            ? <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Mesa {pedido.mesa}</span>
             : <span className="text-sm font-semibold capitalize" style={{ color: '#4f8ef7' }}>{pedido.canal}</span>
           }
         </div>
         <div className="flex items-center gap-2">
-          {esAgregado && (
-            <span
-              className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider"
-              style={{ background: 'rgba(52,211,153,0.18)', color: '#34d399' }}
-            >
+          {esAgregado && columna !== 'listo' && (
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider"
+              style={{ background: 'rgba(52,211,153,0.18)', color: '#34d399' }}>
               AGREGADO
             </span>
           )}
@@ -164,81 +160,40 @@ function KdsCard({ tarjeta, onAccion, onItem }) {
         </div>
       </div>
 
-      {/* Items — grandes y legibles */}
-      <div className="space-y-2 flex-1">
-        {items.length === 0 ? (
-          <p className="text-base italic" style={{ color: 'var(--text-xmuted)' }}>Sin ítems</p>
-        ) : (
-          items.map(item => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onItem(item, !item.listo_at)}
-              className="w-full flex items-baseline gap-3 text-left rounded-lg px-1 py-1.5 transition-colors active:scale-[0.99]"
-              style={{ background: item.listo_at ? 'rgba(52,211,153,0.10)' : 'transparent' }}
-            >
-              <span className="flex-shrink-0 w-5 self-center" style={{ color: item.listo_at ? '#34d399' : 'var(--text-xmuted)' }}>
-                {item.listo_at ? <CheckCircle2 size={18} /> : <Circle size={18} />}
-              </span>
-              <span
-                className="text-xl font-black leading-none flex-shrink-0 w-7 text-right"
-                style={{
-                  color: item.listo_at
-                    ? 'var(--text-xmuted)'
-                    : estado === 'pendiente' ? 'var(--accent-lift)' : '#4f8ef7',
-                }}
-              >
-                {item.cantidad}×
-              </span>
-              <span
-                className="text-base font-medium leading-snug"
-                style={{
-                  color: item.listo_at ? 'var(--text-xmuted)' : 'var(--text-primary)',
-                  textDecoration: item.listo_at ? 'line-through' : 'none',
-                }}
-              >
-                {item.nombre}
-                {item.notas && (
-                  <span className="block text-xs italic" style={{ color: '#fbbf24' }}>📝 {item.notas}</span>
-                )}
-              </span>
-            </button>
-          ))
-        )}
-        {pedido.notas && (
-          <p className="text-sm italic mt-2 pt-2" style={{ color: '#fbbf24', borderTop: `1px dashed rgba(255,255,255,0.1)` }}>
-            📝 {pedido.notas}
-          </p>
-        )}
+      {/* El plato — grande y legible */}
+      <div className="flex items-baseline gap-3">
+        <span className="text-2xl font-black leading-none flex-shrink-0" style={{ color: config.qtyColor }}>
+          {item.cantidad}×
+        </span>
+        <span className="text-lg font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
+          {item.nombre}
+          {item.notas && (
+            <span className="block text-sm italic mt-1" style={{ color: '#fbbf24' }}>📝 {item.notas}</span>
+          )}
+        </span>
       </div>
+      {pedido.notas && (
+        <p className="text-sm italic pt-2" style={{ color: '#fbbf24', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+          📝 {pedido.notas}
+        </p>
+      )}
 
       {/* Action button — grande, fácil de tocar */}
       <button
         onClick={() => onAccion(tarjeta)}
         className="w-full flex items-center justify-center gap-3 rounded-xl font-bold text-white transition-all active:scale-95 hover:opacity-90"
-        style={{
-          background: config.btnBg,
-          padding: '14px 20px',
-          fontSize: '15px',
-          letterSpacing: '0.05em',
-          boxShadow: estado === 'pendiente'
-            ? '0 4px 20px rgba(var(--accent-rgb),0.3)'
-            : '0 4px 20px rgba(52,211,153,0.3)',
-        }}
+        style={{ background: config.btnBg, padding: '13px 20px', fontSize: '15px', letterSpacing: '0.05em', boxShadow: config.btnShadow }}
       >
         <BtnIcon size={20} />
-        {config.btnLabel}
+        {columna === 'listo' && !esSalon ? 'ENTREGADO' : config.btnLabel}
       </button>
     </div>
   )
 }
 
 // ── Columna del Kanban ────────────────────────────────────────────────────────
-function Column({ estado, cards, onAccion, onItem }) {
-  const config = {
-    pendiente:  { label: 'NUEVOS',          icon: Flame,       color: 'var(--accent-lift)' },
-    preparando: { label: 'EN PREPARACIÓN',  icon: ChefHat,     color: '#4f8ef7' },
-  }[estado]
+function Column({ estado, cards, onAccion }) {
+  const config = COLUMNAS[estado]
 
   const Icon = config.icon
 
@@ -264,12 +219,12 @@ function Column({ estado, cards, onAccion, onItem }) {
           <div className="flex flex-col items-center justify-center py-16 gap-3 opacity-20">
             <Icon size={40} style={{ color: config.color }} />
             <p className="text-sm font-medium uppercase tracking-wide" style={{ color: config.color }}>
-              Sin pedidos
+              {estado === 'listo' ? 'Nada para servir' : 'Sin pedidos'}
             </p>
           </div>
         ) : (
           cards.map(t => (
-            <KdsCard key={t.key} tarjeta={t} onAccion={onAccion} onItem={onItem} />
+            <KdsCard key={t.key} tarjeta={t} onAccion={onAccion} />
           ))
         )}
       </div>
@@ -280,8 +235,9 @@ function Column({ estado, cards, onAccion, onItem }) {
 // ── Página KDS principal ──────────────────────────────────────────────────────
 export default function CocinaKDS() {
   const navigate = useNavigate()
-  const { grouped, loading, error, marcarItemListo, tomarTanda, marcarTandaLista } = usePedidos()
+  const { grouped, loading, error, tomarItem, marcarItemListo, marcarItemServido, avanzarEstado } = usePedidos()
   const [connected, setConnected] = useState(true)
+  const [aviso, setAviso] = useState(null)
 
   // Escucha de conectividad
   useEffect(() => {
@@ -295,27 +251,36 @@ export default function CocinaKDS() {
     }
   }, [])
 
-  // Marcar un plato suelto: cada estación marcha lo suyo sin esperar a la otra.
-  // Si era el último del pedido, la RPC pasa el pedido a 'listo' sola.
-  const marcarItem = async (item, listo) => {
-    const err = await marcarItemListo(item.id, listo)
-    if (err) console.warn('[kds] no se pudo marcar el ítem:', err.message)
-  }
-
-  // El botón grande hace lo que corresponda a la columna en la que está la
-  // tarjeta, y siempre sobre SU tanda — nunca sobre el pedido entero, que es
-  // lo que arrastraría los platos de la otra tarjeta de la misma mesa.
+  // El botón grande hace lo que corresponda a la columna, siempre sobre ESE
+  // plato: tomar, marcar listo, o (el mozo) marcarlo en mesa. Para llevar y
+  // delivery, "entregado" del último plato cierra el pedido como siempre.
   const accionTarjeta = async (tarjeta) => {
-    const err = tarjeta.columna === 'pendiente'
-      ? await tomarTanda(tarjeta.pedido.id, tarjeta.enviadoAt)
-      : await marcarTandaLista(tarjeta.pedido.id, tarjeta.enviadoAt)
-    if (err) console.warn('[kds] no se pudo actualizar la tanda:', err.message)
+    const { columna, item, pedido } = tarjeta
+    let err
+    if (columna === 'pendiente') err = await tomarItem(item.id)
+    else if (columna === 'preparando') err = await marcarItemListo(item.id, true)
+    else {
+      err = await marcarItemServido(item.id, true)
+      const esSalon = getTipoPedido(pedido) === 'salon'
+      const restantes = (pedido.pedido_items || [])
+        .filter(i => itemVaACocina(i) && !i.servido_at && i.id !== item.id)
+      if (!err && !esSalon && restantes.length === 0 && pedido.estado === 'listo') {
+        err = await avanzarEstado(pedido.id, 'listo')
+      }
+    }
+    if (err) {
+      setAviso(err.message || 'No se pudo actualizar el plato')
+      setTimeout(() => setAviso(null), 5000)
+    }
   }
 
-  const tarjetas    = construirTarjetas([...(grouped.pendiente || []), ...(grouped.preparando || [])])
+  const tarjetas    = construirTarjetas([
+    ...(grouped.pendiente || []), ...(grouped.preparando || []), ...(grouped.listo || []),
+  ])
   const pendientes  = tarjetas.filter(t => t.columna === 'pendiente')
   const preparando  = tarjetas.filter(t => t.columna === 'preparando')
-  const totalActivo = tarjetas.length
+  const listos      = tarjetas.filter(t => t.columna === 'listo')
+  const totalActivo = pendientes.length + preparando.length
 
   return (
     <div
@@ -356,7 +321,7 @@ export default function CocinaKDS() {
           {totalActivo > 0 && (
             <span className="text-xs font-bold px-3 py-1 rounded-full animate-pulse"
               style={{ background: 'rgba(var(--accent-rgb),0.15)', color: 'var(--accent-lift)', border: '1px solid rgba(var(--accent-rgb),0.3)' }}>
-              {totalActivo} {totalActivo === 1 ? 'tarjeta activa' : 'tarjetas activas'}
+              {totalActivo} {totalActivo === 1 ? 'plato en cocina' : 'platos en cocina'}
             </span>
           )}
         </div>
@@ -377,10 +342,10 @@ export default function CocinaKDS() {
       </div>
 
       {/* ── Error banner ── */}
-      {error && (
+      {(error || aviso) && (
         <div className="px-5 py-2 text-sm flex-shrink-0"
           style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', borderBottom: '1px solid rgba(239,68,68,0.2)' }}>
-          ⚠️ {error}
+          ⚠️ {aviso || error}
         </div>
       )}
 
@@ -391,13 +356,12 @@ export default function CocinaKDS() {
             <div className="w-8 h-8 border-2 border-[var(--accent-lift)] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-          <div className="flex gap-5 md:gap-6 h-full">
-            <Column estado="pendiente"  cards={pendientes} onAccion={accionTarjeta} onItem={marcarItem} />
-
-            {/* Divider */}
+          <div className="flex gap-4 md:gap-5 h-full">
+            <Column estado="pendiente"  cards={pendientes} onAccion={accionTarjeta} />
             <div className="flex-shrink-0 w-px self-stretch" style={{ background: 'var(--border)' }} />
-
-            <Column estado="preparando" cards={preparando} onAccion={accionTarjeta} onItem={marcarItem} />
+            <Column estado="preparando" cards={preparando} onAccion={accionTarjeta} />
+            <div className="flex-shrink-0 w-px self-stretch" style={{ background: 'var(--border)' }} />
+            <Column estado="listo"      cards={listos}     onAccion={accionTarjeta} />
           </div>
         )}
       </div>

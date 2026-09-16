@@ -82,9 +82,9 @@ export function useMenu(tipo) {
       .select()
       .single()
     // Tolerancia: si falta la columna solo_salon (migración no aplicada), reintenta sin ella.
-    if (e1 && /solo_salon/i.test(e1.message || '')) {
-      const { solo_salon, ...sinSoloSalon } = itemToInsert
-      void solo_salon
+    if (e1 && /solo_salon|va_a_cocina/i.test(e1.message || '')) {
+      const { solo_salon, va_a_cocina, ...sinSoloSalon } = itemToInsert
+      void solo_salon; void va_a_cocina
       const retry = await supabase.from('menu_items').insert({ ...sinSoloSalon, tipo }).select().single()
       created = retry.data
       e1 = retry.error
@@ -119,9 +119,9 @@ export function useMenu(tipo) {
       itemToUpdate.precio = precioParaGuardar(itemPayload.precio)
     }
     let { error: e1 } = await supabase.from('menu_items').update(itemToUpdate).eq('id', id)
-    if (e1 && /solo_salon/i.test(e1.message || '')) {
-      const { solo_salon, ...sinSoloSalon } = itemToUpdate
-      void solo_salon
+    if (e1 && /solo_salon|va_a_cocina/i.test(e1.message || '')) {
+      const { solo_salon, va_a_cocina, ...sinSoloSalon } = itemToUpdate
+      void solo_salon; void va_a_cocina
       const retry = await supabase.from('menu_items').update(sinSoloSalon).eq('id', id)
       e1 = retry.error
     }

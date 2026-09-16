@@ -13,6 +13,7 @@ const EMPTY = {
   etiqueta: '',
   activo: true,
   solo_salon: false,
+  va_a_cocina: true,
   orden: 0,
   imagen_url: '',
 }
@@ -40,6 +41,7 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
         etiqueta: item.etiqueta || '',
         activo: item.activo ?? true,
         solo_salon: item.solo_salon ?? false,
+        va_a_cocina: item.va_a_cocina ?? true,
         orden: item.orden ?? 0,
         imagen_url: item.imagen_url || '',
       })
@@ -362,6 +364,29 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
               </label>
               <p className="text-[11px] -mt-2" style={{ color: 'var(--text-muted)' }}>
                 Para un cubierto o Kiku libre: dejá "Oculto de la carta web" y activá "Disponible en salón".
+              </p>
+
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <div className="relative">
+                  <input
+                    type="checkbox" name="va_a_cocina" checked={form.va_a_cocina} onChange={handleField}
+                    className="sr-only peer"
+                  />
+                  <div
+                    className="w-9 h-5 rounded-full transition-colors"
+                    style={{ background: form.va_a_cocina ? 'var(--accent)' : 'var(--border)' }}
+                  />
+                  <div
+                    className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                    style={{ transform: form.va_a_cocina ? 'translateX(16px)' : 'translateX(0)' }}
+                  />
+                </div>
+                <span className="text-sm" style={{ color: form.va_a_cocina ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                  Pasa por cocina {form.va_a_cocina ? '' : '(no aparece en el KDS)'}
+                </span>
+              </label>
+              <p className="text-[11px] -mt-2" style={{ color: 'var(--text-muted)' }}>
+                Apagalo en bebidas y en todo lo que no se prepara: no entra a la pantalla de Cocina ni frena el pedido.
               </p>
             </div>
 

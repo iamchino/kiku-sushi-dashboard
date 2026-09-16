@@ -463,6 +463,14 @@ export default function MenuPage() {
                               {item.etiqueta}
                             </span>
                           )}
+                          {item.va_a_cocina === false && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                              style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
+                              title="No pasa por cocina: no aparece en el KDS"
+                            >
+                              Sin cocina
+                            </span>
+                          )}
                           {item.solo_salon && (
                             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
                               style={{ background: 'rgba(79,142,247,0.12)', color: '#4f8ef7' }}

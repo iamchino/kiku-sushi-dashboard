@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { ConciergeBell, ChefHat, CheckCircle2, Circle, Clock, Flame, WifiOff } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { usePedidos, getTipoPedido } from '../hooks/usePedidos'
+import { usePedidos, getTipoPedido, itemVaACocina } from '../hooks/usePedidos'
 import BotonNotifs from '../components/BotonNotifs'
 
 // ── Timer: re-render cada 10s para refrescar tiempos ─────────────────────────
@@ -39,11 +39,15 @@ function Elapsed({ createdAt, now }) {
   )
 }
 
-function PlatoCard({ pedido, listo, onServir, busy }) {
+function PlatoCard({ pedido, listo, onServir, onServirItem, busy }) {
   const now = useTick()
   const shortId = pedido.id.slice(-4).toUpperCase()
-  const items = pedido.pedido_items || []
+  // Las bebidas no pasan por cocina: no se "sirven" desde acá.
   const esMesa = getTipoPedido(pedido) === 'salon'
+  // Bebidas no pasan por cocina; en salón, lo no enviado todavía no cuenta.
+  const items = (pedido.pedido_items || [])
+    .filter(itemVaACocina)
+    .filter(i => !(esMesa && !i.enviado_at && i.enviado_cocina === false))
 
   return (
     <div
@@ -71,26 +75,41 @@ function PlatoCard({ pedido, listo, onServir, busy }) {
           // separado, así que en un mismo pedido puede haber cosas listas y
           // cosas todavía en curso.
           const itemListo = listo || Boolean(item.listo_at)
+          const servido = Boolean(item.servido_at)
           return (
             <div key={item.id} className="flex items-baseline gap-2.5">
-              <span className="flex-shrink-0 w-4 self-center" style={{ color: itemListo ? '#34d399' : 'var(--text-xmuted)' }}>
+              <span className="flex-shrink-0 w-4 self-center" style={{ color: servido ? 'var(--text-xmuted)' : itemListo ? '#34d399' : 'var(--text-xmuted)' }}>
                 {itemListo ? <CheckCircle2 size={15} /> : <Circle size={15} />}
               </span>
               <span
                 className="text-lg font-black leading-none flex-shrink-0 w-7 text-right"
-                style={{ color: itemListo ? '#34d399' : '#4f8ef7' }}
+                style={{ color: servido ? 'var(--text-xmuted)' : itemListo ? '#34d399' : '#4f8ef7' }}
               >
                 {item.cantidad}×
               </span>
               <span
-                className="text-[15px] font-medium leading-snug"
-                style={{ color: itemListo ? 'var(--text-primary)' : 'var(--text-muted)' }}
+                className="text-[15px] font-medium leading-snug flex-1"
+                style={{
+                  color: servido ? 'var(--text-xmuted)' : itemListo ? 'var(--text-primary)' : 'var(--text-muted)',
+                  textDecoration: servido ? 'line-through' : 'none',
+                }}
               >
                 {item.nombre}
                 {item.notas && (
                   <span className="block text-xs italic" style={{ color: '#fbbf24' }}>📝 {item.notas}</span>
                 )}
               </span>
+              {/* Cada plato se lleva por separado: "en mesa" de a uno. */}
+              {itemListo && !servido && esMesa && (
+                <button
+                  onClick={() => onServirItem(item, pedido)}
+                  disabled={busy}
+                  className="flex-shrink-0 self-center text-[11px] font-bold px-2.5 py-1.5 rounded-lg text-white active:scale-95 disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+                >
+                  EN MESA
+                </button>
+              )}
             </div>
           )
         })}
@@ -139,7 +158,7 @@ function SectionHeader({ icon: Icon, label, color, count }) {
 
 // ── Página: estado de platos para el mozo ─────────────────────────────────────
 export default function PlatosPage() {
-  const { grouped, loading, error, avanzarEstado, refetch } = usePedidos()
+  const { grouped, loading, error, avanzarEstado, marcarItemServido, refetch } = usePedidos()
   const [busyId, setBusyId] = useState(null)
   const [actionError, setActionError] = useState(null)
   const [connected, setConnected] = useState(true)
@@ -157,7 +176,8 @@ export default function PlatosPage() {
 
   // Listos sin servir todavía.
   const listos = useMemo(
-    () => (grouped.listo || []).filter(p => !p.servido_at),
+    () => (grouped.listo || []).filter(p =>
+      !p.servido_at && (p.pedido_items || []).some(i => itemVaACocina(i) && !i.servido_at)),
     [grouped]
   )
   const enCurso = useMemo(
@@ -168,14 +188,18 @@ export default function PlatosPage() {
   // Pedidos que todavía no están completos pero YA tienen algún plato listo.
   // Es el caso que motivó todo esto: salieron los rolls y el ramen sigue en el
   // fuego — el mozo puede llevar los rolls ahora en vez de esperar.
-  const paraAdelantar = useMemo(
-    () => enCurso.filter(p => (p.pedido_items || []).some(i => i.listo_at)),
-    [enCurso]
-  )
-  const enPreparacion = useMemo(
-    () => enCurso.filter(p => !(p.pedido_items || []).some(i => i.listo_at)),
-    [enCurso]
-  )
+  const tieneParaLlevar = p => (p.pedido_items || []).some(i => itemVaACocina(i) && i.listo_at && !i.servido_at)
+  const paraAdelantar = useMemo(() => enCurso.filter(tieneParaLlevar), [enCurso])
+  const enPreparacion = useMemo(() => enCurso.filter(p => !tieneParaLlevar(p)), [enCurso])
+
+  // Un plato a la mesa. Cuando es el último, la base marca el pedido servido.
+  const servirItem = async (item) => {
+    setBusyId(item.id)
+    setActionError(null)
+    const err = await marcarItemServido(item.id, true)
+    if (err) setActionError(err.message || 'No se pudo marcar el plato')
+    setBusyId(null)
+  }
 
   const servir = async (pedido) => {
     setBusyId(pedido.id)
@@ -183,13 +207,21 @@ export default function PlatosPage() {
     try {
       if (getTipoPedido(pedido) === 'salon') {
         // Pedido de mesa: marcar servido SIN cerrar el pedido
-        // (la mesa se cierra al cobrar, desde Mesas).
-        const { error: updErr } = await supabase
-          .from('pedidos')
-          .update({ servido_at: new Date().toISOString() })
-          .eq('id', pedido.id)
-        if (updErr) throw updErr
-        refetch?.()
+        // (la mesa se cierra al cobrar, desde Mesas). Plato por plato, para
+        // que el KDS lo vea salir de LISTO PARA SERVIR.
+        const pendientes = (pedido.pedido_items || []).filter(i => itemVaACocina(i) && !i.servido_at)
+        for (const i of pendientes) {
+          const err = await marcarItemServido(i.id, true)
+          if (err) throw err
+        }
+        if (pendientes.length === 0) {
+          const { error: updErr } = await supabase
+            .from('pedidos')
+            .update({ servido_at: new Date().toISOString() })
+            .eq('id', pedido.id)
+          if (updErr) throw updErr
+          refetch?.()
+        }
       } else {
         // Llevar / delivery: entregar cierra el pedido.
         const err = await avanzarEstado(pedido.id, 'listo')
@@ -255,7 +287,7 @@ export default function PlatosPage() {
               </div>
             ) : (
               listos.map(p => (
-                <PlatoCard key={p.id} pedido={p} listo onServir={servir} busy={busyId === p.id} />
+                <PlatoCard key={p.id} pedido={p} listo onServir={servir} onServirItem={servirItem} busy={busyId === p.id || (p.pedido_items || []).some(i => i.id === busyId)} />
               ))
             )}
           </section>
@@ -271,7 +303,7 @@ export default function PlatosPage() {
                   El pedido no está completo, pero lo tildado ya se puede llevar.
                 </p>
                 {paraAdelantar.map(p => (
-                  <PlatoCard key={p.id} pedido={p} listo={false} onServir={servir} busy={false} />
+                  <PlatoCard key={p.id} pedido={p} listo={false} onServir={servir} onServirItem={servirItem} busy={(p.pedido_items || []).some(i => i.id === busyId)} />
                 ))}
               </section>
               <div className="hidden lg:block flex-shrink-0 w-px self-stretch" style={{ background: 'var(--border)' }} />
@@ -290,7 +322,7 @@ export default function PlatosPage() {
               </div>
             ) : (
               enPreparacion.map(p => (
-                <PlatoCard key={p.id} pedido={p} listo={false} onServir={servir} busy={false} />
+                <PlatoCard key={p.id} pedido={p} listo={false} onServir={servir} onServirItem={servirItem} busy={(p.pedido_items || []).some(i => i.id === busyId)} />
               ))
             )}
           </section>

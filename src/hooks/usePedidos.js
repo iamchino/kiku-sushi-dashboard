@@ -97,6 +97,11 @@ function normalizePedidoItemsLegacy(items) {
   }))
 }
 
+/** ¿Este ítem pasa por cocina? (false = bebida u otro que no se cocina) */
+export function itemVaACocina(item) {
+  return item?.va_a_cocina !== false
+}
+
 export function usePedidos(options = {}) {
   const {
     mode = 'today',
@@ -110,37 +115,48 @@ export function usePedidos(options = {}) {
   const [error,   setError]     = useState(null)
 
   const fetchPedidos = useCallback(async () => {
-    let query = supabase
-      .from('pedidos')
-      .select('*, pedido_items(id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id, enviado_at, listo_at, tomado_at), comprobantes_fiscales(*), pagos(id, medio_pago, monto, numero_operacion, notas, created_at)')
-      .order('created_at', { ascending: false })
-
-    if (mode === 'today') {
-      query = query
-        .gte('created_at', startOfDay(new Date()).toISOString())
-        .neq('estado', 'cancelado')
-    } else {
-      // OJO: new Date("2026-05-28") se parsea como UTC midnight, lo que en
-      // Argentina (UTC-3) corre el límite y deja afuera pedidos de la noche.
-      // Forzamos parseo en hora LOCAL agregando 'T00:00:00'.
-      const from = dateFrom
-        ? startOfDay(new Date(`${dateFrom}T00:00:00`))
-        : startOfDay(subDays(new Date(), 6))
-      const to = dateTo
-        ? endOfDay(new Date(`${dateTo}T00:00:00`))
-        : endOfDay(new Date())
-      query = query
-        .gte('created_at', from.toISOString())
-        .lte('created_at', to.toISOString())
+    const armarQuery = (columnasItems) => {
+      let q = supabase
+        .from('pedidos')
+        .select(`*, pedido_items(${columnasItems}), comprobantes_fiscales(*), pagos(id, medio_pago, monto, numero_operacion, notas, created_at)`)
+        .order('created_at', { ascending: false })
+      if (mode === 'today') {
+        q = q
+          .gte('created_at', startOfDay(new Date()).toISOString())
+          .neq('estado', 'cancelado')
+      } else {
+        const from = dateFrom
+          ? startOfDay(new Date(`${dateFrom}T00:00:00`))
+          : startOfDay(subDays(new Date(), 6))
+        const to = dateTo
+          ? endOfDay(new Date(`${dateTo}T00:00:00`))
+          : endOfDay(new Date())
+        q = q
+          .gte('created_at', from.toISOString())
+          .lte('created_at', to.toISOString())
+      }
+      return q
     }
+    const COLS_ITEMS = 'id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id, enviado_cocina, enviado_at, listo_at, tomado_at, servido_at'
+    // Base sin la migración del KDS por plato: se reintenta sin las columnas nuevas.
+    const COLS_ITEMS_VIEJAS = 'id, nombre, cantidad, precio_unitario, notas, menu_item_id, variante_id, enviado_at, listo_at, tomado_at'
+    let query = armarQuery(COLS_ITEMS)
 
-    const [resPedidos, resRecetas] = await Promise.all([
+    // OJO: new Date("2026-05-28") se parsea como UTC midnight, lo que en
+    // Argentina (UTC-3) corre el límite y deja afuera pedidos de la noche.
+    // Por eso armarQuery fuerza parseo en hora LOCAL agregando 'T00:00:00'.
+    let [resPedidos, resRecetas] = await Promise.all([
       query,
       supabase
         .from('recetas')
         .select('*, receta_ingredientes!receta_id(*, stock(id, nombre, unidad, stock_actual, precio_unitario, rendimiento, tipo_stock, receta_id))')
         .order('nombre'),
     ])
+
+    if (resPedidos.error && /servido_at|enviado_cocina/i.test(resPedidos.error.message || '')) {
+      query = armarQuery(COLS_ITEMS_VIEJAS)
+      resPedidos = await query
+    }
 
     if (resPedidos.error) setError(resPedidos.error.message)
     else {
@@ -155,14 +171,21 @@ export function usePedidos(options = {}) {
           .filter(Boolean))
       )]
       if (ids.length > 0) {
-        const { data: imgs } = await supabase
+        let { data: prods, error: eProds } = await supabase
           .from('menu_items')
-          .select('id, imagen_url')
+          .select('id, imagen_url, va_a_cocina')
           .in('id', ids)
-        const imgMap = Object.fromEntries((imgs || []).map(m => [m.id, m.imagen_url]))
+        if (eProds && /va_a_cocina/i.test(eProds.message || '')) {
+          ;({ data: prods } = await supabase.from('menu_items').select('id, imagen_url').in('id', ids))
+        }
+        const prodMap = Object.fromEntries((prods || []).map(m => [m.id, m]))
         list.forEach(p => {
           (p.pedido_items || []).forEach(i => {
-            i.imagen_url = i.menu_item_id ? (imgMap[i.menu_item_id] || null) : null
+            const prod = i.menu_item_id ? prodMap[i.menu_item_id] : null
+            i.imagen_url  = prod?.imagen_url || null
+            // Bebidas y similares: no pasan por cocina (misma regla que
+            // pedido_item_va_a_cocina() en la base: sin producto = comida).
+            i.va_a_cocina = prod ? prod.va_a_cocina !== false : true
           })
         })
       }
@@ -740,6 +763,25 @@ export function usePedidos(options = {}) {
     return null
   }
 
+  /** Cocina toma UN plato (columna NUEVOS → EN PREPARACIÓN). */
+  const tomarItem = async (itemId) => {
+    const { error } = await supabase.rpc('tomar_item', { p_item_id: itemId })
+    if (error) return error
+    fetchPedidos()
+    return null
+  }
+
+  /** El mozo llevó UN plato a la mesa (columna LISTO PARA SERVIR → sale). */
+  const marcarItemServido = async (itemId, servido = true) => {
+    const { error } = await supabase.rpc('marcar_item_servido', {
+      p_item_id: itemId,
+      p_servido: servido,
+    })
+    if (error) return error
+    fetchPedidos()
+    return null
+  }
+
   const agregarItemsPedido = async (pedidoId, newItems) => {
     const normalized = (newItems || [])
       .filter(i => i.nombre && (parseInt(i.cantidad) || 0) > 0)
@@ -879,7 +921,7 @@ export function usePedidos(options = {}) {
   return {
     pedidos, grouped, stats,
     loading, error,
-    createPedido, avanzarEstado, marcarItemListo, tomarTanda, marcarTandaLista, cerrarPedido, cancelarPedido,
+    createPedido, avanzarEstado, marcarItemListo, tomarTanda, marcarTandaLista, tomarItem, marcarItemServido, cerrarPedido, cancelarPedido,
     reabrirPedido, reactivarPedido, agregarItemsPedido, updateItemCantidadPedido, removeItemPedido,
     aplicarDescuentoOrden, quitarDescuentoOrden, actualizarEnvioPedido, actualizarDatosPedido,
     refetch: fetchPedidos,
