@@ -9,6 +9,10 @@ import EmpleadoHeader from '../components/layout/EmpleadoHeader'
 // abierta, nadie ficha horas después por tocar sin mirar.
 const ESCANEO_VIGENTE_MS = 5 * 60 * 1000
 
+// Una salida a menos de esto de la entrada casi siempre es un segundo
+// escaneo al llegar ("¿quedó?"): se pide confirmar dos veces.
+const MIN_SALIDA_SOSPECHOSA = 30
+
 // Pantalla de fichaje. El QR del local codifica /fichar?ficha=TOKEN.
 //
 // Antes fichaba SOLA al abrirse y limpiaba el token de la URL recién cuando
@@ -70,6 +74,11 @@ export default function FicharPage() {
   }
 
   const pideConfirmacion = Boolean(escaneo && empleado && !loading && !resultado)
+  const minutosDesdeEntrada = entradaAbierta && escaneo
+    ? Math.max(0, Math.round((escaneo.en - entradaAbierta.getTime()) / 60000))
+    : null
+  const salidaSospechosa = proximaMarca === 'salida' &&
+    minutosDesdeEntrada !== null && minutosDesdeEntrada < MIN_SALIDA_SOSPECHOSA
   // "hace cuánto" se mide contra el momento del escaneo (no cambia al re-renderizar).
   const haceCuanto = ultimaMarca && escaneo
     ? fmtMinutos(Math.max(0, Math.round((escaneo.en - new Date(ultimaMarca.ts).getTime()) / 60000)))
@@ -104,9 +113,28 @@ export default function FicharPage() {
                     </p>
                   )}
                 </div>
-                <BotonFichar tipo="salida" onClick={() => confirmar({ tipoEsperado: 'salida' })}>
-                  Registrar SALIDA
-                </BotonFichar>
+                {salidaSospechosa ? (
+                  <>
+                    <div className="rounded-xl px-3 py-2.5 flex items-start gap-2 text-xs"
+                      style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' }}>
+                      <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+                      <span>
+                        Tu entrada ya quedó registrada hace {fmtMinutos(minutosDesdeEntrada)}.
+                        No hace falta volver a escanear: el próximo escaneo es para cuando te vayas.
+                      </span>
+                    </div>
+                    <BotonFichar tipo="entrada" onClick={() => setEscaneo(null)}>
+                      Ya fiché mi entrada, listo
+                    </BotonFichar>
+                    <BotonFichar tipo="salida" secundario onClick={() => confirmar({ tipoEsperado: 'salida' })}>
+                      Me voy igual: registrar SALIDA
+                    </BotonFichar>
+                  </>
+                ) : (
+                  <BotonFichar tipo="salida" onClick={() => confirmar({ tipoEsperado: 'salida' })}>
+                    Registrar SALIDA
+                  </BotonFichar>
+                )}
               </>
             ) : (
               <>
@@ -232,8 +260,8 @@ export default function FicharPage() {
         {empleado && (
           <div className="rounded-2xl p-5 space-y-4"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Estado actual</p>
                 <p className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                   <span className="w-2.5 h-2.5 rounded-full inline-block"
@@ -248,9 +276,9 @@ export default function FicharPage() {
                   </p>
                 )}
               </div>
-              <div className="text-right">
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Este turno</p>
-                <p className="text-lg font-bold flex items-center gap-1.5" style={{ color: 'var(--accent-lift)' }}>
+              <div className="text-right shrink-0">
+                <p className="text-xs whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Este turno</p>
+                <p className="text-lg font-bold flex items-center gap-1.5 whitespace-nowrap" style={{ color: 'var(--accent-lift)' }}>
                   <Clock size={15} /> {fmtMinutos(minutosJornada)}
                 </p>
               </div>
