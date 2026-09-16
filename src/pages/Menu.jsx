@@ -141,7 +141,8 @@ export default function MenuPage() {
   }
 
   const handleToggle = async (item) => {
-    await toggleActive(item.id, item.activo)
+    const err = await toggleActive(item.id, item.activo)
+    if (err) setNotice({ type: 'error', text: err.message || 'No se pudo cambiar la visibilidad del producto.' })
   }
 
   const handleDelete = async () => {

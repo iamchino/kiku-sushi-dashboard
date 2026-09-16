@@ -2,6 +2,13 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseCurrencyValue } from '../lib/orders'
 
+// Precio de un producto sin variantes, tal como se guarda en menu_items.precio.
+// Vacío → null (los productos con variantes guardan el precio en cada variante).
+function precioParaGuardar(valor) {
+  if (valor === null || valor === undefined || String(valor).trim() === '') return null
+  return parseCurrencyValue(valor)
+}
+
 export function useMenu(tipo) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -67,7 +74,7 @@ export function useMenu(tipo) {
     const itemToInsert = {
       ...itemPayload,
       orden: ordenFinal,
-      precio: itemPayload.precio ? parseCurrencyValue(itemPayload.precio) : null,
+      precio: precioParaGuardar(itemPayload.precio),
     }
     let { data: created, error: e1 } = await supabase
       .from('menu_items')
@@ -103,9 +110,13 @@ export function useMenu(tipo) {
 
   const updateItem = async (id, payload) => {
     const { variantes, ...itemPayload } = payload
-    const itemToUpdate = {
-      ...itemPayload,
-      precio: itemPayload.precio ? parseCurrencyValue(itemPayload.precio) : null,
+    // El precio SOLO se toca si el que llama lo manda. Antes se escribía siempre
+    // (`precio: payload.precio ? … : null`), así que cualquier update parcial —
+    // por ejemplo ocultar/mostrar un producto— dejaba el precio en null y el
+    // producto volvía a la carta a $0.
+    const itemToUpdate = { ...itemPayload }
+    if ('precio' in itemPayload) {
+      itemToUpdate.precio = precioParaGuardar(itemPayload.precio)
     }
     let { error: e1 } = await supabase.from('menu_items').update(itemToUpdate).eq('id', id)
     if (e1 && /solo_salon/i.test(e1.message || '')) {
@@ -182,8 +193,19 @@ export function useMenu(tipo) {
     return { ok: false, hidden: false, error }
   }
 
+  // Ocultar / mostrar en la carta: cambia SOLO `activo`. No pasa por updateItem
+  // para que ningún otro campo (precio, variantes, etc.) se toque de rebote.
   const toggleActive = async (id, currentValue) => {
-    return updateItem(id, { activo: !currentValue })
+    const { data, error } = await supabase
+      .from('menu_items')
+      .update({ activo: !currentValue })
+      .eq('id', id)
+      .select('id')
+    if (error) return error
+    // Un UPDATE bloqueado por RLS no da error: actualiza 0 filas.
+    if (!data?.length) return new Error('No se pudo cambiar la visibilidad (sin permiso para editar la carta).')
+    fetchItems()
+    return null
   }
 
   // Supabase Storage upload
