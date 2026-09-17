@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ChefHat, CheckCircle2, Flame, ArrowLeft, Clock, WifiOff, ConciergeBell } from 'lucide-react'
 import { usePedidos, getTipoPedido, itemVaACocina } from '../hooks/usePedidos'
 import BotonNotifs from '../components/BotonNotifs'
@@ -145,7 +145,7 @@ function KdsCard({ tarjeta, onAccion }) {
         <div className="flex items-center gap-2">
           <span className="font-mono text-sm font-bold" style={{ color: 'var(--text-xmuted)' }}>#{shortId}</span>
           {pedido.mesa
-            ? <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Mesa {pedido.mesa}</span>
+            ? <span className="text-base font-bold whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>Mesa {pedido.mesa}</span>
             : <span className="text-sm font-semibold capitalize" style={{ color: '#4f8ef7' }}>{pedido.canal}</span>
           }
         </div>
@@ -192,7 +192,7 @@ function KdsCard({ tarjeta, onAccion }) {
 }
 
 // ── Columna del Kanban ────────────────────────────────────────────────────────
-function Column({ estado, cards, onAccion }) {
+function Column({ estado, cards, onAccion, sinHeader = false }) {
   const config = COLUMNAS[estado]
 
   const Icon = config.icon
@@ -200,7 +200,7 @@ function Column({ estado, cards, onAccion }) {
   return (
     <div className="flex flex-col gap-4 flex-1 min-w-0">
       {/* Column header */}
-      <div className="flex items-center gap-3 px-1">
+      {!sinHeader && <div className="flex items-center gap-3 px-1">
         <Icon size={18} style={{ color: config.color }} />
         <span className="text-sm font-bold tracking-widest uppercase" style={{ color: config.color }}>
           {config.label}
@@ -211,7 +211,7 @@ function Column({ estado, cards, onAccion }) {
         >
           {cards.length}
         </span>
-      </div>
+      </div>}
 
       {/* Cards */}
       <div className="space-y-4 overflow-y-auto flex-1 pr-1">
@@ -232,12 +232,60 @@ function Column({ estado, cards, onAccion }) {
   )
 }
 
+// ── Pestañas para el celular ─────────────────────────────────────────────────
+// En una pantalla angosta no entran tres columnas: se muestra UNA a la vez,
+// con pestañas arriba (y el contador de cada una) y deslizando el dedo se
+// pasa a la siguiente. En tablet/PC siguen las tres columnas lado a lado.
+const ORDEN = ['pendiente', 'preparando', 'listo']
+
+function Tabs({ activa, conteos, onChange }) {
+  return (
+    <div className="grid grid-cols-3 gap-1.5 p-2 flex-shrink-0"
+      style={{ background: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border)' }}>
+      {ORDEN.map(k => {
+        const c = COLUMNAS[k]; const Icon = c.icon; const on = k === activa
+        return (
+          <button key={k} onClick={() => onChange(k)}
+            className="flex flex-col items-center gap-1 rounded-xl py-2 px-1 transition-colors"
+            style={{
+              background: on ? `${c.color}22` : 'transparent',
+              border: `1.5px solid ${on ? c.color : 'transparent'}`,
+              color: on ? c.color : 'var(--text-muted)',
+            }}>
+            <span className="flex items-center gap-1.5">
+              <Icon size={15} />
+              <span className="text-lg font-black leading-none tabular-nums">{conteos[k]}</span>
+            </span>
+            <span className="text-[10px] font-bold tracking-wider uppercase leading-tight text-center">
+              {k === 'pendiente' ? 'Nuevos' : k === 'preparando' ? 'En prep.' : 'Para servir'}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Página KDS principal ──────────────────────────────────────────────────────
 export default function CocinaKDS() {
   const navigate = useNavigate()
   const { grouped, loading, error, tomarItem, marcarItemListo, marcarItemServido, avanzarEstado } = usePedidos()
   const [connected, setConnected] = useState(true)
   const [aviso, setAviso] = useState(null)
+  // Columna visible en el celular (en pantallas anchas no se usa).
+  const [tab, setTab] = useState('pendiente')
+  const touch = useRef(null)
+  const onTouchStart = e => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }
+  const onTouchEnd = e => {
+    if (!touch.current) return
+    const dx = e.changedTouches[0].clientX - touch.current.x
+    const dy = e.changedTouches[0].clientY - touch.current.y
+    touch.current = null
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return
+    const i = ORDEN.indexOf(tab)
+    const next = ORDEN[dx < 0 ? Math.min(i + 1, ORDEN.length - 1) : Math.max(i - 1, 0)]
+    setTab(next)
+  }
 
   // Escucha de conectividad
   useEffect(() => {
@@ -281,10 +329,11 @@ export default function CocinaKDS() {
   const preparando  = tarjetas.filter(t => t.columna === 'preparando')
   const listos      = tarjetas.filter(t => t.columna === 'listo')
   const totalActivo = pendientes.length + preparando.length
+  const porColumna  = { pendiente: pendientes, preparando, listo: listos }
 
   return (
     <div
-      className="flex flex-col h-screen select-none"
+      className="flex flex-col h-full min-h-0 select-none"
       style={{ background: 'var(--bg-app)' }}
     >
       {/* ── Top bar ── */}
@@ -319,7 +368,7 @@ export default function CocinaKDS() {
             </span>
           )}
           {totalActivo > 0 && (
-            <span className="text-xs font-bold px-3 py-1 rounded-full animate-pulse"
+            <span className="hidden sm:inline text-xs font-bold px-3 py-1 rounded-full animate-pulse"
               style={{ background: 'rgba(var(--accent-rgb),0.15)', color: 'var(--accent-lift)', border: '1px solid rgba(var(--accent-rgb),0.3)' }}>
               {totalActivo} {totalActivo === 1 ? 'plato en cocina' : 'platos en cocina'}
             </span>
@@ -349,14 +398,29 @@ export default function CocinaKDS() {
         </div>
       )}
 
-      {/* ── Kanban board ── */}
-      <div className="flex-1 overflow-hidden p-5 md:p-6">
+      {/* ── Celular: pestañas + una columna ── */}
+      <div className="md:hidden">
+        <Tabs activa={tab} onChange={setTab}
+          conteos={{ pendiente: pendientes.length, preparando: preparando.length, listo: listos.length }} />
+      </div>
+      <div className="flex-1 overflow-hidden p-3 md:hidden" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-8 h-8 border-2 border-[var(--accent-lift)] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-          <div className="flex gap-4 md:gap-5 h-full">
+          <Column key={tab} estado={tab} cards={porColumna[tab]} onAccion={accionTarjeta} sinHeader />
+        )}
+      </div>
+
+      {/* ── Tablet / PC: las tres columnas ── */}
+      <div className="flex-1 overflow-hidden p-4 lg:p-6 hidden md:block">
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="w-8 h-8 border-2 border-[var(--accent-lift)] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="flex gap-3 lg:gap-5 h-full">
             <Column estado="pendiente"  cards={pendientes} onAccion={accionTarjeta} />
             <div className="flex-shrink-0 w-px self-stretch" style={{ background: 'var(--border)' }} />
             <Column estado="preparando" cards={preparando} onAccion={accionTarjeta} />
@@ -368,7 +432,7 @@ export default function CocinaKDS() {
 
       {/* ── Footer ── */}
       <div
-        className="flex items-center justify-center py-2 flex-shrink-0 text-[10px] uppercase tracking-widest"
+        className="hidden md:flex items-center justify-center py-2 flex-shrink-0 text-[10px] uppercase tracking-widest"
         style={{ color: 'var(--text-xmuted)', borderTop: '1px solid var(--border)' }}
       >
         Kiku Sushi · Sistema de Cocina
