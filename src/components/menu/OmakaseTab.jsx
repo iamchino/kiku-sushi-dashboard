@@ -89,7 +89,7 @@ export default function OmakaseTab() {
           <input
             type="number"
             min="0"
-            step="500"
+            step="any"
             value={Number.isFinite(precio) ? precio : ''}
             onChange={e => setPrecio(e.target.value === '' ? NaN : Number(e.target.value))}
             placeholder="70000"

@@ -198,7 +198,7 @@ function Column({ estado, cards, onAccion, sinHeader = false }) {
   const Icon = config.icon
 
   return (
-    <div className="flex flex-col gap-4 flex-1 min-w-0">
+    <div className="flex flex-col gap-4 flex-1 min-w-0 min-h-0">
       {/* Column header */}
       {!sinHeader && <div className="flex items-center gap-3 px-1">
         <Icon size={18} style={{ color: config.color }} />
@@ -214,7 +214,7 @@ function Column({ estado, cards, onAccion, sinHeader = false }) {
       </div>}
 
       {/* Cards */}
-      <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+      <div className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-1 pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
         {cards.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 opacity-20">
             <Icon size={40} style={{ color: config.color }} />
@@ -333,7 +333,7 @@ export default function CocinaKDS() {
 
   return (
     <div
-      className="flex flex-col h-full min-h-0 select-none"
+      className="flex flex-col flex-1 min-h-0 select-none"
       style={{ background: 'var(--bg-app)' }}
     >
       {/* ── Top bar ── */}
@@ -403,7 +403,7 @@ export default function CocinaKDS() {
         <Tabs activa={tab} onChange={setTab}
           conteos={{ pendiente: pendientes.length, preparando: preparando.length, listo: listos.length }} />
       </div>
-      <div className="flex-1 overflow-hidden p-3 md:hidden" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <div className="flex-1 min-h-0 flex flex-col p-3 md:hidden" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-8 h-8 border-2 border-[var(--accent-lift)] border-t-transparent rounded-full animate-spin" />

@@ -33,7 +33,7 @@ function Money({ label, hint, value, onChange }) {
       <div className="flex items-center gap-2">
         <span className="text-sm" style={{ color: 'var(--text-muted)' }}>$</span>
         <input
-          type="number" min="0" step="500" value={value}
+          type="number" min="0" step="any" value={value}
           onChange={e => onChange(e.target.value === '' ? '' : Number(e.target.value))}
           className="w-36 rounded-lg px-3 py-2 text-sm outline-none"
           style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}

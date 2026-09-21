@@ -273,7 +273,7 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
                           placeholder="5"
                         />
                         <input
-                          type="number" min="0" step="100"
+                          type="number" min="0" step="any"
                           value={v.precio}
                           onChange={e => updateVariante(idx, 'precio', e.target.value)}
                           className="input-modal text-xs"

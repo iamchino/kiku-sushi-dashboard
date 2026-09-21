@@ -390,7 +390,7 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Precio">
                   <input
-                    type="number" min="0" step="100"
+                    type="number" min="0" step="any"
                     name="precio" value={form.precio} onChange={handleField}
                     className="input-modal" placeholder="39500"
                   />

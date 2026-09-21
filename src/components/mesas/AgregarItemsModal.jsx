@@ -366,7 +366,7 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd, titulo =
                         style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
                         <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>$</span>
                         <input
-                          type="number" min={0} step="100"
+                          type="number" min={0} step="any"
                           value={item.precio_unitario}
                           onChange={e => updatePrecio(item._key, e.target.value)}
                           className="w-full text-xs outline-none bg-transparent text-right"

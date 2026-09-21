@@ -46,7 +46,7 @@ function AdminLayout({ children }) {
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-app)' }}>
       <Sidebar />
-      <main className={`flex-1 overflow-y-auto pt-14 lg:pt-0 ${conBottomNav ? 'pb-20 lg:pb-0' : ''}`}>
+      <main className={`flex-1 flex flex-col overflow-y-auto pt-14 lg:pt-0 ${conBottomNav ? 'pb-20 lg:pb-0' : ''}`}>
         <DomainTabs />
         <NotifStatusBanner />
         {children}

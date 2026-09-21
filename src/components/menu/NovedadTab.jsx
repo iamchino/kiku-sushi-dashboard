@@ -422,7 +422,7 @@ export default function NovedadTab() {
           <input
             type="number"
             min={0}
-            step={100}
+            step="any"
             value={form.precio}
             onChange={e => set('precio', e.target.value === '' ? 0 : Number(e.target.value))}
             className="flex-1 px-3 py-2.5 rounded-lg text-sm outline-none"
