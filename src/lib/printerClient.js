@@ -1,25 +1,45 @@
 /**
- * Cliente WebSocket para GG EZ Print.
+ * Cliente WebSocket para Comandera Print (mismo protocolo que GG EZ Print).
  *
- * GG EZ Print expone wss://<IP_LAN>:8443/ws y acepta dos mensajes JSON:
+ * El puente expone wss://<IP_LAN>:8443/ws y acepta dos mensajes JSON:
  *   - { action: "list" } -> responde { type: "printer_list", printers: [...] }
  *   - { action: "print", data: { printer_name, type, content, font_size, paper_width } }
  *       -> responde { status: "success" } o { status: "error", message: "..." }
  *
  * Mantenemos una unica conexion abierta (singleton por host). Las llamadas
  * encolan promesas que se resuelven con la primera respuesta valida del server.
- * Si el WebSocket no se puede abrir, las llamadas rechazan rapidamente para
- * que el caller pueda hacer fallback a window.print().
+ * Si la IP configurada no responde se prueba la propia PC (127.0.0.1). Si
+ * tampoco, las llamadas rechazan rapidamente para que el caller pueda hacer
+ * fallback a window.print().
  */
 
 import { getPrinterConfig } from './printerStore'
 
 const CONNECT_TIMEOUT_MS = 4000
 const REQUEST_TIMEOUT_MS = 8000
+// Si la IP configurada no responde, se prueba la propia PC (127.0.0.1). Sirve
+// cuando el dashboard corre en la misma PC que Comandera Print y esa PC cambió
+// de IP en la red. En un celular falla al instante, así que casi no demora.
+const LOCAL_HOST = '127.0.0.1'
+const LOCAL_CONNECT_TIMEOUT_MS = 1500
+
+/** Mensaje para humanos según cómo falló la conexión. */
+export function explicarFalloConexion(host, motivo) {
+  const h = String(host || '').trim()
+  const conPuerto = /:\d+$/.test(h) ? h : `${h}:8443`
+  if (motivo === 'timeout') {
+    return `Nadie responde en ${h}. Lo más común es que la PC cambió de dirección en el wifi: ` +
+      `en la PC del local, la ventana negra de Comandera Print dice "Escuchando en https://X.X.X.X:8443" — ` +
+      `esa es la dirección que hay que poner acá. Si la ventana no está abierta, abrí ComanderaPrint.exe.`
+  }
+  return `${h} respondió pero el navegador no aceptó la conexión: falta instalar el certificado en ` +
+    `este dispositivo (abrí https://${conPuerto} para probar) o Comandera Print está cerrado.`
+}
 
 class PrinterClient {
   constructor() {
-    this.host = null            // 'IP:8443'
+    this.host = null            // host configurado ('IP:8443')
+    this.hostReal = null        // host al que está conectado de verdad (puede ser 127.0.0.1)
     this.ws = null              // WebSocket actual o null
     this.connecting = null      // Promise en vuelo si estamos abriendo conexion
     this.queue = []             // [{ id, resolve, reject, match, timeoutId }]
@@ -39,6 +59,9 @@ class PrinterClient {
     return {
       connected: !!this.ws && this.ws.readyState === WebSocket.OPEN,
       host: this.host,
+      hostReal: this.hostReal,
+      // true = la IP configurada no anduvo y se conectó a la propia PC.
+      viaLocal: !!this.ws && this.ws.readyState === WebSocket.OPEN && this.hostReal !== this.host,
       error: this.lastError,
     }
   }
@@ -63,35 +86,73 @@ class PrinterClient {
 
   /** Asegura conexion al host indicado. Devuelve el WebSocket abierto. */
   async ensureConnected(host) {
-    if (!host) throw new Error('GG EZ Print: server_host no configurado')
+    if (!host) throw new Error('Comandera Print: server_host no configurado')
 
     // Cambio de host: cerramos lo anterior.
     if (this.ws && this.host !== host) {
       try { this.ws.close() } catch { /* ignore */ }
       this.ws = null
+      this.hostReal = null
     }
 
     if (this.ws && this.ws.readyState === WebSocket.OPEN) return this.ws
     if (this.connecting) return this.connecting
 
-    const url = this.buildUrl(host)
-    if (!url) throw new Error('GG EZ Print: host invalido')
+    if (!this.buildUrl(host)) throw new Error('Comandera Print: host invalido')
 
     this.host = host
 
-    this.connecting = new Promise((resolve, reject) => {
+    this.connecting = (async () => {
+      try {
+        return await this.abrir(host, CONNECT_TIMEOUT_MS)
+      } catch (err) {
+        const local = this.hostLocal(host)
+        if (!local) throw err
+        // Plan B: la propia PC. Si tampoco anda, el error que se muestra es
+        // el de la IP configurada, que es el que hay que corregir.
+        try {
+          const ws = await this.abrir(local, LOCAL_CONNECT_TIMEOUT_MS)
+          console.warn(`[printerClient] ${host} no responde; conectado a la propia PC (${local})`)
+          return ws
+        } catch {
+          this.lastError = err.message
+          this.notify()
+          throw err
+        }
+      }
+    })().finally(() => {
+      this.connecting = null
+    })
+
+    return this.connecting
+  }
+
+  /** '192.168.1.5:8443' -> '127.0.0.1:8443'; null si ya es la propia PC. */
+  hostLocal(host) {
+    const clean = String(host).trim().replace(/^wss?:\/\//i, '').replace(/\/+$/, '')
+    const sinPuerto = clean.replace(/:\d+$/, '')
+    if (sinPuerto === LOCAL_HOST || sinPuerto === 'localhost') return null
+    const puerto = (clean.match(/:(\d+)$/) || [])[1] || '8443'
+    return `${LOCAL_HOST}:${puerto}`
+  }
+
+  /** Abre un WebSocket a un host concreto. Resuelve con el socket abierto. */
+  abrir(host, timeoutMs) {
+    const url = this.buildUrl(host)
+    return new Promise((resolve, reject) => {
       let settled = false
       const ws = new WebSocket(url)
       this.ws = ws
+      this.hostReal = host
 
       const timeoutId = setTimeout(() => {
         if (settled) return
         settled = true
         try { ws.close() } catch { /* ignore */ }
-        this.lastError = `Timeout conectando a ${host}`
+        this.lastError = explicarFalloConexion(host, 'timeout')
         this.notify()
         reject(new Error(this.lastError))
-      }, CONNECT_TIMEOUT_MS)
+      }, timeoutMs)
 
       ws.onopen = () => {
         if (settled) return
@@ -106,7 +167,7 @@ class PrinterClient {
 
       ws.onerror = () => {
         // El navegador no expone detalle, solo el evento.
-        this.lastError = `Error WebSocket en ${host} (cert no instalado o servicio caido)`
+        this.lastError = explicarFalloConexion(host, 'error')
         if (!settled) {
           settled = true
           clearTimeout(timeoutId)
@@ -116,16 +177,12 @@ class PrinterClient {
       }
 
       ws.onclose = () => {
-        if (this.ws === ws) this.ws = null
+        if (this.ws === ws) { this.ws = null; this.hostReal = null }
         this.notify()
         // Rechazamos cualquier request en vuelo: caller hara fallback.
         this.flushPending(new Error('Conexion cerrada'))
       }
-    }).finally(() => {
-      this.connecting = null
     })
-
-    return this.connecting
   }
 
   handleMessage(raw) {
@@ -156,7 +213,7 @@ class PrinterClient {
   send(payload, match) {
     return new Promise((resolve, reject) => {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-        reject(new Error('GG EZ Print: socket no conectado'))
+        reject(new Error('Comandera Print: socket no conectado'))
         return
       }
       const id = this.nextId++
@@ -164,7 +221,7 @@ class PrinterClient {
         const idx = this.queue.findIndex(item => item.id === id)
         if (idx !== -1) {
           this.queue.splice(idx, 1)
-          reject(new Error('GG EZ Print: timeout esperando respuesta'))
+          reject(new Error('Comandera Print: la PC recibió el pedido pero no respondió (¿impresora apagada o sin papel?)'))
         }
       }, REQUEST_TIMEOUT_MS)
 
@@ -205,7 +262,7 @@ class PrinterClient {
   async print({ printerName, type, content, fontSize, paperWidth, hostOverride, qrCodeData }) {
     const cfg = getPrinterConfig()
     const host = hostOverride || cfg.server_host
-    if (!printerName) throw new Error('GG EZ Print: falta printer_name')
+    if (!printerName) throw new Error('Comandera Print: no hay impresora asignada para este tipo de ticket')
 
     await this.ensureConnected(host)
 
@@ -229,6 +286,7 @@ class PrinterClient {
     if (this.ws) {
       try { this.ws.close() } catch { /* ignore */ }
       this.ws = null
+      this.hostReal = null
     }
     this.flushPending(new Error('Desconectado manualmente'))
   }

@@ -1,59 +1,43 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, RefreshCw, Loader2, X, Printer, CheckCircle2 } from 'lucide-react'
 import { printerClient } from '../lib/printerClient'
 import { usePrinterStore } from '../lib/printerStore'
 
-const CHECK_INTERVAL_MS = 45000
-
 /**
- * Aviso proactivo del estado de la impresora (GG EZ Print).
+ * Aviso del estado de Comandera Print.
  *
- * Chequea la conexión al arrancar, cada 45s, y al volver la pestaña al foco.
- * Si no responde, muestra un banner rojo ANTES de imprimir. El botón "Cambiar
- * dirección" abre un cuadro simple para editar la IP del servidor de impresión
- * SIN salir de la pantalla actual — así cualquier usuario (incluido el mozo,
- * que no entra a la config del salón) puede corregirla desde su celular.
+ * No sondea: se prende solo cuando una impresión o una prueba de conexión
+ * falla (así no molesta en los celulares que nunca imprimen). En rojo dice
+ * por qué falló y qué hacer; en amarillo avisa que esta PC imprime por
+ * 127.0.0.1 pero la dirección configurada ya no responde (los celulares no
+ * van a poder imprimir hasta corregirla). "Cambiar dirección" edita la IP sin
+ * salir de la pantalla actual.
  */
 export default function PrinterStatusBanner() {
   const config = usePrinterStore(s => s.config)
-  const loaded = usePrinterStore(s => s.loaded)
   const save = usePrinterStore(s => s.save)
 
-  const [status, setStatus] = useState('idle') // idle | checking | ok | error
+  const [estado, setEstado] = useState(() => printerClient.state())
+  const [status, setStatus] = useState('idle') // idle | checking (solo al reintentar)
+  const [oculto, setOculto] = useState(null) // mensaje de error que el usuario cerró
   const [showModal, setShowModal] = useState(false)
   const [draftHost, setDraftHost] = useState('')
   const [saving, setSaving] = useState(false)
   const [savedScope, setSavedScope] = useState(null) // 'remote' | 'local' | null
-  const timerRef = useRef(null)
 
   const serverHost = config?.server_host || ''
 
+  useEffect(() => printerClient.subscribe(setEstado), [])
+
   const check = useCallback(async () => {
-    if (!serverHost) {
-      setStatus('idle')
-      return
-    }
-    setStatus(prev => (prev === 'ok' ? 'ok' : 'checking'))
+    if (!serverHost) return
+    setStatus('checking')
+    setOculto(null)
     try {
       await printerClient.listPrinters(serverHost)
-      setStatus('ok')
-    } catch {
-      setStatus('error')
-    }
+    } catch { /* el estado llega por subscribe */ }
+    setStatus('idle')
   }, [serverHost])
-
-  useEffect(() => {
-    if (!loaded) return undefined
-    check()
-    timerRef.current = window.setInterval(check, CHECK_INTERVAL_MS)
-    return () => window.clearInterval(timerRef.current)
-  }, [loaded, check])
-
-  useEffect(() => {
-    const onFocus = () => check()
-    window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
-  }, [check])
 
   const openModal = () => {
     setDraftHost(serverHost)
@@ -81,9 +65,12 @@ export default function PrinterStatusBanner() {
     setSaving(false)
     setSavedScope(scope)
     // Re-chequear conexión con la dirección nueva.
-    setTimeout(() => {
-      check()
+    setTimeout(async () => {
       setShowModal(false)
+      setStatus('checking')
+      setOculto(null)
+      try { await printerClient.listPrinters(host) } catch { /* el estado llega por subscribe */ }
+      setStatus('idle')
     }, 700)
   }
 
@@ -116,8 +103,9 @@ export default function PrinterStatusBanner() {
         </div>
 
         <p className="text-xs mb-3 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-          Poné la dirección que figura en la PC de caja, en el ícono de la impresora
-          (abajo a la derecha, cerca del reloj), donde dice <strong>Dirección</strong>.
+          En la PC del local, la ventana negra de <strong>Comandera Print</strong> dice
+          <strong> "Escuchando en https://X.X.X.X:8443"</strong>. Poné acá esos números
+          (con el :8443). Si la ventana no está abierta, abrí ComanderaPrint.exe.
         </p>
 
         <input
@@ -163,8 +151,8 @@ export default function PrinterStatusBanner() {
     </div>
   ) : null
 
-  // No molestar si no hay impresora configurada o si está todo bien.
-  if (!serverHost || status === 'ok' || status === 'idle') return modal
+  // Sin impresora configurada, o sin ninguna falla registrada: no molestar.
+  if (!serverHost) return modal
 
   if (status === 'checking') {
     return (
@@ -174,14 +162,47 @@ export default function PrinterStatusBanner() {
           style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}
         >
           <Loader2 size={14} className="animate-spin" />
-          Verificando conexión con la impresora…
+          Verificando conexión con Comandera Print…
         </div>
         {modal}
       </>
     )
   }
 
-  // status === 'error'
+  // Anda, pero porque el dashboard corre en la misma PC que Comandera Print:
+  // la dirección configurada no responde y los celulares no van a poder
+  // imprimir hasta que alguien la corrija.
+  if (estado.connected && estado.viaLocal) {
+    return (
+      <>
+        <div
+          className="flex items-center gap-2 px-4 py-2 text-xs flex-wrap"
+          style={{ background: '#78350f', color: '#ffffff' }}
+          role="alert"
+        >
+          <AlertTriangle size={15} className="flex-shrink-0" />
+          <span className="flex-1 min-w-[200px]">
+            <strong>Esta PC imprime, pero la dirección {serverHost} ya no responde</strong> (la PC cambió
+            de IP en el wifi). Los celulares no van a poder imprimir hasta corregirla: fijate en la ventana
+            negra de Comandera Print qué dice en "Escuchando en…".
+          </span>
+          <button
+            type="button"
+            onClick={openModal}
+            className="px-2.5 py-1 rounded-md text-[11px] font-semibold"
+            style={{ background: '#ffffff', color: '#78350f' }}
+          >
+            Cambiar dirección
+          </button>
+        </div>
+        {modal}
+      </>
+    )
+  }
+
+  const detalle = estado.connected ? null : estado.error
+  if (!detalle || oculto === detalle) return modal
+
   return (
     <>
       <div
@@ -191,8 +212,7 @@ export default function PrinterStatusBanner() {
       >
         <AlertTriangle size={15} className="flex-shrink-0" />
         <span className="flex-1 min-w-[200px]">
-          <strong>Impresora no conectada.</strong> No se va a poder imprimir. Fijate que la PC de caja esté
-          encendida, y si cambió la dirección, corregila acá.
+          <strong>Impresora no conectada.</strong> {detalle}
         </span>
         <button
           type="button"
@@ -209,6 +229,14 @@ export default function PrinterStatusBanner() {
           style={{ background: '#ffffff', color: '#7f1d1d' }}
         >
           Cambiar dirección
+        </button>
+        <button
+          type="button"
+          onClick={() => setOculto(detalle)}
+          aria-label="Cerrar aviso"
+          style={{ color: 'rgba(255,255,255,0.8)' }}
+        >
+          <X size={15} />
         </button>
       </div>
       {modal}

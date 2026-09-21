@@ -59,6 +59,7 @@ export default function PrinterConfig() {
   const [printers, setPrinters] = useState([])
   const [discoverState, setDiscoverState] = useState('idle') // idle|loading|ok|error
   const [discoverError, setDiscoverError] = useState(null)
+  const [discoverViaLocal, setDiscoverViaLocal] = useState(false)
   const [saveState, setSaveState] = useState('idle') // idle|saving|ok|error
   const [saveError, setSaveError] = useState(null)
   const [testState, setTestState] = useState({})       // por kind
@@ -95,6 +96,7 @@ export default function PrinterConfig() {
       const list = await printerClient.listPrinters(host.trim())
       setPrinters(list)
       setDiscoverState('ok')
+      setDiscoverViaLocal(!!printerClient.state().viaLocal)
     } catch (err) {
       setDiscoverState('error')
       setDiscoverError(err.message || 'No se pudo conectar')
@@ -247,14 +249,20 @@ export default function PrinterConfig() {
             <CheckCircle2 size={13} /> Conectado. Se detectaron {printers.length} impresora(s).
           </div>
         )}
+        {discoverState === 'ok' && discoverViaLocal && (
+          <div className="flex items-start gap-1.5 text-xs" style={{ color: '#f59e0b' }}>
+            <AlertTriangle size={13} className="mt-0.5" />
+            <span>
+              Ojo: la dirección {host.trim()} no responde; se conectó porque esta es la misma PC donde corre
+              Comandera Print. Desde los celulares no va a andar hasta que pongas la IP que muestra la
+              ventana negra en "Escuchando en…".
+            </span>
+          </div>
+        )}
         {discoverState === 'error' && (
           <div className="flex items-start gap-1.5 text-xs" style={{ color: '#ef4444' }}>
             <AlertTriangle size={13} className="mt-0.5" />
-            <span>
-              No se pudo conectar: {discoverError}.
-              Revisá que <code>ComanderaPrint.exe</code> esté corriendo en la PC del local y que el
-              certificado esté instalado en este dispositivo (abrí https://IP:8443 para probar).
-            </span>
+            <span>No se pudo conectar. {discoverError}</span>
           </div>
         )}
       </div>

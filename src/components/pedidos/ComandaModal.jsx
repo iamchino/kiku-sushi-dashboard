@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { X, Printer, Loader2, CheckCircle2, AlertTriangle, ListChecks } from 'lucide-react'
 import { printComanda } from '../../lib/printing'
+import { printerClient } from '../../lib/printerClient'
 
 /**
  * Modal para imprimir una comanda eligiendo QUÉ ítems mandar a cocina.
@@ -58,7 +59,12 @@ export default function ComandaModal({ open, onClose, pedido, items = [], titulo
       return
     }
     if (res.via === 'browser' && res.remoteFailed) {
-      setResultado({ tipo: 'warn', texto: 'La impresora de red no respondió. Se abrió el diálogo del navegador.' })
+      const motivo = printerClient.state().error
+      setResultado({
+        tipo: 'warn',
+        texto: 'Comandera Print no respondió: se abrió el diálogo de Windows (sale con letra chica). ' +
+          (motivo ? motivo : 'Revisá el aviso rojo de arriba para corregir la dirección.'),
+      })
       return
     }
     setResultado({ tipo: 'ok', texto: res.via === 'remote' ? 'Comanda enviada a la impresora.' : 'Se abrió el diálogo de impresión.' })

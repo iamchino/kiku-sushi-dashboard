@@ -31,7 +31,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const version = "1.0.10"
+const version = "1.0.11"
 
 // Ruta del certificado exportado (se completa en main).
 var certCrtPath string
@@ -468,18 +468,76 @@ func main() {
 	}()
 
 	addr := fmt.Sprintf(":%d", cfg.Puerto)
-	for _, ip := range ipsLocales() {
+	ips := ipsLocales()
+	for _, ip := range ips {
 		log.Printf("Escuchando en https://%s%s  (dashboard: usar %s como servidor de impresión)", ip, addr, ip)
 	}
 	log.Printf("Certificado para instalar: %s", certCrtPath)
-	for _, ip := range ipsLocales() {
+	for _, ip := range ips {
 		log.Printf("Para instalar el certificado en un celular: abrí http://%s:8442 desde ese celular", ip)
 		break
 	}
+	avisarSiCambioIP(dir, ips)
 
-	if err := http.ListenAndServeTLS(addr, certPath, keyPath, nil); err != nil {
-		log.Fatalf("No se pudo iniciar el servidor: %v", err)
+	// Si el puerto ya está tomado (lo más común: ya hay otra copia de este
+	// programa abierta), no cerramos la ventana en silencio: explicamos y
+	// esperamos, para que quien está en el local sepa qué pasó.
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Printf("✘ No se pudo abrir el puerto %d: %v", cfg.Puerto, err)
+		fmt.Printf(`
+    ══════════════════════════════════════════════════════════
+     El puerto %d ya está ocupado.
+    
+     Casi siempre es porque YA HAY OTRA COPIA de Comandera Print
+     abierta (buscala en la barra de tareas o cerrala desde el
+     Administrador de tareas: Ctrl+Shift+Esc → ComanderaPrint).
+     Si la otra copia está andando, la impresión ya funciona:
+     esta ventana se puede cerrar.
+    ══════════════════════════════════════════════════════════
+
+  Apretá Enter para cerrar esta ventana.
+`, cfg.Puerto)
+		_, _ = fmt.Scanln()
+		os.Exit(1)
 	}
+
+	if err := http.ServeTLS(listener, nil, certPath, keyPath); err != nil {
+		log.Printf("✘ El servidor se detuvo: %v", err)
+		fmt.Println("\n  Apretá Enter para cerrar esta ventana.")
+		_, _ = fmt.Scanln()
+		os.Exit(1)
+	}
+}
+
+// Guarda la IP con la que arrancó la última vez y, si cambió, lo dice bien
+// grande: es el motivo número uno de "la impresora no conecta".
+func avisarSiCambioIP(dir string, ips []string) {
+	if len(ips) == 0 {
+		return
+	}
+	path := filepath.Join(dir, "ultima-ip.txt")
+	actual := ips[0]
+	anterior := strings.TrimSpace(func() string { b, _ := os.ReadFile(path); return string(b) }())
+	_ = os.WriteFile(path, []byte(actual+"\n"), 0644)
+	if anterior == "" || anterior == actual {
+		return
+	}
+	log.Printf("⚠ LA IP DE ESTA PC CAMBIÓ: antes %s, ahora %s", anterior, actual)
+	fmt.Printf(`
+    ══════════════════════════════════════════════════════════
+     ⚠  LA IP DE ESTA PC CAMBIÓ
+    
+        antes:  %s
+        ahora:  %s
+    
+     En el dashboard → Configuración → Impresoras, poné
+     %s:%d como servidor de impresión (o tocá
+     "Cambiar dirección" en el aviso rojo). Para que no vuelva a
+     pasar, pedile al router una IP fija para esta PC.
+    ══════════════════════════════════════════════════════════
+
+`, anterior, actual, actual, cfg.Puerto)
 }
 
 // dualWriter: escribe a consola y archivo a la vez.
