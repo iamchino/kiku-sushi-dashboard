@@ -6,6 +6,7 @@ import ProgresoBar from '../components/produccion/ProgresoBar'
 import TareaCard from '../components/produccion/TareaCard'
 import CompletarModal from '../components/produccion/CompletarModal'
 import NuevaTareaForm from '../components/produccion/NuevaTareaForm'
+import { stockDeReceta } from '../lib/stockNiveles'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatFecha(dateStr) {
@@ -50,7 +51,7 @@ export default function ProduccionPage() {
   // Receta asociada a cada tarea
   const getReceta = (tarea) => recetas.find(r => r.id === tarea.receta_id) || null
   const getStockProduccion = (tarea) =>
-    stockItems.find(s => s.tipo_stock === 'produccion' && s.receta_id === tarea.receta_id) || null
+    tarea.receta_id ? stockDeReceta(tarea.receta_id, recetas, stockItems) : null
 
   // Separar pendientes y completadas
   const pendientes = useMemo(() => tareas.filter(t => t.estado !== 'completada'), [tareas])
@@ -300,6 +301,7 @@ export default function ProduccionPage() {
         receta={completarTarget ? getReceta(completarTarget) : null}
         stockProduccion={completarTarget ? getStockProduccion(completarTarget) : null}
         recetas={recetas}
+        stockItems={stockItems}
         onConfirm={completarTarea}
         onRenombrar={(id, descripcion) => updateTarea(id, { descripcion })}
       />

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, Loader2, Minus, RotateCcw, Truck } from 'lucide-react'
 import { CATEGORIAS_STOCK } from '../../hooks/useStock'
+import { TIPOS_STOCK, normTipoStock } from '../../lib/stockNiveles'
 
 const TIPOS = [
   { id: 'entrada', label: 'Entrada', icon: Truck, color: '#22c55e', desc: 'Suma stock al item' },
@@ -57,7 +58,7 @@ export default function MovimientoModal({
       precio_unitario: item.precio_unitario ?? '',
       rendimiento: item.rendimiento ?? '1',
       categoria: item.categoria || 'Almacen',
-      tipo_stock: item.tipo_stock === 'produccion' ? 'produccion' : 'materia_prima',
+      tipo_stock: normTipoStock(item),
       receta_id: item.receta_id || '',
       notas: item.notas || '',
     } : emptyForm(defaultTipoStock))
@@ -65,7 +66,8 @@ export default function MovimientoModal({
 
   if (!open) return null
 
-  const isProduccion = form.tipo_stock === 'produccion'
+  // Elaborado = producción intermedia o servicio (viene de una receta).
+  const isProduccion = normTipoStock(form) !== 'materia_prima'
   const actual = parseFloat(form.stock_actual || 0)
   const cant = parseFloat(cantidadMov) || 0
   const preview = tipoMov === 'ajuste'
@@ -98,7 +100,7 @@ export default function MovimientoModal({
 
     const errItem = await onSaveItem({
       ...form,
-      tipo_stock: isProduccion ? 'produccion' : 'materia_prima',
+      tipo_stock: normTipoStock(form),
       receta_id: isProduccion ? (form.receta_id || null) : null,
       proveedor: isProduccion ? null : (form.proveedor || null),
       categoria: isProduccion ? null : (form.categoria || 'Almacen'),
@@ -146,8 +148,8 @@ export default function MovimientoModal({
         <div className="flex items-center justify-between px-5 py-4 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
           <p className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
             {item
-              ? (isProduccion ? 'Editar produccion' : 'Editar materia prima')
-              : (isProduccion ? 'Nueva produccion' : 'Nueva materia prima')}
+              ? `Editar · ${TIPOS_STOCK.find(t => t.id === normTipoStock(form))?.label}`
+              : `Nuevo · ${TIPOS_STOCK.find(t => t.id === normTipoStock(form))?.label}`}
           </p>
           <button
             onClick={onClose}
@@ -175,23 +177,20 @@ export default function MovimientoModal({
 
           <div className="space-y-1.5">
             <label style={labelStyle}>Tipo de stock</label>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { id: 'materia_prima', label: 'Materia prima' },
-                { id: 'produccion', label: 'Produccion' },
-              ].map(t => {
+            <div className="grid grid-cols-3 gap-2">
+              {TIPOS_STOCK.map(t => {
                 const active = form.tipo_stock === t.id
                 return (
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setForm(f => ({ ...f, tipo_stock: t.id, receta_id: t.id === 'produccion' ? f.receta_id : '' }))}
+                    onClick={() => setForm(f => ({ ...f, tipo_stock: t.id, receta_id: t.id !== 'materia_prima' ? f.receta_id : '', unidad: t.id === 'servicio' && !item ? 'roll' : f.unidad }))}
                     className="py-2 rounded-lg text-xs font-semibold transition-all"
                     style={active
                       ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
                       : { background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
                   >
-                    {t.label}
+                    {t.corto}
                   </button>
                 )
               })}
@@ -207,14 +206,15 @@ export default function MovimientoModal({
                 min="0"
                 value={form.stock_actual}
                 onChange={e => setForm(f => ({ ...f, stock_actual: e.target.value }))}
-                disabled={registrarMov}
+                disabled={registrarMov || Boolean(item)}
+                title={item ? 'Se cambia con un movimiento o un conteo' : undefined}
                 className="w-full px-3 py-2.5 rounded-lg text-sm outline-none disabled:opacity-50"
                 style={inputStyle}
                 placeholder="0"
               />
             </div>
             <div className="space-y-1.5">
-              <label style={labelStyle}>Minimo</label>
+              <label style={labelStyle}>{normTipoStock(form) === 'servicio' ? 'Objetivo' : 'Minimo'}</label>
               <input
                 type="number"
                 step="0.1"
@@ -234,7 +234,7 @@ export default function MovimientoModal({
                 className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
                 style={inputStyle}
               >
-                {['kg', 'g', 'u', 'l', 'ml', 'caja', 'paq'].map(u => <option key={u} value={u}>{u}</option>)}
+                {[...new Set(['kg', 'g', 'u', 'l', 'ml', 'caja', 'paq', 'porc', 'roll', form.unidad].filter(Boolean))].map(u => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
           </div>

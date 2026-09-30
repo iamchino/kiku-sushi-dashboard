@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { X, Loader2, AlertTriangle } from 'lucide-react'
-import { calcularIngredientesCrudos, mergeIngredientes } from '../../hooks/useProduccion'
+import { explotarReceta } from '../../lib/stockNiveles'
 
-export default function CompletarModal({ open, onClose, tarea, receta, stockProduccion, recetas, onConfirm, onRenombrar }) {
+export default function CompletarModal({ open, onClose, tarea, receta, stockProduccion, recetas, stockItems = [], onConfirm, onRenombrar }) {
   const [nombre, setNombre] = useState('')
   const [producto, setProducto] = useState('')
   const [cantidad, setCantidad] = useState('')
@@ -34,8 +34,9 @@ export default function CompletarModal({ open, onClose, tarea, receta, stockProd
   let ingredientesPreview = []
   let alertas = []
   if (receta && cantNum > 0) {
-    const crudos = calcularIngredientesCrudos(receta, cantNum, recetas)
-    ingredientesPreview = mergeIngredientes(crudos)
+    // LA REGLA: se corta en el primer nivel con stock propio (ej. arroz de
+    // sushi ya producido), no se baja hasta la materia prima.
+    ingredientesPreview = explotarReceta(receta, cantNum, recetas, stockItems, false)
     alertas = ingredientesPreview.filter(i => i.cantidad > i.stock_actual)
   }
 

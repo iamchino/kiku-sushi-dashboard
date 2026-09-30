@@ -154,8 +154,10 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
                           {r.nombre}
                           {r._esProduccion && (
                             <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wide"
-                              style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}>
-                              producción
+                              style={r._tipo === 'servicio'
+                                ? { background: 'rgba(249,115,22,0.1)', color: '#f97316', border: '1px solid rgba(249,115,22,0.25)' }
+                                : { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}>
+                              {r._tipo === 'servicio' ? 'servicio' : r._tipo === 'intermedia' ? 'intermedia' : 'con stock'}
                             </span>
                           )}
                           {r.porciones > 1 && (
@@ -188,8 +190,9 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
 
             {recetaId && recetaSeleccionada && !recetaSeleccionada._esProduccion && !sinIngredientes && (
               <p className="text-[11px] px-2 py-1 rounded" style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
-                Al completarla descuenta los ingredientes de la receta.
-                No suma stock de semielaborado (no está vinculada a un ítem de producción).
+                Al completarla descuenta los ingredientes de la receta, pero no suma
+                stock (es un producto final sin stock propio). Si se produce antes y se
+                guarda, marcá "Lleva stock" en la receta.
               </p>
             )}
 

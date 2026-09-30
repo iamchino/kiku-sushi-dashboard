@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { normTipoStock, esElaborado } from '../lib/stockNiveles'
 
 export function costoStockUnitario(stock, allRecetas = [], visited = new Set()) {
-  if (stock?.tipo_stock === 'produccion' && stock.receta_id && !visited.has(stock.receta_id)) {
+  if (esElaborado(stock) && stock.receta_id && !visited.has(stock.receta_id)) {
     const recetaProduccion = allRecetas.find(r => r.id === stock.receta_id)
     if (recetaProduccion) {
       const total = costoRecetaTotal(recetaProduccion, allRecetas, visited)
@@ -81,7 +82,7 @@ export function useRecetas() {
     setRecetas(resRecetas.data || [])
     setStockItems((resStock.data || []).map(item => ({
       ...item,
-      tipo_stock: item.tipo_stock === 'produccion' ? 'produccion' : 'materia_prima',
+      tipo_stock: normTipoStock(item),
     })))
     setMenuItems(resMenu.data || [])
     setLoading(false)
@@ -166,7 +167,7 @@ export function useRecetas() {
     return 0
   }, [recetas, recetasConCostos])
 
-  const createReceta = async ({ nombre, menu_item_id, porciones, notas, es_subreceta, ingredientes }) => {
+  const createReceta = async ({ nombre, menu_item_id, porciones, notas, tipo = 'final', lleva_stock = false, ingredientes }) => {
     const { data: receta, error: e1 } = await supabase
       .from('recetas')
       .insert({
@@ -174,7 +175,9 @@ export function useRecetas() {
         menu_item_id: menu_item_id || null,
         porciones: porciones || 1,
         notas: notas || null,
-        es_subreceta: !!es_subreceta,
+        // es_subreceta la mantiene la base como espejo de tipo (trigger).
+        tipo,
+        lleva_stock: tipo !== 'final' ? true : !!lleva_stock,
       })
       .select()
       .single()
@@ -196,7 +199,7 @@ export function useRecetas() {
     return null
   }
 
-  const updateReceta = async (id, { nombre, menu_item_id, porciones, notas, es_subreceta, ingredientes }) => {
+  const updateReceta = async (id, { nombre, menu_item_id, porciones, notas, tipo = 'final', lleva_stock = false, ingredientes }) => {
     const { error: e1 } = await supabase
       .from('recetas')
       .update({
@@ -204,7 +207,9 @@ export function useRecetas() {
         menu_item_id: menu_item_id || null,
         porciones: porciones || 1,
         notas: notas || null,
-        es_subreceta: !!es_subreceta,
+        // es_subreceta la mantiene la base como espejo de tipo (trigger).
+        tipo,
+        lleva_stock: tipo !== 'final' ? true : !!lleva_stock,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)

@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react'
 import {
   Plus, RefreshCw, Package, AlertTriangle, CheckCircle2, Edit2, Trash2,
-  Search, Clock, ChevronDown, ChevronUp, ChefHat
+  Search, Clock, ChevronDown, ChevronUp, ChefHat, Layers, ClipboardCheck
 } from 'lucide-react'
 import { useStock, ESTADO_STOCK, ESTADO_CONFIG, costoReal, CATEGORIAS_STOCK, getTipoStock } from '../hooks/useStock'
 import { normalizeSearch } from '../utils/normalize'
 import MovimientoModal from '../components/stock/MovimientoModal'
+import ConteoModal from '../components/stock/ConteoModal'
+import { TIPOS_STOCK } from '../lib/stockNiveles'
 
 function PrecioCell({ item, onSave }) {
   const [editing, setEditing] = useState(false)
@@ -71,22 +73,25 @@ function EstadoBadge({ item }) {
 const TIPO_MOV = {
   entrada: { label: 'Entrada', color: '#22c55e', icon: '+' },
   merma: { label: 'Merma', color: '#ef4444', icon: '-' },
+  salida: { label: 'Salida', color: '#f97316', icon: '-' },
   ajuste: { label: 'Ajuste', color: '#3b82f6', icon: '=' },
+}
+
+const COLOR_TIPO = {
+  materia_prima: '34,197,94',
+  produccion:    '249,115,22',
+  servicio:      '168,85,247',
 }
 
 function TipoBadge({ item }) {
   const tipo = getTipoStock(item)
-  const isProduccion = tipo === 'produccion'
+  const rgb = COLOR_TIPO[tipo]
   return (
     <span
       className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded"
-      style={{
-        background: isProduccion ? 'rgba(249,115,22,0.1)' : 'rgba(34,197,94,0.08)',
-        color: isProduccion ? '#f97316' : '#22c55e',
-        border: `1px solid ${isProduccion ? 'rgba(249,115,22,0.2)' : 'rgba(34,197,94,0.15)'}`,
-      }}
+      style={{ background: `rgba(${rgb},0.1)`, color: `rgb(${rgb})`, border: `1px solid rgba(${rgb},0.2)` }}
     >
-      {isProduccion ? 'Produccion' : 'Materia prima'}
+      {TIPOS_STOCK.find(t => t.id === tipo)?.corto}
     </span>
   )
 }
@@ -96,7 +101,11 @@ function ItemRow({ item, showCostColumns = true, updatePrecio, openEdit, setDele
   const costo = costoReal(item)
   const rend = parseFloat(item.rendimiento) || 1
   const movs = item.stock_movimientos || []
-  const isProduccion = getTipoStock(item) === 'produccion'
+  // Elaborado = producción intermedia o servicio: viene de una receta.
+  const isProduccion = getTipoStock(item) !== 'materia_prima'
+  const esServicio = getTipoStock(item) === 'servicio'
+  const actualNum = parseFloat(item.stock_actual) || 0
+  const faltaArmar = esServicio ? Math.max(0, (parseFloat(item.stock_minimo) || 0) - actualNum) : 0
 
   return (
     <>
@@ -139,10 +148,15 @@ function ItemRow({ item, showCostColumns = true, updatePrecio, openEdit, setDele
           </span>
         </td>
         <td className="px-3 py-3 hidden md:table-cell">
-          <span className="font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-            {parseFloat(item.stock_actual).toFixed(1)}
+          <span className="font-semibold tabular-nums" style={{ color: actualNum < 0 ? '#ef4444' : 'var(--text-primary)' }}>
+            {actualNum.toFixed(1)}
           </span>
           <span className="text-xs ml-1" style={{ color: 'var(--text-xmuted)' }}>{item.unidad}</span>
+          {faltaArmar > 0 && (
+            <span className="block text-[10px] font-semibold" style={{ color: '#a855f7' }}>
+              armar {faltaArmar.toLocaleString('es-AR', { maximumFractionDigits: 1 })}
+            </span>
+          )}
         </td>
         <td className="px-3 py-3 hidden md:table-cell">
           <span className="tabular-nums text-sm" style={{ color: 'var(--text-xmuted)' }}>
@@ -219,7 +233,7 @@ function ItemRow({ item, showCostColumns = true, updatePrecio, openEdit, setDele
                           <span style={{ color: cfg.color }}>{cfg.icon}</span>
                           <span className="font-medium w-12 flex-shrink-0" style={{ color: cfg.color }}>{cfg.label}</span>
                           <span className="tabular-nums w-16 flex-shrink-0" style={{ color: 'var(--text-primary)' }}>
-                            {m.tipo === 'merma' ? '-' : '+'}{parseFloat(m.cantidad).toFixed(1)} {item.unidad}
+                            {cfg.icon === '=' ? '' : cfg.icon}{parseFloat(m.cantidad).toFixed(1)} {item.unidad}
                           </span>
                           <span className="text-[10px] tabular-nums flex-shrink-0" style={{ color: 'var(--text-xmuted)' }}>
                             {parseFloat(m.stock_antes ?? 0).toFixed(1)} - {parseFloat(m.stock_despues ?? 0).toFixed(1)}
@@ -242,7 +256,7 @@ function ItemRow({ item, showCostColumns = true, updatePrecio, openEdit, setDele
   )
 }
 
-function StockTable({ title, icon: Icon, items, emptyText, showCostColumns = true, updatePrecio, openEdit, setDeleteTarget }) {
+function StockTable({ title, icon: Icon, items, emptyText, showCostColumns = true, minLabel = 'Min', updatePrecio, openEdit, setDeleteTarget }) {
   const alertas = items.filter(i => ['critico', 'bajo'].includes(ESTADO_STOCK(i))).length
 
   return (
@@ -272,8 +286,8 @@ function StockTable({ title, icon: Icon, items, emptyText, showCostColumns = tru
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 {(showCostColumns
-                  ? ['', 'Item', 'Proveedor', 'Stock', 'Min', 'Estado', 'Precio/U', 'Costo real', '']
-                  : ['', 'Item', 'Receta', 'Stock', 'Min', 'Estado', '']
+                  ? ['', 'Item', 'Proveedor', 'Stock', minLabel, 'Estado', 'Precio/U', 'Costo real', '']
+                  : ['', 'Item', 'Receta', 'Stock', minLabel, 'Estado', '']
                 ).map((h, i) => (
                   <th
                     key={i}
@@ -319,12 +333,13 @@ export default function StockPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [ordenFilas, setOrdenFilas] = useState('estado')
-  // Tab activa: 'materia_prima' (default) o 'produccion'
+  // Tab activa: 'materia_prima' (default), 'produccion' (intermedia) o 'servicio'
+  const [conteoOpen, setConteoOpen] = useState(false)
   const [tipoActivo, setTipoActivo] = useState('materia_prima')
 
   const {
     items, recetas, stats, loading, error, fetchStock,
-    registrarMovimiento, updatePrecio, createItem, updateItem, deleteItem,
+    registrarMovimiento, registrarConteo, updatePrecio, createItem, updateItem, deleteItem,
   } = useStock()
 
   const normalizeCat = (cat) => {
@@ -337,7 +352,7 @@ export default function StockPage() {
 
     if (categoria !== 'todos') {
       list = list.filter(i =>
-        getTipoStock(i) === 'produccion' ||
+        getTipoStock(i) !== 'materia_prima' ||
         normalizeCat(i.categoria || 'Almacen') === categoria
       )
     }
@@ -369,6 +384,10 @@ export default function StockPage() {
     filtered.filter(i => getTipoStock(i) === 'produccion'),
   [filtered])
 
+  const stockServicio = useMemo(() =>
+    filtered.filter(i => getTipoStock(i) === 'servicio'),
+  [filtered])
+
   const stockMateriaPrima = useMemo(() =>
     filtered.filter(i => getTipoStock(i) === 'materia_prima'),
   [filtered])
@@ -386,20 +405,27 @@ export default function StockPage() {
   }
 
   const handleSaveItem = async (form) => {
+    const tipo = getTipoStock(form)
+    const elaborado = tipo !== 'materia_prima'
     const payload = {
       nombre: form.nombre,
-      stock_actual: parseFloat(form.stock_actual) || 0,
       stock_minimo: parseFloat(form.stock_minimo) || 0,
       unidad: form.unidad || 'kg',
-      proveedor: form.tipo_stock === 'produccion' ? null : (form.proveedor || null),
-      categoria: form.tipo_stock === 'produccion' ? null : (form.categoria || 'Almacen'),
-      tipo_stock: form.tipo_stock === 'produccion' ? 'produccion' : 'materia_prima',
-      receta_id: form.tipo_stock === 'produccion' ? (form.receta_id || null) : null,
-      precio_unitario: form.tipo_stock === 'produccion' ? 0 : (parseFloat(form.precio_unitario) || 0),
-      rendimiento: form.tipo_stock === 'produccion' ? 1 : (parseFloat(form.rendimiento) || 1),
+      proveedor: elaborado ? null : (form.proveedor || null),
+      categoria: elaborado ? null : (form.categoria || 'Almacen'),
+      tipo_stock: tipo,
+      receta_id: elaborado ? (form.receta_id || null) : null,
+      precio_unitario: elaborado ? 0 : (parseFloat(form.precio_unitario) || 0),
+      rendimiento: elaborado ? 1 : (parseFloat(form.rendimiento) || 1),
       notas: form.notas || null,
     }
-    return modalEdit ? updateItem(modalEdit.id, payload) : createItem(payload)
+    // Al editar NO se manda stock_actual: el formulario puede tener un número
+    // viejo y pisaría las ventas y producciones que entraron mientras estaba
+    // abierto. La cantidad se cambia solo con un movimiento (entrada / merma /
+    // ajuste) o con un conteo.
+    return modalEdit
+      ? updateItem(modalEdit.id, payload)
+      : createItem({ ...payload, stock_actual: parseFloat(form.stock_actual) || 0 })
   }
 
   const handleDelete = async () => {
@@ -415,9 +441,17 @@ export default function StockPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>Inventario</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Materia prima, produccion, precios y stock en tiempo real</p>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Materia prima, producción intermedia y servicio, en tiempo real</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setConteoOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold"
+            style={{ border: '1px solid var(--accent-border)', color: 'var(--accent-lift)', background: 'var(--accent-soft)' }}
+          >
+            <ClipboardCheck size={15} />
+            <span className="hidden sm:inline">{tipoActivo === 'servicio' ? 'Conteo de cierre' : 'Contar'}</span>
+          </button>
           <button
             onClick={fetchStock}
             disabled={loading}
@@ -435,7 +469,7 @@ export default function StockPage() {
           >
             <Plus size={15} />
             <span className="hidden sm:inline">
-              {tipoActivo === 'produccion' ? 'Nuevo de producción' : 'Nueva materia prima'}
+              {tipoActivo === 'materia_prima' ? 'Nueva materia prima' : 'Nuevo elaborado'}
             </span>
             <span className="sm:hidden">Nuevo</span>
           </button>
@@ -528,7 +562,8 @@ export default function StockPage() {
       >
         {[
           { id: 'materia_prima', label: 'Materia prima', icon: Package, count: stockMateriaPrima.length },
-          { id: 'produccion',    label: 'Produccion',    icon: ChefHat, count: stockProduccion.length },
+          { id: 'produccion',    label: 'Intermedia',    icon: ChefHat, count: stockProduccion.length },
+          { id: 'servicio',      label: 'Servicio',      icon: Layers,  count: stockServicio.length },
         ].map(t => {
           const active = tipoActivo === t.id
           const TabIcon = t.icon
@@ -573,12 +608,31 @@ export default function StockPage() {
           openEdit={openEdit}
           setDeleteTarget={setDeleteTarget}
         />
+      ) : tipoActivo === 'servicio' ? (
+        <>
+          <p className="text-[11px] -mt-2" style={{ color: 'var(--text-muted)' }}>
+            Rolls armados para el servicio, en rolls. Se suman al completar una tarea de armado en Producción,
+            bajan con cada venta (5 piezas de un roll de 10 = 0,5) y al cierre se cuentan con "Conteo de cierre".
+            "Objetivo" es con cuántos abrir: si hay menos, avisa cuántos armar.
+          </p>
+          <StockTable
+            title="Stock de servicio"
+            icon={Layers}
+            items={stockServicio}
+            emptyText={search ? `Sin resultados para "${search}"` : 'No hay rolls de servicio. Se crean solos al cargar una receta de tipo "Roll de servicio".'}
+            showCostColumns={false}
+            minLabel="Objetivo"
+            updatePrecio={updatePrecio}
+            openEdit={openEdit}
+            setDeleteTarget={setDeleteTarget}
+          />
+        </>
       ) : (
         <StockTable
-          title="Stock de produccion"
+          title="Producción intermedia"
           icon={ChefHat}
           items={stockProduccion}
-          emptyText={search ? `Sin resultados para "${search}"` : 'No hay productos de produccion cargados'}
+          emptyText={search ? `Sin resultados para "${search}"` : 'No hay producción intermedia. Se crea sola al cargar una receta de tipo "Producción intermedia".'}
           showCostColumns={false}
           updatePrecio={updatePrecio}
           openEdit={openEdit}
@@ -594,6 +648,15 @@ export default function StockPage() {
         defaultTipoStock={defaultTipoStock}
         onSaveItem={handleSaveItem}
         onSaveMovimiento={async p => registrarMovimiento(p)}
+      />
+
+      <ConteoModal
+        open={conteoOpen}
+        onClose={() => setConteoOpen(false)}
+        items={tipoActivo === 'servicio' ? stockServicio : tipoActivo === 'produccion' ? stockProduccion : stockMateriaPrima}
+        titulo={tipoActivo === 'servicio' ? 'Conteo de cierre de servicio' : `Conteo · ${TIPOS_STOCK.find(t => t.id === tipoActivo)?.label}`}
+        notaDefault={tipoActivo === 'servicio' ? 'Conteo cierre de servicio' : 'Conteo de inventario'}
+        onConfirm={registrarConteo}
       />
 
       {deleteTarget && (

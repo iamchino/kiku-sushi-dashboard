@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo } from 'react'
 import { X, Loader2, Plus, Trash2 } from 'lucide-react'
+import { TIPOS_RECETA, tipoReceta, normTipoStock } from '../../lib/stockNiveles'
 
 export default function RecetaModal({
   open, onClose, receta, mode = receta ? 'edit' : 'create', recetas = [], stockItems, menuItems, onSave, costoIngrediente,
+  defaultTipo = 'final',
 }) {
   const isDuplicate = mode === 'duplicate'
   const [nombre,      setNombre]      = useState('')
   const [menuItemId,  setMenuItemId]  = useState('')
   const [porciones,   setPorciones]   = useState('1')
   const [notas,       setNotas]       = useState('')
-  const [es_subreceta, setEsSubreceta] = useState(false)
+  const [tipo,        setTipo]        = useState('final')
+  const [llevaStock,  setLlevaStock]  = useState(false)
   const [ingredientes, setIngredientes] = useState([]) // [{id, tipo: 'stock'|'subreceta', cantidad}]
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState(null)
@@ -23,7 +26,8 @@ export default function RecetaModal({
       setMenuItemId(isDuplicate ? '' : (receta.menu_item_id || ''))
       setPorciones(String(receta.porciones || 1))
       setNotas(receta.notas || '')
-      setEsSubreceta(!!receta.es_subreceta)
+      setTipo(tipoReceta(receta))
+      setLlevaStock(!!receta.lleva_stock)
       setIngredientes(
         (receta.receta_ingredientes || []).map(ri => {
           if (ri.subreceta_id) return { id: ri.subreceta_id, tipo: 'subreceta', cantidad: String(ri.cantidad) }
@@ -35,10 +39,11 @@ export default function RecetaModal({
       setMenuItemId('')
       setPorciones('1')
       setNotas('')
-      setEsSubreceta(false)
+      setTipo(defaultTipo)
+      setLlevaStock(false)
       setIngredientes([])
     }
-  }, [open, receta, isDuplicate])
+  }, [open, receta, isDuplicate, defaultTipo])
 
   // ── Cálculos en vivo ──────────────────────────────────────────────────────
   const costoTotal = useMemo(() => {
@@ -57,8 +62,16 @@ export default function RecetaModal({
   }, [ingredientes, stockItems, costoIngrediente])
 
   const costoPorPorcion = costoTotal / (parseInt(porciones) || 1)
-  const materiaPrimaItems = stockItems.filter(s => s.tipo_stock !== 'produccion')
-  const produccionItems = stockItems.filter(s => s.tipo_stock === 'produccion')
+  const materiaPrimaItems = stockItems.filter(s => normTipoStock(s) === 'materia_prima')
+  // Los ítems elaborados que son "la cara de stock" de una receta se eligen por
+  // la receta (grupo Producción intermedia / Rolls de servicio). Acá quedan solo
+  // los sueltos, o los que esta receta ya usaba.
+  const usadosPorStock = new Set(ingredientes.filter(i => i.tipo === 'stock').map(i => i.id))
+  const produccionItems = stockItems.filter(s =>
+    normTipoStock(s) !== 'materia_prima' && (!s.receta_id || usadosPorStock.has(s.id)))
+  const recetasIntermedias = recetas.filter(r => tipoReceta(r) === 'intermedia' && r.id !== receta?.id)
+  const recetasServicio = recetas.filter(r => tipoReceta(r) === 'servicio' && r.id !== receta?.id)
+  const esFinal = tipo === 'final'
 
   const menuItem = menuItems.find(m => m.id === menuItemId)
   const precioVenta = menuItem
@@ -96,10 +109,11 @@ export default function RecetaModal({
 
     const err = await onSave(isDuplicate ? null : receta?.id, {
       nombre: nombre.trim(),
-      menu_item_id: menuItemId || null,
+      menu_item_id: esFinal ? (menuItemId || null) : null,
       porciones: parseInt(porciones) || 1,
       notas: notas.trim() || null,
-      es_subreceta,
+      tipo,
+      lleva_stock: esFinal ? llevaStock : true,
       ingredientes: valid,
     })
 
@@ -152,16 +166,42 @@ export default function RecetaModal({
               style={inputStyle} placeholder='Ej: Roll New York' />
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer mt-1">
-            <input type="checkbox" checked={es_subreceta} onChange={e => setEsSubreceta(e.target.checked)}
-              className="w-4 h-4 rounded" style={{ accentColor: 'var(--accent)' }} />
-            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Usar como ingrediente (Sub-receta)
-            </span>
-          </label>
+          {/* Nivel de la receta */}
+          <div className="space-y-1.5">
+            <label style={labelStyle}>Tipo de receta</label>
+            <div className="grid grid-cols-3 gap-2">
+              {TIPOS_RECETA.map(t => {
+                const active = tipo === t.id
+                return (
+                  <button key={t.id} type="button" onClick={() => setTipo(t.id)}
+                    className="py-2 px-1 rounded-lg text-[11px] font-semibold transition-all leading-tight"
+                    style={active
+                      ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
+                      : { background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                    {t.singular}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>
+              {TIPOS_RECETA.find(t => t.id === tipo)?.ayuda}
+              {!esFinal && ' Tiene su propio stock: se suma al producirla y se descuenta cuando se usa.'}
+            </p>
+            {esFinal && (
+              <label className="flex items-start gap-2 cursor-pointer pt-1">
+                <input type="checkbox" checked={llevaStock} onChange={e => setLlevaStock(e.target.checked)}
+                  className="w-4 h-4 rounded mt-0.5" style={{ accentColor: 'var(--accent)' }} />
+                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  Lleva stock: se produce antes y se guarda (ej. gyozas armadas, postres).
+                  La venta descuenta este stock y no sus ingredientes.
+                </span>
+              </label>
+            )}
+          </div>
 
           {/* Producto vinculado + porciones */}
           <div className="grid grid-cols-3 gap-3">
+            {esFinal ? (
             <div className="col-span-2 space-y-1.5">
               <label style={labelStyle}>Producto del menú (opcional)</label>
               <select value={menuItemId} onChange={e => setMenuItemId(e.target.value)}
@@ -175,8 +215,15 @@ export default function RecetaModal({
                 ))}
               </select>
             </div>
+            ) : (
+              <div className="col-span-2 text-[11px] self-end pb-2" style={{ color: 'var(--text-xmuted)' }}>
+                {tipo === 'servicio'
+                  ? 'Rinde en rolls: 1 = un roll entero. En el producto final, un roll de 10 piezas lleva "1" de este roll y rinde 10.'
+                  : 'El stock de esta receta se cuenta en porciones de lo que rinde.'}
+              </div>
+            )}
             <div className="space-y-1.5">
-              <label style={labelStyle}>Porciones / Rendimiento</label>
+              <label style={labelStyle}>{tipo === 'servicio' ? 'Rinde (rolls)' : esFinal ? 'Rinde (porciones / piezas)' : 'Rinde (porciones)'}</label>
               <input type="number" min="1" value={porciones}
                 onChange={e => setPorciones(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
@@ -216,7 +263,6 @@ export default function RecetaModal({
 
               const valSelect = ing.id ? `${ing.tipo}:${ing.id}` : ''
               const usedIds = ingredientes.map(i => i.id ? `${i.tipo}:${i.id}` : '').filter(Boolean)
-              const subRecetasDisponibles = recetas.filter(r => r.es_subreceta && r.id !== receta?.id)
 
               return (
                 <div key={idx} className="flex items-center gap-2 p-2 rounded-lg"
@@ -240,7 +286,7 @@ export default function RecetaModal({
                       ))}
                     </optgroup>
                     {produccionItems.length > 0 && (
-                      <optgroup label="Produccion">
+                      <optgroup label="Stock elaborado suelto">
                         {produccionItems.map(s => (
                           <option key={`stock:${s.id}`} value={`stock:${s.id}`} disabled={(usedIds.includes(`stock:${s.id}`) && valSelect !== `stock:${s.id}`) || s.receta_id === receta?.id}>
                             {s.nombre} ({s.unidad})
@@ -248,14 +294,18 @@ export default function RecetaModal({
                         ))}
                       </optgroup>
                     )}
-                    {subRecetasDisponibles.length > 0 && (
-                      <optgroup label="Sub-recetas">
-                        {subRecetasDisponibles.map(r => (
+                    {[['Producción intermedia', recetasIntermedias], ['Rolls de servicio', recetasServicio]].map(([label, lista]) => lista.length > 0 && (
+                      <optgroup key={label} label={label}>
+                        {lista.map(r => (
                           <option key={`subreceta:${r.id}`} value={`subreceta:${r.id}`} disabled={usedIds.includes(`subreceta:${r.id}`) && valSelect !== `subreceta:${r.id}`}>
-                            {r.nombre} (por {r.porciones})
+                            {r.nombre} ({tipoReceta(r) === 'servicio' ? 'rolls' : `rinde ${r.porciones}`})
                           </option>
                         ))}
                       </optgroup>
+                    ))}
+                    {/* Una subreceta vieja que quedó como "final" pero ya estaba cargada */}
+                    {isSub && ing.id && !recetasIntermedias.some(r => r.id === ing.id) && !recetasServicio.some(r => r.id === ing.id) && (
+                      <option value={`subreceta:${ing.id}`}>{recetas.find(r => r.id === ing.id)?.nombre || 'Receta'}</option>
                     )}
                   </select>
 
@@ -267,7 +317,7 @@ export default function RecetaModal({
                     style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   />
                   <span className="text-[10px] w-6 flex-shrink-0" style={{ color: 'var(--text-xmuted)' }}>
-                    {isSub ? 'porc.' : (stock?.unidad || '')}
+                    {isSub ? (tipoReceta(recetas.find(r => r.id === ing.id)) === 'servicio' ? 'roll' : 'porc.') : (stock?.unidad || '')}
                   </span>
 
                   {/* Costo parcial */}

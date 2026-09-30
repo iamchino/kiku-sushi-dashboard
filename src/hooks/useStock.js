@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { normTipoStock, TIPOS_STOCK as TIPOS_STOCK_NIVELES } from '../lib/stockNiveles'
 
 export const CATEGORIAS_STOCK = [
   { id: 'almacen',        label: 'Almacén',          emoji: '📦' },
@@ -11,13 +12,9 @@ export const CATEGORIAS_STOCK = [
   { id: 'varios',         label: 'Varios',           emoji: '🏷️' },
 ]
 
-export const TIPOS_STOCK = [
-  { id: 'materia_prima', label: 'Materia prima', emoji: 'MP' },
-  { id: 'produccion',    label: 'Produccion',    emoji: 'PR' },
-]
+export const TIPOS_STOCK = TIPOS_STOCK_NIVELES
 
-export const getTipoStock = (item) =>
-  item?.tipo_stock === 'produccion' ? 'produccion' : 'materia_prima'
+export const getTipoStock = normTipoStock
 
 export const ESTADO_STOCK = (item) => {
   const actual  = parseFloat(item.stock_actual)
@@ -62,7 +59,7 @@ export function useStock() {
         .order('nombre'),
       supabase
         .from('recetas')
-        .select('id, nombre, porciones, es_subreceta')
+        .select('id, nombre, porciones, es_subreceta, tipo, lleva_stock')
         .order('nombre'),
     ])
 
@@ -102,6 +99,7 @@ export function useStock() {
     total:    items.length,
     materiaPrima: items.filter(i => getTipoStock(i) === 'materia_prima').length,
     produccion: items.filter(i => getTipoStock(i) === 'produccion').length,
+    servicio: items.filter(i => getTipoStock(i) === 'servicio').length,
   }), [items])
 
   // Helper para normalizar categoría (quitar acentos y minúsculas)
@@ -136,15 +134,6 @@ export function useStock() {
     return null
   }
 
-  // Ajuste rápido (+/-)
-  const quickAdjust = (item, delta) => registrarMovimiento({
-    stockId:     item.id,
-    tipo:        delta > 0 ? 'entrada' : 'merma',
-    cantidad:    Math.abs(delta),
-    notas:       `Ajuste rápido ${delta > 0 ? '+' : ''}${delta} ${item.unidad}`,
-    stockActual: item.stock_actual,
-  })
-
   // Actualización rápida de precio (inline edit)
   const updatePrecio = async (id, precio_unitario) => {
     const { error } = await supabase
@@ -153,6 +142,19 @@ export function useStock() {
       .eq('id', id)
     if (!error) fetchStock()
     return error
+  }
+
+  // Conteo (cierre de servicio o inventario): deja cada ítem en lo contado y
+  // registra la diferencia como ajuste, todo junto en la base.
+  // conteos = [{ stock_id, contado }]
+  const registrarConteo = async (conteos, nota) => {
+    const { data, error } = await supabase.rpc('registrar_conteo_stock', {
+      p_conteos: conteos,
+      p_nota: nota || null,
+    })
+    if (error) return { error }
+    fetchStock()
+    return { data: data || [] }
   }
 
   // CRUD ingredientes
@@ -174,7 +176,7 @@ export function useStock() {
 
   return {
     items, recetas, grouped, stats, loading, error,
-    fetchStock, registrarMovimiento, quickAdjust,
+    fetchStock, registrarMovimiento, registrarConteo,
     updatePrecio, createItem, updateItem, deleteItem,
   }
 }

@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { explotarReceta, stockDeReceta, normTipoStock, tipoReceta, llevaStock } from '../lib/stockNiveles'
+
+const ORDEN_TIPO = { intermedia: 0, servicio: 1, final: 2 }
 
 export function calcularIngredientesCrudos(receta, cantidadPorciones, allRecetas, visited = new Set()) {
   if (!receta || visited.has(receta.id)) return []
@@ -83,7 +86,7 @@ export function useProduccion() {
     setRecetas(resRecetas.data || [])
     setStockItems((resStock.data || []).map(item => ({
       ...item,
-      tipo_stock: item.tipo_stock === 'produccion' ? 'produccion' : 'materia_prima',
+      tipo_stock: normTipoStock(item),
     })))
     setLoading(false)
   }, [fecha])
@@ -116,15 +119,17 @@ export function useProduccion() {
   const subRecetas = useMemo(() =>
     recetas
       .map(r => {
-        const stockProd = stockItems.find(s => s.tipo_stock === 'produccion' && s.receta_id === r.id) || null
+        const stockProd = stockDeReceta(r.id, recetas, stockItems)
         return {
           ...r,
+          _tipo: tipoReceta(r),
           _stockProduccion: stockProd,
-          _esProduccion: Boolean(r.es_subreceta || stockProd),
+          _esProduccion: tipoReceta(r) !== 'final' || llevaStock(r, stockItems),
         }
       })
       .sort((a, b) =>
-        Number(b._esProduccion) - Number(a._esProduccion)
+        ORDEN_TIPO[a._tipo] - ORDEN_TIPO[b._tipo]
+        || Number(b._esProduccion) - Number(a._esProduccion)
         || String(a.nombre).localeCompare(String(b.nombre), 'es')),
   [recetas, stockItems])
 
@@ -190,9 +195,9 @@ export function useProduccion() {
     if (!tarea) return { error: { message: 'Tarea no encontrada' } }
 
     const receta = recetas.find(r => r.id === tarea.receta_id) || null
+    // Vista previa con LA REGLA. La base recalcula lo mismo y es la que manda.
     const consumos = receta
-      ? mergeIngredientes(calcularIngredientesCrudos(receta, cantidadReal, recetas))
-          .filter(ing => ing.cantidad > 0)
+      ? explotarReceta(receta, parseFloat(cantidadReal) || 0, recetas, stockItems, false)
           .map(ing => ({
             stock_id: ing.stock_id,
             nombre: ing.nombre,
@@ -201,9 +206,7 @@ export function useProduccion() {
           }))
       : []
 
-    const stockProduccion = stockItems.find(s =>
-      s.tipo_stock === 'produccion' && s.receta_id === tarea.receta_id
-    )
+    const stockProduccion = tarea.receta_id ? stockDeReceta(tarea.receta_id, recetas, stockItems) : null
 
     const { error: e } = await supabase.rpc('completar_tarea_produccion', {
       p_tarea_id: tareaId,

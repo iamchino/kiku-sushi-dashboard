@@ -7,8 +7,6 @@ import { getAuthorizedComprobante } from '../lib/fiscal'
 
 export const ESTADOS = ['pendiente', 'preparando', 'listo', 'entregado']
 
-const ENABLE_ORDER_STOCK_DISCOUNT = import.meta.env.VITE_ENABLE_ORDER_STOCK_DISCOUNT === 'true'
-
 export const ESTADO_SIGUIENTE = {
   pendiente:  'preparando',
   preparando: 'listo',
@@ -26,48 +24,6 @@ export function getTipoPedido(pedido) {
   if (pedido?.mesa_id || pedido?.canal === 'salon') return 'salon'
   if (pedido?.canal === 'delivery')                  return 'delivery'
   return 'llevar'
-}
-
-function calcularIngredientesCrudos(receta, cantidadPorciones, allRecetas, visited = new Set()) {
-  if (!receta || visited.has(receta.id)) return []
-  const newVisited = new Set(visited)
-  newVisited.add(receta.id)
-
-  const porciones = parseInt(receta.porciones) || 1
-  const factor = cantidadPorciones / porciones
-  const result = []
-
-  for (const ri of (receta.receta_ingredientes || [])) {
-    const cant = parseFloat(ri.cantidad) || 0
-
-    if (ri.stock_id && ri.stock) {
-      result.push({
-        stock_id: ri.stock_id,
-        nombre: ri.stock.nombre,
-        unidad: ri.stock.unidad,
-        cantidad: cant * factor,
-      })
-    } else if (ri.subreceta_id) {
-      const sub = allRecetas.find(r => r.id === ri.subreceta_id)
-      if (sub) {
-        const subResults = calcularIngredientesCrudos(sub, cant * factor, allRecetas, newVisited)
-        result.push(...subResults)
-      }
-    }
-  }
-  return result
-}
-
-function mergeIngredientes(ingredientes) {
-  const map = {}
-  for (const ing of ingredientes) {
-    if (map[ing.stock_id]) {
-      map[ing.stock_id].cantidad += ing.cantidad
-    } else {
-      map[ing.stock_id] = { ...ing }
-    }
-  }
-  return Object.values(map)
 }
 
 function isMissingRpcFunction(error) {
@@ -110,7 +66,6 @@ export function usePedidos(options = {}) {
   } = options
 
   const [pedidos, setPedidos]   = useState([])
-  const [recetas, setRecetas]   = useState([])
   const [loading, setLoading]   = useState(true)
   const [error,   setError]     = useState(null)
 
@@ -145,13 +100,7 @@ export function usePedidos(options = {}) {
     // OJO: new Date("2026-05-28") se parsea como UTC midnight, lo que en
     // Argentina (UTC-3) corre el límite y deja afuera pedidos de la noche.
     // Por eso armarQuery fuerza parseo en hora LOCAL agregando 'T00:00:00'.
-    let [resPedidos, resRecetas] = await Promise.all([
-      query,
-      supabase
-        .from('recetas')
-        .select('*, receta_ingredientes!receta_id(*, stock(id, nombre, unidad, stock_actual, precio_unitario, rendimiento, tipo_stock, receta_id))')
-        .order('nombre'),
-    ])
+    let resPedidos = await query
 
     if (resPedidos.error && /servido_at|enviado_cocina/i.test(resPedidos.error.message || '')) {
       query = armarQuery(COLS_ITEMS_VIEJAS)
@@ -191,8 +140,6 @@ export function usePedidos(options = {}) {
       }
       setPedidos(list)
     }
-
-    if (!resRecetas.error) setRecetas(resRecetas.data || [])
 
     setLoading(false)
   }, [mode, dateFrom, dateTo])
@@ -425,98 +372,14 @@ export function usePedidos(options = {}) {
     return await aplicarExtras(data)
   }
 
-  const descontarStockPedido = async (pedidoId) => {
-    if (!ENABLE_ORDER_STOCK_DISCOUNT) return null
-
-    const pedido = pedidos.find(p => p.id === pedidoId)
-    if (!pedido || pedido.stock_descontado) return
-
-    const items = pedido.pedido_items || []
-    const descuentoTotal = []
-
-    for (const item of items) {
-      if (!item.menu_item_id) continue
-
-      const receta = recetas.find(r => r.menu_item_id === item.menu_item_id)
-      if (!receta) continue
-
-      let piezasPorUnidad = 1
-
-      if (item.variante_id) {
-        const { data: variante } = await supabase
-          .from('menu_item_variantes')
-          .select('piezas')
-          .eq('id', item.variante_id)
-          .single()
-
-        if (variante) {
-          piezasPorUnidad = parseFloat(variante.piezas) || 1
-        }
-      }
-
-      const totalPorciones = piezasPorUnidad * (item.cantidad || 1)
-
-      const ingredientes = mergeIngredientes(
-        calcularIngredientesCrudos(receta, totalPorciones, recetas)
-      )
-
-      for (const ing of ingredientes) {
-        if (ing.cantidad <= 0) continue
-        const { error: rpcErr } = await supabase.rpc('descontar_stock_produccion', {
-          p_stock_id: ing.stock_id,
-          p_cantidad: ing.cantidad,
-          p_notas: `Pedido #${pedidoId.slice(-4).toUpperCase()}: ${item.cantidad}× ${item.nombre}`,
-        })
-        if (rpcErr) return rpcErr
-        descuentoTotal.push({
-          stock_id: ing.stock_id,
-          nombre: ing.nombre,
-          unidad: ing.unidad,
-          cantidad: ing.cantidad,
-          item: item.nombre,
-        })
-      }
-    }
-
-    if (descuentoTotal.length > 0) {
-      const { error } = await supabase.from('pedidos').update({
-        stock_descontado: true,
-        descuento_detalle: descuentoTotal,
-      }).eq('id', pedidoId)
-      if (error) return error
-    }
-
-    return null
-  }
-
-  const revertirStockPedido = async (pedidoId) => {
-    const pedido = pedidos.find(p => p.id === pedidoId)
-    if (!pedido?.stock_descontado || !pedido.descuento_detalle) return
-
-    for (const det of pedido.descuento_detalle) {
-      const { error } = await supabase.rpc('revertir_stock_produccion', {
-        p_stock_id: det.stock_id,
-        p_cantidad: det.cantidad,
-        p_notas: `Revertido pedido #${pedidoId.slice(-4).toUpperCase()}: ${det.item || det.nombre}`,
-      })
-      if (error) return error
-    }
-
-    const { error } = await supabase.from('pedidos').update({
-      stock_descontado: false,
-      descuento_detalle: null,
-    }).eq('id', pedidoId)
-    return error
-  }
+  // El stock por venta lo descuenta la BASE (trigger trg_pedidos_stock_por_estado,
+  // migración 20260929000000): al pasar a 'entregado' descuenta con la regla de
+  // los tres niveles y al salir de 'entregado' (cancelar / reabrir) lo devuelve.
+  // Así cubre todos los caminos: cerrar mesa, delivery, take away y web.
 
   const avanzarEstado = async (id, estadoActual) => {
     const siguiente = ESTADO_SIGUIENTE[estadoActual]
     if (!siguiente) return
-
-    if (siguiente === 'entregado') {
-      const stockError = await descontarStockPedido(id)
-      if (stockError) return stockError
-    }
 
     const { error } = await supabase.rpc('avanzar_estado_pedido', {
       p_pedido_id: id,
@@ -532,11 +395,6 @@ export function usePedidos(options = {}) {
     const pedido = pedidos.find(p => p.id === id)
     if (!pedido) return new Error('Pedido no encontrado')
     if (pedido.estado === 'cancelado') return new Error('No se puede cerrar un pedido cancelado')
-
-    if (!pedido.stock_descontado) {
-      const stockError = await descontarStockPedido(id)
-      if (stockError) return stockError
-    }
 
     let { error: updateError } = await supabase
       .from('pedidos')
@@ -559,13 +417,6 @@ export function usePedidos(options = {}) {
   }
 
   const cancelarPedido = async (id) => {
-    const pedido = pedidos.find(p => p.id === id)
-
-    if (pedido?.stock_descontado) {
-      const stockError = await revertirStockPedido(id)
-      if (stockError) return stockError
-    }
-
     const { error } = await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', id)
     if (!error) fetchPedidos()
     return error
@@ -813,7 +664,9 @@ export function usePedidos(options = {}) {
     }
 
     // Auto-envío a cocina (mismo comportamiento que las mesas).
-    await supabase.rpc('enviar_a_cocina', { p_pedido_id: pedidoId }).catch(() => null)
+    // Los builders de supabase-js no tienen .catch(): el error viene en { error }.
+    // Si falla, los ítems quedan "por enviar" y se pueden mandar a mano.
+    await supabase.rpc('enviar_a_cocina', { p_pedido_id: pedidoId })
 
     await recalcularTotalPedido(pedidoId)
     fetchPedidos()
