@@ -3,6 +3,7 @@ import { AlertTriangle, Loader2, Receipt, X } from 'lucide-react'
 import {
   COND_IVA_RECEPTOR,
   COND_IVA_RECEPTOR_LABEL,
+  CONDICIONES_FACTURA_A,
   DOC_TIPO,
   RECEPTOR_CONSUMIDOR_FINAL,
   TIPO_CBTE,
@@ -14,15 +15,12 @@ import { formatMoney } from '../../lib/printing'
 
 const TIPOS_DISPONIBLES = [
   { id: TIPO_CBTE.FACTURA_B, label: 'Factura B', detail: 'Consumidor Final' },
-  { id: TIPO_CBTE.FACTURA_A, label: 'Factura A', detail: 'Responsable Inscripto' },
+  { id: TIPO_CBTE.FACTURA_A, label: 'Factura A', detail: 'Empresa con CUIT' },
 ]
 
-const CONDICIONES_RECEPTOR_A = [
-  COND_IVA_RECEPTOR.RESPONSABLE_INSCRIPTO,
-  COND_IVA_RECEPTOR.MONOTRIBUTO,
-  COND_IVA_RECEPTOR.IVA_SUJETO_EXENTO,
-  COND_IVA_RECEPTOR.SUJETO_NO_CATEGORIZADO,
-]
+// Factura A solo va a Responsable Inscripto o Monotributo (exento y no
+// categorizado reciben Factura B; ARCA rechaza A para ellos).
+const CONDICIONES_RECEPTOR_A = CONDICIONES_FACTURA_A
 
 export function FacturarModal({ open, pedido, busy, permiteFacturaA = true, onClose, onConfirm }) {
   const [tipo, setTipo] = useState(TIPO_CBTE.FACTURA_B)

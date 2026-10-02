@@ -17,6 +17,8 @@ import { useFacturacion } from '../../hooks/useFacturacion'
 import { getAuthorizedComprobante } from '../../lib/fiscal'
 import { formatMoney } from '../../lib/printing'
 import SplitPagoLines, { nuevaLinea, lineasValidas, lineasAPagos, resumenMedios } from './SplitPagoLines'
+import ElegirComprobante from '../caja/ElegirComprobante'
+import { comprobanteInicial, opcionesFactura, validarComprobante } from '../../lib/comprobante'
 
 const MEDIOS_PAGO = [
   { id: 'efectivo',         label: 'Efectivo',          icon: Banknote,   color: '#34d399' },
@@ -36,6 +38,7 @@ const TARJETAS = new Set(['tarjeta_credito', 'tarjeta_debito'])
 
 export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedido, title = 'Cerrar pedido' }) {
   const {
+    config,
     arcaReady,
     facturarEImprimir,
     imprimirTicket,
@@ -50,6 +53,7 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
   const [error, setError] = useState(null)
   const [dividir, setDividir] = useState(false)
   const [lineas, setLineas] = useState([])
+  const [factura, setFactura] = useState(comprobanteInicial())
 
   const comprobanteAutorizado = useMemo(
     () => (pedido ? getAuthorizedComprobante(pedido) : null),
@@ -65,6 +69,8 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
     setError(null)
     setDividir(false)
     setLineas([nuevaLinea('efectivo', Math.round(Number(pedido?.total || 0)))])
+    setFactura(comprobanteInicial(pedido))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, pedido?.id, pedido?.total])
 
   if (!open || !pedido) return null
@@ -87,6 +93,10 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
       setError('ARCA no esta configurado para emitir ticket fiscal.')
       return
     }
+    if (ticket === 'fiscal' && !comprobanteAutorizado) {
+      const errFactura = validarComprobante(factura)
+      if (errFactura) { setError(errFactura); return }
+    }
 
     setLoading(true)
     setError(null)
@@ -97,7 +107,7 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
         if (comprobanteAutorizado) {
           await imprimirTicket(pedido, comprobanteAutorizado, medioTicket)
         } else {
-          comprobanteUsado = await facturarEImprimir(pedido, { medio_pago: medioTicket })
+          comprobanteUsado = await facturarEImprimir(pedido, { ...opcionesFactura(factura), medio_pago: medioTicket })
         }
       } else if (ticket === 'no_fiscal') {
         await imprimirTicketNoFiscal(pedido, medioTicket)
@@ -261,6 +271,16 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
                 )
               })}
             </div>
+            {ticket === 'fiscal' && !comprobanteAutorizado && fiscalDisponible && (
+              <div className="mt-3">
+                <ElegirComprobante
+                  value={factura}
+                  onChange={f => { setFactura(f); setError(null) }}
+                  permiteFacturaA={Boolean(config?.permite_factura_a)}
+                  disabled={loading}
+                />
+              </div>
+            )}
           </section>
 
           {error && (

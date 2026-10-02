@@ -18,6 +18,8 @@ import { formatMoney } from '../../lib/printing'
 import { applyStoredDiscount } from '../../lib/orders'
 import SplitPagoLines, { nuevaLinea, lineasValidas, lineasAPagos, resumenMedios } from '../pedidos/SplitPagoLines'
 import CobroPorConsumo, { nuevaCuenta, cuentasAPagos, desgloseFromCuentas } from './CobroPorConsumo'
+import ElegirComprobante from '../caja/ElegirComprobante'
+import { comprobanteInicial, opcionesFactura, validarComprobante } from '../../lib/comprobante'
 
 /**
  * Modal de cobro de mesa.
@@ -58,6 +60,7 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
   const [cuentas, setCuentas] = useState([])
   const [asignacion, setAsignacion] = useState({})
   const [consumoResult, setConsumoResult] = useState({ computed: [], valido: false })
+  const [factura, setFactura] = useState(comprobanteInicial())
 
   // Reset al abrir
   useEffect(() => {
@@ -72,6 +75,8 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
     setCuentas(Array.from({ length: n }, (_, i) => nuevaCuenta(i + 1)))
     setAsignacion({})
     setConsumoResult({ computed: [], valido: false })
+    setFactura(comprobanteInicial(pedido))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, pedido?.id, pedido?.total, pedido?.personas])
 
   const comprobanteAutorizado = useMemo(
@@ -155,13 +160,23 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
     return null
   })
 
-  const handleFacturar = () => runAction('factura', async () => {
-    if (comprobanteAutorizado) {
-      await imprimirTicket(pedido, comprobanteAutorizado, medioTicket, { desglose: desgloseConsumo })
-      return comprobanteAutorizado
+  const handleFacturar = () => {
+    if (!comprobanteAutorizado) {
+      const errFactura = validarComprobante(factura)
+      if (errFactura) { setError(errFactura); return }
     }
-    return await facturarEImprimir(pedido, { medio_pago: medioTicket, desglose: desgloseConsumo })
-  })
+    return runAction('factura', async () => {
+      if (comprobanteAutorizado) {
+        await imprimirTicket(pedido, comprobanteAutorizado, medioTicket, { desglose: desgloseConsumo })
+        return comprobanteAutorizado
+      }
+      return await facturarEImprimir(pedido, {
+        ...opcionesFactura(factura),
+        medio_pago: medioTicket,
+        desglose: desgloseConsumo,
+      })
+    })
+  }
 
   const handleCerrarSinImprimir = () => runAction('cerrar', async () => null)
 
@@ -324,6 +339,15 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
             )}
           </div>
 
+          {arcaReady && !comprobanteAutorizado && (
+            <ElegirComprobante
+              value={factura}
+              onChange={f => { setFactura(f); setError(null) }}
+              permiteFacturaA={Boolean(config?.permite_factura_a)}
+              disabled={Boolean(loadingAction)}
+            />
+          )}
+
           {error && (
             <div
               className="rounded-lg px-3 py-2 text-xs flex items-start gap-2"
@@ -361,7 +385,7 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
                 ? <><Loader2 size={14} className="animate-spin" /> Procesando…</>
                 : comprobanteAutorizado
                   ? <><Receipt size={14} /> Re-imprimir factura + cerrar mesa</>
-                  : <><Receipt size={14} /> Facturar + ticket fiscal + cerrar mesa</>
+                  : <><Receipt size={14} /> Factura {factura.tipo} + ticket fiscal + cerrar mesa</>
               }
             </button>
           </div>

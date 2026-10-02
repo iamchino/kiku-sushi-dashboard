@@ -40,6 +40,12 @@ export const COND_IVA_RECEPTOR = {
   MONOTRIBUTO_PROMOVIDO: 16,
 }
 
+// Condiciones del receptor que admiten Factura A (las demas van con B).
+export const CONDICIONES_FACTURA_A = [
+  COND_IVA_RECEPTOR.RESPONSABLE_INSCRIPTO,
+  COND_IVA_RECEPTOR.MONOTRIBUTO,
+]
+
 export const COND_IVA_RECEPTOR_LABEL = {
   [COND_IVA_RECEPTOR.RESPONSABLE_INSCRIPTO]: 'Responsable Inscripto',
   [COND_IVA_RECEPTOR.IVA_SUJETO_EXENTO]: 'IVA Sujeto Exento',
@@ -110,6 +116,33 @@ export function validateCuit(value) {
   const mod = sum % 11
   const expected = mod === 0 ? 0 : mod === 1 ? 9 : 11 - mod
   return expected === Number(digits[10])
+}
+
+/**
+ * Fecha de hoy en Argentina (YYYY-MM-DD). No usar toISOString(): eso es UTC y
+ * despues de las 21 h ya da el dia siguiente.
+ */
+export function fechaHoyAR(now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(now)
+}
+
+/**
+ * Arma un mensaje legible con lo que respondio ARCA. El motivo real de un
+ * rechazo suele venir en las observaciones (Obs), no en los errores (Err):
+ * sin esto el usuario solo ve "[-1] ARCA no devolvio CAE".
+ */
+export function mensajeRechazoArca(result) {
+  const fmt = arr => (Array.isArray(arr) ? arr : [])
+    .filter(x => x && (x.Msg || x.msg))
+    .map(x => `[${x.Code ?? x.code ?? '?'}] ${x.Msg ?? x.msg}`)
+  const obs = fmt(result?.observaciones)
+  const errs = fmt(result?.errores).filter(e => !e.startsWith('[-1] ARCA no devolvi'))
+  const partes = [...errs, ...obs]
+  if (partes.length) return `ARCA rechazó la factura: ${partes.join(' · ')}`
+  return result?.error || result?.message || 'ARCA rechazó o no respondió la solicitud.'
 }
 
 export function splitTax(total, ivaRate = 21) {
@@ -236,7 +269,7 @@ export function buildFiscalRequest(pedido, config, options = {}) {
     tipo_cbte: tipoCbte,
     letra,
     concepto,
-    fecha_emision: options.fecha_emision || new Date().toISOString().slice(0, 10),
+    fecha_emision: options.fecha_emision || fechaHoyAR(),
     receptor: {
       condicion_iva: receptor.condicion_iva,
       condicion_iva_id: receptor.condicion_iva_id,
@@ -280,7 +313,7 @@ export function normalizeComprobanteResponse(result, pedido, config, options = {
     tipo_cbte: tipoCbte,
     punto_venta: Number(raw.punto_venta ?? raw.pto_vta ?? raw.ptoVta ?? config?.punto_venta ?? 0),
     numero: Number(raw.numero ?? raw.nro_cbte ?? raw.nroCmp ?? raw.cbte_nro ?? 0),
-    fecha_emision: raw.fecha_emision || raw.fecha || new Date().toISOString().slice(0, 10),
+    fecha_emision: raw.fecha_emision || raw.fecha || fechaHoyAR(),
     concepto: Number(raw.concepto || 1),
     doc_tipo: Number(raw.doc_tipo ?? raw.tipo_doc_rec ?? 99),
     doc_nro: String(raw.doc_nro ?? raw.nro_doc_rec ?? '0'),

@@ -10,6 +10,7 @@ import {
   getAuthorizedComprobante,
   getNotasCredito,
   letraFromTipo,
+  mensajeRechazoArca,
   normalizeComprobanteResponse,
 } from '../lib/fiscal'
 import { printComanda, printCustomerTicket, printFiscalTicket } from '../lib/printing'
@@ -374,7 +375,7 @@ export function useFacturacion(options = {}) {
 
     const result = await response.json().catch(() => ({}))
     if (!response.ok) {
-      throw new Error(result?.error || result?.message || 'ARCA rechazo o no respondio la solicitud.')
+      throw new Error(mensajeRechazoArca(result))
     }
 
     // Caso 1: backend nuevo ya insertó el comprobante en Supabase

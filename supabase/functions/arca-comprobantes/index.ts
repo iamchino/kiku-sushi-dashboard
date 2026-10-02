@@ -241,6 +241,13 @@ Deno.serve(async (req) => {
 
   // 4) Persistir comprobante (autorizado o rechazado, lo dejamos como histórico)
   if (cae.result.resultado !== 'A' || !cae.result.cae) {
+    // El motivo real del rechazo suele venir en las Observaciones, no en Err.
+    const motivos = [
+      ...(cae.result.errores || []).filter(e => !(e.Code === -1 && (cae.result.observaciones || []).length)),
+      ...(cae.result.observaciones || []),
+    ].map(e => `[${e.Code}] ${e.Msg}`)
+    const motivoRechazo = motivos.join('; ') || 'ARCA rechazó el comprobante.'
+
     // Guardar como rechazado para tener traza
     await supabaseAdmin.from('comprobantes_fiscales').insert({
       pedido_id: payload.pedido_id,
@@ -263,12 +270,11 @@ Deno.serve(async (req) => {
       cotizacion: payload.cotizacion || 1,
       arca_request: payload,
       arca_response: cae.result,
-      error_mensaje:
-        cae.result.errores?.map(e => `[${e.Code}] ${e.Msg}`).join('; ') || 'ARCA rechazó el comprobante.',
+      error_mensaje: motivoRechazo,
     })
 
     return errorResponse(
-      cae.result.errores?.map(e => `[${e.Code}] ${e.Msg}`).join('; ') || 'ARCA rechazó el comprobante.',
+      motivoRechazo,
       422,
       {
         observaciones: cae.result.observaciones,
