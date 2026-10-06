@@ -157,8 +157,27 @@ async function sendOne(sub: Sub, payload: string, pub: string, priv: string, sub
 }
 
 // ── Handler ─────────────────────────────────────────────────────────────────
+// Secreto compartido con la base (private.config.push_web_secret). Sin él,
+// cualquiera con la URL podía hacer sonar los teléfonos de cocina y mozos
+// con avisos falsos. Si la variable no está configurada todavía, se acepta
+// y se avisa por log, para que el deploy no corte las notificaciones.
+function autorizado(req: Request): boolean {
+  const esperado = Deno.env.get("PUSH_WEB_SECRET") ?? "";
+  if (!esperado) {
+    console.warn("[push-web] PUSH_WEB_SECRET no configurado: aceptando sin verificar");
+    return true;
+  }
+  const recibido = req.headers.get("x-push-secret") ?? "";
+  if (recibido.length !== esperado.length) return false;
+  let diff = 0;
+  for (let i = 0; i < esperado.length; i++) diff |= recibido.charCodeAt(i) ^ esperado.charCodeAt(i);
+  return diff === 0;
+}
+
 Deno.serve(async (req) => {
   try {
+    if (req.method !== "POST") return new Response("method", { status: 405 });
+    if (!autorizado(req)) return new Response("unauthorized", { status: 401 });
     const payload = (await req.json()) as WebhookPayload;
     if (payload.table !== "pedidos" && payload.table !== "pedido_items") {
       return new Response("ignored", { status: 200 });

@@ -109,6 +109,18 @@ Deno.serve(async (req) => {
     return errorResponse('Sesión inválida o expirada.', 401)
   }
 
+  // Y que ese usuario pueda cobrar según la matriz de permisos (misma regla
+  // que el botón de Caja). Antes alcanzaba con estar logueado: un usuario de
+  // cocina podía emitir facturas llamando a esta URL.
+  const supabaseUser = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+    global: { headers: { Authorization: `Bearer ${userJwt}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  const { data: puedeCobrar, error: permError } = await supabaseUser.rpc('puede_cobrar')
+  if (permError || puedeCobrar !== true) {
+    return errorResponse('Tu usuario no tiene permiso para facturar.', 403)
+  }
+
   // Parsear body
   let payload: FiscalRequestPayload
   try {
