@@ -48,6 +48,7 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
       setImagePreview(item.imagen_url || null)
       // Cargar variantes existentes
       setVariantes((item.menu_item_variantes || []).map(v => ({
+        id: v.id,  // se conserva: así editar no borra y recrea las variantes
         nombre: v.nombre || '',
         piezas: String(v.piezas || 1),
         precio: String(v.precio || 0),

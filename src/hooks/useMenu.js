@@ -132,26 +132,58 @@ export function useMenu(tipo) {
     // 20260627000000_sync_precio_especial_producto.sql), que manejan bien el
     // tipo TEXT del precio y cubren todos los caminos (incluido el ajuste masivo).
 
-    // Si se enviaron variantes, reemplazar todas
+    // Variantes: se sincronizan por id en vez de borrar todas y recrearlas.
+    // Antes, editar un producto cuyas variantes ya se habían vendido fallaba:
+    // pedido_items.variante_id apunta a la variante y la base no deja borrarla.
+    // Además, conservar el id mantiene el vínculo con los pedidos abiertos
+    // (el descuento de stock usa las piezas de la variante).
     if (variantes !== undefined) {
-      // Borrar las anteriores
-      const { error: deleteError } = await supabase
+      const { data: actuales, error: readError } = await supabase
         .from('menu_item_variantes')
-        .delete()
+        .select('id')
         .eq('menu_item_id', id)
-      if (deleteError) return deleteError
+      if (readError) return readError
 
-      // Insertar las nuevas
-      if (variantes?.length > 0) {
-        const rows = variantes.map((v, i) => ({
-          menu_item_id: id,
-          nombre: v.nombre,
-          piezas: parseFloat(v.piezas) || 1,
-          precio: parseCurrencyValue(v.precio),
-          orden: i,
-        }))
-        const { error: e2 } = await supabase.from('menu_item_variantes').insert(rows)
-        if (e2) return e2
+      const lista = (variantes || []).map((v, i) => ({
+        id: v.id || null,
+        menu_item_id: id,
+        nombre: v.nombre,
+        piezas: parseFloat(v.piezas) || 1,
+        precio: parseCurrencyValue(v.precio),
+        orden: i,
+      }))
+      const idsActuales = new Set((actuales || []).map(v => v.id))
+      const quedan = new Set(lista.filter(v => v.id && idsActuales.has(v.id)).map(v => v.id))
+
+      // 1) Actualizar las que siguen
+      for (const v of lista.filter(x => x.id && idsActuales.has(x.id))) {
+        const { id: varId, ...campos } = v
+        const { error: upError } = await supabase
+          .from('menu_item_variantes')
+          .update(campos)
+          .eq('id', varId)
+        if (upError) return upError
+      }
+
+      // 2) Crear las nuevas
+      const nuevas = lista
+        .filter(x => !x.id || !idsActuales.has(x.id))
+        .map(({ id: _omit, ...campos }) => { void _omit; return campos })
+      if (nuevas.length > 0) {
+        const { error: insError } = await supabase.from('menu_item_variantes').insert(nuevas)
+        if (insError) return insError
+      }
+
+      // 3) Borrar las que se sacaron. Si ya se vendieron, la base deja el
+      //    pedido con el nombre y el precio guardados y la referencia en null
+      //    (migración 20261006010000).
+      const borrar = [...idsActuales].filter(vid => !quedan.has(vid))
+      if (borrar.length > 0) {
+        const { error: delError } = await supabase
+          .from('menu_item_variantes')
+          .delete()
+          .in('id', borrar)
+        if (delError) return delError
       }
     }
 

@@ -9,7 +9,8 @@
 //      instantáneo y suena fuerte con la app en primer plano. Queda como
 //      refuerzo; `tag` por pedido evita que se dupliquen en pantalla.
 //
-//   cocina / admin: INSERT en pedidos       → "🔥 Nuevo pedido"
+//   cocina / admin: INSERT en pedidos       → "🔥 Nuevo pedido" (mesas: al mandar
+//                   los primeros platos, no al abrirla)
 //   mozo   / admin: pedido pasa a 'listo'   → "🍣 Listo para servir"
 //
 // Los navegadores exigen un gesto del usuario para pedir permiso y para
@@ -251,11 +252,30 @@ function suscribirRealtime(role) {
       { event: 'INSERT', schema: 'public', table: 'pedidos' },
       (payload) => {
         const p = payload.new || {}
+        // Mesa recién abierta: no hay nada que cocinar. Avisa el primer envío
+        // de platos (ver la notificación de abajo).
+        if (p.mesa_id) return
         const shortId = String(p.id || '').slice(-4).toUpperCase()
         notificar(
           '🔥 Nuevo pedido',
           p.mesa ? `Mesa ${p.mesa} hizo un pedido` : `Pedido #${shortId} (${p.canal || 'mostrador'})`,
           { tag: `pedido-${p.id}`, url: '/operaciones' },
+        )
+      },
+    )
+    // Primer envío de platos de una mesa: enviar_a_cocina() deja una
+    // notificación 'pedido_nuevo' con mesa_id. Mismo tag que el push, así el
+    // celular no muestra dos avisos.
+    channel.on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'notificaciones' },
+      (payload) => {
+        const n = payload.new || {}
+        if (n.tipo !== 'pedido_nuevo' || !n.metadata?.mesa_id) return
+        notificar(
+          '🔥 Nuevo pedido',
+          `Mesa ${n.metadata.mesa ?? ''}: ${n.mensaje || 'platos nuevos'}`,
+          { tag: `pedido-${n.referencia_id}`, url: '/operaciones' },
         )
       },
     )
