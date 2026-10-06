@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
-import { Plus, Trash2, KeyRound, UserCog, AlertTriangle, Loader2 } from 'lucide-react'
+import { Plus, Trash2, KeyRound, UserCog, AlertTriangle, Loader2, ShieldCheck, ShieldOff } from 'lucide-react'
 import { useUsuarios } from '../../hooks/useUsuarios'
 import { supabase } from '../../lib/supabase'
 import { ModalShell, Field, Select } from '../finanzas/fields'
 import ConfirmDelete from '../finanzas/ConfirmDelete'
+import AccesosPanel from './AccesosPanel'
 
 const ROLES = [
   { value: 'empleado', label: 'Empleado (solo fichaje)' },
@@ -31,7 +32,7 @@ const nombreDe = (e) => `${e.nombre} ${e.apellido || ''}`.trim()
 export default function UsuariosSection({ empleados }) {
   const {
     usuarios, loading, error,
-    crearUsuario, eliminarUsuario, cambiarPassword, cambiarRol, vincularEmpleado,
+    crearUsuario, eliminarUsuario, cambiarPassword, cambiarRol, resetearMfa, vincularEmpleado,
   } = useUsuarios()
 
   const [nuevo, setNuevo]       = useState(false)
@@ -168,6 +169,16 @@ export default function UsuariosSection({ empleados }) {
                     <p className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>
                       {u.email}
                       {u.es_yo && <span className="ml-2 text-[10px]" style={{ color: 'var(--text-xmuted)' }}>(vos)</span>}
+                      <span
+                        className="ml-2 inline-flex items-center gap-1 align-middle text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                        title={u.mfa ? 'Segundo factor activo' : 'Sin segundo factor'}
+                        style={u.mfa
+                          ? { background: 'var(--ok-soft)', color: 'var(--ok)' }
+                          : { background: 'var(--bg-input)', color: 'var(--text-xmuted)' }}
+                      >
+                        {u.mfa ? <ShieldCheck size={10} /> : <ShieldOff size={10} />}
+                        {u.mfa ? '2FA' : 'sin 2FA'}
+                      </span>
                     </p>
 
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -209,6 +220,20 @@ export default function UsuariosSection({ empleados }) {
                   </div>
 
                   <div className="flex items-center gap-1 flex-shrink-0">
+                    {u.mfa && (
+                      <button
+                        onClick={() => setConfirmar({
+                          userId: u.id,
+                          texto: `¿Reseteás el segundo factor de ${u.email}? Se le cierran las sesiones y en el próximo ingreso vuelve a escanear el QR. Hacelo solo si cambió de celular o perdió el autenticador.`,
+                          onOk: () => correr(u.id, () => resetearMfa(u.id), `2FA de ${u.email} reseteado. Al entrar va a configurar el autenticador de nuevo.`),
+                        })}
+                        title="Resetear segundo factor"
+                        className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        <ShieldOff size={13} />
+                      </button>
+                    )}
                     <button onClick={() => setPassUser(u)} title="Cambiar contraseña"
                       className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
@@ -250,6 +275,8 @@ export default function UsuariosSection({ empleados }) {
           })}
         </div>
       )}
+
+      <AccesosPanel />
 
       {nuevo && (
         <UsuarioModal

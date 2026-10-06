@@ -39,6 +39,9 @@ import NotifStatusBanner from './components/NotifStatusBanner'
 import PrinterStatusBanner from './components/PrinterStatusBanner'
 import { initNative } from './lib/native'
 import { initWebNotifs } from './lib/webNotifs'
+import MfaGate from './components/auth/MfaGate'
+import { rolesConMfa } from './lib/mfa'
+import { useCierrePorInactividad, limpiarActividad } from './hooks/useCierrePorInactividad'
 
 function AdminLayout({ children }) {
   const role = useRole()
@@ -188,14 +191,23 @@ function AppRoutes() {
 export default function App() {
   const [session, setSession] = useState(undefined)
   const [role, setRole] = useState(DEFAULT_ROLE)
+  const [rolesMfa, setRolesMfa] = useState(['admin', 'finanzas'])
   const loadPrinterConfig = usePrinterStore(s => s.load)
+
+  // Qué roles exigen segundo factor (lo define la base). Decide también el
+  // límite de inactividad: 12 h para esos roles, 7 días para el resto.
+  useEffect(() => {
+    if (session) rolesConMfa().then(setRolesMfa)
+  }, [session])
+  useCierrePorInactividad({ activo: Boolean(session), sensible: rolesMfa.includes(role) })
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       setRole(getRoleFromUser(data.session?.user))
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((evento, s) => {
+      if (evento === 'SIGNED_OUT') limpiarActividad()
       setSession(s)
       setRole(getRoleFromUser(s?.user))
     })
@@ -231,11 +243,15 @@ export default function App() {
     <ThemeProvider>
       <ErrorBoundary>
         <RoleContext.Provider value={role}>
-          <PermisosProvider rol={role} user={session?.user}>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </PermisosProvider>
+          {/* El segundo factor va ANTES de PermisosProvider: hasta pasar el
+              código, la base no le responde nada a admin/finanzas. */}
+          <MfaGate role={role}>
+            <PermisosProvider rol={role} user={session?.user}>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </PermisosProvider>
+          </MfaGate>
         </RoleContext.Provider>
       </ErrorBoundary>
     </ThemeProvider>

@@ -68,6 +68,14 @@ export function useUsuarios() {
     await fetchUsuarios()
   }, [fetchUsuarios])
 
+  // Resetear el segundo factor (cambió de celular, perdió el autenticador).
+  // En el próximo ingreso vuelve a escanear el QR.
+  const resetearMfa = useCallback(async (userId) => {
+    const data = await invocar({ action: 'mfa_reset', user_id: userId })
+    await fetchUsuarios()
+    return data
+  }, [fetchUsuarios])
+
   // Vincular/desvincular un login a una fila de empleados (directo por RLS).
   //
   // El .select('id') del final no es decorativo: cuando RLS bloquea un UPDATE,
@@ -95,5 +103,5 @@ export function useUsuarios() {
     await fetchUsuarios()
   }, [fetchUsuarios])
 
-  return { usuarios, loading, error, refetch: fetchUsuarios, crearUsuario, eliminarUsuario, cambiarPassword, cambiarRol, vincularEmpleado }
+  return { usuarios, loading, error, refetch: fetchUsuarios, crearUsuario, eliminarUsuario, cambiarPassword, cambiarRol, resetearMfa, vincularEmpleado }
 }

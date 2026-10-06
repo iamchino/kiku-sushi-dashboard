@@ -158,6 +158,9 @@ Deno.serve(async (req) => {
         role: (u.app_metadata as Record<string, unknown>)?.role ?? "cocina",
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at,
+        // Tiene 2FA activo si hay algún factor verificado.
+        mfa: Array.isArray((u as { factors?: Array<{ status?: string }> }).factors)
+          && (u as { factors?: Array<{ status?: string }> }).factors!.some((f) => f.status === "verified"),
         empleado: vinculos.get(u.id) ?? null,
         es_yo: u.id === callerId,
       }));
@@ -282,6 +285,26 @@ Deno.serve(async (req) => {
       const { error } = await admin.auth.admin.updateUserById(userId, { password });
       if (error) throw error;
       return jsonResponse({ ok: true });
+    }
+
+    // ── mfa_reset ─────────────────────────────────────────────────────────
+    // La persona cambió de celular o perdió el autenticador: se borran sus
+    // factores y en el próximo ingreso vuelve a escanear el QR. Se cierran
+    // sus sesiones para que no quede ninguna en aal2 colgada.
+    if (action === "mfa_reset") {
+      const userId = String(body.user_id ?? "");
+      if (!userId) return errorResponse("Falta user_id");
+
+      const { data: factores, error: listErr } = await admin.auth.admin.mfa.listFactors({ userId });
+      if (listErr) throw listErr;
+      let borrados = 0;
+      for (const f of factores?.factors ?? []) {
+        const { error: delErr } = await admin.auth.admin.mfa.deleteFactor({ id: f.id, userId });
+        if (delErr) throw delErr;
+        borrados += 1;
+      }
+      const { data: cerradas } = await caller.rpc("cerrar_sesiones_de_usuario", { p_user_id: userId });
+      return jsonResponse({ ok: true, factores_borrados: borrados, sesiones_cerradas: Number(cerradas ?? 0) });
     }
 
     return errorResponse(`Acción desconocida: ${action}`);
