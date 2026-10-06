@@ -79,7 +79,7 @@ export default function PagosPanel() {
         </div>
         <button onClick={() => { setAviso(null); setModal(true) }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           <Plus size={14} /> Registrar pago
         </button>
       </div>
@@ -116,7 +116,7 @@ export default function PagosPanel() {
 
       {error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           <AlertTriangle size={14} /> {error}
         </div>
       )}
@@ -161,7 +161,7 @@ export default function PagosPanel() {
                     </span>
                     <span style={{ color: 'var(--text-xmuted)' }}>{fmtFecha(p.fecha)} · {medioLabel(p.medio_pago)}</span>
                     {p.estado === 'pendiente' && (
-                      <span className="flex items-center gap-1" style={{ color: '#f59e0b' }}>
+                      <span className="flex items-center gap-1" style={{ color: '#E8A23F' }}>
                         <Clock size={10} /> pendiente{p.vencimiento ? ` · vence ${fmtFecha(p.vencimiento)}` : ''}
                       </span>
                     )}
@@ -241,8 +241,8 @@ function IconoAccion({ children, onClick, titulo, peligro, activo }) {
       className="rounded-lg p-1.5 transition-colors"
       style={{ color: activo ? 'var(--accent-lift)' : 'var(--text-muted)' }}
       onMouseEnter={e => {
-        e.currentTarget.style.background = peligro ? 'rgba(248,113,113,0.1)' : 'var(--bg-hover)'
-        if (peligro) e.currentTarget.style.color = '#f87171'
+        e.currentTarget.style.background = peligro ? 'rgba(242,112,140,0.1)' : 'var(--bg-hover)'
+        if (peligro) e.currentTarget.style.color = '#F2708C'
       }}
       onMouseLeave={e => {
         e.currentTarget.style.background = 'transparent'

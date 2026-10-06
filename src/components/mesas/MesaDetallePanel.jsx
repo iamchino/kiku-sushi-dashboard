@@ -209,7 +209,7 @@ export default function MesaDetallePanel({
       <div
         className="flex-shrink-0 px-4 py-3"
         style={{
-          background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
+          background: 'var(--cta)',
           color: '#ffffff',
         }}
       >
@@ -280,7 +280,7 @@ export default function MesaDetallePanel({
           el espacio de los productos de la mesa. */}
       {pedido && !facturada && tieneLibre && (
         <div className="flex-shrink-0 px-3 py-2 space-y-2"
-          style={{ borderBottom: '1px solid var(--border)', background: 'rgba(251,191,36,0.06)' }}>
+          style={{ borderBottom: '1px solid var(--border)', background: 'rgba(242,179,92,0.06)' }}>
 
           {/* Barra compacta — siempre visible: contador + botón Repe */}
           <div className="flex items-center gap-2">
@@ -317,7 +317,7 @@ export default function MesaDetallePanel({
               onClick={() => handleRondaKiku(1)}
               disabled={rondaBusy}
               className="h-11 px-5 rounded-xl flex items-center justify-center gap-1.5 text-base font-extrabold text-white disabled:opacity-50 active:scale-95 transition-transform flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+              style={{ background: 'linear-gradient(135deg, #E8A23F, #C98424)' }}
               title="Sumar repe e imprimir comanda"
             >
               {rondaBusy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Repe
@@ -356,7 +356,7 @@ export default function MesaDetallePanel({
                     onChange={e => setPlatos(e.target.value)}
                     onBlur={e => cambiarPlatos(e.target.value)}
                     className="w-14 h-11 rounded-xl text-center text-xl font-extrabold tabular-nums outline-none"
-                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: '#f59e0b' }}
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: '#E8A23F' }}
                   />
                   <button
                     type="button"
@@ -403,7 +403,7 @@ export default function MesaDetallePanel({
                       {[...rondasHistorial].reverse().map((h, idx) => (
                         <div key={idx} className="flex items-start gap-2 px-1.5 py-1 rounded" style={{ background: 'var(--bg-input)' }}>
                           <span className="text-[11px] font-extrabold tabular-nums flex-shrink-0 px-1 rounded"
-                            style={{ color: '#f59e0b', background: 'rgba(251,191,36,0.12)' }}
+                            style={{ color: '#E8A23F', background: 'rgba(242,179,92,0.12)' }}
                             title={`Repe ${h.ronda}`}>
                             #{h.ronda}
                           </span>
@@ -432,7 +432,7 @@ export default function MesaDetallePanel({
       <div className="flex-1 overflow-y-auto">
         {pedidoError && (
           <div className="mx-3 mt-3 rounded-lg p-2.5 text-xs flex items-start gap-2"
-            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+            style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.2)', color: '#F2708C' }}>
             <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold">Error al cargar el pedido</p>
@@ -448,8 +448,8 @@ export default function MesaDetallePanel({
         ) : !pedido ? (
           <div className="flex flex-col items-center justify-center py-12 px-6 text-center gap-4">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
-              style={{ background: mesa.estado_mesa === 'libre' ? 'var(--accent-soft)' : 'rgba(251,191,36,0.15)' }}>
-              <Users size={26} style={{ color: mesa.estado_mesa === 'libre' ? 'var(--accent-lift)' : '#fbbf24' }} />
+              style={{ background: mesa.estado_mesa === 'libre' ? 'var(--accent-soft)' : 'rgba(242,179,92,0.15)' }}>
+              <Users size={26} style={{ color: mesa.estado_mesa === 'libre' ? 'var(--accent-lift)' : '#F2B35C' }} />
             </div>
             <div>
               <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
@@ -468,8 +468,8 @@ export default function MesaDetallePanel({
                 onClick={() => onAbrirMesa?.(mesa)}
                 className="w-full mt-2 py-3 rounded-xl text-sm font-bold text-white transition-all hover:scale-[1.02]"
                 style={{
-                  background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-                  boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.35)',
+                  background: 'var(--cta)',
+                  boxShadow: 'var(--cta-shadow)',
                 }}
               >
                 Abrir mesa
@@ -569,7 +569,7 @@ export default function MesaDetallePanel({
                 ${formatMoney(total)}
               </p>
               {descuentoMonto > 0 && (
-                <p className="text-[10px] mt-0.5" style={{ color: '#34d399' }}>
+                <p className="text-[10px] mt-0.5" style={{ color: '#5FD3A3' }}>
                   Subt ${formatMoney(subtotal)} · descuento -${formatMoney(descuentoMonto)}
                 </p>
               )}
@@ -580,8 +580,8 @@ export default function MesaDetallePanel({
                 onClick={() => setShowDescuento(true)}
                 className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors flex-shrink-0"
                 style={{
-                  background: descuentoMonto > 0 ? 'rgba(52,211,153,0.1)' : 'var(--bg-input)',
-                  color: descuentoMonto > 0 ? '#34d399' : 'var(--text-muted)',
+                  background: descuentoMonto > 0 ? 'rgba(95,211,163,0.1)' : 'var(--bg-input)',
+                  color: descuentoMonto > 0 ? '#5FD3A3' : 'var(--text-muted)',
                   border: '1px solid var(--border)',
                 }}
                 title="Aplicar descuento / gift card"
@@ -592,7 +592,7 @@ export default function MesaDetallePanel({
           </div>
 
           {actionErr && (
-            <div className="mx-3 mt-2 rounded-md px-2 py-1.5 text-[11px] flex items-center gap-1.5" style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171' }}>
+            <div className="mx-3 mt-2 rounded-md px-2 py-1.5 text-[11px] flex items-center gap-1.5" style={{ background: 'rgba(227,77,107,0.08)', color: '#F2708C' }}>
               <AlertCircle size={11} /> {actionErr}
             </div>
           )}
@@ -681,7 +681,7 @@ export default function MesaDetallePanel({
                   onClick={handleCancelar}
                   disabled={cancelando}
                   className="flex-1 py-2 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
-                  style={{ background: 'transparent', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}
+                  style={{ background: 'transparent', color: '#F2708C', border: '1px solid rgba(227,77,107,0.25)' }}
                 >
                   {cancelando ? <Loader2 size={11} className="animate-spin" /> : <Ban size={11} />}
                   Cancelar mesa
@@ -756,7 +756,7 @@ export default function MesaDetallePanel({
 
 function IconButton({ icon: Icon, label, onClick, accent = false, danger = false, disabled = false, spin = false }) {
   const baseStyle = danger
-    ? { background: 'transparent', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }
+    ? { background: 'transparent', color: '#F2708C', border: '1px solid rgba(227,77,107,0.25)' }
     : accent
       ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
       : { background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }

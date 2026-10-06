@@ -21,10 +21,10 @@ import { formatMoney } from '../../lib/printing'
  */
 
 export const MEDIOS = [
-  { id: 'efectivo',        label: 'Efectivo',  icon: Banknote,   color: '#34d399' },
-  { id: 'tarjeta_credito', label: 'Crédito',   icon: CreditCard, color: '#f59e0b' },
+  { id: 'efectivo',        label: 'Efectivo',  icon: Banknote,   color: '#5FD3A3' },
+  { id: 'tarjeta_credito', label: 'Crédito',   icon: CreditCard, color: '#E8A23F' },
   { id: 'tarjeta_debito',  label: 'Débito',    icon: CreditCard, color: '#a78bfa' },
-  { id: 'transferencia',   label: 'Transf.',   icon: Send,       color: '#60a5fa' },
+  { id: 'transferencia',   label: 'Transf.',   icon: Send,       color: '#8FB2F2' },
 ]
 const TARJETAS = new Set(['tarjeta_credito', 'tarjeta_debito'])
 const medioLabelDe = (id) => MEDIOS.find(m => m.id === id)?.label || id
@@ -235,7 +235,7 @@ export default function CobroPorConsumo({
           const asignado = seleccionadas.size > 0
           return (
             <div key={it.id} className="rounded-lg p-2.5 space-y-2"
-              style={{ background: 'var(--bg-input)', border: `1px solid ${asignado ? 'var(--border)' : 'rgba(245,158,11,0.4)'}` }}>
+              style={{ background: 'var(--bg-input)', border: `1px solid ${asignado ? 'var(--border)' : 'rgba(232,162,63,0.4)'}` }}>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
                   {it.cantidad}x {it.nombre}
@@ -285,7 +285,7 @@ export default function CobroPorConsumo({
 
       {sinAsignar.length > 0 && (
         <div className="rounded-lg px-3 py-2 text-[11px] flex items-center gap-2"
-          style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' }}>
+          style={{ background: 'rgba(232,162,63,0.08)', border: '1px solid rgba(232,162,63,0.25)', color: '#E8A23F' }}>
           Falta asignar {sinAsignar.length} {sinAsignar.length === 1 ? 'ítem' : 'ítems'}: {sinAsignar.map(i => i.nombre).join(', ')}
         </div>
       )}
@@ -335,7 +335,7 @@ export default function CobroPorConsumo({
         <span style={{ color: 'var(--text-secondary)' }}>
           Suma ${formatMoney(computed.reduce((a, c) => a + c.total, 0))} de ${formatMoney(Math.round(Number(total || 0)))}
         </span>
-        <span className="font-bold" style={{ color: valido ? '#34d399' : '#f59e0b' }}>
+        <span className="font-bold" style={{ color: valido ? '#5FD3A3' : '#E8A23F' }}>
           {valido ? 'OK' : 'Revisá la división'}
         </span>
       </div>

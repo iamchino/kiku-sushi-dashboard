@@ -73,10 +73,10 @@ export default function ElegirComprobante({ value, onChange, permiteFacturaA = t
                 onChange={e => set({ cuit: e.target.value.replace(/[^\d-]/g, '') })}
                 placeholder="30712345678"
                 className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
-                style={{ ...inputStyle, border: `1px solid ${cuitMal ? '#f87171' : 'var(--border)'}` }}
+                style={{ ...inputStyle, border: `1px solid ${cuitMal ? '#F2708C' : 'var(--border)'}` }}
               />
               {cuitMal && (
-                <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>CUIT inválido, revisalo.</p>
+                <p className="text-[10px] mt-1" style={{ color: '#F2708C' }}>CUIT inválido, revisalo.</p>
               )}
             </div>
             <div>

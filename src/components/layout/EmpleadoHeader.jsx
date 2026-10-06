@@ -23,7 +23,7 @@ export default function EmpleadoHeader() {
       <div className="flex items-center gap-2">
         <div
           className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+          style={{ background: 'var(--cta)' }}
         >
           K
         </div>
@@ -51,7 +51,7 @@ export default function EmpleadoHeader() {
           title="Cerrar sesión"
           className="p-2 rounded-lg transition-colors"
           style={{ color: 'var(--text-muted)' }}
-          onMouseEnter={e => { e.currentTarget.style.color = '#f87171' }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#F2708C' }}
           onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)' }}
         >
           <LogOut size={15} />

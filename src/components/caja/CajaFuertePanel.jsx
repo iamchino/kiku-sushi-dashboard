@@ -48,7 +48,7 @@ export default function CajaFuertePanel() {
           )}
           <button onClick={() => abrir('agregar')}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+            style={{ background: 'var(--cta)' }}>
             <Plus size={14} /> Agregar dinero
           </button>
         </div>
@@ -85,7 +85,7 @@ export default function CajaFuertePanel() {
 
       {error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           <AlertTriangle size={14} /> {error}
         </div>
       )}
@@ -112,8 +112,8 @@ export default function CajaFuertePanel() {
                 style={{ background: 'var(--bg-app)', border: '1px solid var(--border-card)' }}>
                 <div className="min-w-0 flex items-center gap-2.5">
                   {suma
-                    ? <ArrowDownRight size={14} className="flex-shrink-0" style={{ color: '#34d399' }} />
-                    : <ArrowUpRight size={14} className="flex-shrink-0" style={{ color: '#f87171' }} />}
+                    ? <ArrowDownRight size={14} className="flex-shrink-0" style={{ color: '#5FD3A3' }} />
+                    : <ArrowUpRight size={14} className="flex-shrink-0" style={{ color: '#F2708C' }} />}
                   <div className="min-w-0">
                     <p className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>{m.descripcion}</p>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
@@ -129,13 +129,13 @@ export default function CajaFuertePanel() {
                         </span>
                       )}
                       {m.tipo === 'ajuste' && (
-                        <span style={{ color: '#f59e0b' }}>ajuste {m.categoria}</span>
+                        <span style={{ color: '#E8A23F' }}>ajuste {m.categoria}</span>
                       )}
                     </div>
                   </div>
                 </div>
                 <span className="text-sm font-semibold flex-shrink-0"
-                  style={{ color: suma ? '#34d399' : '#f87171' }}>
+                  style={{ color: suma ? '#5FD3A3' : '#F2708C' }}>
                   {suma ? '+' : '−'}{fmtMoney(m.monto)}
                 </span>
               </div>
@@ -242,17 +242,17 @@ function AgregarModal({ onClose, onSave, turnoAbierto, ultimoCierre }) {
 
         {origen === 'externo' && turnoAbierto && (
           <p className="text-[11px] px-3 py-2 rounded-lg flex items-start gap-1.5"
-            style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
+            style={{ background: 'rgba(232,162,63,0.1)', color: '#E8A23F' }}>
             <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
             <span>Esto NO descuenta de la caja del día. Si la plata sale de la caja
             abierta, elegí &quot;De la caja del día&quot;.</span>
           </p>
         )}
 
-        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
         <button onClick={handle} disabled={busy || !(Number(monto) > 0)}
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           {busy ? 'Registrando…' : origen === 'caja' ? 'Retirar de la caja y depositar' : 'Depositar efectivo externo'}
         </button>
       </div>
@@ -287,10 +287,10 @@ function AjusteModal({ onClose, onSave }) {
         </div>
         <TextArea label="Motivo" value={descripcion} onChange={setDescripcion} rows={2}
           placeholder="Conteo real, corrección…" />
-        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
         <button onClick={handle} disabled={busy || !(Number(monto) > 0) || !descripcion.trim()}
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           {busy ? 'Registrando…' : 'Registrar ajuste'}
         </button>
       </div>

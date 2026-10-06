@@ -24,8 +24,8 @@ function Elapsed({ createdAt, now }) {
 
   const colors = {
     normal:  { color: 'var(--text-xmuted)', bg: 'transparent' },
-    alta:    { color: '#fbbf24', bg: 'rgba(251,191,36,0.1)' },
-    critica: { color: '#f87171', bg: 'rgba(239,68,68,0.12)' },
+    alta:    { color: '#F2B35C', bg: 'rgba(242,179,92,0.1)' },
+    critica: { color: '#F2708C', bg: 'rgba(227,77,107,0.12)' },
   }[urgencia]
 
   return (
@@ -53,8 +53,8 @@ function PlatoCard({ pedido, listo, onServir, onServirItem, busy }) {
     <div
       className="rounded-2xl flex flex-col gap-3"
       style={{
-        background: listo ? 'rgba(52,211,153,0.07)' : 'rgba(79,142,247,0.05)',
-        border: `2px solid ${listo ? 'rgba(52,211,153,0.4)' : 'rgba(79,142,247,0.25)'}`,
+        background: listo ? 'rgba(95,211,163,0.07)' : 'rgba(127,166,240,0.05)',
+        border: `2px solid ${listo ? 'rgba(95,211,163,0.4)' : 'rgba(127,166,240,0.25)'}`,
         padding: '16px',
       }}
     >
@@ -63,7 +63,7 @@ function PlatoCard({ pedido, listo, onServir, onServirItem, busy }) {
           <span className="font-mono text-sm font-bold" style={{ color: 'var(--text-xmuted)' }}>#{shortId}</span>
           {pedido.mesa
             ? <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Mesa {pedido.mesa}</span>
-            : <span className="text-sm font-semibold capitalize" style={{ color: '#4f8ef7' }}>{pedido.canal}</span>
+            : <span className="text-sm font-semibold capitalize" style={{ color: '#7FA6F0' }}>{pedido.canal}</span>
           }
         </div>
         <Elapsed createdAt={pedido.created_at} now={now} />
@@ -78,12 +78,12 @@ function PlatoCard({ pedido, listo, onServir, onServirItem, busy }) {
           const servido = Boolean(item.servido_at)
           return (
             <div key={item.id} className="flex items-baseline gap-2.5">
-              <span className="flex-shrink-0 w-4 self-center" style={{ color: servido ? 'var(--text-xmuted)' : itemListo ? '#34d399' : 'var(--text-xmuted)' }}>
+              <span className="flex-shrink-0 w-4 self-center" style={{ color: servido ? 'var(--text-xmuted)' : itemListo ? '#5FD3A3' : 'var(--text-xmuted)' }}>
                 {itemListo ? <CheckCircle2 size={15} /> : <Circle size={15} />}
               </span>
               <span
                 className="text-lg font-black leading-none flex-shrink-0 w-7 text-right"
-                style={{ color: servido ? 'var(--text-xmuted)' : itemListo ? '#34d399' : '#4f8ef7' }}
+                style={{ color: servido ? 'var(--text-xmuted)' : itemListo ? '#5FD3A3' : '#7FA6F0' }}
               >
                 {item.cantidad}×
               </span>
@@ -96,7 +96,7 @@ function PlatoCard({ pedido, listo, onServir, onServirItem, busy }) {
               >
                 {item.nombre}
                 {item.notas && (
-                  <span className="block text-xs italic" style={{ color: '#fbbf24' }}>📝 {item.notas}</span>
+                  <span className="block text-xs italic" style={{ color: '#F2B35C' }}>📝 {item.notas}</span>
                 )}
               </span>
               {/* Cada plato se lleva por separado: "en mesa" de a uno. */}
@@ -105,7 +105,7 @@ function PlatoCard({ pedido, listo, onServir, onServirItem, busy }) {
                   onClick={() => onServirItem(item, pedido)}
                   disabled={busy}
                   className="flex-shrink-0 self-center text-[11px] font-bold px-2.5 py-1.5 rounded-lg text-white active:scale-95 disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+                  style={{ background: 'linear-gradient(135deg, #E8A23F, #C98424)' }}
                 >
                   EN MESA
                 </button>
@@ -114,7 +114,7 @@ function PlatoCard({ pedido, listo, onServir, onServirItem, busy }) {
           )
         })}
         {pedido.notas && (
-          <p className="text-xs italic pt-2 mt-1" style={{ color: '#fbbf24', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+          <p className="text-xs italic pt-2 mt-1" style={{ color: '#F2B35C', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
             📝 {pedido.notas}
           </p>
         )}
@@ -126,11 +126,11 @@ function PlatoCard({ pedido, listo, onServir, onServirItem, busy }) {
           disabled={busy}
           className="w-full flex items-center justify-center gap-2.5 rounded-xl font-bold text-white transition-all active:scale-95 disabled:opacity-50"
           style={{
-            background: 'linear-gradient(135deg, #34d399, #059669)',
+            background: 'linear-gradient(135deg, #5FD3A3, #2EA075)',
             padding: '14px 20px',
             fontSize: '15px',
             letterSpacing: '0.04em',
-            boxShadow: '0 4px 20px rgba(52,211,153,0.25)',
+            boxShadow: '0 4px 20px rgba(95,211,163,0.25)',
           }}
         >
           <CheckCircle2 size={20} />
@@ -249,13 +249,13 @@ export default function PlatosPage() {
           <BotonNotifs />
           {!connected && (
             <span className="flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full"
-              style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
+              style={{ background: 'rgba(227,77,107,0.1)', color: '#F2708C' }}>
               <WifiOff size={12} /> Sin conexión
             </span>
           )}
           {listos.length > 0 && (
             <span className="text-xs font-bold px-2.5 py-1 rounded-full animate-pulse"
-              style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}>
+              style={{ background: 'rgba(95,211,163,0.15)', color: '#5FD3A3', border: '1px solid rgba(95,211,163,0.3)' }}>
               {listos.length} para servir
             </span>
           )}
@@ -264,7 +264,7 @@ export default function PlatosPage() {
 
       {(error || actionError) && (
         <div className="px-4 py-2 text-sm"
-          style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.1)', color: '#F2708C' }}>
           ⚠️ {actionError || error}
         </div>
       )}
@@ -277,11 +277,11 @@ export default function PlatosPage() {
         <div className="flex flex-col lg:flex-row gap-6 p-4 lg:p-6">
           {/* Listos para servir — prioridad */}
           <section className="flex flex-col gap-3 flex-1 min-w-0">
-            <SectionHeader icon={CheckCircle2} label="Listos para servir" color="#34d399" count={listos.length} />
+            <SectionHeader icon={CheckCircle2} label="Listos para servir" color="#5FD3A3" count={listos.length} />
             {listos.length === 0 ? (
               <div className="flex flex-col items-center py-10 gap-2 opacity-25">
-                <ConciergeBell size={36} style={{ color: '#34d399' }} />
-                <p className="text-xs font-medium uppercase tracking-wide" style={{ color: '#34d399' }}>
+                <ConciergeBell size={36} style={{ color: '#5FD3A3' }} />
+                <p className="text-xs font-medium uppercase tracking-wide" style={{ color: '#5FD3A3' }}>
                   Nada para servir
                 </p>
               </div>
@@ -298,7 +298,7 @@ export default function PlatosPage() {
           {paraAdelantar.length > 0 && (
             <>
               <section className="flex flex-col gap-3 flex-1 min-w-0">
-                <SectionHeader icon={ConciergeBell} label="Para adelantar" color="#fbbf24" count={paraAdelantar.length} />
+                <SectionHeader icon={ConciergeBell} label="Para adelantar" color="#F2B35C" count={paraAdelantar.length} />
                 <p className="text-xs -mt-1 px-1" style={{ color: 'var(--text-xmuted)' }}>
                   El pedido no está completo, pero lo tildado ya se puede llevar.
                 </p>
@@ -312,11 +312,11 @@ export default function PlatosPage() {
 
           {/* En preparación — solo lectura */}
           <section className="flex flex-col gap-3 flex-1 min-w-0">
-            <SectionHeader icon={ChefHat} label="En preparación" color="#4f8ef7" count={enPreparacion.length} />
+            <SectionHeader icon={ChefHat} label="En preparación" color="#7FA6F0" count={enPreparacion.length} />
             {enPreparacion.length === 0 ? (
               <div className="flex flex-col items-center py-10 gap-2 opacity-25">
-                <Flame size={36} style={{ color: '#4f8ef7' }} />
-                <p className="text-xs font-medium uppercase tracking-wide" style={{ color: '#4f8ef7' }}>
+                <Flame size={36} style={{ color: '#7FA6F0' }} />
+                <p className="text-xs font-medium uppercase tracking-wide" style={{ color: '#7FA6F0' }}>
                   Cocina sin pendientes
                 </p>
               </div>

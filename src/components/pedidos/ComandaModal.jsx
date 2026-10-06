@@ -133,9 +133,9 @@ export default function ComandaModal({ open, onClose, pedido, items = [], titulo
           {resultado && (
             <div className="rounded-lg px-3 py-2 text-xs flex items-start gap-2"
               style={
-                resultado.tipo === 'ok' ? { background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }
-                : resultado.tipo === 'warn' ? { background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }
-                : { background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.15)' }
+                resultado.tipo === 'ok' ? { background: 'rgba(95,211,163,0.1)', color: '#5FD3A3', border: '1px solid rgba(95,211,163,0.2)' }
+                : resultado.tipo === 'warn' ? { background: 'rgba(242,179,92,0.1)', color: '#F2B35C', border: '1px solid rgba(242,179,92,0.2)' }
+                : { background: 'rgba(227,77,107,0.08)', color: '#F2708C', border: '1px solid rgba(227,77,107,0.15)' }
               }>
               {resultado.tipo === 'ok' ? <CheckCircle2 size={14} className="mt-0.5 shrink-0" /> : <AlertTriangle size={14} className="mt-0.5 shrink-0" />}
               {resultado.texto}
@@ -149,7 +149,7 @@ export default function ComandaModal({ open, onClose, pedido, items = [], titulo
             onClick={handleImprimir}
             disabled={printing || seleccionIds.length === 0}
             className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+            style={{ background: 'var(--cta)' }}
           >
             {printing ? <Loader2 size={15} className="animate-spin" /> : <ListChecks size={15} />}
             Imprimir comanda ({seleccionIds.length})

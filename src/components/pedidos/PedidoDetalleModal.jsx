@@ -21,14 +21,14 @@ import EditarDatosPedidoModal from './EditarDatosPedidoModal'
 
 const TIPO_META = {
   salon:    { label: 'Para Comer Aquí', icon: Utensils,    color: 'var(--accent-lift)' },
-  llevar:   { label: 'Para Llevar',     icon: ShoppingBag, color: '#fbbf24'             },
-  delivery: { label: 'Web',             icon: Truck,       color: '#4f8ef7'             },
+  llevar:   { label: 'Para Llevar',     icon: ShoppingBag, color: '#F2B35C'             },
+  delivery: { label: 'Web',             icon: Truck,       color: '#7FA6F0'             },
 }
 
 const ESTADO_BADGE = {
-  activa:     { label: 'Activa',     bg: 'rgba(79,142,247,0.12)', color: '#4f8ef7' },
-  completada: { label: 'Completada', bg: 'rgba(52,211,153,0.12)', color: '#34d399' },
-  cancelada:  { label: 'Cancelada',  bg: 'rgba(239,68,68,0.10)',  color: '#f87171' },
+  activa:     { label: 'Activa',     bg: 'rgba(127,166,240,0.12)', color: '#7FA6F0' },
+  completada: { label: 'Completada', bg: 'rgba(95,211,163,0.12)', color: '#5FD3A3' },
+  cancelada:  { label: 'Cancelada',  bg: 'rgba(227,77,107,0.10)',  color: '#F2708C' },
 }
 
 const ESTADO_CRUDO_LABEL = {
@@ -266,7 +266,7 @@ export default function PedidoDetalleModal({
         <div
           className="flex-shrink-0 px-5 py-4 flex items-start justify-between gap-3"
           style={{
-            background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
+            background: 'var(--cta)',
             color: '#fff',
             borderBottom: '1px solid var(--accent-border)',
           }}
@@ -314,7 +314,7 @@ export default function PedidoDetalleModal({
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {error && (
             <div className="rounded-lg p-3 text-xs flex items-start gap-2"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+              style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.2)', color: '#F2708C' }}>
               <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
@@ -323,7 +323,7 @@ export default function PedidoDetalleModal({
           {/* Aviso fiscal: la orden ya tiene factura y aún se permite editar/reabrir/restaurar */}
           {facturada && (editable || puedeReabrir || puedeReactivar) && (
             <div className="rounded-lg p-3 text-xs flex items-start gap-2"
-              style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)', color: '#f59e0b' }}>
+              style={{ background: 'rgba(242,179,92,0.1)', border: '1px solid rgba(242,179,92,0.25)', color: '#E8A23F' }}>
               <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
               <span>
                 <strong>Orden facturada.</strong> Editar, reabrir o restaurar esta orden puede
@@ -477,7 +477,7 @@ export default function PedidoDetalleModal({
                           type="button"
                           onClick={() => handleItemRemove(item.id)}
                           className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
-                          style={{ color: '#f87171' }}
+                          style={{ color: '#F2708C' }}
                           title="Quitar producto"
                         >
                           <Trash2 size={13} />
@@ -518,7 +518,7 @@ export default function PedidoDetalleModal({
                 {[...pedido.kiku_libre_historial].reverse().map((h, idx) => (
                   <div key={idx} className="flex items-start gap-2 px-2 py-1 rounded" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                     <span className="text-[11px] font-extrabold tabular-nums flex-shrink-0 px-1 rounded"
-                      style={{ color: '#f59e0b', background: 'rgba(251,191,36,0.12)' }} title={`Repe ${h.ronda}`}>#{h.ronda}</span>
+                      style={{ color: '#E8A23F', background: 'rgba(242,179,92,0.12)' }} title={`Repe ${h.ronda}`}>#{h.ronda}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>Kiku libre x{h.platos || 1}</p>
                       {h.nota && <p className="text-[11px] leading-snug" style={{ color: 'var(--text-secondary)' }}>{h.nota}</p>}
@@ -629,7 +629,7 @@ export default function PedidoDetalleModal({
             )}
             {pedido.afecta_caja === false && (
               <div className="mt-1 flex items-center gap-1.5 rounded px-2 py-1.5 text-[11px]"
-                style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }}>
+                style={{ background: 'rgba(242,179,92,0.1)', color: '#F2B35C', border: '1px solid rgba(242,179,92,0.2)' }}>
                 <Banknote size={12} />
                 Cobrada fuera de caja — no afecta el arqueo
                 {pedido.medio_pago ? ` · ${MEDIO_PAGO_LABELS[pedido.medio_pago] || pedido.medio_pago}` : ''}
@@ -647,7 +647,7 @@ export default function PedidoDetalleModal({
                 </p>
                 {pedido.afecta_caja === false && (
                   <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-                    style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
+                    style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C' }}>
                     Fuera de caja
                   </span>
                 )}
@@ -698,8 +698,8 @@ export default function PedidoDetalleModal({
               disabled={busy}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:scale-[1.01] disabled:opacity-60"
               style={{
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-                boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.35)',
+                background: 'var(--cta)',
+                boxShadow: 'var(--cta-shadow)',
               }}
             >
               <Lock size={14} />
@@ -714,8 +714,8 @@ export default function PedidoDetalleModal({
               disabled={busy}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:scale-[1.01] disabled:opacity-60"
               style={{
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-                boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.35)',
+                background: 'var(--cta)',
+                boxShadow: 'var(--cta-shadow)',
               }}
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Receipt size={14} />}
@@ -726,7 +726,7 @@ export default function PedidoDetalleModal({
           {!puedeAvanzar && simple === 'completada' && (
             <div
               className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium"
-              style={{ background: 'rgba(52,211,153,0.08)', color: '#34d399', border: '1px solid rgba(52,211,153,0.18)' }}
+              style={{ background: 'rgba(95,211,163,0.08)', color: '#5FD3A3', border: '1px solid rgba(95,211,163,0.18)' }}
             >
               <CheckCircle2 size={12} /> Pedido completado
             </div>
@@ -808,7 +808,7 @@ export default function PedidoDetalleModal({
               onClick={handleCancelar}
               disabled={busy}
               className="w-full py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
-              style={{ background: 'transparent', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}
+              style={{ background: 'transparent', color: '#F2708C', border: '1px solid rgba(227,77,107,0.25)' }}
             >
               {busy ? <Loader2 size={12} className="animate-spin" /> : <Ban size={12} />}
               Cancelar pedido

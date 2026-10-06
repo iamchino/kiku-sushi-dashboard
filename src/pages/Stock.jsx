@@ -71,10 +71,10 @@ function EstadoBadge({ item }) {
 }
 
 const TIPO_MOV = {
-  entrada: { label: 'Entrada', color: '#22c55e', icon: '+' },
-  merma: { label: 'Merma', color: '#ef4444', icon: '-' },
+  entrada: { label: 'Entrada', color: '#3FBF8A', icon: '+' },
+  merma: { label: 'Merma', color: '#E34D6B', icon: '-' },
   salida: { label: 'Salida', color: '#f97316', icon: '-' },
-  ajuste: { label: 'Ajuste', color: '#3b82f6', icon: '=' },
+  ajuste: { label: 'Ajuste', color: '#6B93E6', icon: '=' },
 }
 
 const COLOR_TIPO = {
@@ -148,7 +148,7 @@ function ItemRow({ item, showCostColumns = true, updatePrecio, openEdit, setDele
           </span>
         </td>
         <td className="px-3 py-3 hidden md:table-cell">
-          <span className="font-semibold tabular-nums" style={{ color: actualNum < 0 ? '#ef4444' : 'var(--text-primary)' }}>
+          <span className="font-semibold tabular-nums" style={{ color: actualNum < 0 ? '#E34D6B' : 'var(--text-primary)' }}>
             {actualNum.toFixed(1)}
           </span>
           <span className="text-xs ml-1" style={{ color: 'var(--text-xmuted)' }}>{item.unidad}</span>
@@ -194,7 +194,7 @@ function ItemRow({ item, showCostColumns = true, updatePrecio, openEdit, setDele
               onClick={() => setDeleteTarget(item)}
               className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-red-500/10"
               style={{ color: 'var(--text-xmuted)' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+              onMouseEnter={e => e.currentTarget.style.color = '#E34D6B'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}
             >
               <Trash2 size={12} />
@@ -272,7 +272,7 @@ function StockTable({ title, icon: Icon, items, emptyText, showCostColumns = tru
             {items.length}
           </span>
         </div>
-        {alertas > 0 && <span className="text-[11px] font-semibold" style={{ color: '#f59e0b' }}>{alertas} con alerta</span>}
+        {alertas > 0 && <span className="text-[11px] font-semibold" style={{ color: '#E8A23F' }}>{alertas} con alerta</span>}
       </div>
 
       {items.length === 0 ? (
@@ -465,7 +465,7 @@ export default function StockPage() {
           <button
             onClick={() => openNew(tipoActivo)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white hover:scale-105 transition-all"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}
+            style={{ background: 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}
           >
             <Plus size={15} />
             <span className="hidden sm:inline">
@@ -478,9 +478,9 @@ export default function StockPage() {
 
       <div className="grid grid-cols-3 gap-3">
         {[
-          { id: 'criticos', label: 'Criticos', value: stats.criticos, icon: AlertTriangle, color: '#ef4444' },
-          { id: 'bajos', label: 'Stock bajo', value: stats.bajos, icon: AlertTriangle, color: '#f59e0b' },
-          { id: 'ok', label: 'OK', value: stats.ok, icon: CheckCircle2, color: '#22c55e' },
+          { id: 'criticos', label: 'Criticos', value: stats.criticos, icon: AlertTriangle, color: '#E34D6B' },
+          { id: 'bajos', label: 'Stock bajo', value: stats.bajos, icon: AlertTriangle, color: '#E8A23F' },
+          { id: 'ok', label: 'OK', value: stats.ok, icon: CheckCircle2, color: '#3FBF8A' },
         ].map(s => (
           <button
             key={s.id}
@@ -550,7 +550,7 @@ export default function StockPage() {
       </div>
 
       {error && (
-        <div className="px-4 py-3 rounded-xl text-sm" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#ef4444' }}>
+        <div className="px-4 py-3 rounded-xl text-sm" style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#E34D6B' }}>
           {error}
         </div>
       )}
@@ -664,8 +664,8 @@ export default function StockPage() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeleteTarget(null)} />
           <div className="relative w-full max-w-sm rounded-2xl p-6 space-y-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 32px 64px rgba(0,0,0,0.3)' }}>
             <div className="text-center space-y-2">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto" style={{ background: 'rgba(239,68,68,0.1)' }}>
-                <Trash2 size={18} style={{ color: '#ef4444' }} />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto" style={{ background: 'rgba(227,77,107,0.1)' }}>
+                <Trash2 size={18} style={{ color: '#E34D6B' }} />
               </div>
               <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Eliminar item de stock?</p>
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -674,7 +674,7 @@ export default function StockPage() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 rounded-xl text-sm font-medium" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
-              <button onClick={handleDelete} disabled={deleting} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)' }}>
+              <button onClick={handleDelete} disabled={deleting} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ background: 'linear-gradient(135deg, #E34D6B, #A82C42)' }}>
                 {deleting ? 'Eliminando...' : 'Eliminar'}
               </button>
             </div>

@@ -88,11 +88,11 @@ const diasHastaPago = (fecha) => {
 const urgenciaPago = (dias) => {
   if (dias < 0) {
     const n = Math.abs(dias)
-    return { label: `Vencido hace ${n} día${n === 1 ? '' : 's'}`, color: '#f87171', bg: 'rgba(239,68,68,0.12)', vencido: true }
+    return { label: `Vencido hace ${n} día${n === 1 ? '' : 's'}`, color: '#F2708C', bg: 'rgba(227,77,107,0.12)', vencido: true }
   }
-  if (dias === 0) return { label: 'Vence hoy',    color: '#f87171', bg: 'rgba(239,68,68,0.12)', vencido: true }
-  if (dias === 1) return { label: 'Vence mañana', color: '#fbbf24', bg: 'rgba(251,191,36,0.14)', vencido: false }
-  return { label: `En ${dias} días`, color: '#fbbf24', bg: 'rgba(251,191,36,0.14)', vencido: false }
+  if (dias === 0) return { label: 'Vence hoy',    color: '#F2708C', bg: 'rgba(227,77,107,0.12)', vencido: true }
+  if (dias === 1) return { label: 'Vence mañana', color: '#F2B35C', bg: 'rgba(242,179,92,0.14)', vencido: false }
+  return { label: `En ${dias} días`, color: '#F2B35C', bg: 'rgba(242,179,92,0.14)', vencido: false }
 }
 
 // ── Alerta de pagos próximos / vencidos ───────────────────────────────────────
@@ -100,9 +100,9 @@ function ProximosPagosAlert({ items, onSelect }) {
   if (!items.length) return null
 
   const hayVencidos = items.some(x => x.dias <= 0)
-  const acento = hayVencidos ? '#f87171' : '#fbbf24'
-  const acentoBg = hayVencidos ? 'rgba(239,68,68,0.06)' : 'rgba(251,191,36,0.06)'
-  const acentoBorde = hayVencidos ? 'rgba(239,68,68,0.25)' : 'rgba(251,191,36,0.25)'
+  const acento = hayVencidos ? '#F2708C' : '#F2B35C'
+  const acentoBg = hayVencidos ? 'rgba(227,77,107,0.06)' : 'rgba(242,179,92,0.06)'
+  const acentoBorde = hayVencidos ? 'rgba(227,77,107,0.25)' : 'rgba(242,179,92,0.25)'
 
   return (
     <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${acentoBorde}`, background: acentoBg }}>
@@ -211,7 +211,7 @@ function ProveedorModal({ initial, onClose, onSave }) {
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {err && (
             <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+              style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
               <AlertTriangle size={12} /> {err}
             </div>
           )}
@@ -271,7 +271,7 @@ function ProveedorModal({ initial, onClose, onSave }) {
             </button>
             <button type="submit" disabled={saving}
               className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 transition-all"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+              style={{ background: 'var(--cta)' }}>
               {saving ? 'Guardando…' : (initial ? 'Guardar cambios' : 'Crear proveedor')}
             </button>
           </div>
@@ -336,7 +336,7 @@ function ProveedorCard({ prov, onEdit, onDelete }) {
           <button onClick={() => onDelete(prov)}
             className="p-1.5 rounded-lg transition-colors"
             style={{ color: 'var(--text-muted)' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.1)'; e.currentTarget.style.color = '#f87171' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(242,112,140,0.1)'; e.currentTarget.style.color = '#F2708C' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}>
             <Trash2 size={14} />
           </button>
@@ -386,8 +386,8 @@ function ConfirmDeleteModal({ prov, onClose, onConfirm }) {
       <div className="w-full max-w-sm rounded-2xl p-5 shadow-2xl"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
         <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
-          style={{ background: 'rgba(248,113,113,0.1)' }}>
-          <Trash2 size={18} style={{ color: '#f87171' }} />
+          style={{ background: 'rgba(242,112,140,0.1)' }}>
+          <Trash2 size={18} style={{ color: '#F2708C' }} />
         </div>
         <h3 className="font-semibold text-sm mb-1" style={{ color: 'var(--text-primary)' }}>
           Eliminar proveedor
@@ -405,7 +405,7 @@ function ConfirmDeleteModal({ prov, onClose, onConfirm }) {
           </button>
           <button onClick={handleConfirm} disabled={loading}
             className="flex-1 px-3 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 transition-all"
-            style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
+            style={{ background: 'linear-gradient(135deg, #E34D6B, #C9384F)' }}>
             {loading ? 'Eliminando…' : 'Eliminar'}
           </button>
         </div>
@@ -467,7 +467,7 @@ export default function ProveedoresPage() {
           </button>
           <button onClick={() => setModal('nuevo')}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+            style={{ background: 'var(--cta)' }}>
             <Plus size={14} /> Nuevo proveedor
           </button>
         </div>
@@ -497,7 +497,7 @@ export default function ProveedoresPage() {
       {/* Error */}
       {error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           <AlertTriangle size={14} /> {error}
         </div>
       )}

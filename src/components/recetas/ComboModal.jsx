@@ -246,7 +246,7 @@ export default function ComboModal({
                   <button type="button" onClick={() => removeItem(idx)}
                     className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 transition-colors"
                     style={{ color: 'var(--text-xmuted)' }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                    onMouseEnter={e => e.currentTarget.style.color = '#E34D6B'}
                     onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}>
                     <Trash2 size={12} />
                   </button>
@@ -279,18 +279,18 @@ export default function ComboModal({
                       className="flex items-center justify-between text-xs px-3 py-2 rounded-lg -mx-1"
                       style={{
                         background: margen !== null && margen < 30
-                          ? 'rgba(239,68,68,0.08)'
-                          : 'rgba(34,197,94,0.06)',
-                        border: `1px solid ${margen !== null && margen < 30 ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.15)'}`,
+                          ? 'rgba(227,77,107,0.08)'
+                          : 'rgba(63,191,138,0.06)',
+                        border: `1px solid ${margen !== null && margen < 30 ? 'rgba(227,77,107,0.2)' : 'rgba(63,191,138,0.15)'}`,
                       }}
                     >
                       <span className="font-semibold" style={{
-                        color: margen !== null && margen < 30 ? '#ef4444' : '#22c55e',
+                        color: margen !== null && margen < 30 ? '#E34D6B' : '#3FBF8A',
                       }}>
                         Margen: {margen !== null ? `${margen.toFixed(1)}%` : '—'}
                       </span>
                       {margen !== null && margen < 30 && (
-                        <span className="text-[10px] font-medium" style={{ color: '#ef4444' }}>
+                        <span className="text-[10px] font-medium" style={{ color: '#E34D6B' }}>
                           ⚠️ Bajo
                         </span>
                       )}
@@ -309,7 +309,7 @@ export default function ComboModal({
               style={inputStyle} placeholder="Observaciones, variantes, etc." />
           </div>
 
-          {error && <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>}
+          {error && <p className="text-xs" style={{ color: '#E34D6B' }}>{error}</p>}
 
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}

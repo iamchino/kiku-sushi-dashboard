@@ -29,7 +29,7 @@ export default function PuntosQRSection({ horas }) {
 
       {error && (
         <div className="px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           {error}
         </div>
       )}
@@ -143,7 +143,7 @@ function PuntoCard({ punto, actualizarPunto, regenerarToken }) {
       {/* Geocerca */}
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs flex items-center gap-1.5" style={{ color: tieneGeo ? '#22c55e' : '#f59e0b' }}>
+          <span className="text-xs flex items-center gap-1.5" style={{ color: tieneGeo ? '#3FBF8A' : '#E8A23F' }}>
             <MapPin size={12} />
             {tieneGeo ? `Geocerca activa (${punto.lat.toFixed(5)}, ${punto.lng.toFixed(5)})` : 'Sin geocerca: falta capturar la ubicación'}
           </span>
@@ -161,17 +161,17 @@ function PuntoCard({ punto, actualizarPunto, regenerarToken }) {
         </div>
       </div>
 
-      {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+      {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
 
       {/* Acciones */}
       <div className="flex items-center gap-2">
         <button onClick={imprimir}
           className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-white transition-all"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           <Printer size={12} /> Imprimir
         </button>
         <button onClick={copiar} title="Copiar URL del QR"
-          className="p-2 rounded-lg transition-colors" style={{ border: '1px solid var(--border)', color: copiado ? '#22c55e' : 'var(--text-muted)' }}>
+          className="p-2 rounded-lg transition-colors" style={{ border: '1px solid var(--border)', color: copiado ? '#3FBF8A' : 'var(--text-muted)' }}>
           {copiado ? <Check size={13} /> : <Copy size={13} />}
         </button>
         <button

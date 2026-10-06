@@ -10,7 +10,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 // ── Avatar de iniciales ───────────────────────────────────────────────────────
-const AVATAR_COLORS = ['var(--accent)','#4f8ef7','#34d399','var(--accent-lift)','#f59e0b','#ec4899']
+const AVATAR_COLORS = ['var(--accent)','#7FA6F0','#5FD3A3','var(--accent-lift)','#E8A23F','#ec4899']
 function Avatar({ nombre }) {
   const initials = (nombre || '?').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
   const color    = AVATAR_COLORS[(nombre || '').charCodeAt(0) % AVATAR_COLORS.length] || AVATAR_COLORS[0]
@@ -132,7 +132,7 @@ export default function ClientesPage() {
           </button>
           <button onClick={openNew}
             className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}>
+            style={{ background: 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}>
             <Plus size={15} />
             <span className="hidden sm:inline">Nuevo cliente</span>
             <span className="sm:hidden">Nuevo</span>
@@ -144,7 +144,7 @@ export default function ClientesPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard icon={Users}      label="Total clientes"    value={stats.total}        color="#a1a1aa" />
         <StatCard icon={Send}       label="Aptos para promos" value={stats.promos}       color="#22d3ee" />
-        <StatCard icon={TrendingUp} label="Nuevos este mes"   value={stats.nuevos}       color="#34d399" />
+        <StatCard icon={TrendingUp} label="Nuevos este mes"   value={stats.nuevos}       color="#5FD3A3" />
         <StatCard icon={Star}       label="Puntos emitidos"   value={stats.totalPuntos.toLocaleString('es-AR')} color="var(--accent-lift)" />
       </div>
 
@@ -192,7 +192,7 @@ export default function ClientesPage() {
       {/* ── Error ── */}
       {error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           <AlertCircle size={14} /> {error}
         </div>
       )}
@@ -267,7 +267,7 @@ export default function ClientesPage() {
                         {(c.puntos || 0) > 0 && (
                           <span
                             className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                            style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.25)' }}
+                            style={{ background: 'rgba(242,179,92,0.1)', color: '#F2B35C', border: '1px solid rgba(242,179,92,0.25)' }}
                           >
                             <Star size={8} />
                             {c.puntos}
@@ -331,7 +331,7 @@ export default function ClientesPage() {
                       <button onClick={() => setDeleteTarget(c)}
                         className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-red-500/10"
                         style={{ color: 'var(--text-xmuted)' }}
-                        onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+                        onMouseEnter={e => e.currentTarget.style.color = '#F2708C'}
                         onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}>
                         <Trash2 size={13} />
                       </button>
@@ -359,8 +359,8 @@ export default function ClientesPage() {
           <div className="relative w-full max-w-sm rounded-2xl p-6 space-y-4"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 32px 64px rgba(0,0,0,0.3)' }}>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto"
-              style={{ background: 'rgba(239,68,68,0.1)' }}>
-              <Trash2 size={18} style={{ color: '#f87171' }} />
+              style={{ background: 'rgba(227,77,107,0.1)' }}>
+              <Trash2 size={18} style={{ color: '#F2708C' }} />
             </div>
             <div className="text-center">
               <p className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>¿Eliminar cliente?</p>
@@ -374,7 +374,7 @@ export default function ClientesPage() {
                 style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
               <button onClick={handleDelete} disabled={!!deletingId}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
-                style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)' }}>
+                style={{ background: 'linear-gradient(135deg, #E34D6B, #A82C42)' }}>
                 {deletingId ? 'Eliminando…' : 'Eliminar'}
               </button>
             </div>

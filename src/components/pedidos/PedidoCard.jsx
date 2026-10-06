@@ -6,9 +6,9 @@ import { ESTADO_SIGUIENTE } from '../../hooks/usePedidos'
 
 const CANAL_CONFIG = {
   salon:     { label: 'Salón',      color: 'var(--accent-lift)', bg: 'rgba(var(--accent-rgb),0.12)'  },
-  delivery:  { label: 'Web',        color: '#4f8ef7', bg: 'rgba(79,142,247,0.12)'  },
-  whatsapp:  { label: 'WhatsApp',   color: '#34d399', bg: 'rgba(52,211,153,0.12)'  },
-  pedidosya: { label: 'PedidosYa',  color: '#fbbf24', bg: 'rgba(251,191,36,0.12)'  },
+  delivery:  { label: 'Web',        color: '#7FA6F0', bg: 'rgba(127,166,240,0.12)'  },
+  whatsapp:  { label: 'WhatsApp',   color: '#5FD3A3', bg: 'rgba(95,211,163,0.12)'  },
+  pedidosya: { label: 'PedidosYa',  color: '#F2B35C', bg: 'rgba(242,179,92,0.12)'  },
 }
 
 const BTN_LABEL = {
@@ -44,8 +44,8 @@ export default function PedidoCard({ pedido, onAvanzar, onCancelar, onPrintComan
       className="rounded-xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5"
       style={{
         background: '#1c1c1f',
-        border: `1px solid ${urgente ? 'rgba(239,68,68,0.4)' : '#2a2a2e'}`,
-        boxShadow: urgente ? '0 0 12px rgba(239,68,68,0.1)' : 'none',
+        border: `1px solid ${urgente ? 'rgba(227,77,107,0.4)' : '#2a2a2e'}`,
+        boxShadow: urgente ? '0 0 12px rgba(227,77,107,0.1)' : 'none',
       }}
     >
       {/* Card header */}
@@ -69,13 +69,13 @@ export default function PedidoCard({ pedido, onAvanzar, onCancelar, onPrintComan
           {salidaTxt && (
             <span
               className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded"
-              style={{ background: 'rgba(251,191,36,0.14)', color: '#fbbf24' }}
+              style={{ background: 'rgba(242,179,92,0.14)', color: '#F2B35C' }}
               title="Horario de salida programado"
             >
               <Clock size={10} /> Salida {salidaTxt}
             </span>
           )}
-          <div className="flex items-center gap-1.5" style={{ color: urgente ? '#f87171' : '#52525b' }}>
+          <div className="flex items-center gap-1.5" style={{ color: urgente ? '#F2708C' : '#52525b' }}>
             <Clock size={10} />
             <span className="text-[10px]">{elapsed}</span>
           </div>
@@ -164,7 +164,7 @@ export default function PedidoCard({ pedido, onAvanzar, onCancelar, onPrintComan
             onClick={() => onCancelar(pedido.id)}
             className="w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:bg-red-500/10"
             style={{ color: '#52525b' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+            onMouseEnter={e => e.currentTarget.style.color = '#F2708C'}
             onMouseLeave={e => e.currentTarget.style.color = '#52525b'}
             title="Cancelar pedido"
           >
@@ -176,7 +176,7 @@ export default function PedidoCard({ pedido, onAvanzar, onCancelar, onPrintComan
             <button
               onClick={() => onAvanzar(pedido.id, pedido.estado)}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+              style={{ background: 'var(--cta)' }}
             >
               {BTN_LABEL[pedido.estado]}
               <ChevronRight size={12} />

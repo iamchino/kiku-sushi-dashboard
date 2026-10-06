@@ -197,7 +197,7 @@ export default function DescuentoModal({ open, onClose, pedido, items = [], onAp
           </div>
 
           {error && (
-            <div className="rounded-lg px-3 py-2 text-xs flex items-start gap-2" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+            <div className="rounded-lg px-3 py-2 text-xs flex items-start gap-2" style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
               {error}
             </div>
           )}
@@ -206,12 +206,12 @@ export default function DescuentoModal({ open, onClose, pedido, items = [], onAp
         <div className="p-5 pt-0 flex gap-2">
           <button type="button" onClick={handleQuitar} disabled={saving}
             className="flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold disabled:opacity-50"
-            style={{ background: 'transparent', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}>
+            style={{ background: 'transparent', color: '#F2708C', border: '1px solid rgba(227,77,107,0.25)' }}>
             <Trash2 size={13} /> Quitar
           </button>
           <button type="button" onClick={handleAplicar} disabled={saving}
             className="flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+            style={{ background: 'var(--cta)' }}>
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Gift size={14} />}
             Aplicar descuento
           </button>

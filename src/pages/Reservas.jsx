@@ -13,10 +13,10 @@ import ReservaDetalleModal from '../components/reservas/ReservaDetalleModal'
 import ListaEsperaPanel from '../components/reservas/ListaEsperaPanel'
 
 const ORIGEN_META = {
-  web:       { label: 'Web',       color: '#4f8ef7' },
+  web:       { label: 'Web',       color: '#7FA6F0' },
   dashboard: { label: 'Dashboard', color: 'var(--accent-lift)' },
-  telefono:  { label: 'Teléfono',  color: '#fbbf24' },
-  whatsapp:  { label: 'WhatsApp',  color: '#34d399' },
+  telefono:  { label: 'Teléfono',  color: '#F2B35C' },
+  whatsapp:  { label: 'WhatsApp',  color: '#5FD3A3' },
 }
 
 const ESTADO_FILTRO_OPCIONES = [
@@ -193,7 +193,7 @@ export default function ReservasPage() {
               Lista de espera
               {listaEspera.pendientes > 0 && (
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                  style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>
+                  style={{ background: 'rgba(242,179,92,0.15)', color: '#F2B35C' }}>
                   {listaEspera.pendientes}
                 </span>
               )}
@@ -217,8 +217,8 @@ export default function ReservasPage() {
               onClick={() => setNuevaOpen(true)}
               className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
               style={{
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-                boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)',
+                background: 'var(--cta)',
+                boxShadow: 'var(--cta-shadow)',
               }}
             >
               <Plus size={15} />
@@ -330,7 +330,7 @@ export default function ReservasPage() {
 
       {error && (
         <div className="mx-4 md:mx-6 mt-3 px-4 py-3 rounded-xl text-sm flex-shrink-0"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           {error}
         </div>
       )}

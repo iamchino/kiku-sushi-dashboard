@@ -95,7 +95,7 @@ export default function PersonalPage() {
 
       {horas.error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           <AlertTriangle size={14} /> {horas.error}
         </div>
       )}

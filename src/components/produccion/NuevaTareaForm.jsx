@@ -102,7 +102,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
         <button type="button" onClick={() => { setModo('libre'); setError(null) }}
           className="flex-1 py-2 rounded-md text-xs font-semibold transition-all"
           style={modo === 'libre'
-            ? { background: 'rgba(59,130,246,0.1)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.25)' }
+            ? { background: 'rgba(107,147,230,0.1)', color: '#6B93E6', border: '1px solid rgba(107,147,230,0.25)' }
             : { color: 'var(--text-muted)', background: 'transparent', border: '1px solid transparent' }
           }>
           📝 Anotación / refuerzo
@@ -166,7 +166,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
                             </span>
                           )}
                         </span>
-                        {vacia && <AlertTriangle size={12} style={{ color: '#f59e0b' }} />}
+                        {vacia && <AlertTriangle size={12} style={{ color: '#E8A23F' }} />}
                       </button>
                     )
                   })
@@ -198,7 +198,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
 
             {sinIngredientes && (
               <p className="text-[11px] flex items-center gap-1 px-2 py-1 rounded"
-                style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
+                style={{ background: 'rgba(232,162,63,0.1)', color: '#E8A23F' }}>
                 <AlertTriangle size={10} /> Esta receta no tiene ingredientes cargados
               </p>
             )}
@@ -241,7 +241,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
         </div>
       )}
 
-      {error && <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>}
+      {error && <p className="text-xs" style={{ color: '#E34D6B' }}>{error}</p>}
 
       {/* Buttons */}
       <div className="flex gap-2 pt-1">
@@ -252,7 +252,7 @@ export default function NuevaTareaForm({ subRecetas, onAdd }) {
         </button>
         <button type="submit" disabled={saving}
           className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           {saving ? '...' : '+ Agregar'}
         </button>
       </div>

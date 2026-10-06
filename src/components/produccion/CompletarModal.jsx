@@ -162,7 +162,7 @@ export default function CompletarModal({ open, onClose, tarea, receta, stockProd
               inputMode="decimal"
             />
             {tarea.cantidad && cantNum !== parseFloat(tarea.cantidad) && (
-              <p className="text-[11px]" style={{ color: '#f59e0b' }}>
+              <p className="text-[11px]" style={{ color: '#E8A23F' }}>
                 Objetivo era {parseFloat(tarea.cantidad)} {stockProduccion?.unidad || 'porc.'} - estas cargando {cantNum}
               </p>
             )}
@@ -174,7 +174,7 @@ export default function CompletarModal({ open, onClose, tarea, receta, stockProd
               {stockProduccion && (
                 <div className="flex items-center justify-between text-xs pb-2" style={{ borderBottom: '1px solid var(--border)' }}>
                   <span style={{ color: 'var(--text-primary)' }}>Se sumara a stock</span>
-                  <span className="font-semibold tabular-nums" style={{ color: '#22c55e' }}>
+                  <span className="font-semibold tabular-nums" style={{ color: '#3FBF8A' }}>
                     +{cantNum.toFixed(2)} {stockProduccion.unidad} {stockProduccion.nombre}
                   </span>
                 </div>
@@ -187,11 +187,11 @@ export default function CompletarModal({ open, onClose, tarea, receta, stockProd
                   const insuficiente = ing.cantidad > ing.stock_actual
                   return (
                     <div key={i} className="flex items-center justify-between text-xs">
-                      <span style={{ color: insuficiente ? '#f59e0b' : 'var(--text-primary)' }}>
+                      <span style={{ color: insuficiente ? '#E8A23F' : 'var(--text-primary)' }}>
                         {insuficiente && <AlertTriangle size={10} className="inline mr-1" />}
                         {ing.nombre}
                       </span>
-                      <span className="font-semibold tabular-nums" style={{ color: '#ef4444' }}>
+                      <span className="font-semibold tabular-nums" style={{ color: '#E34D6B' }}>
                         -{ing.cantidad.toFixed(2)} {ing.unidad}
                       </span>
                     </div>
@@ -199,7 +199,7 @@ export default function CompletarModal({ open, onClose, tarea, receta, stockProd
                 })}
               </div>
               {alertas.length > 0 && (
-                <p className="text-[10px] mt-1 px-2 py-1 rounded" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
+                <p className="text-[10px] mt-1 px-2 py-1 rounded" style={{ background: 'rgba(232,162,63,0.1)', color: '#E8A23F' }}>
                   ⚠️ Hay ingredientes con stock insuficiente. Se descontará hasta 0.
                 </p>
               )}
@@ -220,7 +220,7 @@ export default function CompletarModal({ open, onClose, tarea, receta, stockProd
             />
           </div>
 
-          {error && <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>}
+          {error && <p className="text-xs" style={{ color: '#E34D6B' }}>{error}</p>}
 
           {/* Buttons */}
           <div className="flex gap-3 pt-1">
@@ -231,7 +231,7 @@ export default function CompletarModal({ open, onClose, tarea, receta, stockProd
             </button>
             <button type="submit" disabled={saving}
               className="flex-1 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-all active:scale-[0.97]"
-              style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)', boxShadow: '0 4px 16px rgba(34,197,94,0.3)' }}>
+              style={{ background: 'linear-gradient(135deg, #3FBF8A, #2EA075)', boxShadow: '0 4px 16px rgba(63,191,138,0.3)' }}>
               {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : '✅ Confirmar'}
             </button>
           </div>

@@ -21,10 +21,10 @@ import ElegirComprobante from '../caja/ElegirComprobante'
 import { comprobanteInicial, opcionesFactura, validarComprobante } from '../../lib/comprobante'
 
 const MEDIOS_PAGO = [
-  { id: 'efectivo',         label: 'Efectivo',          icon: Banknote,   color: '#34d399' },
-  { id: 'tarjeta_credito',  label: 'Tarjeta credito',   icon: CreditCard, color: '#f59e0b' },
+  { id: 'efectivo',         label: 'Efectivo',          icon: Banknote,   color: '#5FD3A3' },
+  { id: 'tarjeta_credito',  label: 'Tarjeta credito',   icon: CreditCard, color: '#E8A23F' },
   { id: 'tarjeta_debito',   label: 'Tarjeta debito',    icon: CreditCard, color: '#a78bfa' },
-  { id: 'transferencia',    label: 'Transferencia',     icon: Send,       color: '#60a5fa' },
+  { id: 'transferencia',    label: 'Transferencia',     icon: Send,       color: '#8FB2F2' },
   { id: 'sin_pago',         label: 'Sin pago',          icon: Ban,        color: '#94a3b8' },
 ]
 
@@ -235,7 +235,7 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
                       className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
                       style={{
                         background: 'var(--bg-input)',
-                        border: `1px solid ${nroOpOk ? 'var(--border)' : '#f87171'}`,
+                        border: `1px solid ${nroOpOk ? 'var(--border)' : '#F2708C'}`,
                         color: 'var(--text-primary)',
                       }}
                     />
@@ -286,7 +286,7 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
           {error && (
             <div
               className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}
+              style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}
             >
               <AlertCircle size={14} className="mt-0.5 shrink-0" />
               {error}
@@ -300,7 +300,7 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
             onClick={submit}
             disabled={!canSubmit}
             className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold text-white transition-all disabled:opacity-45"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+            style={{ background: 'var(--cta)' }}
           >
             {loading ? <Loader2 size={15} className="animate-spin" /> : <Lock size={15} />}
             Cerrar pedido

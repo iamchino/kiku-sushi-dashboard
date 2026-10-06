@@ -22,15 +22,15 @@ export default function ConfirmDelete({ titulo = 'Eliminar', mensaje, onClose, o
       <div className="w-full max-w-sm rounded-2xl p-5 shadow-2xl"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
         <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
-          style={{ background: 'rgba(248,113,113,0.1)' }}>
-          <Trash2 size={18} style={{ color: '#f87171' }} />
+          style={{ background: 'rgba(242,112,140,0.1)' }}>
+          <Trash2 size={18} style={{ color: '#F2708C' }} />
         </div>
         <h3 className="font-semibold text-sm mb-1" style={{ color: 'var(--text-primary)' }}>{titulo}</h3>
         <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>{mensaje}</p>
 
         {error && (
           <div className="mb-3 flex items-start gap-2 rounded-lg px-3 py-2 text-xs"
-            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+            style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.2)', color: '#F2708C' }}>
             <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -45,7 +45,7 @@ export default function ConfirmDelete({ titulo = 'Eliminar', mensaje, onClose, o
           </button>
           <button onClick={handle} disabled={loading}
             className="flex-1 px-3 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 transition-all"
-            style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
+            style={{ background: 'linear-gradient(135deg, #E34D6B, #C9384F)' }}>
             {loading ? 'Eliminando…' : 'Eliminar'}
           </button>
         </div>

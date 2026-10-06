@@ -166,7 +166,7 @@ export default function MenuPage() {
             <button
               onClick={openNew}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}
+              style={{ background: 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}
             >
               <Plus size={15} />
               Nuevo producto

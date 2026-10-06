@@ -106,7 +106,7 @@ export default function FicharPage() {
               <>
                 <div className="text-center space-y-1">
                   <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Vas a registrar tu</p>
-                  <p className="text-2xl font-bold" style={{ color: '#f87171' }}>SALIDA</p>
+                  <p className="text-2xl font-bold" style={{ color: '#F2708C' }}>SALIDA</p>
                   {entradaAbierta && (
                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                       Trabajando desde {fmtFechaHora(entradaAbierta)} · {fmtMinutos(minutosJornada)}
@@ -116,7 +116,7 @@ export default function FicharPage() {
                 {salidaSospechosa ? (
                   <>
                     <div className="rounded-xl px-3 py-2.5 flex items-start gap-2 text-xs"
-                      style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' }}>
+                      style={{ background: 'rgba(232,162,63,0.08)', border: '1px solid rgba(232,162,63,0.25)', color: '#E8A23F' }}>
                       <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
                       <span>
                         Tu entrada ya quedó registrada hace {fmtMinutos(minutosDesdeEntrada)}.
@@ -140,12 +140,12 @@ export default function FicharPage() {
               <>
                 <div className="text-center space-y-1">
                   <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Vas a registrar tu</p>
-                  <p className="text-2xl font-bold" style={{ color: '#22c55e' }}>ENTRADA</p>
+                  <p className="text-2xl font-bold" style={{ color: '#3FBF8A' }}>ENTRADA</p>
                 </div>
 
                 {salidaCorregible && ultimaMarca && (
                   <div className="rounded-xl px-3 py-2.5 flex items-start gap-2 text-xs"
-                    style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' }}>
+                    style={{ background: 'rgba(232,162,63,0.08)', border: '1px solid rgba(232,162,63,0.25)', color: '#E8A23F' }}>
                     <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
                     <span>
                       Ya figura una <b>salida</b> a las {fmtHora(ultimaMarca.ts)} (hace {haceCuanto}).
@@ -194,12 +194,12 @@ export default function FicharPage() {
 
         {resultado?.fase === 'ok' && (
           <div className="rounded-2xl p-6 flex flex-col items-center gap-2 text-center"
-            style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)' }}>
-            <CheckCircle2 size={40} style={{ color: '#22c55e' }} />
+            style={{ background: 'rgba(63,191,138,0.08)', border: '1px solid rgba(63,191,138,0.25)' }}>
+            <CheckCircle2 size={40} style={{ color: '#3FBF8A' }} />
             <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
               {resultado.res?.mensaje}
             </p>
-            <p className="text-2xl font-bold tracking-tight" style={{ color: '#22c55e' }}>
+            <p className="text-2xl font-bold tracking-tight" style={{ color: '#3FBF8A' }}>
               {fmtHora(resultado.res?.ts)}
             </p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -210,12 +210,12 @@ export default function FicharPage() {
 
         {resultado?.fase === 'error' && (
           <div className="rounded-2xl p-6 flex flex-col items-center gap-2 text-center"
-            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
-            <XCircle size={40} style={{ color: '#f87171' }} />
+            style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.25)' }}>
+            <XCircle size={40} style={{ color: '#F2708C' }} />
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               No se pudo fichar
             </p>
-            <p className="text-sm" style={{ color: '#f87171' }}>{resultado.msg}</p>
+            <p className="text-sm" style={{ color: '#F2708C' }}>{resultado.msg}</p>
             <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
               Volvé a escanear el QR del local para reintentar.
             </p>
@@ -243,7 +243,7 @@ export default function FicharPage() {
         {/* Usuario sin empleado vinculado */}
         {!loading && !empleado && (
           <div className="rounded-xl px-4 py-3 flex items-start gap-2 text-sm"
-            style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' }}>
+            style={{ background: 'rgba(232,162,63,0.08)', border: '1px solid rgba(232,162,63,0.25)', color: '#E8A23F' }}>
             <AlertTriangle size={15} className="mt-0.5 flex-shrink-0" />
             <span>Tu usuario todavía no está vinculado a un empleado. Avisale al encargado para que te habilite.</span>
           </div>
@@ -251,7 +251,7 @@ export default function FicharPage() {
 
         {error && empleado && (
           <div className="rounded-xl px-4 py-3 flex items-center gap-2 text-sm"
-            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+            style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
             <AlertTriangle size={14} /> {error}
           </div>
         )}
@@ -265,7 +265,7 @@ export default function FicharPage() {
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Estado actual</p>
                 <p className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                   <span className="w-2.5 h-2.5 rounded-full inline-block"
-                    style={{ background: dentro ? '#22c55e' : 'var(--text-xmuted)' }} />
+                    style={{ background: dentro ? '#3FBF8A' : 'var(--text-xmuted)' }} />
                   {dentro ? 'Trabajando' : 'Fuera'}
                 </p>
                 {/* Un turno que cruza la medianoche sigue siendo el mismo turno:
@@ -286,7 +286,7 @@ export default function FicharPage() {
 
             {abandonada && (
               <div className="rounded-xl px-3 py-2.5 flex items-start gap-2 text-xs"
-                style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' }}>
+                style={{ background: 'rgba(232,162,63,0.08)', border: '1px solid rgba(232,162,63,0.25)', color: '#E8A23F' }}>
                 <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
                 <span>
                   Quedó una entrada sin salida de hace más de 16 horas. Tu próximo escaneo cuenta
@@ -301,8 +301,8 @@ export default function FicharPage() {
                   <div key={m.id} className="flex items-center justify-between text-sm pt-1.5">
                     <span className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                       {m.tipo === 'entrada'
-                        ? <LogIn size={13} style={{ color: '#22c55e' }} />
-                        : <LogOut size={13} style={{ color: '#f87171' }} />}
+                        ? <LogIn size={13} style={{ color: '#3FBF8A' }} />
+                        : <LogOut size={13} style={{ color: '#F2708C' }} />}
                       {m.tipo === 'entrada' ? 'Entrada' : 'Salida'}
                       {m.origen === 'manual' && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded-md"
@@ -334,7 +334,7 @@ export default function FicharPage() {
 }
 
 function BotonFichar({ tipo, secundario = false, onClick, children }) {
-  const color = tipo === 'salida' ? '#ef4444' : '#16a34a'
+  const color = tipo === 'salida' ? '#E34D6B' : '#2EA075'
   const Icono = tipo === 'salida' ? LogOut : LogIn
   return (
     <button onClick={onClick}

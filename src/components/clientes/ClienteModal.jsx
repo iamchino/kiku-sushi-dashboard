@@ -83,7 +83,7 @@ export default function ClienteModal({ open, onClose, cliente, onSave }) {
                 {(cliente.puntos || 0) > 0 && (
                   <span
                     className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                    style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }}
+                    style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C', border: '1px solid rgba(242,179,92,0.3)' }}
                   >
                     <Star size={9} />
                     {cliente.puntos} pts
@@ -191,8 +191,8 @@ export default function ClienteModal({ open, onClose, cliente, onSave }) {
             {/* Puntos (solo al editar, read-only) */}
             {cliente && (
               <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)' }}>
-                <Star size={15} style={{ color: '#fbbf24' }} />
+                style={{ background: 'rgba(242,179,92,0.06)', border: '1px solid rgba(242,179,92,0.15)' }}>
+                <Star size={15} style={{ color: '#F2B35C' }} />
                 <div>
                   <p className="text-sm font-semibold text-white">{cliente.puntos || 0} puntos de fidelidad</p>
                   <p className="text-[11px] mt-0.5" style={{ color: '#52525b' }}>
@@ -202,7 +202,7 @@ export default function ClienteModal({ open, onClose, cliente, onSave }) {
               </div>
             )}
 
-            {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+            {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
 
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={onClose}
@@ -212,7 +212,7 @@ export default function ClienteModal({ open, onClose, cliente, onSave }) {
               </button>
               <button type="submit" disabled={saving}
                 className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}>
+                style={{ background: 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}>
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 {saving ? 'Guardando…' : cliente ? 'Guardar cambios' : 'Crear cliente'}
               </button>

@@ -110,7 +110,7 @@ export default function SalonEditor() {
             onClick={() => setShowNuevaMesa(true)}
             disabled={!currentSalonId}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-40"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+            style={{ background: 'var(--cta)' }}
           >
             <Plus size={12} /> Mesa
           </button>
@@ -124,7 +124,7 @@ export default function SalonEditor() {
                 setSelectedMesaId(null)
               }}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{ background: 'transparent', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+              style={{ background: 'transparent', color: '#F2708C', border: '1px solid rgba(227,77,107,0.2)' }}
             >
               <Trash2 size={12} /> Eliminar mesa
             </button>
@@ -171,7 +171,7 @@ export default function SalonEditor() {
           {savingSalon && <Loader2 size={11} className="animate-spin" style={{ color: 'var(--accent-lift)' }} />}
           {!currentSalon.activo && (
             <span className="ml-auto px-2 py-0.5 rounded text-[10px] font-medium"
-              style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
+              style={{ background: 'rgba(227,77,107,0.1)', color: '#F2708C' }}>
               Salón inactivo
             </span>
           )}

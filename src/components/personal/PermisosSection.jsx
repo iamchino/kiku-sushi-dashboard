@@ -117,7 +117,7 @@ export default function PermisosSection() {
 
   if (error) return (
     <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
-      style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+      style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
       <AlertTriangle size={14} /> {error}
     </div>
   )
@@ -131,7 +131,7 @@ export default function PermisosSection() {
         </p>
         <button onClick={() => setNuevo(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           <Plus size={14} /> Nuevo rol
         </button>
       </div>
@@ -170,7 +170,7 @@ export default function PermisosSection() {
             {!rol.sistema && (
               <button onClick={() => setDelRol(rol)} title="Eliminar rol"
                 className="p-1.5 rounded-lg transition-colors flex-shrink-0" style={{ color: 'var(--text-muted)' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.1)'; e.currentTarget.style.color = '#f87171' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(242,112,140,0.1)'; e.currentTarget.style.color = '#F2708C' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}>
                 <Trash2 size={13} />
               </button>
@@ -205,7 +205,7 @@ export default function PermisosSection() {
                           <span className="flex items-center gap-1.5 text-sm font-medium"
                             style={{ color: 'var(--text-primary)' }}>
                             {r.nombre}
-                            {r.sensible && <ShieldCheck size={11} style={{ color: '#f59e0b' }} />}
+                            {r.sensible && <ShieldCheck size={11} style={{ color: '#E8A23F' }} />}
                           </span>
                           <span className="block text-[11px] mt-0.5" style={{ color: 'var(--text-xmuted)' }}>
                             {r.descripcion}
@@ -221,7 +221,7 @@ export default function PermisosSection() {
 
           {errGuardar && (
             <div className="flex items-start gap-2 px-4 py-3 rounded-xl text-sm"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+              style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
               <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" /> {errGuardar}
             </div>
           )}
@@ -236,7 +236,7 @@ export default function PermisosSection() {
             style={{ background: 'var(--bg-app)' }}>
             <button onClick={() => setConfirmando(true)} disabled={!sucio || guardando}
               className="px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+              style={{ background: 'var(--cta)' }}>
               {guardando ? 'Guardando…' : 'Guardar cambios'}
             </button>
             {sucio && (
@@ -293,8 +293,8 @@ function ConfirmarCambios({ rol, afectados, autoLockout, quitados, agregados, qu
 
         {quitados.length > 0 && (
           <div className="rounded-xl px-3 py-2.5 text-sm"
-            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
-            <p className="font-semibold text-xs mb-1" style={{ color: '#f87171' }}>Pierden acceso a</p>
+            style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)' }}>
+            <p className="font-semibold text-xs mb-1" style={{ color: '#F2708C' }}>Pierden acceso a</p>
             <p style={{ color: 'var(--text-secondary)' }}>{quitados.join(' · ')}</p>
           </div>
         )}
@@ -308,7 +308,7 @@ function ConfirmarCambios({ rol, afectados, autoLockout, quitados, agregados, qu
         )}
 
         {quedaVacio && (
-          <p className="text-xs flex items-start gap-2" style={{ color: '#f59e0b' }}>
+          <p className="text-xs flex items-start gap-2" style={{ color: '#E8A23F' }}>
             <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
             El rol queda sin ninguna sección. Quien lo tenga va a entrar a una pantalla
             que le dice que no tiene permisos, y nada más.
@@ -317,7 +317,7 @@ function ConfirmarCambios({ rol, afectados, autoLockout, quitados, agregados, qu
 
         {autoLockout && (
           <label className="flex items-start gap-2 text-xs cursor-pointer rounded-xl px-3 py-2.5"
-            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+            style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.2)', color: '#F2708C' }}>
             <input type="checkbox" checked={ok} onChange={e => setOk(e.target.checked)} className="mt-0.5" />
             <span>
               Te estás sacando a vos la administración de permisos. Después de guardar no
@@ -339,7 +339,7 @@ function ConfirmarCambios({ rol, afectados, autoLockout, quitados, agregados, qu
           </button>
           <button onClick={onConfirm} disabled={!ok}
             className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+            style={{ background: 'var(--cta)' }}>
             Guardar
           </button>
         </div>
@@ -377,7 +377,7 @@ function RolModal({ onClose, onSave }) {
         <Field label="Nombre" value={nombre} onChange={setNombre} placeholder="Encargado de turno" required />
         <Field label="Descripción (opcional)" value={descripcion} onChange={setDescripcion}
           placeholder="Qué hace este rol" />
-        <p className="text-[11px]" style={{ color: nombre && !idValido ? '#f59e0b' : 'var(--text-xmuted)' }}>
+        <p className="text-[11px]" style={{ color: nombre && !idValido ? '#E8A23F' : 'var(--text-xmuted)' }}>
           {!nombre
             ? 'El nombre define el identificador interno del rol.'
             : idValido
@@ -388,10 +388,10 @@ function RolModal({ onClose, onSave }) {
           Nace sin ninguna sección habilitada. Tildá las que necesite y guardá, y recién
           después asignáselo a alguien desde la pestaña Usuarios.
         </p>
-        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
         <button onClick={handle} disabled={busy || !nombre || !idValido}
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           {busy ? 'Creando…' : 'Crear rol'}
         </button>
       </div>

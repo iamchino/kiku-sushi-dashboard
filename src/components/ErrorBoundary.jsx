@@ -20,10 +20,10 @@ export class ErrorBoundary extends Component {
           fontFamily: 'monospace',
         }}>
           <div style={{
-            background: '#1c1c1f', border: '1px solid #f87171',
+            background: '#1c1c1f', border: '1px solid #F2708C',
             borderRadius: '12px', padding: '2rem', maxWidth: '640px', width: '100%',
           }}>
-            <p style={{ color: '#f87171', fontWeight: 700, marginBottom: '0.5rem', fontSize: '14px' }}>
+            <p style={{ color: '#F2708C', fontWeight: 700, marginBottom: '0.5rem', fontSize: '14px' }}>
               ⚠️ Error en la aplicación
             </p>
             <p style={{ color: '#e4e4e7', fontSize: '13px', marginBottom: '1rem' }}>

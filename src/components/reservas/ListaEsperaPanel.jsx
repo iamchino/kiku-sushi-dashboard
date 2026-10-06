@@ -88,7 +88,7 @@ export default function ListaEsperaPanel({ controller }) {
 
       {error && (
         <div className="mx-4 md:mx-6 mt-3 px-4 py-3 rounded-xl text-sm flex-shrink-0"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           {error}
         </div>
       )}
@@ -201,14 +201,14 @@ function EsperaRow({ item, busy, onEstado, onEliminar }) {
                 {item.estado === 'esperando' && (
                   <button type="button" onClick={() => onEstado('contactado')}
                     className="text-[11px] font-medium px-2.5 py-1 rounded-lg flex items-center gap-1.5"
-                    style={{ background: 'var(--bg-input)', color: '#4f8ef7', border: '1px solid var(--border)' }}>
+                    style={{ background: 'var(--bg-input)', color: '#7FA6F0', border: '1px solid var(--border)' }}>
                     <Phone size={11} /> Marcar contactado
                   </button>
                 )}
                 {activo && (
                   <button type="button" onClick={() => onEstado('convertida')}
                     className="text-[11px] font-medium px-2.5 py-1 rounded-lg flex items-center gap-1.5"
-                    style={{ background: 'rgba(52,211,153,0.10)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}>
+                    style={{ background: 'rgba(95,211,163,0.10)', color: '#5FD3A3', border: '1px solid rgba(95,211,163,0.25)' }}>
                     <Check size={11} /> Le dimos lugar
                   </button>
                 )}

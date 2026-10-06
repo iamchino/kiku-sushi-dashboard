@@ -132,7 +132,7 @@ export default function UnirMesaModal({ open, leaderMesa, mesasDisponibles = [],
         <div className="flex-1 overflow-y-auto px-3 py-3">
           {error && (
             <div className="rounded-lg p-2.5 text-xs flex items-start gap-2 mb-3 mx-2"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+              style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.2)', color: '#F2708C' }}>
               <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
@@ -197,7 +197,7 @@ export default function UnirMesaModal({ open, leaderMesa, mesasDisponibles = [],
             onClick={handleConfirm}
             disabled={selectedCount === 0 || busy}
             className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+            style={{ background: 'var(--cta)' }}
           >
             {busy
               ? <><Loader2 size={14} className="animate-spin" /> Uniendo…</>

@@ -162,7 +162,7 @@ export default function NuevaMesaModal({ open, mesa, onClose, onSave, onDelete, 
           {error && (
             <div
               className="rounded-lg px-3 py-2 text-xs"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}
+              style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}
             >
               {error}
             </div>
@@ -175,7 +175,7 @@ export default function NuevaMesaModal({ open, mesa, onClose, onSave, onDelete, 
                 onClick={handleDelete}
                 disabled={deleting}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all"
-                style={{ background: 'transparent', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+                style={{ background: 'transparent', color: '#F2708C', border: '1px solid rgba(227,77,107,0.2)' }}
               >
                 {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                 Eliminar
@@ -189,7 +189,7 @@ export default function NuevaMesaModal({ open, mesa, onClose, onSave, onDelete, 
               </button>
               <button type="submit" disabled={saving}
                 className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+                style={{ background: 'var(--cta)' }}>
                 {saving
                   ? <><Loader2 size={14} className="animate-spin" /> Guardando…</>
                   : isEdit ? 'Guardar cambios' : 'Crear mesa'

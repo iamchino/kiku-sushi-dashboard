@@ -330,7 +330,7 @@ export default function RecetaModal({
                   <button type="button" onClick={() => removeIng(idx)}
                     className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 transition-colors"
                     style={{ color: 'var(--text-xmuted)' }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                    onMouseEnter={e => e.currentTarget.style.color = '#E34D6B'}
                     onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}>
                     <Trash2 size={12} />
                   </button>
@@ -380,8 +380,8 @@ export default function RecetaModal({
                           key={v.id}
                           className="flex items-center justify-between text-xs px-3 py-2 rounded-lg"
                           style={{
-                            background: bajo ? 'rgba(239,68,68,0.06)' : 'rgba(34,197,94,0.04)',
-                            border: `1px solid ${bajo ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.1)'}`,
+                            background: bajo ? 'rgba(227,77,107,0.06)' : 'rgba(63,191,138,0.04)',
+                            border: `1px solid ${bajo ? 'rgba(227,77,107,0.15)' : 'rgba(63,191,138,0.1)'}`,
                           }}
                         >
                           <div>
@@ -392,7 +392,7 @@ export default function RecetaModal({
                               Costo: ${costoVar.toFixed(0)} · Venta: ${precioVar.toLocaleString('es-AR')}
                             </span>
                           </div>
-                          <span className="font-bold" style={{ color: bajo ? '#ef4444' : '#22c55e' }}>
+                          <span className="font-bold" style={{ color: bajo ? '#E34D6B' : '#3FBF8A' }}>
                             {margenVar !== null ? `${margenVar.toFixed(1)}%` : '—'}
                             {bajo && ' ⚠️'}
                           </span>
@@ -413,18 +413,18 @@ export default function RecetaModal({
                       className="flex items-center justify-between text-xs px-3 py-2 rounded-lg -mx-1"
                       style={{
                         background: margen !== null && margen < 30
-                          ? 'rgba(239,68,68,0.08)'
-                          : 'rgba(34,197,94,0.06)',
-                        border: `1px solid ${margen !== null && margen < 30 ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.15)'}`,
+                          ? 'rgba(227,77,107,0.08)'
+                          : 'rgba(63,191,138,0.06)',
+                        border: `1px solid ${margen !== null && margen < 30 ? 'rgba(227,77,107,0.2)' : 'rgba(63,191,138,0.15)'}`,
                       }}
                     >
                       <span className="font-semibold" style={{
-                        color: margen !== null && margen < 30 ? '#ef4444' : '#22c55e',
+                        color: margen !== null && margen < 30 ? '#E34D6B' : '#3FBF8A',
                       }}>
                         Margen: {margen !== null ? `${margen.toFixed(1)}%` : '—'}
                       </span>
                       {margen !== null && margen < 30 && (
-                        <span className="text-[10px] font-medium" style={{ color: '#ef4444' }}>
+                        <span className="text-[10px] font-medium" style={{ color: '#E34D6B' }}>
                           ⚠️ Bajo
                         </span>
                       )}
@@ -444,7 +444,7 @@ export default function RecetaModal({
               style={inputStyle} placeholder="Observaciones, variantes, etc." />
           </div>
 
-          {error && <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>}
+          {error && <p className="text-xs" style={{ color: '#E34D6B' }}>{error}</p>}
 
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
@@ -455,7 +455,7 @@ export default function RecetaModal({
             >Cancelar</button>
             <button type="submit" disabled={saving}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.2)' }}>
+              style={{ background: 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}>
               {saving ? <Loader2 size={14} className="animate-spin mx-auto" /> : isDuplicate ? 'Crear copia' : 'Guardar receta'}
             </button>
           </div>

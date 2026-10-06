@@ -119,7 +119,7 @@ export default function AjustePreciosModal({ open, onClose, onAplicado }) {
 
           {error && (
             <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+              style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
               <AlertTriangle size={14} /> {error}
             </div>
           )}
@@ -128,11 +128,11 @@ export default function AjustePreciosModal({ open, onClose, onAplicado }) {
           {resultado && (
             <div className="flex items-start gap-3 px-4 py-3 rounded-xl text-sm"
               style={{
-                background: resultado.ok ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.1)',
-                border: `1px solid ${resultado.ok ? 'rgba(52,211,153,0.25)' : 'rgba(239,68,68,0.25)'}`,
+                background: resultado.ok ? 'rgba(95,211,163,0.1)' : 'rgba(227,77,107,0.1)',
+                border: `1px solid ${resultado.ok ? 'rgba(95,211,163,0.25)' : 'rgba(227,77,107,0.25)'}`,
                 color: 'var(--text-primary)',
               }}>
-              {resultado.ok ? <Check size={16} className="mt-0.5 shrink-0" style={{ color: '#34d399' }} /> : <AlertTriangle size={16} className="mt-0.5 shrink-0" style={{ color: '#f87171' }} />}
+              {resultado.ok ? <Check size={16} className="mt-0.5 shrink-0" style={{ color: '#5FD3A3' }} /> : <AlertTriangle size={16} className="mt-0.5 shrink-0" style={{ color: '#F2708C' }} />}
               <span>
                 {resultado.total === 0
                   ? 'No hubo precios para actualizar.'
@@ -218,7 +218,7 @@ export default function AjustePreciosModal({ open, onClose, onAplicado }) {
                             <span className="ml-auto flex items-center gap-1.5 shrink-0">
                               <span style={{ textDecoration: 'line-through' }}>{fmt(ej.antes)}</span>
                               <ArrowRight size={11} />
-                              <span className="font-semibold" style={{ color: '#34d399' }}>{fmt(ej.despues)}</span>
+                              <span className="font-semibold" style={{ color: '#5FD3A3' }}>{fmt(ej.despues)}</span>
                             </span>
                           </div>
                         ))}
@@ -279,14 +279,14 @@ export default function AjustePreciosModal({ open, onClose, onAplicado }) {
                   onClick={() => setConfirmando(true)}
                   disabled={totalAfectados === 0}
                   className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40"
-                  style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+                  style={{ background: 'var(--cta)' }}>
                   Revisar y aplicar
                 </button>
               </div>
             ) : (
               <div className="space-y-3">
                 <div className="flex items-start gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                  <AlertTriangle size={14} className="mt-0.5 shrink-0" style={{ color: '#fbbf24' }} />
+                  <AlertTriangle size={14} className="mt-0.5 shrink-0" style={{ color: '#F2B35C' }} />
                   <span>Vas a cambiar <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{totalAfectados}</span> precios. Esta acción no se puede deshacer automáticamente.</span>
                 </div>
                 <div className="flex gap-3">
@@ -301,7 +301,7 @@ export default function AjustePreciosModal({ open, onClose, onAplicado }) {
                     onClick={handleAplicar}
                     disabled={aplicando}
                     className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
-                    style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+                    style={{ background: 'var(--cta)' }}>
                     {aplicando ? <><Loader2 size={15} className="animate-spin" /> Aplicando…</> : <>Confirmar aumento</>}
                   </button>
                 </div>
@@ -316,7 +316,7 @@ export default function AjustePreciosModal({ open, onClose, onAplicado }) {
             <button
               onClick={onClose}
               className="w-full py-2.5 rounded-xl text-sm font-semibold text-white"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+              style={{ background: 'var(--cta)' }}>
               Cerrar
             </button>
           </div>

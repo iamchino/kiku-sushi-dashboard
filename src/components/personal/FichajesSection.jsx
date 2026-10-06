@@ -57,8 +57,8 @@ export default function FichajesSection({ horas, empleados }) {
       {/* ── Turnos abiertos ahora ─────────────────────────────────────────── */}
       {!loading && abiertos.length > 0 && (
         <div className="rounded-xl p-3.5"
-          style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.25)' }}>
-          <p className="flex items-center gap-1.5 text-xs font-semibold mb-2.5" style={{ color: '#f59e0b' }}>
+          style={{ background: 'rgba(232,162,63,0.07)', border: '1px solid rgba(232,162,63,0.25)' }}>
+          <p className="flex items-center gap-1.5 text-xs font-semibold mb-2.5" style={{ color: '#E8A23F' }}>
             <Clock size={13} /> Turnos abiertos · {abiertos.length}
             <span className="font-normal" style={{ color: 'var(--text-muted)' }}>
               — entraron y todavía no ficharon la salida
@@ -70,8 +70,8 @@ export default function FichajesSection({ horas, empleados }) {
                 style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'rgba(245,158,11,0.14)' }}>
-                    <LogIn size={14} style={{ color: '#f59e0b' }} />
+                    style={{ background: 'rgba(232,162,63,0.14)' }}>
+                    <LogIn size={14} style={{ color: '#E8A23F' }} />
                   </span>
                   <div className="min-w-0">
                     <p className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>
@@ -79,12 +79,12 @@ export default function FichajesSection({ horas, empleados }) {
                     </p>
                     <p className="text-[11px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
                       Entró <span className="capitalize">{fmtFechaHora(t.entrada)}</span>
-                      <span className="ml-1.5 font-semibold" style={{ color: '#f59e0b' }}>
+                      <span className="ml-1.5 font-semibold" style={{ color: '#E8A23F' }}>
                         · lleva {fmtMinutos(t.transcurrido || 0)}
                       </span>
                     </p>
                     {t.excedido && (
-                      <p className="flex items-center gap-1 text-[10px] mt-0.5" style={{ color: '#f87171' }}>
+                      <p className="flex items-center gap-1 text-[10px] mt-0.5" style={{ color: '#F2708C' }}>
                         <AlertTriangle size={10} /> Hace más de 16 h: seguro se olvidó de fichar la salida
                       </p>
                     )}
@@ -94,7 +94,7 @@ export default function FichajesSection({ horas, empleados }) {
                   <button
                     onClick={() => setModal({ seed: { empleado_id: t.empleado_id, tipo: 'salida' } })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
-                    style={{ background: 'rgba(245,158,11,0.14)', color: '#f59e0b' }}>
+                    style={{ background: 'rgba(232,162,63,0.14)', color: '#E8A23F' }}>
                     <LogOut size={12} /> Cargar salida
                   </button>
                   {t.entradaMarca && (
@@ -140,7 +140,7 @@ export default function FichajesSection({ horas, empleados }) {
         </div>
         <button onClick={() => setModal('nuevo')}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           <Plus size={14} /> Marca manual
         </button>
       </div>
@@ -212,8 +212,8 @@ function IconBtn({ children, onClick, title, danger }) {
     <button onClick={onClick} title={title} className="p-1.5 rounded-lg transition-colors"
       style={{ color: 'var(--text-muted)' }}
       onMouseEnter={e => {
-        e.currentTarget.style.background = danger ? 'rgba(248,113,113,0.1)' : 'var(--bg-hover)'
-        if (danger) e.currentTarget.style.color = '#f87171'
+        e.currentTarget.style.background = danger ? 'rgba(242,112,140,0.1)' : 'var(--bg-hover)'
+        if (danger) e.currentTarget.style.color = '#F2708C'
       }}
       onMouseLeave={e => {
         e.currentTarget.style.background = 'transparent'
@@ -230,7 +230,7 @@ function IconBtn({ children, onClick, title, danger }) {
 function TurnoCard({ turno: t, nombre, onEditarMarca, onBorrarMarca, onCargarSalida }) {
   const [abierto, setAbierto] = useState(false)
   const problema = t.abierto || t.anomalia
-  const color = t.abierto ? '#f59e0b' : t.anomalia ? '#f87171' : '#22c55e'
+  const color = t.abierto ? '#E8A23F' : t.anomalia ? '#F2708C' : '#3FBF8A'
 
   return (
     <div className="rounded-xl" style={{ background: 'var(--bg-card)', border: `1px solid ${problema ? `${color}44` : 'var(--border-card)'}` }}>
@@ -257,11 +257,11 @@ function TurnoCard({ turno: t, nombre, onEditarMarca, onBorrarMarca, onCargarSal
               )}
               {t.anomalia === 'sin_entrada' && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium"
-                  style={{ background: 'rgba(248,113,113,0.12)', color: '#f87171' }}>salida sin entrada</span>
+                  style={{ background: 'rgba(242,112,140,0.12)', color: '#F2708C' }}>salida sin entrada</span>
               )}
               {t.anomalia === 'sin_salida' && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium"
-                  style={{ background: 'rgba(248,113,113,0.12)', color: '#f87171' }}>se olvidó la salida</span>
+                  style={{ background: 'rgba(242,112,140,0.12)', color: '#F2708C' }}>se olvidó la salida</span>
               )}
             </div>
           </div>
@@ -282,8 +282,8 @@ function TurnoCard({ turno: t, nombre, onEditarMarca, onBorrarMarca, onCargarSal
               style={{ background: 'var(--bg-input)' }}>
               <div className="flex items-center gap-2.5 min-w-0">
                 {m.tipo === 'entrada'
-                  ? <LogIn size={13} style={{ color: '#22c55e' }} />
-                  : <LogOut size={13} style={{ color: '#f87171' }} />}
+                  ? <LogIn size={13} style={{ color: '#3FBF8A' }} />
+                  : <LogOut size={13} style={{ color: '#F2708C' }} />}
                 <div className="min-w-0">
                   <p className="text-[11px] font-medium capitalize tabular-nums" style={{ color: 'var(--text-primary)' }}>
                     {m.tipo} · {fmtFechaHora(m.ts)}
@@ -315,7 +315,7 @@ function MarcaMeta({ f }) {
     <div className="flex items-center gap-2 flex-wrap">
       {f.origen === 'manual' && (
         <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium"
-          style={{ background: 'rgba(245,158,11,0.14)', color: '#f59e0b' }}>manual</span>
+          style={{ background: 'rgba(232,162,63,0.14)', color: '#E8A23F' }}>manual</span>
       )}
       {f.origen === 'qr' && f.distancia_m != null && (
         <span className="text-[10px] flex items-center gap-0.5" style={{ color: 'var(--text-xmuted)' }}>
@@ -337,10 +337,10 @@ function MarcaRow({ f, onEditar, onBorrar }) {
       style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}>
       <div className="flex items-center gap-3 min-w-0">
         <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: f.tipo === 'entrada' ? 'rgba(34,197,94,0.12)' : 'rgba(248,113,113,0.1)' }}>
+          style={{ background: f.tipo === 'entrada' ? 'rgba(63,191,138,0.12)' : 'rgba(242,112,140,0.1)' }}>
           {f.tipo === 'entrada'
-            ? <LogIn size={14} style={{ color: '#22c55e' }} />
-            : <LogOut size={14} style={{ color: '#f87171' }} />}
+            ? <LogIn size={14} style={{ color: '#3FBF8A' }} />
+            : <LogOut size={14} style={{ color: '#F2708C' }} />}
         </div>
         <div className="min-w-0">
           <p className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>
@@ -407,10 +407,10 @@ function FichajeModal({ initial, seed, empleados, onClose, onSave }) {
         )}
         <TextArea label="Nota (motivo de la corrección)" value={nota} onChange={setNota}
           placeholder="Ej: se olvidó de fichar la salida" rows={2} />
-        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
         <button onClick={handle} disabled={busy}
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           {busy ? 'Guardando…' : 'Guardar marca'}
         </button>
       </div>

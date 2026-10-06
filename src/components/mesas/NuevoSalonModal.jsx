@@ -85,7 +85,7 @@ export default function NuevoSalonModal({ open, onClose, onSave }) {
           {error && (
             <div
               className="rounded-lg px-3 py-2 text-xs"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}
+              style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}
             >
               {error}
             </div>
@@ -99,7 +99,7 @@ export default function NuevoSalonModal({ open, onClose, onSave }) {
             </button>
             <button type="submit" disabled={saving}
               className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+              style={{ background: 'var(--cta)' }}>
               {saving
                 ? <><Loader2 size={14} className="animate-spin" /> Creando…</>
                 : 'Crear salón'

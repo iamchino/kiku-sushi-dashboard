@@ -238,19 +238,19 @@ export default function PrinterConfig() {
             onClick={discoverPrinters}
             disabled={!host.trim() || discoverState === 'loading'}
             className="px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-1.5 disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+            style={{ background: 'var(--cta)' }}
           >
             {discoverState === 'loading' ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
             Conectar y listar
           </button>
         </div>
         {discoverState === 'ok' && (
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: '#22c55e' }}>
+          <div className="flex items-center gap-1.5 text-xs" style={{ color: '#3FBF8A' }}>
             <CheckCircle2 size={13} /> Conectado. Se detectaron {printers.length} impresora(s).
           </div>
         )}
         {discoverState === 'ok' && discoverViaLocal && (
-          <div className="flex items-start gap-1.5 text-xs" style={{ color: '#f59e0b' }}>
+          <div className="flex items-start gap-1.5 text-xs" style={{ color: '#E8A23F' }}>
             <AlertTriangle size={13} className="mt-0.5" />
             <span>
               Ojo: la dirección {host.trim()} no responde; se conectó porque esta es la misma PC donde corre
@@ -260,7 +260,7 @@ export default function PrinterConfig() {
           </div>
         )}
         {discoverState === 'error' && (
-          <div className="flex items-start gap-1.5 text-xs" style={{ color: '#ef4444' }}>
+          <div className="flex items-start gap-1.5 text-xs" style={{ color: '#E34D6B' }}>
             <AlertTriangle size={13} className="mt-0.5" />
             <span>No se pudo conectar. {discoverError}</span>
           </div>
@@ -298,8 +298,8 @@ export default function PrinterConfig() {
                     title="Imprimir ticket de prueba"
                   >
                     {testStatus === 'loading' && <Loader2 size={11} className="animate-spin" />}
-                    {testStatus === 'ok' && <CheckCircle2 size={11} style={{ color: '#22c55e' }} />}
-                    {testStatus === 'error' && <AlertTriangle size={11} style={{ color: '#ef4444' }} />}
+                    {testStatus === 'ok' && <CheckCircle2 size={11} style={{ color: '#3FBF8A' }} />}
+                    {testStatus === 'error' && <AlertTriangle size={11} style={{ color: '#E34D6B' }} />}
                     Probar
                   </button>
                 </div>
@@ -341,7 +341,7 @@ export default function PrinterConfig() {
                   </select>
                 </div>
                 {testStatus === 'error' && (
-                  <div className="text-[11px]" style={{ color: '#ef4444' }}>
+                  <div className="text-[11px]" style={{ color: '#E34D6B' }}>
                     {testState[`${key}_err`] || 'Error en impresion'}
                   </div>
                 )}
@@ -399,12 +399,12 @@ export default function PrinterConfig() {
       {/* Guardar */}
       <div className="flex items-center justify-end gap-2">
         {saveState === 'ok' && (
-          <span className="flex items-center gap-1 text-xs" style={{ color: '#22c55e' }}>
+          <span className="flex items-center gap-1 text-xs" style={{ color: '#3FBF8A' }}>
             <CheckCircle2 size={13} /> Guardado
           </span>
         )}
         {saveState === 'error' && (
-          <span className="flex items-center gap-1 text-xs" style={{ color: '#ef4444' }}>
+          <span className="flex items-center gap-1 text-xs" style={{ color: '#E34D6B' }}>
             <AlertTriangle size={13} /> {saveError}
           </span>
         )}
@@ -413,7 +413,7 @@ export default function PrinterConfig() {
           onClick={handleSave}
           disabled={saveState === 'saving'}
           className="px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-1.5 disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+          style={{ background: 'var(--cta)' }}
         >
           {saveState === 'saving' ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
           Guardar configuracion

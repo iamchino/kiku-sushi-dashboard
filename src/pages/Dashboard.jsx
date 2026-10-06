@@ -15,7 +15,7 @@ export default function Dashboard() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-3">
-          <p className="font-medium" style={{ color: '#f87171' }}>Error cargando datos</p>
+          <p className="font-medium" style={{ color: '#F2708C' }}>Error cargando datos</p>
           <p className="text-sm" style={{ color: 'var(--text-xmuted)' }}>{error}</p>
           <button
             onClick={refetch}

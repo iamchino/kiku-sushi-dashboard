@@ -470,7 +470,7 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
                   <button
                     type="button" onClick={clearImage}
                     className="absolute top-2 right-2 w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-red-500/20"
-                    style={{ background: 'rgba(0,0,0,0.6)', color: '#f87171' }}
+                    style={{ background: 'rgba(0,0,0,0.6)', color: '#F2708C' }}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -600,7 +600,7 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
                     type="button" onClick={() => removePaso(idx)}
                     className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
                     style={{ color: 'var(--text-xmuted)' }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+                    onMouseEnter={e => e.currentTarget.style.color = '#F2708C'}
                     onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}
                   >
                     <Trash2 size={12} />
@@ -625,7 +625,7 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
                         type="button" onClick={() => removeRoll(idx, rIdx)}
                         className="w-7 h-7 rounded-lg flex items-center justify-center"
                         style={{ color: 'var(--text-xmuted)' }}
-                        onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+                        onMouseEnter={e => e.currentTarget.style.color = '#F2708C'}
                         onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}
                       >
                         <Trash2 size={11} />
@@ -656,7 +656,7 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
             style={{ borderTop: '1px solid var(--border)' }}
           >
             {errorMsg ? (
-              <p className="text-xs" style={{ color: '#f87171' }}>{errorMsg}</p>
+              <p className="text-xs" style={{ color: '#F2708C' }}>{errorMsg}</p>
             ) : (
               <span />
             )}
@@ -671,7 +671,7 @@ export default function EspecialModal({ open, onClose, item, onSave }) {
               <button
                 type="submit" disabled={saving}
                 className="px-5 py-2 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-50 flex items-center gap-2"
-                style={{ background: saving ? 'var(--accent-deep)' : 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}
+                style={{ background: saving ? 'var(--accent-deep)' : 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}
               >
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 {saving ? 'Guardando…' : item ? 'Guardar cambios' : 'Crear especial'}

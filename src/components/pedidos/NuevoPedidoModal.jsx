@@ -546,8 +546,8 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
                       </div>
                       {descuento > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-xs" style={{ color: '#34d399' }}>Descuento {descuento.toLocaleString('es-AR')}%</span>
-                          <span className="text-xs" style={{ color: '#34d399' }}>
+                          <span className="text-xs" style={{ color: '#5FD3A3' }}>Descuento {descuento.toLocaleString('es-AR')}%</span>
+                          <span className="text-xs" style={{ color: '#5FD3A3' }}>
                             -${descuentoMonto.toLocaleString('es-AR')}
                           </span>
                         </div>
@@ -625,7 +625,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
           {/* Footer */}
           <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderTop: '1px solid var(--border)' }}>
             {error
-              ? <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>
+              ? <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>
               : (
                 <label className="flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                   <input
@@ -647,7 +647,7 @@ export default function NuevoPedidoModal({ open, onClose, onSave, canalInicial =
               </button>
               <button type="submit" disabled={saving}
                 className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}>
+                style={{ background: 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}>
                 {saving
                   ? <><Loader2 size={14} className="animate-spin" /> Creando…</>
                   : <><ShoppingBag size={14} /> Crear pedido</>

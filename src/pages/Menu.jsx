@@ -27,8 +27,8 @@ const TABS = [
 const BADGE_COLORS = {
   Popular:  { bg: 'rgba(var(--accent-rgb),0.12)', color: 'var(--accent-lift)',  border: 'rgba(var(--accent-rgb),0.25)' },
   Premium:  { bg: 'rgba(var(--accent-lift-rgb),0.12)', color: 'var(--accent-lift)',  border: 'rgba(var(--accent-lift-rgb),0.25)' },
-  Nuevo:    { bg: 'rgba(52,211,153,0.12)', color: '#34d399',  border: 'rgba(52,211,153,0.25)' },
-  Limitado: { bg: 'rgba(251,191,36,0.12)', color: '#fbbf24',  border: 'rgba(251,191,36,0.25)' },
+  Nuevo:    { bg: 'rgba(95,211,163,0.12)', color: '#5FD3A3',  border: 'rgba(95,211,163,0.25)' },
+  Limitado: { bg: 'rgba(242,179,92,0.12)', color: '#F2B35C',  border: 'rgba(242,179,92,0.25)' },
 }
 
 export default function MenuPage() {
@@ -178,17 +178,17 @@ export default function MenuPage() {
         <div
           className="flex items-start gap-3 rounded-xl px-4 py-3 text-sm"
           style={{
-            background: notice.type === 'error' ? 'rgba(239,68,68,0.1)'
-              : notice.type === 'info' ? 'rgba(251,191,36,0.1)'
-              : 'rgba(52,211,153,0.1)',
-            border: `1px solid ${notice.type === 'error' ? 'rgba(239,68,68,0.25)'
-              : notice.type === 'info' ? 'rgba(251,191,36,0.25)'
-              : 'rgba(52,211,153,0.25)'}`,
+            background: notice.type === 'error' ? 'rgba(227,77,107,0.1)'
+              : notice.type === 'info' ? 'rgba(242,179,92,0.1)'
+              : 'rgba(95,211,163,0.1)',
+            border: `1px solid ${notice.type === 'error' ? 'rgba(227,77,107,0.25)'
+              : notice.type === 'info' ? 'rgba(242,179,92,0.25)'
+              : 'rgba(95,211,163,0.25)'}`,
             color: 'var(--text-primary)',
           }}
         >
           <AlertCircle size={16} className="mt-0.5 shrink-0" style={{
-            color: notice.type === 'error' ? '#f87171' : notice.type === 'info' ? '#fbbf24' : '#34d399',
+            color: notice.type === 'error' ? '#F2708C' : notice.type === 'info' ? '#F2B35C' : '#5FD3A3',
           }} />
           <span className="flex-1">{notice.text}</span>
           <button onClick={() => setNotice(null)} style={{ color: 'var(--text-muted)' }} className="font-medium">✕</button>
@@ -228,7 +228,7 @@ export default function MenuPage() {
             <button
               onClick={openNew}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}
+              style={{ background: 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}
             >
               <Plus size={15} />
               Nuevo producto
@@ -285,8 +285,8 @@ export default function MenuPage() {
           </span>
           <span className="w-1 h-1 rounded-full" style={{ background: 'var(--border)' }} />
           <span className="flex items-center gap-1.5">
-            <Eye size={12} style={{ color: '#34d399' }} />
-            <span style={{ color: '#34d399' }}>{stats.activos}</span> visibles
+            <Eye size={12} style={{ color: '#5FD3A3' }} />
+            <span style={{ color: '#5FD3A3' }}>{stats.activos}</span> visibles
           </span>
           <span className="w-1 h-1 rounded-full" style={{ background: 'var(--border)' }} />
           <span className="flex items-center gap-1.5">
@@ -312,7 +312,7 @@ export default function MenuPage() {
       {/* ── Error ── */}
       {!esConfig && error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}
         >
           <AlertCircle size={14} />
           {error}
@@ -465,7 +465,7 @@ export default function MenuPage() {
                           )}
                           {item.va_a_cocina === false && (
                             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-                              style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}
+                              style={{ background: 'rgba(232,162,63,0.12)', color: '#E8A23F' }}
                               title="No pasa por cocina: no aparece en el KDS"
                             >
                               Sin cocina
@@ -473,7 +473,7 @@ export default function MenuPage() {
                           )}
                           {item.solo_salon && (
                             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-                              style={{ background: 'rgba(79,142,247,0.12)', color: '#4f8ef7' }}
+                              style={{ background: 'rgba(127,166,240,0.12)', color: '#7FA6F0' }}
                               title="Disponible en salón/mesas, oculto en la carta web"
                             >
                               Solo salón
@@ -499,7 +499,7 @@ export default function MenuPage() {
                           onClick={() => handleToggle(item)}
                           className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
                           title={item.activo ? 'Ocultar' : 'Mostrar'}
-                          style={{ color: item.activo ? '#34d399' : 'var(--text-xmuted)' }}
+                          style={{ color: item.activo ? '#5FD3A3' : 'var(--text-xmuted)' }}
                           onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
@@ -522,7 +522,7 @@ export default function MenuPage() {
                           onClick={() => setDeleteTarget(item)}
                           className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-red-500/10"
                           style={{ color: 'var(--text-xmuted)' }}
-                          onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+                          onMouseEnter={e => e.currentTarget.style.color = '#F2708C'}
                           onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}
                         >
                           <Trash2 size={14} />
@@ -570,8 +570,8 @@ export default function MenuPage() {
             className="relative w-full max-w-sm rounded-2xl p-6 space-y-4"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 32px 64px rgba(0,0,0,0.3)' }}
           >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto" style={{ background: 'rgba(239,68,68,0.1)' }}>
-              <Trash2 size={18} style={{ color: '#f87171' }} />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto" style={{ background: 'rgba(227,77,107,0.1)' }}>
+              <Trash2 size={18} style={{ color: '#F2708C' }} />
             </div>
             <div className="text-center">
               <p className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>¿Eliminar producto?</p>
@@ -592,7 +592,7 @@ export default function MenuPage() {
                 onClick={handleDelete}
                 disabled={!!deletingId}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-60"
-                style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)' }}
+                style={{ background: 'linear-gradient(135deg, #E34D6B, #A82C42)' }}
               >
                 {deletingId ? 'Eliminando…' : 'Eliminar'}
               </button>

@@ -10,9 +10,9 @@ import { fmtMoney, fmtFecha } from '../../lib/finanzas'
 // Solo lectura: los retiros y ajustes se hacen en Caja → Caja fuerte.
 
 const META = {
-  deposito: { label: 'Entró',  color: '#10b981', icon: ArrowDownLeft,      signo: +1 },
-  egreso:   { label: 'Salió',  color: '#f87171', icon: ArrowUpRight,       signo: -1 },
-  ajuste:   { label: 'Ajuste', color: '#f59e0b', icon: SlidersHorizontal,  signo: 0 },
+  deposito: { label: 'Entró',  color: '#3FBF8A', icon: ArrowDownLeft,      signo: +1 },
+  egreso:   { label: 'Salió',  color: '#F2708C', icon: ArrowUpRight,       signo: -1 },
+  ajuste:   { label: 'Ajuste', color: '#E8A23F', icon: SlidersHorizontal,  signo: 0 },
 }
 
 // Un ajuste puede sumar (sobrante) o restar (faltante).
@@ -62,7 +62,7 @@ export default function CajaFuerteResumen({ desde, hasta, label }) {
       </div>
 
       {error ? (
-        <p className="flex items-center gap-1.5 py-2 text-xs" style={{ color: '#f87171' }}>
+        <p className="flex items-center gap-1.5 py-2 text-xs" style={{ color: '#F2708C' }}>
           <AlertTriangle size={12} /> {error}
         </p>
       ) : loading ? (
@@ -73,15 +73,15 @@ export default function CajaFuerteResumen({ desde, hasta, label }) {
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-lg px-3 py-2" style={{ background: 'var(--bg-input)' }}>
               <p className="flex items-center gap-1 text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-xmuted)' }}>
-                <ArrowDownLeft size={11} style={{ color: '#10b981' }} /> Entró · {label}
+                <ArrowDownLeft size={11} style={{ color: '#3FBF8A' }} /> Entró · {label}
               </p>
-              <p className="mt-0.5 text-sm font-bold" style={{ color: '#10b981' }}>{fmtMoney(entro)}</p>
+              <p className="mt-0.5 text-sm font-bold" style={{ color: '#3FBF8A' }}>{fmtMoney(entro)}</p>
             </div>
             <div className="rounded-lg px-3 py-2" style={{ background: 'var(--bg-input)' }}>
               <p className="flex items-center gap-1 text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-xmuted)' }}>
-                <ArrowUpRight size={11} style={{ color: '#f87171' }} /> Salió · {label}
+                <ArrowUpRight size={11} style={{ color: '#F2708C' }} /> Salió · {label}
               </p>
-              <p className="mt-0.5 text-sm font-bold" style={{ color: '#f87171' }}>{fmtMoney(salio)}</p>
+              <p className="mt-0.5 text-sm font-bold" style={{ color: '#F2708C' }}>{fmtMoney(salio)}</p>
             </div>
           </div>
 
@@ -96,7 +96,7 @@ export default function CajaFuerteResumen({ desde, hasta, label }) {
                   const meta = META[m.tipo] || META.ajuste
                   const signo = signoDe(m)
                   const Icon = meta.icon
-                  const color = signo > 0 ? '#10b981' : signo < 0 ? '#f87171' : meta.color
+                  const color = signo > 0 ? '#3FBF8A' : signo < 0 ? '#F2708C' : meta.color
                   return (
                     <div key={m.id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2"
                       style={{ background: 'var(--bg-input)' }}>

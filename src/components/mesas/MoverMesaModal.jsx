@@ -154,7 +154,7 @@ export default function MoverMesaModal({ open, mesaActual, personas, onClose, on
 
           {quedaChica && (
             <p className="mt-3 flex items-start gap-1.5 text-[11px] px-3 py-2 rounded-lg"
-              style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
+              style={{ background: 'rgba(232,162,63,0.1)', color: '#E8A23F' }}>
               <AlertCircle size={12} className="flex-shrink-0 mt-px" />
               La mesa {elegida.numero} es para {elegida.capacidad} personas y en esta
               mesa hay {personas}. Se puede mover igual.
@@ -163,7 +163,7 @@ export default function MoverMesaModal({ open, mesaActual, personas, onClose, on
 
           {error && (
             <p className="mt-3 flex items-start gap-1.5 text-xs px-3 py-2 rounded-lg"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+              style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
               <AlertCircle size={12} className="flex-shrink-0 mt-px" /> {error}
             </p>
           )}
@@ -177,7 +177,7 @@ export default function MoverMesaModal({ open, mesaActual, personas, onClose, on
           </button>
           <button type="button" onClick={handleConfirm} disabled={!destino || busy}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+            style={{ background: 'var(--cta)' }}>
             {busy
               ? <><Loader2 size={15} className="animate-spin" /> Moviendo…</>
               : <><ArrowRightLeft size={15} /> {elegida ? `Mover a la mesa ${elegida.numero}` : 'Elegí una mesa'}</>}

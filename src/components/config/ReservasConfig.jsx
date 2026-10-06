@@ -286,7 +286,7 @@ export default function ReservasConfig() {
               <Toggle on={m.activo} onClick={() => setMenu(m.id, 'activo', !m.activo)} />
               <button type="button" onClick={() => eliminarMenu(m.id)} title="Eliminar menú"
                 className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
-                onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                onMouseEnter={e => e.currentTarget.style.color = '#E34D6B'}
                 onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}>
                 <Trash2 size={14} />
               </button>
@@ -305,27 +305,27 @@ export default function ReservasConfig() {
 
       {avisos.map((a, i) => (
         <div key={i} className="rounded-lg px-3 py-2 text-xs flex items-start gap-2"
-          style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)', color: '#f59e0b' }}>
+          style={{ background: 'rgba(242,179,92,0.08)', border: '1px solid rgba(242,179,92,0.2)', color: '#E8A23F' }}>
           <AlertTriangle size={13} className="shrink-0 mt-0.5" /> {a}
         </div>
       ))}
 
       {error && (
         <div className="rounded-lg px-3 py-2 text-xs flex items-start gap-2"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           <AlertTriangle size={13} className="shrink-0 mt-0.5" /> {error}
         </div>
       )}
 
       <div className="flex items-center justify-end gap-2">
         {saveState === 'ok' && (
-          <span className="flex items-center gap-1 text-xs" style={{ color: '#22c55e' }}>
+          <span className="flex items-center gap-1 text-xs" style={{ color: '#3FBF8A' }}>
             <CheckCircle2 size={13} /> Guardado
           </span>
         )}
         <button type="button" onClick={guardar} disabled={saveState === 'saving'}
           className="px-4 py-2 rounded-xl text-sm font-semibold text-white flex items-center gap-1.5 disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           {saveState === 'saving' ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
           Guardar cambios
         </button>

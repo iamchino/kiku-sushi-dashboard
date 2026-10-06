@@ -11,7 +11,7 @@ export default function ProgresoBar({ stats }) {
         <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
           Progreso del día
         </span>
-        <span className="text-xs font-bold tabular-nums" style={{ color: allDone ? '#22c55e' : 'var(--accent-lift)' }}>
+        <span className="text-xs font-bold tabular-nums" style={{ color: allDone ? '#3FBF8A' : 'var(--accent-lift)' }}>
           {completadas}/{total} {allDone ? '✅' : ''}
         </span>
       </div>
@@ -21,10 +21,10 @@ export default function ProgresoBar({ stats }) {
           style={{
             width: `${porcentaje}%`,
             background: allDone
-              ? 'linear-gradient(90deg, #22c55e, #16a34a)'
+              ? 'linear-gradient(90deg, #3FBF8A, #2EA075)'
               : 'linear-gradient(90deg, var(--accent), var(--accent-lift))',
             boxShadow: allDone
-              ? '0 0 12px rgba(34,197,94,0.4)'
+              ? '0 0 12px rgba(63,191,138,0.4)'
               : '0 0 12px rgba(var(--accent-rgb),0.3)',
           }}
         />

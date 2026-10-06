@@ -132,7 +132,7 @@ export default function NotifStatusBanner() {
         onClick={activar}
         disabled={trabajando}
         className="px-3 py-1.5 rounded-md text-[11px] font-semibold text-white flex items-center gap-1.5 disabled:opacity-50"
-        style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+        style={{ background: 'var(--cta)' }}
       >
         {trabajando ? <Loader2 size={12} className="animate-spin" /> : <BellRing size={12} />}
         Activar

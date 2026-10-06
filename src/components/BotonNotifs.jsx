@@ -54,17 +54,17 @@ export default function BotonNotifs() {
 
   const { color, fondo, Icono, texto, titulo } = bloqueado
     ? {
-        color: '#f87171', fondo: 'rgba(239,68,68,0.12)', Icono: BellOff, texto: 'Bloqueadas',
+        color: '#F2708C', fondo: 'rgba(227,77,107,0.12)', Icono: BellOff, texto: 'Bloqueadas',
         titulo: 'Chrome tiene bloqueadas las notificaciones en este teléfono. Tocá el candado 🔒 al lado de la dirección → Permisos → Notificaciones → Permitir, y recargá.',
       }
     : ok
       ? {
-          color: '#34d399', fondo: 'rgba(52,211,153,0.12)', Icono: BellRing, texto: 'Avisos ON',
+          color: '#5FD3A3', fondo: 'rgba(95,211,163,0.12)', Icono: BellRing, texto: 'Avisos ON',
           titulo: 'Este dispositivo recibe avisos aunque esté bloqueado. Tocá para mandarte una notificación de prueba.',
         }
       : parcial
         ? {
-            color: '#fbbf24', fondo: 'rgba(251,191,36,0.12)', Icono: Bell, texto: 'A medias',
+            color: '#F2B35C', fondo: 'rgba(242,179,92,0.12)', Icono: Bell, texto: 'A medias',
             titulo: motivo
               ? `Solo suena con la app abierta: ${motivo}. Tocá para reintentar.`
               : (MOTIVO_TEXTO[push]

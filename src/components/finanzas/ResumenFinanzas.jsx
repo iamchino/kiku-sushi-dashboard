@@ -80,7 +80,7 @@ function EgresosPorCategoria({ porCategoria, totalEgresos }) {
 
       <div className="mt-4 flex items-baseline justify-between border-t pt-3" style={{ borderColor: 'var(--border)' }}>
         <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Total del período</span>
-        <span className="text-sm font-bold" style={{ color: '#f87171' }}>{fmtMoney(totalEgresos)}</span>
+        <span className="text-sm font-bold" style={{ color: '#F2708C' }}>{fmtMoney(totalEgresos)}</span>
       </div>
     </div>
   )
@@ -120,8 +120,8 @@ function CierresDeCaja({ turnos }) {
                 </span>
                 <span className="flex items-center gap-1 rounded-md px-2 py-0.5 font-medium"
                   style={ok
-                    ? { background: 'rgba(16,185,129,0.12)', color: '#10b981' }
-                    : { background: 'rgba(248,113,113,0.12)', color: '#f87171' }}>
+                    ? { background: 'rgba(63,191,138,0.12)', color: '#3FBF8A' }
+                    : { background: 'rgba(242,112,140,0.12)', color: '#F2708C' }}>
                   {ok ? <CheckCircle2 size={11} /> : <AlertTriangle size={11} />}
                   {ok ? 'Cuadra' : `${dif > 0 ? 'Sobra ' : 'Falta '}${fmtMoney(Math.abs(dif))}`}
                 </span>
@@ -169,7 +169,7 @@ function HistorialDePagos({ desde, hasta }) {
 
   const visibles = verTodos ? egresos : egresos.slice(0, 6)
 
-  if (error) return <p className="text-xs py-3" style={{ color: '#f87171' }}>{error}</p>
+  if (error) return <p className="text-xs py-3" style={{ color: '#F2708C' }}>{error}</p>
   if (loading) return <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="skeleton h-10 rounded-lg" />)}</div>
   if (egresos.length === 0) {
     return <p className="text-xs py-4 text-center" style={{ color: 'var(--text-xmuted)' }}>Sin pagos en el período</p>
@@ -191,7 +191,7 @@ function HistorialDePagos({ desde, hasta }) {
                 </p>
                 <p className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
                   {catLabel(e.categoria)} · {fmtFecha(e.fecha)} · {medioLabel(e.medio_pago)}
-                  {e.estado === 'pendiente' && <span style={{ color: '#f59e0b' }}> · pendiente</span>}
+                  {e.estado === 'pendiente' && <span style={{ color: '#E8A23F' }}> · pendiente</span>}
                 </p>
               </div>
             </div>
@@ -212,7 +212,7 @@ function HistorialDePagos({ desde, hasta }) {
               </button>
               <button onClick={() => setBorrando(e)} title="Eliminar este pago"
                 className="p-1 rounded-md transition-colors" style={{ color: 'var(--text-xmuted)' }}
-                onMouseEnter={ev => { ev.currentTarget.style.background = 'rgba(248,113,113,0.12)'; ev.currentTarget.style.color = '#f87171' }}
+                onMouseEnter={ev => { ev.currentTarget.style.background = 'rgba(242,112,140,0.12)'; ev.currentTarget.style.color = '#F2708C' }}
                 onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--text-xmuted)' }}>
                 <Trash2 size={12} />
               </button>
@@ -267,7 +267,7 @@ export default function ResumenFinanzas({ desde, hasta, label }) {
   if (error) {
     return (
       <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
-        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+        style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
         <AlertTriangle size={14} /> {error}
       </div>
     )
@@ -277,12 +277,12 @@ export default function ResumenFinanzas({ desde, hasta, label }) {
     <div className="space-y-4">
       {/* KPIs: la foto en cuatro números */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Kpi label="Entró" value={loading ? '—' : fmtMoney(resumen.ingresos)} icon={TrendingUp} color="#10b981"
+        <Kpi label="Entró" value={loading ? '—' : fmtMoney(resumen.ingresos)} icon={TrendingUp} color="#3FBF8A"
           sub={`${resumen.cantPedidos} cobros · ${label}`} />
-        <Kpi label="Salió" value={loading ? '—' : fmtMoney(resumen.totalEgresos)} icon={ArrowDownCircle} color="#f87171"
+        <Kpi label="Salió" value={loading ? '—' : fmtMoney(resumen.totalEgresos)} icon={ArrowDownCircle} color="#F2708C"
           sub="Gastos pagados del período" />
         <Kpi label="Quedó" value={loading ? '—' : fmtMoney(resumen.resultado)} icon={positivo ? TrendingUp : TrendingDown}
-          color={positivo ? '#10b981' : '#f87171'} sub="Entró − Salió" />
+          color={positivo ? '#3FBF8A' : '#F2708C'} sub="Entró − Salió" />
         <Kpi label="Margen" value={loading ? '—' : `${resumen.margen.toFixed(1)}%`} icon={Percent}
           sub="De cada $100 que entran, cuánto queda" />
       </div>
@@ -308,11 +308,11 @@ export default function ResumenFinanzas({ desde, hasta, label }) {
           <Card>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <CalendarClock size={15} style={{ color: '#f59e0b' }} />
+                <CalendarClock size={15} style={{ color: '#E8A23F' }} />
                 <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Próximos a pagar</p>
               </div>
               {resumen.totalPendiente > 0 && (
-                <span className="text-xs font-semibold" style={{ color: '#f59e0b' }}>{fmtMoney(resumen.totalPendiente)}</span>
+                <span className="text-xs font-semibold" style={{ color: '#E8A23F' }}>{fmtMoney(resumen.totalPendiente)}</span>
               )}
             </div>
             {proximos.length === 0 ? (

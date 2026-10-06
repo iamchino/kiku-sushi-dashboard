@@ -166,7 +166,7 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd, titulo =
         <div
           className="flex items-center justify-between px-4 py-2.5 flex-shrink-0"
           style={{
-            background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
+            background: 'var(--cta)',
             color: '#ffffff',
             borderBottom: '1px solid var(--accent-border)',
           }}
@@ -329,7 +329,7 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd, titulo =
                       </p>
                       <button type="button" onClick={() => removeItem(item._key)}
                         className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0"
-                        style={{ color: '#f87171' }}>
+                        style={{ color: '#F2708C' }}>
                         <X size={12} />
                       </button>
                     </div>
@@ -401,7 +401,7 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd, titulo =
             <div className="flex-shrink-0 p-2.5 space-y-1.5" style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-card)' }}>
               {error && (
                 <div className="rounded-md px-2 py-1.5 text-[11px] flex items-center gap-1.5"
-                  style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171' }}>
+                  style={{ background: 'rgba(227,77,107,0.08)', color: '#F2708C' }}>
                   <AlertCircle size={11} /> {error}
                 </div>
               )}
@@ -420,8 +420,8 @@ export default function AgregarItemsModal({ open, mesa, onClose, onAdd, titulo =
                 <button type="submit" disabled={saving || items.length === 0}
                   className="py-2 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-1.5 disabled:opacity-40"
                   style={{
-                    background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-                    boxShadow: '0 4px 12px rgba(var(--accent-rgb),0.3)',
+                    background: 'var(--cta)',
+                    boxShadow: 'var(--cta-shadow)',
                   }}>
                   {saving
                     ? <><Loader2 size={12} className="animate-spin" /> Guardando…</>

@@ -4,9 +4,9 @@ import { CATEGORIAS_STOCK } from '../../hooks/useStock'
 import { TIPOS_STOCK, normTipoStock } from '../../lib/stockNiveles'
 
 const TIPOS = [
-  { id: 'entrada', label: 'Entrada', icon: Truck, color: '#22c55e', desc: 'Suma stock al item' },
-  { id: 'ajuste', label: 'Ajuste', icon: RotateCcw, color: '#3b82f6', desc: 'Setea el stock exacto contado' },
-  { id: 'merma', label: 'Merma', icon: Minus, color: '#ef4444', desc: 'Resta stock por uso, perdida o ajuste' },
+  { id: 'entrada', label: 'Entrada', icon: Truck, color: '#3FBF8A', desc: 'Suma stock al item' },
+  { id: 'ajuste', label: 'Ajuste', icon: RotateCcw, color: '#6B93E6', desc: 'Setea el stock exacto contado' },
+  { id: 'merma', label: 'Merma', icon: Minus, color: '#E34D6B', desc: 'Resta stock por uso, perdida o ajuste' },
 ]
 
 const emptyForm = (tipoStock = 'materia_prima') => ({
@@ -407,7 +407,7 @@ export default function MovimientoModal({
                       <div className="text-2xl font-light" style={{ color: 'var(--text-xmuted)' }}>-</div>
                       <div className="text-center flex-1">
                         <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Nuevo</p>
-                        <p className="text-base font-bold" style={{ color: preview < parseFloat(form.stock_minimo || 0) ? '#ef4444' : '#22c55e' }}>
+                        <p className="text-base font-bold" style={{ color: preview < parseFloat(form.stock_minimo || 0) ? '#E34D6B' : '#3FBF8A' }}>
                           {preview.toFixed(2)} {form.unidad}
                         </p>
                       </div>
@@ -428,7 +428,7 @@ export default function MovimientoModal({
             </div>
           )}
 
-          {error && <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>}
+          {error && <p className="text-xs" style={{ color: '#E34D6B' }}>{error}</p>}
 
           <div className="flex gap-3 pt-2 flex-shrink-0">
             <button
@@ -445,7 +445,7 @@ export default function MovimientoModal({
               type="submit"
               disabled={saving}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}
+              style={{ background: 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}
             >
               {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : (item ? 'Guardar cambios' : 'Crear item')}
             </button>

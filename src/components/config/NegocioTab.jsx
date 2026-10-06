@@ -64,7 +64,7 @@ export default function NegocioTab() {
 
       {error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           <AlertTriangle size={14} /> {error}
         </div>
       )}
@@ -103,14 +103,14 @@ export default function NegocioTab() {
             <input value={form.negocio_color} onChange={set('negocio_color')} placeholder="#2a1d3d"
               className="w-32 rounded-lg px-3 py-2 text-sm outline-none font-mono"
               style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
-            {!colorValido && <span className="text-xs" style={{ color: '#f59e0b' }}>Formato: #rrggbb</span>}
+            {!colorValido && <span className="text-xs" style={{ color: '#E8A23F' }}>Formato: #rrggbb</span>}
           </div>
         </div>
       </div>
 
       <button onClick={guardar} disabled={saveState === 'saving' || !valido}
         className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-        style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+        style={{ background: 'var(--cta)' }}>
         {saveState === 'saving' ? <Loader2 size={14} className="animate-spin" />
           : saveState === 'ok' ? <CheckCircle2 size={14} /> : <Save size={14} />}
         {saveState === 'saving' ? 'Guardando…' : saveState === 'ok' ? 'Guardado, recargando…' : 'Guardar identidad'}

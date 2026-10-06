@@ -10,10 +10,10 @@ import {
 } from '../../hooks/useReservas'
 
 const ORIGEN_META = {
-  web:       { label: 'Web',       color: '#4f8ef7' },
+  web:       { label: 'Web',       color: '#7FA6F0' },
   dashboard: { label: 'Dashboard', color: 'var(--accent-lift)' },
-  telefono:  { label: 'Teléfono',  color: '#fbbf24' },
-  whatsapp:  { label: 'WhatsApp',  color: '#34d399' },
+  telefono:  { label: 'Teléfono',  color: '#F2B35C' },
+  whatsapp:  { label: 'WhatsApp',  color: '#5FD3A3' },
 }
 
 /**
@@ -91,7 +91,7 @@ export default function ReservaDetalleModal({
       >
         <div
           className="flex-shrink-0 px-5 py-4 flex items-start justify-between gap-3"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', color: '#fff' }}
+          style={{ background: 'var(--cta)', color: '#fff' }}
         >
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -129,7 +129,7 @@ export default function ReservaDetalleModal({
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           {error && (
             <div className="rounded-lg p-2.5 text-xs flex items-start gap-2"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+              style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.2)', color: '#F2708C' }}>
               <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
@@ -182,8 +182,8 @@ export default function ReservaDetalleModal({
 
           {reserva.restricciones && (
             <div className="rounded-lg p-3"
-              style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.20)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: '#22c55e' }}>
+              style={{ background: 'rgba(63,191,138,0.06)', border: '1px solid rgba(63,191,138,0.20)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: '#3FBF8A' }}>
                 <Salad size={10} className="inline mr-1" /> Restricciones alimentarias
               </p>
               <p className="text-xs whitespace-pre-wrap leading-snug" style={{ color: 'var(--text-secondary)' }}>
@@ -194,8 +194,8 @@ export default function ReservaDetalleModal({
 
           {reserva.accesibilidad && (
             <div className="rounded-lg p-3"
-              style={{ background: 'rgba(79,142,247,0.06)', border: '1px solid rgba(79,142,247,0.20)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: '#4f8ef7' }}>
+              style={{ background: 'rgba(127,166,240,0.06)', border: '1px solid rgba(127,166,240,0.20)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: '#7FA6F0' }}>
                 <Accessibility size={10} className="inline mr-1" /> Accesibilidad
               </p>
               <p className="text-xs whitespace-pre-wrap leading-snug" style={{ color: 'var(--text-secondary)' }}>
@@ -271,7 +271,7 @@ export default function ReservaDetalleModal({
                 onClick={handleSentar}
                 disabled={busy || !mesaSeleccionada}
                 className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+                style={{ background: 'var(--cta)' }}
               >
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <Utensils size={14} />}
                 Sentar y abrir mesa
@@ -299,8 +299,8 @@ export default function ReservaDetalleModal({
                   disabled={busy}
                   className="w-full py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50"
                   style={{
-                    background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-                    boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.35)',
+                    background: 'var(--cta)',
+                    boxShadow: 'var(--cta-shadow)',
                   }}
                 >
                   <Utensils size={14} /> Sentar reserva
@@ -314,7 +314,7 @@ export default function ReservaDetalleModal({
                     onClick={() => handleEstado('confirmada')}
                     disabled={busy}
                     className="py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
-                    style={{ background: 'var(--bg-input)', color: '#4f8ef7', border: '1px solid var(--border)' }}
+                    style={{ background: 'var(--bg-input)', color: '#7FA6F0', border: '1px solid var(--border)' }}
                   >
                     <Check size={12} /> Confirmar
                   </button>
@@ -338,7 +338,7 @@ export default function ReservaDetalleModal({
                   onClick={() => handleEstado('cancelada')}
                   disabled={busy}
                   className="w-full py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
-                  style={{ background: 'transparent', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}
+                  style={{ background: 'transparent', color: '#F2708C', border: '1px solid rgba(227,77,107,0.25)' }}
                 >
                   <XCircle size={12} /> Cancelar reserva
                 </button>

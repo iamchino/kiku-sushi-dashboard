@@ -15,9 +15,9 @@ const ROLES = [
 
 const ROLE_CHIP = {
   empleado: { bg: 'var(--accent-soft)',    color: 'var(--accent-lift)' },
-  mozo:     { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
-  cocina:   { bg: 'rgba(245,158,11,0.14)', color: '#f59e0b' },
-  finanzas: { bg: 'rgba(16,185,129,0.14)', color: '#10b981' },
+  mozo:     { bg: 'rgba(107,147,230,0.12)', color: '#6B93E6' },
+  cocina:   { bg: 'rgba(232,162,63,0.14)', color: '#E8A23F' },
+  finanzas: { bg: 'rgba(63,191,138,0.14)', color: '#3FBF8A' },
   admin:    { bg: 'rgba(168,85,247,0.14)', color: '#a855f7' },
 }
 
@@ -128,23 +128,23 @@ export default function UsuariosSection({ empleados }) {
         </p>
         <button onClick={() => setNuevo(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           <Plus size={14} /> Nuevo usuario
         </button>
       </div>
 
       {error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           <AlertTriangle size={14} /> {error}
         </div>
       )}
 
       {aviso && (
         <div className="px-4 py-2.5 rounded-xl text-sm" style={{
-          background: aviso.tipo === 'ok' ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
-          border: `1px solid ${aviso.tipo === 'ok' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'}`,
-          color: aviso.tipo === 'ok' ? '#10b981' : '#f87171',
+          background: aviso.tipo === 'ok' ? 'rgba(63,191,138,0.08)' : 'rgba(227,77,107,0.08)',
+          border: `1px solid ${aviso.tipo === 'ok' ? 'rgba(63,191,138,0.15)' : 'rgba(227,77,107,0.15)'}`,
+          color: aviso.tipo === 'ok' ? '#3FBF8A' : '#F2708C',
         }}>
           {aviso.texto}
         </div>
@@ -218,7 +218,7 @@ export default function UsuariosSection({ empleados }) {
                     {!u.es_yo && (
                       <button onClick={() => setDelUser(u)} title="Eliminar usuario"
                         className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.1)'; e.currentTarget.style.color = '#f87171' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(242,112,140,0.1)'; e.currentTarget.style.color = '#F2708C' }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}>
                         <Trash2 size={13} />
                       </button>
@@ -228,13 +228,13 @@ export default function UsuariosSection({ empleados }) {
 
                 {pidiendo && (
                   <div className="mt-3 rounded-lg px-3 py-2.5 text-xs"
-                    style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)' }}>
-                    <p style={{ color: '#fbbf24' }}>{confirmar.texto}</p>
+                    style={{ background: 'rgba(242,179,92,0.08)', border: '1px solid rgba(242,179,92,0.2)' }}>
+                    <p style={{ color: '#F2B35C' }}>{confirmar.texto}</p>
                     <div className="mt-2 flex gap-2">
                       <button
                         onClick={() => { const fn = confirmar.onOk; setConfirmar(null); fn() }}
                         className="px-3 py-1 rounded-lg text-[11px] font-semibold text-white"
-                        style={{ background: '#f59e0b' }}>
+                        style={{ background: '#E8A23F' }}>
                         Sí, seguir
                       </button>
                       <button onClick={() => setConfirmar(null)}
@@ -312,10 +312,10 @@ function UsuarioModal({ empleadosSinLogin, onClose, onSave }) {
         <p className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>
           Pasale el email y la contraseña al empleado; puede cambiarla después. Sin vínculo no puede fichar.
         </p>
-        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
         <button onClick={handle} disabled={busy || !email || password.length < 8}
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           {busy ? 'Creando…' : 'Crear usuario'}
         </button>
       </div>
@@ -338,10 +338,10 @@ function PasswordModal({ usuario, onClose, onSave }) {
     <ModalShell title={`Nueva contraseña · ${usuario.email}`} icon={KeyRound} onClose={onClose} maxW="max-w-sm">
       <div className="p-5 space-y-4">
         <Field label="Nueva contraseña" type="text" value={password} onChange={setPassword} placeholder="Mínimo 8 caracteres" required />
-        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
         <button onClick={handle} disabled={busy || password.length < 8}
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           {busy ? 'Guardando…' : 'Cambiar contraseña'}
         </button>
       </div>

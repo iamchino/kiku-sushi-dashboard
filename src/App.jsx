@@ -78,7 +78,7 @@ function AvisoPermisosEnFallback() {
   if (!enFallback) return null
   return (
     <div className="px-4 py-2 text-xs text-center"
-      style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', borderBottom: '1px solid rgba(245,158,11,0.2)' }}>
+      style={{ background: 'rgba(232,162,63,0.12)', color: '#E8A23F', borderBottom: '1px solid rgba(232,162,63,0.2)' }}>
       No se pudieron leer los permisos configurados. Estás viendo los permisos por defecto del sistema.
     </div>
   )
@@ -117,7 +117,7 @@ function SinPermisos() {
         </p>
         <button onClick={() => auth.logout()}
           className="px-4 py-2 rounded-lg text-sm font-semibold text-white"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           Cerrar sesión
         </button>
       </div>

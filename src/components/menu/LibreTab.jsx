@@ -116,7 +116,7 @@ export default function LibreTab() {
 
       {error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           <AlertTriangle size={14} /> {error}
         </div>
       )}
@@ -150,7 +150,7 @@ export default function LibreTab() {
 
       <button onClick={guardar} disabled={saveState === 'saving' || !valido}
         className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-        style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+        style={{ background: 'var(--cta)' }}>
         {saveState === 'saving' ? <Loader2 size={14} className="animate-spin" />
           : saveState === 'ok' ? <CheckCircle2 size={14} /> : <Save size={14} />}
         {saveState === 'saving' ? 'Guardando…' : saveState === 'ok' ? 'Guardado' : 'Guardar cambios'}

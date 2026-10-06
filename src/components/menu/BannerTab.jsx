@@ -70,7 +70,7 @@ export default function BannerTab() {
       <div className="rounded-xl p-4 flex items-center justify-between gap-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
         <div className="flex items-center gap-2.5">
           {activo
-            ? <Eye size={16} style={{ color: '#34d399' }} />
+            ? <Eye size={16} style={{ color: '#5FD3A3' }} />
             : <EyeOff size={16} style={{ color: 'var(--text-muted)' }} />}
           <div>
             <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -132,14 +132,14 @@ export default function BannerTab() {
       </div>
 
       {error && (
-        <div className="rounded-lg px-3 py-2 text-xs flex items-center gap-2" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+        <div className="rounded-lg px-3 py-2 text-xs flex items-center gap-2" style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           <AlertTriangle size={13} /> {error}
         </div>
       )}
 
       <div className="flex items-center justify-end gap-2">
         {saveState === 'ok' && (
-          <span className="flex items-center gap-1 text-xs" style={{ color: '#22c55e' }}>
+          <span className="flex items-center gap-1 text-xs" style={{ color: '#3FBF8A' }}>
             <CheckCircle2 size={13} /> Guardado
           </span>
         )}
@@ -148,7 +148,7 @@ export default function BannerTab() {
           onClick={guardar}
           disabled={saveState === 'saving'}
           className="px-4 py-2 rounded-xl text-sm font-semibold text-white flex items-center gap-1.5 disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+          style={{ background: 'var(--cta)' }}
         >
           {saveState === 'saving' ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
           Guardar

@@ -35,10 +35,10 @@ import { comprobanteInicial, opcionesFactura, validarComprobante } from '../../l
  */
 
 const MEDIOS_PAGO = [
-  { id: 'efectivo',         label: 'Efectivo',          icon: Banknote,   color: '#34d399' },
-  { id: 'tarjeta_credito',  label: 'Tarjeta Crédito',   icon: CreditCard, color: '#f59e0b' },
+  { id: 'efectivo',         label: 'Efectivo',          icon: Banknote,   color: '#5FD3A3' },
+  { id: 'tarjeta_credito',  label: 'Tarjeta Crédito',   icon: CreditCard, color: '#E8A23F' },
   { id: 'tarjeta_debito',   label: 'Tarjeta Débito',    icon: CreditCard, color: '#a78bfa' },
-  { id: 'transferencia',    label: 'Transferencia',     icon: Send,       color: '#60a5fa' },
+  { id: 'transferencia',    label: 'Transferencia',     icon: Send,       color: '#8FB2F2' },
   { id: 'sin_pago',         label: 'Sin pago',           icon: Ban,        color: '#94a3b8' },
 ]
 
@@ -239,7 +239,7 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
           {!arcaReady && !comprobanteAutorizado && (
             <div
               className="rounded-lg p-3 text-xs flex items-start gap-2"
-              style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)', color: '#fbbf24' }}
+              style={{ background: 'rgba(242,179,92,0.08)', border: '1px solid rgba(242,179,92,0.2)', color: '#F2B35C' }}
             >
               <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
               <div>
@@ -326,12 +326,12 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
                       className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
                       style={{
                         background: 'var(--bg-input)',
-                        border: `1px solid ${nroOpOk ? 'var(--border)' : '#f87171'}`,
+                        border: `1px solid ${nroOpOk ? 'var(--border)' : '#F2708C'}`,
                         color: 'var(--text-primary)',
                       }}
                     />
                     {!nroOpOk && (
-                      <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>Obligatorio para tarjetas.</p>
+                      <p className="text-[10px] mt-1" style={{ color: '#F2708C' }}>Obligatorio para tarjetas.</p>
                     )}
                   </div>
                 )}
@@ -351,7 +351,7 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
           {error && (
             <div
               className="rounded-lg px-3 py-2 text-xs flex items-start gap-2"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}
+              style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}
             >
               <AlertCircle size={14} className="flex-shrink-0 mt-0.5" /> {error}
             </div>
@@ -377,8 +377,8 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
               disabled={!medioOk || Boolean(loadingAction) || (!arcaReady && !comprobanteAutorizado)}
               className="w-full py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-40 hover:scale-[1.01]"
               style={{
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-                boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.35)',
+                background: 'var(--cta)',
+                boxShadow: 'var(--cta-shadow)',
               }}
             >
               {loadingAction === 'factura'

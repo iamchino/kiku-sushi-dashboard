@@ -160,11 +160,11 @@ export function FacturarModal({ open, pedido, busy, permiteFacturaA = true, onCl
                     style={{
                       background: 'var(--bg-input)',
                       color: 'var(--text-primary)',
-                      border: `1px solid ${cuitOk ? 'var(--border)' : '#f87171'}`,
+                      border: `1px solid ${cuitOk ? 'var(--border)' : '#F2708C'}`,
                     }}
                   />
                   {!cuitOk && (
-                    <p className="mt-1 text-[10px]" style={{ color: '#f87171' }}>CUIT inválido (dígito verificador).</p>
+                    <p className="mt-1 text-[10px]" style={{ color: '#F2708C' }}>CUIT inválido (dígito verificador).</p>
                   )}
                 </div>
                 <div>
@@ -197,7 +197,7 @@ export function FacturarModal({ open, pedido, busy, permiteFacturaA = true, onCl
           {error && (
             <div
               className="mt-4 flex items-start gap-2 rounded-lg px-3 py-2 text-xs"
-              style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+              style={{ background: 'rgba(227,77,107,0.1)', color: '#F2708C', border: '1px solid rgba(227,77,107,0.2)' }}
             >
               <AlertTriangle size={13} className="mt-0.5 shrink-0" />
               <span>{error}</span>
@@ -223,7 +223,7 @@ export function FacturarModal({ open, pedido, busy, permiteFacturaA = true, onCl
               type="submit"
               disabled={busy || (esFacturaA && !cuitOk)}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+              style={{ background: 'var(--cta)' }}
             >
               {busy ? <Loader2 size={15} className="animate-spin" /> : <Receipt size={15} />}
               Confirmar y facturar

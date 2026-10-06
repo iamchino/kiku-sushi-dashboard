@@ -119,8 +119,8 @@ export default function HorariosConfig() {
         <div
           className="rounded-lg px-3 py-2 text-xs flex items-center gap-2"
           style={msg.tipo === 'ok'
-            ? { background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', color: '#22c55e' }
-            : { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}
+            ? { background: 'rgba(63,191,138,0.08)', border: '1px solid rgba(63,191,138,0.2)', color: '#3FBF8A' }
+            : { background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.2)', color: '#F2708C' }}
         >
           {msg.tipo === 'ok' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
           {msg.texto}
@@ -216,7 +216,7 @@ export default function HorariosConfig() {
                   type="button" onClick={() => handleToggle(row)}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
                   style={row.activo
-                    ? { background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.25)' }
+                    ? { background: 'rgba(63,191,138,0.1)', color: '#3FBF8A', border: '1px solid rgba(63,191,138,0.25)' }
                     : { background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
                   title={row.activo ? 'Activo — clic para desactivar' : 'Inactivo — clic para activar'}
                 >
@@ -226,7 +226,7 @@ export default function HorariosConfig() {
                 <button
                   type="button" onClick={() => handleEliminar(row)}
                   className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                  style={{ background: 'var(--bg-input)', color: '#f87171', border: '1px solid var(--border)' }}
+                  style={{ background: 'var(--bg-input)', color: '#F2708C', border: '1px solid var(--border)' }}
                   title="Eliminar"
                 >
                   <Trash2 size={14} />

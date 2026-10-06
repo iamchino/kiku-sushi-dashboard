@@ -66,7 +66,7 @@ function FilaPendiente({ e, hoy, onEditar, onEliminar }) {
               {catLabel(e.categoria)}
             </span>
             {e.vencimiento && <span>{fmtFecha(e.vencimiento)}</span>}
-            <span style={{ color: urgente ? '#f87171' : 'var(--text-muted)', fontWeight: urgente ? 600 : 400 }}>
+            <span style={{ color: urgente ? '#F2708C' : 'var(--text-muted)', fontWeight: urgente ? 600 : 400 }}>
               · {tiempoLabel(e, hoy)}
             </span>
           </p>
@@ -89,7 +89,7 @@ function FilaPendiente({ e, hoy, onEditar, onEliminar }) {
         </button>
         <button onClick={() => onEliminar(e)} title="Eliminar de la proyección"
           className="p-1 rounded-md transition-colors" style={{ color: 'var(--text-xmuted)' }}
-          onMouseEnter={ev => { ev.currentTarget.style.background = 'rgba(248,113,113,0.12)'; ev.currentTarget.style.color = '#f87171' }}
+          onMouseEnter={ev => { ev.currentTarget.style.background = 'rgba(242,112,140,0.12)'; ev.currentTarget.style.color = '#F2708C' }}
           onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent'; ev.currentTarget.style.color = 'var(--text-xmuted)' }}>
           <Trash2 size={12} />
         </button>
@@ -152,7 +152,7 @@ export default function ProyeccionPagos() {
   if (error) {
     return (
       <div className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm"
-        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+        style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
         <AlertTriangle size={14} /> {error}
       </div>
     )
@@ -169,7 +169,7 @@ export default function ProyeccionPagos() {
         </p>
         <button onClick={() => { setAviso(null); setNueva(true) }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           <Plus size={14} /> Nueva proyección de pago
         </button>
       </div>
@@ -184,12 +184,12 @@ export default function ProyeccionPagos() {
       {/* Deuda vs proyección: dos números distintos, no una sola bolsa */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="rounded-xl p-4"
-          style={{ background: 'var(--bg-card)', border: `1px solid ${totalDeuda > 0 ? 'rgba(248,113,113,0.4)' : 'var(--border-card)'}`, boxShadow: 'var(--shadow-card)' }}>
+          style={{ background: 'var(--bg-card)', border: `1px solid ${totalDeuda > 0 ? 'rgba(242,112,140,0.4)' : 'var(--border-card)'}`, boxShadow: 'var(--shadow-card)' }}>
           <div className="flex items-center gap-2">
-            <Flame size={15} style={{ color: '#f87171' }} />
+            <Flame size={15} style={{ color: '#F2708C' }} />
             <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-xmuted)' }}>Deuda</p>
           </div>
-          <p className="mt-1 text-3xl font-bold tracking-tight" style={{ color: totalDeuda > 0 ? '#f87171' : '#10b981' }}>
+          <p className="mt-1 text-3xl font-bold tracking-tight" style={{ color: totalDeuda > 0 ? '#F2708C' : '#3FBF8A' }}>
             {fmtMoney(totalDeuda)}
           </p>
           <p className="mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
@@ -201,10 +201,10 @@ export default function ProyeccionPagos() {
         <div className="rounded-xl p-4"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}>
           <div className="flex items-center gap-2">
-            <CalendarClock size={15} style={{ color: '#4f8ef7' }} />
+            <CalendarClock size={15} style={{ color: '#7FA6F0' }} />
             <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-xmuted)' }}>Proyección</p>
           </div>
-          <p className="mt-1 text-3xl font-bold tracking-tight" style={{ color: '#4f8ef7' }}>
+          <p className="mt-1 text-3xl font-bold tracking-tight" style={{ color: '#7FA6F0' }}>
             {fmtMoney(totalProyeccion)}
           </p>
           <p className="mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
@@ -217,8 +217,8 @@ export default function ProyeccionPagos() {
 
       {pendientes.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 py-10">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: 'rgba(16,185,129,0.12)' }}>
-            <CheckCircle2 size={22} style={{ color: '#10b981' }} />
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: 'rgba(63,191,138,0.12)' }}>
+            <CheckCircle2 size={22} style={{ color: '#3FBF8A' }} />
           </div>
           <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>No hay pagos pendientes</p>
           <button onClick={() => { setAviso(null); setNueva(true) }}
@@ -229,11 +229,11 @@ export default function ProyeccionPagos() {
         </div>
       ) : (
         <>
-          <Grupo titulo="Deuda · vencidos" color="#f87171"
+          <Grupo titulo="Deuda · vencidos" color="#F2708C"
             items={grupos.vencidos} hoy={hoy} onEditar={setEditando} onEliminar={setBorrando} />
-          <Grupo titulo={`Deuda · vencen en los próximos ${DIAS_ANTES_DE_SER_DEUDA} días`} color="#f59e0b"
+          <Grupo titulo={`Deuda · vencen en los próximos ${DIAS_ANTES_DE_SER_DEUDA} días`} color="#E8A23F"
             items={grupos.porVencer} hoy={hoy} onEditar={setEditando} onEliminar={setBorrando} />
-          <Grupo titulo="Proyección · más adelante" color="#4f8ef7"
+          <Grupo titulo="Proyección · más adelante" color="#7FA6F0"
             items={grupos.proyectados} hoy={hoy} onEditar={setEditando} onEliminar={setBorrando} />
           <Grupo titulo="Proyección · sin fecha de vencimiento" color="#94a3b8"
             items={grupos.sinFecha} hoy={hoy} onEditar={setEditando} onEliminar={setBorrando} />

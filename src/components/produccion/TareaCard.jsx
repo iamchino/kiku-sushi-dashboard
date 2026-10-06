@@ -2,8 +2,8 @@ import { CheckCircle2, RotateCcw, AlertTriangle, Trash2 } from 'lucide-react'
 
 const ESTADO_CONFIG = {
   pendiente:   { color: 'var(--accent-lift)', border: 'rgba(var(--accent-rgb),0.3)',  bg: 'rgba(var(--accent-rgb),0.05)', label: 'Pendiente' },
-  en_progreso: { color: '#3b82f6', border: 'rgba(59,130,246,0.3)',  bg: 'rgba(59,130,246,0.05)', label: 'En progreso' },
-  completada:  { color: '#22c55e', border: 'rgba(34,197,94,0.25)',  bg: 'rgba(34,197,94,0.04)',  label: 'Completada' },
+  en_progreso: { color: '#6B93E6', border: 'rgba(107,147,230,0.3)',  bg: 'rgba(107,147,230,0.05)', label: 'En progreso' },
+  completada:  { color: '#3FBF8A', border: 'rgba(63,191,138,0.25)',  bg: 'rgba(63,191,138,0.04)',  label: 'Completada' },
 }
 
 export default function TareaCard({ tarea, receta, stockProduccion, isAdmin, cocinaView, onCompletar, onRevertir, onDelete }) {
@@ -79,7 +79,7 @@ export default function TareaCard({ tarea, receta, stockProduccion, isAdmin, coc
             )}
             {sinIngredientes && (
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded flex items-center gap-1"
-                style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)' }}>
+                style={{ background: 'rgba(232,162,63,0.1)', color: '#E8A23F', border: '1px solid rgba(232,162,63,0.2)' }}>
                 <AlertTriangle size={9} /> Sin ingredientes
               </span>
             )}
@@ -91,7 +91,7 @@ export default function TareaCard({ tarea, receta, stockProduccion, isAdmin, coc
           <button onClick={() => onDelete(tarea)}
             className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
             style={{ color: 'var(--text-xmuted)' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+            onMouseEnter={e => e.currentTarget.style.color = '#E34D6B'}
             onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}>
             <Trash2 size={13} />
           </button>
@@ -102,8 +102,8 @@ export default function TareaCard({ tarea, receta, stockProduccion, isAdmin, coc
       {completada && (
         <div className="mt-3 pt-3 space-y-1.5" style={{ borderTop: '1px solid var(--border)' }}>
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={13} style={{ color: '#22c55e' }} />
-            <span className="text-xs font-semibold" style={{ color: '#22c55e' }}>
+            <CheckCircle2 size={13} style={{ color: '#3FBF8A' }} />
+            <span className="text-xs font-semibold" style={{ color: '#3FBF8A' }}>
               {tarea.completada_por}
             </span>
             <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-xmuted)' }}>
@@ -118,13 +118,13 @@ export default function TareaCard({ tarea, receta, stockProduccion, isAdmin, coc
             <div className="flex flex-wrap gap-1.5 mt-1">
               {detalleProduccion && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded"
-                  style={{ background: 'rgba(34,197,94,0.06)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.12)' }}>
+                  style={{ background: 'rgba(63,191,138,0.06)', color: '#3FBF8A', border: '1px solid rgba(63,191,138,0.12)' }}>
                   +{parseFloat(detalleProduccion.cantidad).toFixed(2)} {detalleProduccion.unidad} {detalleProduccion.nombre}
                 </span>
               )}
               {detalleConsumos.map((d, i) => (
                 <span key={i} className="text-[10px] px-1.5 py-0.5 rounded"
-                  style={{ background: 'rgba(239,68,68,0.06)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.12)' }}>
+                  style={{ background: 'rgba(227,77,107,0.06)', color: '#E34D6B', border: '1px solid rgba(227,77,107,0.12)' }}>
                   -{parseFloat(d.cantidad).toFixed(2)} {d.unidad} {d.nombre}
                 </span>
               ))}
@@ -139,9 +139,9 @@ export default function TareaCard({ tarea, receta, stockProduccion, isAdmin, coc
           {isAdmin && (
             <button onClick={() => onRevertir(tarea)}
               className="flex items-center gap-1.5 text-[11px] font-medium mt-1 px-2 py-1 rounded-lg transition-colors"
-              style={{ color: '#f59e0b', background: 'rgba(245,158,11,0.08)' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(245,158,11,0.15)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(245,158,11,0.08)'}>
+              style={{ color: '#E8A23F', background: 'rgba(232,162,63,0.08)' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(232,162,63,0.15)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(232,162,63,0.08)'}>
               <RotateCcw size={11} /> Revertir
             </button>
           )}
@@ -154,11 +154,11 @@ export default function TareaCard({ tarea, receta, stockProduccion, isAdmin, coc
           onClick={() => onCompletar(tarea)}
           className="w-full mt-3 flex items-center justify-center gap-2 rounded-xl font-bold text-white transition-all active:scale-[0.97] hover:opacity-90"
           style={{
-            background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+            background: 'linear-gradient(135deg, #3FBF8A, #2EA075)',
             padding: '14px 20px',
             fontSize: '14px',
             letterSpacing: '0.02em',
-            boxShadow: '0 4px 16px rgba(34,197,94,0.25)',
+            boxShadow: '0 4px 16px rgba(63,191,138,0.25)',
           }}
         >
           <CheckCircle2 size={18} />

@@ -140,7 +140,7 @@ function EstadoChip({ ok, label, detail, icon: Icon }) {
       style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)' }}
       title={`${label} — ${detail}`}
     >
-      <Icon size={12} className="shrink-0" style={{ color: ok ? '#34d399' : '#fbbf24' }} />
+      <Icon size={12} className="shrink-0" style={{ color: ok ? '#5FD3A3' : '#F2B35C' }} />
       <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>{label}</span>
       <span aria-hidden="true" style={{ color: 'var(--border-card)' }}>·</span>
       <span className="truncate" style={{ color: 'var(--text-muted)' }}>{detail}</span>
@@ -450,7 +450,7 @@ function EditPedidoModal({ pedido, open, saving, onClose, onSave }) {
                     type="button"
                     onClick={() => removeItem(item._key)}
                     className="mt-5 flex h-8 w-8 items-center justify-center rounded-lg"
-                    style={{ color: '#f87171', background: 'rgba(239,68,68,0.08)' }}
+                    style={{ color: '#F2708C', background: 'rgba(227,77,107,0.08)' }}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -473,10 +473,10 @@ function EditPedidoModal({ pedido, open, saving, onClose, onSave }) {
 
         <footer className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderTop: '1px solid var(--border)' }}>
           <div>
-            {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+            {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Subtotal: ${formatMoney(subtotal)}</p>
             {descuento > 0 && (
-              <p className="text-xs" style={{ color: '#34d399' }}>
+              <p className="text-xs" style={{ color: '#5FD3A3' }}>
                 Descuento {descuento.toLocaleString('es-AR')}%: -${formatMoney(descuentoMonto)}
               </p>
             )}
@@ -496,7 +496,7 @@ function EditPedidoModal({ pedido, open, saving, onClose, onSave }) {
               type="submit"
               disabled={saving}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+              style={{ background: 'var(--cta)' }}
             >
               {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
               Guardar
@@ -569,7 +569,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
               <span
                 title="La orden todavía no registra cobro"
                 className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}
+                style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C' }}
               >
                 <Banknote size={11} />
                 Sin cobro
@@ -593,10 +593,10 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
             <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Total</p>
             <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>${formatMoney(pedido.total)}</p>
             {descuento > 0 && (
-              <p className="text-[10px] font-semibold" style={{ color: '#34d399' }}>-{descuento.toLocaleString('es-AR')}%</p>
+              <p className="text-[10px] font-semibold" style={{ color: '#5FD3A3' }}>-{descuento.toLocaleString('es-AR')}%</p>
             )}
             {notasCredito.length > 0 && (
-              <p className="mt-1 text-[10px] font-semibold" style={{ color: '#f87171' }}>
+              <p className="mt-1 text-[10px] font-semibold" style={{ color: '#F2708C' }}>
                 NC: -${formatMoney(totalNc)}
               </p>
             )}
@@ -611,7 +611,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
               <span
                 title={comprobanteLabel}
                 className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold"
-                style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }}
+                style={{ background: 'rgba(95,211,163,0.12)', color: '#5FD3A3' }}
               >
                 <CheckCircle2 size={12} />
                 {comprobante.letra} {formatReceiptNumber(comprobante.punto_venta, comprobante.numero)}
@@ -621,7 +621,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
                   key={nc.id}
                   title={`${nombreComprobante(nc.tipo_cbte)} por $${formatMoney(nc.importe_total)}`}
                   className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold"
-                  style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}
+                  style={{ background: 'rgba(227,77,107,0.12)', color: '#F2708C' }}
                 >
                   <FileMinus2 size={11} />
                   NC {nc.letra} {formatReceiptNumber(nc.punto_venta, nc.numero)} (-${formatMoney(nc.importe_total)})
@@ -630,7 +630,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
             </div>
           ) : (
             <div className="flex flex-col items-end gap-1">
-              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
+              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C' }}>
                 <AlertTriangle size={12} />
                 {anulados.length ? 'Factura anulada' : 'Sin CAE'}
               </span>
@@ -648,7 +648,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
                 <span
                   key={nc.id}
                   className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold"
-                  style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}
+                  style={{ background: 'rgba(227,77,107,0.12)', color: '#F2708C' }}
                 >
                   <FileMinus2 size={11} />
                   NC {nc.letra} {formatReceiptNumber(nc.punto_venta, nc.numero)}
@@ -731,7 +731,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
             onClick={() => onNotaCredito(pedido, comprobante)}
             disabled={busy}
             className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-50"
-            style={{ color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
+            style={{ color: '#F2708C', border: '1px solid rgba(227,77,107,0.3)' }}
           >
             <FileMinus2 size={14} />
             Nota Crédito
@@ -741,7 +741,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
           onClick={() => onTicket(pedido)}
           disabled={busy || (!comprobante && !arcaReady)}
           className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-45"
-          style={{ background: comprobante ? '#2563eb' : 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+          style={{ background: comprobante ? '#2563eb' : 'var(--cta)' }}
         >
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Receipt size={14} />}
           {comprobante ? 'Reimprimir ticket' : 'Facturar + ticket'}
@@ -1038,12 +1038,12 @@ export default function CajaPage() {
         <section className={`grid gap-3 ${veHistorico ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
           <GrupoMetricas titulo="Facturación" color="#f97316" icon={Receipt}>
             <FilaMetrica label="Pedidos" value={stats.pedidos} />
-            <FilaMetrica label="Pendientes facturación" value={stats.pendientes} color="#fbbf24" apagado={stats.pendientes === 0} />
-            <FilaMetrica label="Facturados" value={stats.facturados} color="#34d399" apagado={stats.facturados === 0} />
-            <FilaMetrica label="Notas de crédito" value={stats.notasCredito} color="#f87171" apagado={stats.notasCredito === 0} />
+            <FilaMetrica label="Pendientes facturación" value={stats.pendientes} color="#F2B35C" apagado={stats.pendientes === 0} />
+            <FilaMetrica label="Facturados" value={stats.facturados} color="#5FD3A3" apagado={stats.facturados === 0} />
+            <FilaMetrica label="Notas de crédito" value={stats.notasCredito} color="#F2708C" apagado={stats.notasCredito === 0} />
           </GrupoMetricas>
 
-          <GrupoMetricas titulo="Formas de pago" color="#4f8ef7" icon={Banknote}>
+          <GrupoMetricas titulo="Formas de pago" color="#7FA6F0" icon={Banknote}>
             {resumenPagos.medios.map(medio => (
               <FilaMetrica
                 key={medio.id}
@@ -1058,7 +1058,7 @@ export default function CajaPage() {
               <FilaMetrica
                 label="Sin cobro registrado"
                 value={`${resumenPagos.sinRegistrar} ${resumenPagos.sinRegistrar === 1 ? 'orden' : 'órdenes'}`}
-                color="#fbbf24"
+                color="#F2B35C"
               />
             )}
             <FilaMetrica label="Total cobrado" value={`$${formatMoney(resumenPagos.totalCobrado)}`} fuerte />
@@ -1067,19 +1067,19 @@ export default function CajaPage() {
           {/* Totales acumulados del período: es la foto del negocio, no la
               operación del turno. Va detrás de caja_historico. */}
           {veHistorico && (
-          <GrupoMetricas titulo="Totales" color="#34d399" icon={WalletCards}>
+          <GrupoMetricas titulo="Totales" color="#5FD3A3" icon={WalletCards}>
             <FilaMetrica label="Vendido (pedidos)" value={`$${formatMoney(stats.total)}`} />
-            <FilaMetrica label="Facturado" value={`$${formatMoney(stats.totalFacturado)}`} color="#4f8ef7" />
+            <FilaMetrica label="Facturado" value={`$${formatMoney(stats.totalFacturado)}`} color="#7FA6F0" />
             <FilaMetrica
               label="No facturado"
               value={`$${formatMoney(Math.max(0, stats.total - stats.totalFacturado))}`}
-              color="#fbbf24"
+              color="#F2B35C"
               apagado={stats.total - stats.totalFacturado <= 0}
             />
             <FilaMetrica
               label="Notas de crédito"
               value={`-$${formatMoney(stats.totalNotasCredito)}`}
-              color="#f87171"
+              color="#F2708C"
               apagado={!stats.totalNotasCredito}
             />
             <FilaMetrica label="Neto facturado" value={`$${formatMoney(stats.netoFacturado)}`} color="var(--accent-lift)" fuerte />
@@ -1093,7 +1093,7 @@ export default function CajaPage() {
             <FilaMetrica
               label="Cobrado − pagado"
               value={`${resumenPagos.totalCobrado - resumenPagado.total < 0 ? '-' : ''}$${formatMoney(Math.abs(resumenPagos.totalCobrado - resumenPagado.total))}`}
-              color={resumenPagos.totalCobrado - resumenPagado.total < 0 ? '#f87171' : '#34d399'}
+              color={resumenPagos.totalCobrado - resumenPagado.total < 0 ? '#F2708C' : '#5FD3A3'}
               fuerte
             />
           </GrupoMetricas>
@@ -1103,25 +1103,25 @@ export default function CajaPage() {
         {(error || setupWarning || notice || !arcaReady) && (
           <section className="mt-4 space-y-2">
             {error && (
-              <div className="rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <div className="rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(227,77,107,0.1)', color: '#F2708C', border: '1px solid rgba(227,77,107,0.2)' }}>
                 {error}
               </div>
             )}
             {setupWarning && (
-              <div className="rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }}>
+              <div className="rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(242,179,92,0.1)', color: '#F2B35C', border: '1px solid rgba(242,179,92,0.2)' }}>
                 {setupWarning}
               </div>
             )}
             {!arcaReady && (
-              <div className="rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }}>
+              <div className="rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(242,179,92,0.1)', color: '#F2B35C', border: '1px solid rgba(242,179,92,0.2)' }}>
                 ARCA queda bloqueado hasta configurar CUIT, punto de venta y backend WSFE{arcaComprobantesUrl ? '.' : ' en VITE_ARCA_API_URL.'}
               </div>
             )}
             {notice && (
               <div className="rounded-lg px-4 py-3 text-sm" style={{
-                background: notice.type === 'ok' ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.1)',
-                color: notice.type === 'ok' ? '#34d399' : '#f87171',
-                border: `1px solid ${notice.type === 'ok' ? 'rgba(52,211,153,0.2)' : 'rgba(239,68,68,0.2)'}`,
+                background: notice.type === 'ok' ? 'rgba(95,211,163,0.1)' : 'rgba(227,77,107,0.1)',
+                color: notice.type === 'ok' ? '#5FD3A3' : '#F2708C',
+                border: `1px solid ${notice.type === 'ok' ? 'rgba(95,211,163,0.2)' : 'rgba(227,77,107,0.2)'}`,
               }}>
                 {notice.text}
               </div>

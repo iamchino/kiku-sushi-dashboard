@@ -254,10 +254,10 @@ export default function RegistrarPagoModal({
             placeholder="Ej: el monto de la factura era otro" />
         )}
 
-        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
         <button onClick={guardar} disabled={busy || !valido}
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           {busy
             ? (edicion ? 'Guardando…' : 'Registrando…')
             : edicion

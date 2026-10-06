@@ -32,24 +32,24 @@ export default function Login() {
       <div
         className="min-h-screen flex items-center justify-center p-4"
         style={{
-          background: 'radial-gradient(ellipse at 60% 20%, rgba(var(--accent-rgb),0.08) 0%, transparent 60%), #0f0f11',
+          background: 'radial-gradient(ellipse at 60% 20%, rgba(61,42,92,0.45) 0%, transparent 60%), radial-gradient(ellipse at 20% 90%, rgba(232,212,162,0.08) 0%, transparent 50%), #0B0712',
         }}
       >
         {/* Dot pattern overlay */}
         <div
           className="fixed inset-0 pointer-events-none"
           style={{
-            backgroundImage: 'radial-gradient(circle, #2a2a2e 1px, transparent 1px)',
+            backgroundImage: 'radial-gradient(circle, rgba(232,212,162,0.18) 1px, transparent 1px)',
             backgroundSize: '28px 28px',
-            opacity: 0.5,
+            opacity: 0.35,
           }}
         />
 
         <div
           className="login-card relative w-full max-w-sm p-8 rounded-2xl"
           style={{
-            background: 'rgba(28,28,31,0.85)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(22,15,36,0.88)',
+            border: '1px solid rgba(232,212,162,0.14)',
             backdropFilter: 'blur(24px)',
             boxShadow: '0 32px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)',
           }}
@@ -58,19 +58,19 @@ export default function Login() {
           <div className="text-center mb-8">
             <div
               className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-xl mx-auto mb-4"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 8px 24px rgba(var(--accent-rgb),0.3)' }}
+              style={{ background: 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}
             >
               K
             </div>
-            <p className="text-xl font-bold tracking-tight text-white">
-              KIKU <span style={{ color: 'var(--accent-lift)' }}>SUSHI</span>
+            <p className="font-display text-3xl tracking-wide" style={{ color: '#F5F0F7' }}>
+              Kiku <span style={{ color: '#E8D4A2' }}>Sushi</span>
             </p>
-            <p className="text-sm mt-1" style={{ color: '#52525b' }}>Sistema de gestión</p>
+            <p className="text-[11px] mt-1 uppercase tracking-[0.2em]" style={{ color: '#9B8FAA' }}>Sistema de gestión</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: '#a1a1aa' }}>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: '#B9AEC9' }}>
                 Email
               </label>
               <input
@@ -89,7 +89,7 @@ export default function Login() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: '#a1a1aa' }}>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: '#B9AEC9' }}>
                 Contraseña
               </label>
               <input
@@ -110,7 +110,7 @@ export default function Login() {
             {error && (
               <p
                 className="text-xs px-3 py-2.5 rounded-lg"
-                style={{ color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}
+                style={{ color: '#F2708C', background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)' }}
               >
                 {error}
               </p>
@@ -120,8 +120,8 @@ export default function Login() {
               disabled={loading}
               className="w-full text-white text-sm font-semibold py-2.5 rounded-lg transition-all duration-150 mt-2 disabled:opacity-50"
               style={{
-                background: loading ? 'var(--accent-deep)' : 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-                boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)',
+                background: loading ? 'var(--accent-deep)' : 'var(--cta)',
+                boxShadow: 'var(--cta-shadow)',
               }}
             >
               {loading ? 'Ingresando...' : 'Ingresar'}
@@ -131,4 +131,4 @@ export default function Login() {
       </div>
     </>
   )
-}
+}

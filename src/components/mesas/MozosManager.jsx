@@ -3,7 +3,7 @@ import { Plus, Loader2, Trash2, RotateCcw } from 'lucide-react'
 import { useMozos } from '../../hooks/useMozos'
 
 const COLORS = [
-  '#9b87f5', '#3b82f6', '#22c55e', '#f97316',
+  '#9b87f5', '#6B93E6', '#3FBF8A', '#f97316',
   '#facc15', '#ec4899', '#06b6d4', '#a855f7',
 ]
 
@@ -50,7 +50,7 @@ export default function MozosManager() {
             type="submit"
             disabled={saving || !nuevoNombre.trim()}
             className="px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-1.5 disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+            style={{ background: 'var(--cta)' }}
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
             Agregar
@@ -73,7 +73,7 @@ export default function MozosManager() {
           ))}
         </div>
         {error && (
-          <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>
+          <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>
         )}
       </form>
 
@@ -108,7 +108,7 @@ export default function MozosManager() {
                     {m.nombre}
                   </p>
                   {!m.activo && (
-                    <p className="text-[10px]" style={{ color: '#f87171' }}>Inactivo</p>
+                    <p className="text-[10px]" style={{ color: '#F2708C' }}>Inactivo</p>
                   )}
                 </div>
 
@@ -133,9 +133,9 @@ export default function MozosManager() {
                     type="button"
                     onClick={() => desactivarMozo(m.id)}
                     className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                    style={{ color: '#f87171' }}
+                    style={{ color: '#F2708C' }}
                     title="Desactivar"
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(227,77,107,0.1)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
                     <Trash2 size={12} />
@@ -145,9 +145,9 @@ export default function MozosManager() {
                     type="button"
                     onClick={() => activarMozo(m.id)}
                     className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                    style={{ color: '#22c55e' }}
+                    style={{ color: '#3FBF8A' }}
                     title="Reactivar"
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(34,197,94,0.1)'}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(63,191,138,0.1)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
                     <RotateCcw size={12} />

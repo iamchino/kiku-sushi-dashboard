@@ -8,8 +8,8 @@ import { es } from 'date-fns/locale'
 import EmpleadoHeader from '../components/layout/EmpleadoHeader'
 
 const ESTADO_CHIP = {
-  pagado:    { label: 'Pagada ✓',           bg: 'rgba(34,197,94,0.12)',  color: '#22c55e' },
-  pendiente: { label: 'Pendiente de pago',   bg: 'rgba(245,158,11,0.14)', color: '#f59e0b' },
+  pagado:    { label: 'Pagada ✓',           bg: 'rgba(63,191,138,0.12)',  color: '#3FBF8A' },
+  pendiente: { label: 'Pendiente de pago',   bg: 'rgba(232,162,63,0.14)', color: '#E8A23F' },
   en_curso:  { label: 'En curso',            bg: 'var(--accent-soft)',    color: 'var(--accent-lift)' },
 }
 
@@ -62,7 +62,7 @@ export default function MisHorasPage() {
 
         {error && (
           <div className="rounded-xl px-4 py-3 flex items-center gap-2 text-sm"
-            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+            style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
             <AlertTriangle size={14} /> {error}
           </div>
         )}
@@ -86,7 +86,7 @@ export default function MisHorasPage() {
             </span>
           )}
           {jornales.length > 0 && (
-            <p className="text-[11px] mt-1" style={{ color: '#22c55e' }}>
+            <p className="text-[11px] mt-1" style={{ color: '#3FBF8A' }}>
               Jornales pagados: {jornales.length} {jornales.length === 1 ? 'día' : 'días'}
             </p>
           )}
@@ -94,7 +94,7 @@ export default function MisHorasPage() {
 
         {abiertas.length > 0 && (
           <div className="rounded-xl px-4 py-3 flex items-start gap-2 text-xs"
-            style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#f59e0b' }}>
+            style={{ background: 'rgba(232,162,63,0.08)', border: '1px solid rgba(232,162,63,0.25)', color: '#E8A23F' }}>
             <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
             <span>
               Tenés {abiertas.length === 1 ? 'una jornada abierta' : `${abiertas.length} jornadas abiertas`} (sin salida).
@@ -125,7 +125,7 @@ export default function MisHorasPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold tabular-nums" style={{ color: j.salida ? 'var(--accent-lift)' : '#f59e0b' }}>
+                  <p className="text-sm font-bold tabular-nums" style={{ color: j.salida ? 'var(--accent-lift)' : '#E8A23F' }}>
                     {j.salida ? fmtMinutos(j.minutos) : '—'}
                   </p>
                   {j.salida && j.minutos !== j.minutos_reales && (
@@ -134,7 +134,7 @@ export default function MisHorasPage() {
                     </p>
                   )}
                   {diasJornal.has(localDateISO(new Date(j.entrada))) && (
-                    <p className="text-[10px] font-semibold" style={{ color: '#22c55e' }}>jornal pagado</p>
+                    <p className="text-[10px] font-semibold" style={{ color: '#3FBF8A' }}>jornal pagado</p>
                   )}
                 </div>
               </div>

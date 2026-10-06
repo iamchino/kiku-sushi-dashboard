@@ -82,7 +82,7 @@ export default function ConteoModal({ open, onClose, items = [], titulo, notaDef
                       <span style={{ color: 'var(--text-primary)' }}>{r.nombre}</span>
                       <span className="tabular-nums" style={{ color: 'var(--text-muted)' }}>
                         sistema {fmt(r.esperado)} · contado {fmt(r.contado)} ·{' '}
-                        <b style={{ color: d < 0 ? '#ef4444' : '#22c55e' }}>{d > 0 ? '+' : ''}{fmt(d)}</b>
+                        <b style={{ color: d < 0 ? '#E34D6B' : '#3FBF8A' }}>{d > 0 ? '+' : ''}{fmt(d)}</b>
                       </span>
                     </div>
                   )
@@ -93,7 +93,7 @@ export default function ConteoModal({ open, onClose, items = [], titulo, notaDef
               Negativo = faltó (merma, porciones de más, algo que no se cargó). Positivo = sobró.
             </p>
             <button onClick={onClose} className="w-full py-2.5 rounded-xl text-sm font-semibold text-white"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+              style={{ background: 'var(--cta)' }}>
               Listo
             </button>
           </div>
@@ -123,12 +123,12 @@ export default function ConteoModal({ open, onClose, items = [], titulo, notaDef
                     style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>{i.nombre}</p>
-                      <p className="text-[10px] tabular-nums" style={{ color: actual < 0 ? '#ef4444' : 'var(--text-xmuted)' }}>
+                      <p className="text-[10px] tabular-nums" style={{ color: actual < 0 ? '#E34D6B' : 'var(--text-xmuted)' }}>
                         Sistema: {fmt(actual)} {i.unidad}
                       </p>
                     </div>
                     {dif !== null && dif !== 0 && (
-                      <span className="text-[11px] font-semibold tabular-nums" style={{ color: dif < 0 ? '#ef4444' : '#22c55e' }}>
+                      <span className="text-[11px] font-semibold tabular-nums" style={{ color: dif < 0 ? '#E34D6B' : '#3FBF8A' }}>
                         {dif > 0 ? '+' : ''}{fmt(dif)}
                       </span>
                     )}
@@ -145,13 +145,13 @@ export default function ConteoModal({ open, onClose, items = [], titulo, notaDef
             <div className="px-5 pb-5 pt-3 space-y-3 flex-shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
               <input value={nota} onChange={e => setNota(e.target.value)} placeholder="Nota del conteo"
                 className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
-              {error && <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>}
+              {error && <p className="text-xs" style={{ color: '#E34D6B' }}>{error}</p>}
               <div className="flex gap-3">
                 <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium"
                   style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
                 <button type="submit" disabled={saving || cargados.length === 0}
                   className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+                  style={{ background: 'var(--cta)' }}>
                   {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : `Guardar conteo (${cargados.length})`}
                 </button>
               </div>

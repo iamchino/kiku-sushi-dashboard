@@ -3,10 +3,10 @@ import { formatMoney } from '../../lib/printing'
 import { parseCurrencyValue } from '../../lib/orders'
 
 export const MEDIOS_SPLIT = [
-  { id: 'efectivo',        label: 'Efectivo',        icon: Banknote,   color: '#34d399' },
-  { id: 'tarjeta_credito', label: 'Tarjeta Crédito', icon: CreditCard, color: '#f59e0b' },
+  { id: 'efectivo',        label: 'Efectivo',        icon: Banknote,   color: '#5FD3A3' },
+  { id: 'tarjeta_credito', label: 'Tarjeta Crédito', icon: CreditCard, color: '#E8A23F' },
   { id: 'tarjeta_debito',  label: 'Tarjeta Débito',  icon: CreditCard, color: '#a78bfa' },
-  { id: 'transferencia',   label: 'Transferencia',   icon: Send,       color: '#60a5fa' },
+  { id: 'transferencia',   label: 'Transferencia',   icon: Send,       color: '#8FB2F2' },
 ]
 
 const TARJETAS = new Set(['tarjeta_credito', 'tarjeta_debito'])
@@ -89,7 +89,7 @@ export default function SplitPagoLines({ total, lineas, setLineas }) {
               onClick={() => remove(l._key)}
               disabled={lineas.length <= 1}
               className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-30"
-              style={{ color: '#f87171' }}
+              style={{ color: '#F2708C' }}
             >
               <Trash2 size={14} />
             </button>
@@ -119,7 +119,7 @@ export default function SplitPagoLines({ total, lineas, setLineas }) {
       <div className="flex items-center justify-between rounded-lg px-3 py-2 text-xs"
         style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
         <span style={{ color: 'var(--text-secondary)' }}>Asignado ${formatMoney(asignado)} de ${formatMoney(total)}</span>
-        <span className="font-bold" style={{ color: Math.abs(resta) <= 1 ? '#34d399' : '#f59e0b' }}>
+        <span className="font-bold" style={{ color: Math.abs(resta) <= 1 ? '#5FD3A3' : '#E8A23F' }}>
           {Math.abs(resta) <= 1 ? 'OK' : (resta > 0 ? `Falta $${formatMoney(resta)}` : `Sobra $${formatMoney(-resta)}`)}
         </span>
       </div>

@@ -43,13 +43,10 @@ function ThemeToggle() {
         {isDark ? 'Tema claro' : 'Tema oscuro'}
       </span>
       <span
-        className="ml-auto flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
-        style={{
-          background: 'var(--accent-soft)',
-          color: 'var(--text-muted)',
-        }}
+        className="ml-auto text-[9px] font-bold uppercase tracking-[0.14em] px-2 py-0.5 rounded-full"
+        style={{ background: 'var(--accent-soft)', color: 'var(--text-muted)' }}
       >
-        {isDark ? '🌙' : '☀️'}
+        {isDark ? 'Noche' : 'Día'}
       </span>
     </button>
   )
@@ -78,16 +75,16 @@ function SidebarContent({ onClose, showBell = false }) {
       >
         <div className="flex items-center gap-2.5">
           <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+            className="font-display w-8 h-8 rounded-lg flex items-center justify-center text-base"
+            style={{ background: 'var(--cta)', boxShadow: 'none' }}
           >
             {(negocio.nombre || 'K').trim().charAt(0).toUpperCase()}
           </div>
           <div>
-            <p className="font-semibold text-sm tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>
+            <p className="font-display text-lg leading-none tracking-wide" style={{ color: 'var(--text-primary)' }}>
               {negocio.nombrePrincipal}{negocio.nombreAcento && <span style={{ color: 'var(--accent-lift)' }}> {negocio.nombreAcento}</span>}
             </p>
-            <p className="text-[10px] mt-0.5 uppercase tracking-widest" style={{ color: 'var(--text-xmuted)' }}>
+            <p className="text-[9px] mt-1 uppercase tracking-[0.18em] font-semibold" style={{ color: 'var(--text-xmuted)' }}>
               {negocio.subtitulo}
             </p>
           </div>
@@ -118,10 +115,10 @@ function SidebarContent({ onClose, showBell = false }) {
               to={d.ruta}
               className={clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
-                !activo && 'hover:bg-[var(--bg-hover)]'
+                activo ? 'font-semibold' : 'font-medium hover:bg-[var(--bg-hover)]'
               )}
               style={activo
-                ? { background: 'var(--bg-active)', color: 'var(--accent-lift)' }
+                ? { background: 'var(--bg-active)', color: 'var(--accent-lift)', boxShadow: 'inset 3px 0 0 var(--accent-lift)' }
                 : { color: 'var(--text-secondary)' }}
               title={d.hint}
             >
@@ -151,8 +148,8 @@ function SidebarContent({ onClose, showBell = false }) {
           className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm transition-all duration-150"
           style={{ color: 'var(--text-muted)' }}
           onMouseEnter={e => {
-            e.currentTarget.style.color = '#f87171'
-            e.currentTarget.style.background = 'rgba(248,113,113,0.08)'
+            e.currentTarget.style.color = '#F2708C'
+            e.currentTarget.style.background = 'rgba(242,112,140,0.08)'
           }}
           onMouseLeave={e => {
             e.currentTarget.style.color = 'var(--text-muted)'

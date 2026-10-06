@@ -108,12 +108,12 @@ export default function EspecialesTab() {
         <div
           className="flex items-start gap-3 rounded-xl px-4 py-3 text-sm"
           style={{
-            background: notice.type === 'error' ? 'rgba(239,68,68,0.1)' : 'rgba(52,211,153,0.1)',
-            border: `1px solid ${notice.type === 'error' ? 'rgba(239,68,68,0.25)' : 'rgba(52,211,153,0.25)'}`,
+            background: notice.type === 'error' ? 'rgba(227,77,107,0.1)' : 'rgba(95,211,163,0.1)',
+            border: `1px solid ${notice.type === 'error' ? 'rgba(227,77,107,0.25)' : 'rgba(95,211,163,0.25)'}`,
             color: 'var(--text-primary)',
           }}
         >
-          <AlertCircle size={16} className="mt-0.5 shrink-0" style={{ color: notice.type === 'error' ? '#f87171' : '#34d399' }} />
+          <AlertCircle size={16} className="mt-0.5 shrink-0" style={{ color: notice.type === 'error' ? '#F2708C' : '#5FD3A3' }} />
           <span className="flex-1">{notice.text}</span>
           <button onClick={() => setNotice(null)} style={{ color: 'var(--text-muted)' }} className="font-medium">✕</button>
         </div>
@@ -128,8 +128,8 @@ export default function EspecialesTab() {
           </span>
           <span className="w-1 h-1 rounded-full" style={{ background: 'var(--border)' }} />
           <span className="flex items-center gap-1.5">
-            <Eye size={12} style={{ color: '#34d399' }} />
-            <span style={{ color: '#34d399' }}>{stats.activos}</span> visibles en la web
+            <Eye size={12} style={{ color: '#5FD3A3' }} />
+            <span style={{ color: '#5FD3A3' }}>{stats.activos}</span> visibles en la web
           </span>
           <span className="w-1 h-1 rounded-full" style={{ background: 'var(--border)' }} />
           <span className="flex items-center gap-1.5">
@@ -150,7 +150,7 @@ export default function EspecialesTab() {
           <button
             onClick={openNew}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}
+            style={{ background: 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}
           >
             <Plus size={15} />
             Nuevo especial
@@ -161,7 +161,7 @@ export default function EspecialesTab() {
       {/* Error */}
       {error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}
         >
           <AlertCircle size={14} />
           {error}
@@ -297,7 +297,7 @@ export default function EspecialesTab() {
                       onClick={() => toggleActive(item.id, item.activo)}
                       className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
                       title={item.activo ? 'Ocultar de la web' : 'Mostrar en la web'}
-                      style={{ color: item.activo ? '#34d399' : 'var(--text-xmuted)' }}
+                      style={{ color: item.activo ? '#5FD3A3' : 'var(--text-xmuted)' }}
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
@@ -316,7 +316,7 @@ export default function EspecialesTab() {
                       onClick={() => setDeleteTarget(item)}
                       className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-red-500/10"
                       style={{ color: 'var(--text-xmuted)' }}
-                      onMouseEnter={e => e.currentTarget.style.color = '#f87171'}
+                      onMouseEnter={e => e.currentTarget.style.color = '#F2708C'}
                       onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}
                     >
                       <Trash2 size={14} />
@@ -354,8 +354,8 @@ export default function EspecialesTab() {
             className="relative w-full max-w-sm rounded-2xl p-6 space-y-4"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 32px 64px rgba(0,0,0,0.3)' }}
           >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto" style={{ background: 'rgba(239,68,68,0.1)' }}>
-              <Trash2 size={18} style={{ color: '#f87171' }} />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto" style={{ background: 'rgba(227,77,107,0.1)' }}>
+              <Trash2 size={18} style={{ color: '#F2708C' }} />
             </div>
             <div className="text-center">
               <p className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>¿Eliminar especial?</p>
@@ -376,7 +376,7 @@ export default function EspecialesTab() {
                 onClick={handleDelete}
                 disabled={deleting}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-60"
-                style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)' }}
+                style={{ background: 'linear-gradient(135deg, #E34D6B, #A82C42)' }}
               >
                 {deleting ? 'Eliminando…' : 'Eliminar'}
               </button>

@@ -120,7 +120,7 @@ export default function PrinterStatusBanner() {
         />
 
         {savedScope && (
-          <div className="flex items-center gap-1.5 text-xs mb-3" style={{ color: '#22c55e' }}>
+          <div className="flex items-center gap-1.5 text-xs mb-3" style={{ color: '#3FBF8A' }}>
             <CheckCircle2 size={14} />
             {savedScope === 'remote' ? 'Guardado para todos los equipos.' : 'Guardado en este dispositivo.'}
           </div>
@@ -141,7 +141,7 @@ export default function PrinterStatusBanner() {
             onClick={handleSave}
             disabled={saving || !draftHost.trim()}
             className="flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-1.5 disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+            style={{ background: 'var(--cta)' }}
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : null}
             Guardar

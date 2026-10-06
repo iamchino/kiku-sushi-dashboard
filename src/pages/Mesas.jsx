@@ -181,7 +181,7 @@ export default function MesasPage() {
           <Link
             to="/configuracion/salon"
             className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:scale-105"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.35)' }}
+            style={{ background: 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}
           >
             Ir al editor de plano
           </Link>

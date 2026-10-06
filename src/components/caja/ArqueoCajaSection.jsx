@@ -87,16 +87,16 @@ function tipoConfig(tipo) {
 
 function movimientoColor(tipo) {
   const sign = tipoConfig(tipo).sign
-  if (sign > 0) return '#34d399'
-  if (sign < 0) return '#f87171'
-  return '#fbbf24'
+  if (sign > 0) return '#5FD3A3'
+  if (sign < 0) return '#F2708C'
+  return '#F2B35C'
 }
 
 function diferenciaColor(value) {
   const abs = Math.abs(Number(value || 0))
-  if (abs <= TOLERANCIA_CAJA) return '#34d399'
-  if (abs <= TOLERANCIA_CAJA * 3) return '#fbbf24'
-  return '#f87171'
+  if (abs <= TOLERANCIA_CAJA) return '#5FD3A3'
+  if (abs <= TOLERANCIA_CAJA * 3) return '#F2B35C'
+  return '#F2708C'
 }
 
 function Field({ label, children }) {
@@ -221,7 +221,7 @@ function EmptyTurnoForm({ onOpen, saving, aperturaSugerida }) {
           type="submit"
           disabled={saving}
           className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+          style={{ background: 'var(--cta)' }}
         >
           {saving ? <Loader2 size={15} className="animate-spin" /> : <LockKeyhole size={15} />}
           Abrir turno
@@ -236,7 +236,7 @@ function EmptyTurnoForm({ onOpen, saving, aperturaSugerida }) {
               style={inputStyle()}
             />
           </Field>
-          {error && <p className="mt-2 text-xs" style={{ color: '#f87171' }}>{error}</p>}
+          {error && <p className="mt-2 text-xs" style={{ color: '#F2708C' }}>{error}</p>}
         </div>
       </form>
     </Panel>
@@ -329,7 +329,7 @@ function GuardarEnCajaFuerte({ onListo }) {
               />
             </Field>
           </div>
-          {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+          {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={cerrar} disabled={saving}
               className="rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
@@ -338,7 +338,7 @@ function GuardarEnCajaFuerte({ onListo }) {
             </button>
             <button type="button" onClick={guardar} disabled={saving}
               className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+              style={{ background: 'var(--cta)' }}>
               {saving ? <Loader2 size={13} className="animate-spin" /> : <ArrowUpRight size={13} />}
               Guardar
             </button>
@@ -490,7 +490,7 @@ function MovimientoForm({ turno, onSubmit, saving, onRegistrarPago }) {
             Guardar
           </button>
         </div>
-        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
       </form>
     </Panel>
   )
@@ -608,7 +608,7 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
 
         <div className="grid gap-3 sm:grid-cols-3">
           <Metric label="Total contado" value={`$${formatMoney(totalContado)}`} icon={WalletCards} color="var(--accent-lift)" />
-          <Metric label="Total esperado" value={`$${formatMoney(totalEsperado)}`} icon={Calculator} color="#4f8ef7" />
+          <Metric label="Total esperado" value={`$${formatMoney(totalEsperado)}`} icon={Calculator} color="#7FA6F0" />
           <Metric label="Diferencia" value={`${diferenciaTotal >= 0 ? '+' : '-'}$${formatMoney(Math.abs(diferenciaTotal))}`} detail={`Tolerancia $${formatMoney(TOLERANCIA_CAJA)}`} icon={AlertTriangle} color={diferenciaColor(diferenciaTotal)} />
         </div>
 
@@ -617,7 +617,7 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
             type="submit"
             disabled={saving}
             className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+            style={{ background: 'var(--cta)' }}
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
             Cerrar turno
@@ -627,7 +627,7 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
           ¿Retiraste el efectivo a la caja fuerte? (pestaña Caja fuerte). Si no,
           el próximo turno abre con ese efectivo como fondo inicial.
         </p>
-        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
       </form>
 
       {confirmando && (
@@ -641,14 +641,14 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
           >
             <div className="mb-3 flex items-center gap-2">
-              <AlertTriangle size={18} style={{ color: '#fbbf24' }} />
+              <AlertTriangle size={18} style={{ color: '#F2B35C' }} />
               <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Confirmar cierre de turno</p>
             </div>
             <p className="text-xs leading-5" style={{ color: 'var(--text-secondary)' }}>
               Vas a cerrar el turno. Después del cierre, los cobros nuevos quedan sin turno hasta abrir uno nuevo.
             </p>
             {resumen.pedidosSinPago?.length > 0 && (
-              <p className="mt-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
+              <p className="mt-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C' }}>
                 Atención: {resumen.pedidosSinPago.length} pedido(s) del turno todavía no tienen pago registrado (${formatMoney(resumen.pedidosSinPagoTotal)}).
               </p>
             )}
@@ -673,7 +673,7 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
                 onClick={confirmarCierre}
                 disabled={saving}
                 className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+                style={{ background: 'var(--cta)' }}
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                 Confirmar cierre
@@ -864,7 +864,7 @@ function ConciliacionPanel({ ventasPorMedio, pagos }) {
                 <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{medio.label}</p>
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{medio.cantidad} pagos</p>
               </div>
-              <p className="text-sm font-bold" style={{ color: medio.id === 'efectivo' ? '#34d399' : 'var(--accent-lift)' }}>
+              <p className="text-sm font-bold" style={{ color: medio.id === 'efectivo' ? '#5FD3A3' : 'var(--accent-lift)' }}>
                 ${formatMoney(medio.total)}
               </p>
             </button>
@@ -898,7 +898,7 @@ function ConciliacionPanel({ ventasPorMedio, pagos }) {
                     {[pagoDetalle(pago), timeLabel(pago.created_at)].filter(Boolean).join(' - ')}
                   </p>
                 </div>
-                <p className="shrink-0 text-sm font-bold" style={{ color: pago.medio_pago === 'efectivo' ? '#34d399' : 'var(--accent-lift)' }}>
+                <p className="shrink-0 text-sm font-bold" style={{ color: pago.medio_pago === 'efectivo' ? '#5FD3A3' : 'var(--accent-lift)' }}>
                   ${formatMoney(pago.monto)}
                 </p>
               </div>
@@ -1153,12 +1153,12 @@ function CierresHistorial({ onReabrir }) {
       </div>
 
       {avisoExport && (
-        <p className="mb-2 text-xs" style={{ color: avisoExport.tipo === 'ok' ? '#34d399' : '#f87171' }}>
+        <p className="mb-2 text-xs" style={{ color: avisoExport.tipo === 'ok' ? '#5FD3A3' : '#F2708C' }}>
           {avisoExport.texto}
         </p>
       )}
-      {setupWarning && <p className="mb-2 text-xs" style={{ color: '#fbbf24' }}>{setupWarning}</p>}
-      {error && <p className="mb-2 text-xs" style={{ color: '#f87171' }}>{error}</p>}
+      {setupWarning && <p className="mb-2 text-xs" style={{ color: '#F2B35C' }}>{setupWarning}</p>}
+      {error && <p className="mb-2 text-xs" style={{ color: '#F2708C' }}>{error}</p>}
 
       {loading ? (
         <div className="flex items-center gap-2 py-6 text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -1190,7 +1190,7 @@ function CierresHistorial({ onReabrir }) {
                   <p className="font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                     {turno.caja_nombre}
                     {fueReabierto && (
-                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'rgba(251,191,36,0.14)', color: '#fbbf24' }}>
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: 'rgba(242,179,92,0.14)', color: '#F2B35C' }}>
                         <Unlock size={10} /> Reabierto
                       </span>
                     )}
@@ -1213,7 +1213,7 @@ function CierresHistorial({ onReabrir }) {
               {expanded && detalle && !detalle.loading && (
                 <>
                   {detalle.error && (
-                    <p className="mt-1 text-xs" style={{ color: '#f87171' }}>{detalle.error}</p>
+                    <p className="mt-1 text-xs" style={{ color: '#F2708C' }}>{detalle.error}</p>
                   )}
                   <CierreDetalle turno={turno} movimientos={detalle.movimientos} pagos={detalle.pagos} />
                   {eventos.length > 0 && (
@@ -1324,7 +1324,7 @@ function ReabrirMotivoModal({ turno, saving, onClose, onConfirm }) {
               style={inputStyle()}
             />
           </Field>
-          {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+          {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
           <p className="text-[11px] leading-4" style={{ color: 'var(--text-muted)' }}>
             Queda registrado quién reabre, cuándo y el motivo. Cada cambio que hagas mientras el turno esté reabierto se audita automáticamente.
           </p>
@@ -1333,7 +1333,7 @@ function ReabrirMotivoModal({ turno, saving, onClose, onConfirm }) {
           <button type="button" onClick={onClose} disabled={saving} className="rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
             Cancelar
           </button>
-          <button type="button" onClick={confirmar} disabled={saving} className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          <button type="button" onClick={confirmar} disabled={saving} className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" style={{ background: 'var(--cta)' }}>
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
             Reabrir
           </button>
@@ -1402,7 +1402,7 @@ function PagosTurnoLista({ pagos, busy, onQuitar }) {
             onClick={() => onQuitar(pago.id)}
             disabled={busy === `pago-${pago.id}`}
             className="rounded px-2 py-1 font-semibold disabled:opacity-50"
-            style={{ color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}
+            style={{ color: '#F2708C', border: '1px solid rgba(227,77,107,0.25)' }}
           >
             {busy === `pago-${pago.id}` ? <Loader2 size={12} className="animate-spin" /> : 'Quitar'}
           </button>
@@ -1494,7 +1494,7 @@ function EditarTurnoModal({ turno, saving, onClose, onGuardar }) {
           <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
             Cambiar el fondo inicial mueve el efectivo esperado del arqueo. Queda registrado en la auditoría del turno.
           </p>
-          {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+          {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
 
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose}
@@ -1504,7 +1504,7 @@ function EditarTurnoModal({ turno, saving, onClose, onGuardar }) {
             </button>
             <button type="button" onClick={guardar} disabled={saving}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+              style={{ background: 'var(--cta)' }}>
               {saving ? <Loader2 size={14} className="animate-spin" /> : null}
               Guardar cambios
             </button>
@@ -1563,7 +1563,7 @@ function MovimientoEditableRow({ mov, busy, onEdit, onDelete }) {
           <button type="button" onClick={abrir} className="rounded p-1" style={{ color: 'var(--text-muted)' }} title="Editar">
             <RefreshCw size={13} />
           </button>
-          <button type="button" onClick={() => onDelete(mov.id)} disabled={eliminando} className="rounded p-1 disabled:opacity-50" style={{ color: '#f87171' }} title="Eliminar">
+          <button type="button" onClick={() => onDelete(mov.id)} disabled={eliminando} className="rounded p-1 disabled:opacity-50" style={{ color: '#F2708C' }} title="Eliminar">
             {eliminando ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
           </button>
         </div>
@@ -1611,7 +1611,7 @@ function TurnoReabiertoPanel({
     <Panel className="space-y-4" >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: 'rgba(251,191,36,0.14)', color: '#fbbf24' }}>
+          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: 'rgba(242,179,92,0.14)', color: '#F2B35C' }}>
             <Unlock size={13} /> Turno reabierto
           </span>
           <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{turno.caja_nombre}</span>
@@ -1623,7 +1623,7 @@ function TurnoReabiertoPanel({
 
       {/* Motivo de la reapertura, bien visible */}
       {ultimaReapertura?.motivo && (
-        <div className="rounded-lg px-3 py-2 text-xs" style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)', color: '#fbbf24' }}>
+        <div className="rounded-lg px-3 py-2 text-xs" style={{ background: 'rgba(242,179,92,0.1)', border: '1px solid rgba(242,179,92,0.25)', color: '#F2B35C' }}>
           <span className="font-semibold">Motivo de reapertura: </span>
           <span style={{ color: 'var(--text-secondary)' }}>{ultimaReapertura.motivo}</span>
           <span style={{ color: 'var(--text-muted)' }}> · {timeLabel(ultimaReapertura.created_at)}</span>
@@ -1888,20 +1888,20 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
       {(setupWarning || error || notice) && (
         <div className="space-y-2">
           {setupWarning && (
-            <div className="rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }}>
+            <div className="rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(242,179,92,0.1)', color: '#F2B35C', border: '1px solid rgba(242,179,92,0.2)' }}>
               {setupWarning}
             </div>
           )}
           {error && (
-            <div className="rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
+            <div className="rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(227,77,107,0.1)', color: '#F2708C', border: '1px solid rgba(227,77,107,0.2)' }}>
               {error}
             </div>
           )}
           {notice && (
             <div className="rounded-lg px-4 py-3 text-sm" style={{
-              background: notice.type === 'ok' ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.1)',
-              color: notice.type === 'ok' ? '#34d399' : '#f87171',
-              border: `1px solid ${notice.type === 'ok' ? 'rgba(52,211,153,0.2)' : 'rgba(239,68,68,0.2)'}`,
+              background: notice.type === 'ok' ? 'rgba(95,211,163,0.1)' : 'rgba(227,77,107,0.1)',
+              color: notice.type === 'ok' ? '#5FD3A3' : '#F2708C',
+              border: `1px solid ${notice.type === 'ok' ? 'rgba(95,211,163,0.2)' : 'rgba(227,77,107,0.2)'}`,
             }}>
               {notice.text}
             </div>
@@ -1921,7 +1921,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }}>
+                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: 'rgba(95,211,163,0.12)', color: '#5FD3A3' }}>
                     <CheckCircle2 size={13} />
                     Turno abierto
                   </span>
@@ -1963,10 +1963,10 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
           </Panel>
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Metric label="Efectivo esperado" value={`$${formatMoney(resumen.efectivoEsperado)}`} detail={`Apertura $${formatMoney(resumen.apertura)}`} icon={Banknote} color="#34d399" />
-            <Metric label="Ventas cobradas" value={`$${formatMoney(resumen.ventasTotal)}`} detail={`${resumen.pagosTurno.length} pagos registrados`} icon={WalletCards} color="#4f8ef7" />
-            <Metric label="Movimientos netos" value={`${resumen.movimientosNeto >= 0 ? '+' : '-'}$${formatMoney(Math.abs(resumen.movimientosNeto))}`} detail={`+${formatMoney(resumen.movimientosIngresos)} / -${formatMoney(resumen.movimientosEgresos)}`} icon={Calculator} color={resumen.movimientosNeto >= 0 ? '#34d399' : '#f87171'} />
-            <Metric label="Revision" value={resumen.pedidosSinPago.length} detail={`Pedidos sin pago: $${formatMoney(resumen.pedidosSinPagoTotal)}`} icon={AlertTriangle} color={resumen.pedidosSinPago.length > 0 ? '#fbbf24' : diferenciaColor(diferenciaActiva)} />
+            <Metric label="Efectivo esperado" value={`$${formatMoney(resumen.efectivoEsperado)}`} detail={`Apertura $${formatMoney(resumen.apertura)}`} icon={Banknote} color="#5FD3A3" />
+            <Metric label="Ventas cobradas" value={`$${formatMoney(resumen.ventasTotal)}`} detail={`${resumen.pagosTurno.length} pagos registrados`} icon={WalletCards} color="#7FA6F0" />
+            <Metric label="Movimientos netos" value={`${resumen.movimientosNeto >= 0 ? '+' : '-'}$${formatMoney(Math.abs(resumen.movimientosNeto))}`} detail={`+${formatMoney(resumen.movimientosIngresos)} / -${formatMoney(resumen.movimientosEgresos)}`} icon={Calculator} color={resumen.movimientosNeto >= 0 ? '#5FD3A3' : '#F2708C'} />
+            <Metric label="Revision" value={resumen.pedidosSinPago.length} detail={`Pedidos sin pago: $${formatMoney(resumen.pedidosSinPagoTotal)}`} icon={AlertTriangle} color={resumen.pedidosSinPago.length > 0 ? '#F2B35C' : diferenciaColor(diferenciaActiva)} />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
@@ -1974,7 +1974,7 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
 
             <Panel>
               <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C' }}>
                   <AlertTriangle size={17} />
                 </div>
                 <div className="min-w-0">

@@ -216,7 +216,7 @@ export default function NovedadTab() {
       <div className="rounded-xl p-4 flex items-center justify-between gap-4" style={card}>
         <div className="flex items-center gap-2.5">
           {form.activo
-            ? <Eye size={16} style={{ color: '#34d399' }} />
+            ? <Eye size={16} style={{ color: '#5FD3A3' }} />
             : <EyeOff size={16} style={{ color: 'var(--text-muted)' }} />}
           <div>
             <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -483,7 +483,7 @@ export default function NovedadTab() {
       {error && (
         <div
           className="rounded-lg px-3 py-2 text-xs flex items-start gap-2"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}
         >
           <AlertTriangle size={13} className="shrink-0 mt-0.5" /> {error}
         </div>
@@ -491,7 +491,7 @@ export default function NovedadTab() {
 
       <div className="flex items-center justify-end gap-2">
         {saveState === 'ok' && (
-          <span className="flex items-center gap-1 text-xs" style={{ color: '#22c55e' }}>
+          <span className="flex items-center gap-1 text-xs" style={{ color: '#3FBF8A' }}>
             <CheckCircle2 size={13} /> Guardado
           </span>
         )}
@@ -500,7 +500,7 @@ export default function NovedadTab() {
           onClick={guardar}
           disabled={saveState === 'saving' || uploading}
           className="px-4 py-2 rounded-xl text-sm font-semibold text-white flex items-center gap-1.5 disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+          style={{ background: 'var(--cta)' }}
         >
           {saveState === 'saving' ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
           Guardar

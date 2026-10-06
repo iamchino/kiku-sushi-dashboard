@@ -111,7 +111,7 @@ export default function ProduccionPage() {
             <button onClick={() => { setErrorLista(null); setBorrarListaOpen(true) }}
               title="Eliminar la lista de este día"
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold"
-              style={{ border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' }}>
+              style={{ border: '1px solid rgba(227,77,107,0.3)', color: '#E34D6B' }}>
               <Trash2 size={13} /> Eliminar lista
             </button>
           )}
@@ -175,7 +175,7 @@ export default function ProduccionPage() {
       {/* ── Error ── */}
       {error && (
         <div className="px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#ef4444' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#E34D6B' }}>
           {error}
         </div>
       )}
@@ -196,7 +196,7 @@ export default function ProduccionPage() {
           {puedeCargar && (
             <button onClick={handleCrearLista} disabled={creando}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105 disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}>
+              style={{ background: 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}>
               {creando ? 'Creando...' : '+ Crear lista'}
             </button>
           )}
@@ -257,7 +257,7 @@ export default function ProduccionPage() {
                 style={{ color: 'var(--text-xmuted)' }}>
                 Completadas
                 <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
-                  style={{ background: 'rgba(34,197,94,0.12)', color: '#22c55e' }}>
+                  style={{ background: 'rgba(63,191,138,0.12)', color: '#3FBF8A' }}>
                   {completadas.length}
                 </span>
               </p>
@@ -318,13 +318,13 @@ export default function ProduccionPage() {
                 Se eliminan la lista y sus {tareas.length} tarea{tareas.length === 1 ? '' : 's'}.
               </p>
               {tareas.some(t => t.estado === 'completada') && (
-                <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>
+                <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(232,162,63,0.1)', color: '#E8A23F' }}>
                   Hay tareas completadas: el stock que ya movieron NO se devuelve.
                   Si necesitás revertirlas, hacelo antes de eliminar.
                 </p>
               )}
             </div>
-            {errorLista && <p className="text-xs text-center" style={{ color: '#ef4444' }}>{errorLista}</p>}
+            {errorLista && <p className="text-xs text-center" style={{ color: '#E34D6B' }}>{errorLista}</p>}
             <div className="flex gap-3">
               <button onClick={() => setBorrarListaOpen(false)}
                 className="flex-1 py-2.5 rounded-xl text-sm font-medium"
@@ -333,7 +333,7 @@ export default function ProduccionPage() {
               </button>
               <button onClick={handleBorrarLista} disabled={borrandoLista}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
-                style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)' }}>
+                style={{ background: 'linear-gradient(135deg, #E34D6B, #A82C42)' }}>
                 {borrandoLista ? 'Eliminando...' : 'Eliminar lista'}
               </button>
             </div>
@@ -361,7 +361,7 @@ export default function ProduccionPage() {
               </button>
               <button onClick={handleDelete} disabled={deleting}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
-                style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)' }}>
+                style={{ background: 'linear-gradient(135deg, #E34D6B, #A82C42)' }}>
                 {deleting ? 'Eliminando...' : 'Eliminar'}
               </button>
             </div>

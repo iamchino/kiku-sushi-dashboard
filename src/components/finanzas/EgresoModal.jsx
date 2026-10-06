@@ -79,7 +79,7 @@ export default function EgresoModal({ initial, defaults, proveedores = [], emple
       <form onSubmit={handleSubmit} className="p-5 space-y-4">
         {err && (
           <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs"
-            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+            style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
             <AlertTriangle size={12} /> {err}
           </div>
         )}
@@ -142,7 +142,7 @@ export default function EgresoModal({ initial, defaults, proveedores = [], emple
           </button>
           <button type="submit" disabled={saving}
             className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 transition-all"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+            style={{ background: 'var(--cta)' }}>
             {saving ? 'Guardando…' : (initial ? 'Guardar cambios' : 'Registrar egreso')}
           </button>
         </div>

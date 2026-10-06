@@ -118,7 +118,7 @@ export default function EditarDatosPedidoModal({ open, pedido, facturada = false
         {/* Header */}
         <div
           className="flex-shrink-0 px-5 py-4 flex items-center justify-between gap-3"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', color: '#fff' }}
+          style={{ background: 'var(--cta)', color: '#fff' }}
         >
           <div>
             <p className="text-[10px] font-medium uppercase tracking-wider opacity-90">Editar datos</p>
@@ -138,7 +138,7 @@ export default function EditarDatosPedidoModal({ open, pedido, facturada = false
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {error && (
             <div className="rounded-lg p-3 text-xs flex items-start gap-2"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+              style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.2)', color: '#F2708C' }}>
               <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
@@ -146,7 +146,7 @@ export default function EditarDatosPedidoModal({ open, pedido, facturada = false
 
           {facturada && (
             <div className="rounded-lg p-3 text-xs flex items-start gap-2"
-              style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)', color: '#f59e0b' }}>
+              style={{ background: 'rgba(242,179,92,0.1)', border: '1px solid rgba(242,179,92,0.25)', color: '#E8A23F' }}>
               <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
               <span>
                 <strong>Orden facturada.</strong> Cambiar la fecha o los datos puede generar
@@ -229,7 +229,7 @@ export default function EditarDatosPedidoModal({ open, pedido, facturada = false
           <button
             type="button" onClick={handleGuardar} disabled={busy}
             className="py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all hover:scale-[1.01] disabled:opacity-60"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+            style={{ background: 'var(--cta)' }}
           >
             {busy ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
             Guardar cambios

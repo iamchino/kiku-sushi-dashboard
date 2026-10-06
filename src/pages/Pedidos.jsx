@@ -23,9 +23,9 @@ const TABS = [
 ]
 
 const ESTADO_BADGE = {
-  activa:     { label: 'Activa',     bg: 'rgba(79,142,247,0.10)', color: '#4f8ef7' },
-  completada: { label: 'Completada', bg: 'rgba(52,211,153,0.10)', color: '#34d399' },
-  cancelada:  { label: 'Cancelada',  bg: 'rgba(239,68,68,0.10)',  color: '#f87171' },
+  activa:     { label: 'Activa',     bg: 'rgba(127,166,240,0.10)', color: '#7FA6F0' },
+  completada: { label: 'Completada', bg: 'rgba(95,211,163,0.10)', color: '#5FD3A3' },
+  cancelada:  { label: 'Cancelada',  bg: 'rgba(227,77,107,0.10)',  color: '#F2708C' },
 }
 
 // Etiquetas crudas para el menú de cambio de estado.
@@ -45,8 +45,8 @@ const BTN_AVANZAR_LABEL = {
 
 const TIPO_META = {
   salon:    { label: 'Para Comer Aquí', icon: Utensils,    color: 'var(--accent-lift)' },
-  llevar:   { label: 'Para Llevar',     icon: ShoppingBag, color: '#fbbf24'             },
-  delivery: { label: 'Web',             icon: Truck,       color: '#4f8ef7'             },
+  llevar:   { label: 'Para Llevar',     icon: ShoppingBag, color: '#F2B35C'             },
+  delivery: { label: 'Web',             icon: Truck,       color: '#7FA6F0'             },
 }
 
 const ESTADO_FILTRO_OPCIONES = [
@@ -311,8 +311,8 @@ export default function PedidosPage() {
               onClick={() => setTipoMenuOpen(o => !o)}
               className="flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
               style={{
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-                boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)',
+                background: 'var(--cta)',
+                boxShadow: 'var(--cta-shadow)',
               }}
             >
               <Plus size={15} />
@@ -336,7 +336,7 @@ export default function PedidosPage() {
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <ShoppingBag size={15} style={{ color: '#fbbf24' }} />
+                  <ShoppingBag size={15} style={{ color: '#F2B35C' }} />
                   Para Llevar
                 </button>
                 <button
@@ -356,7 +356,7 @@ export default function PedidosPage() {
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <Truck size={15} style={{ color: '#4f8ef7' }} />
+                  <Truck size={15} style={{ color: '#7FA6F0' }} />
                   Delivery
                 </button>
               </div>
@@ -431,7 +431,7 @@ export default function PedidosPage() {
 
       {error && (
         <div className="mx-4 md:mx-6 mt-3 px-4 py-3 rounded-xl text-sm flex-shrink-0"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           {error}
         </div>
       )}
@@ -670,7 +670,7 @@ function EstadoBadgeMenu({ pedido, onAvanzar, onCancelar }) {
             type="button"
             onClick={handleCancelar}
             className="w-full text-left px-3 py-2 text-xs font-medium transition-colors hover:bg-[var(--bg-hover)] flex items-center gap-2"
-            style={{ color: '#f87171', borderTop: '1px solid var(--border)' }}
+            style={{ color: '#F2708C', borderTop: '1px solid var(--border)' }}
           >
             <Ban size={11} />
             Cancelar pedido
@@ -739,7 +739,7 @@ function PedidoRow({ pedido, onSelect, onCerrarClick, onEditarClick, onAvanzar, 
           <span
             className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full"
             style={facturado
-              ? { background: 'rgba(52,211,153,0.10)', color: '#34d399' }
+              ? { background: 'rgba(95,211,163,0.10)', color: '#5FD3A3' }
               : { background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)' }
             }
           >
@@ -748,7 +748,7 @@ function PedidoRow({ pedido, onSelect, onCerrarClick, onEditarClick, onAvanzar, 
           {pedido.afecta_caja === false && (
             <span
               className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}
+              style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C' }}
               title="Cobrada fuera de caja — no afecta el arqueo"
             >
               Sin caja
@@ -944,17 +944,17 @@ function PapeleraRow({ pedido, onSelect, onRestaurar }) {
   return (
     <div className="px-4 md:px-6 py-3 flex items-center gap-3 transition-colors hover:bg-[var(--bg-hover)]">
       <button type="button" onClick={onSelect} className="flex-1 min-w-0 text-left flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239,68,68,0.08)' }}>
-          {TipoIcon && <TipoIcon size={15} style={{ color: '#f87171' }} />}
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(227,77,107,0.08)' }}>
+          {TipoIcon && <TipoIcon size={15} style={{ color: '#F2708C' }} />}
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{codigo}</span>
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(227,77,107,0.1)', color: '#F2708C' }}>
               Cancelada
             </span>
             {facturado && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(251,191,36,0.12)', color: '#f59e0b' }}>
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(242,179,92,0.12)', color: '#E8A23F' }}>
                 Facturada
               </span>
             )}
@@ -976,7 +976,7 @@ function PapeleraRow({ pedido, onSelect, onRestaurar }) {
         onClick={handleRestaurar}
         disabled={busy}
         className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors disabled:opacity-50"
-        style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}
+        style={{ background: 'rgba(95,211,163,0.1)', color: '#5FD3A3', border: '1px solid rgba(95,211,163,0.25)' }}
         title="Restaurar orden (vuelve a pendiente)"
       >
         {busy ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}

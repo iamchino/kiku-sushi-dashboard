@@ -38,14 +38,14 @@ export default function EmpleadosSection() {
         </p>
         <button onClick={() => setEmpModal('nuevo')}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           <Plus size={14} /> Nuevo empleado
         </button>
       </div>
 
       {error && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           <AlertTriangle size={14} /> {error}
         </div>
       )}
@@ -92,7 +92,7 @@ export default function EmpleadosSection() {
                   <Edit2 size={13} />
                 </button>
                 <button onClick={() => setDelEmp(emp)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.1)'; e.currentTarget.style.color = '#f87171' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(242,112,140,0.1)'; e.currentTarget.style.color = '#F2708C' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}>
                   <Trash2 size={13} />
                 </button>

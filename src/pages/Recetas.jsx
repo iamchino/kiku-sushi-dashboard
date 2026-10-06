@@ -21,9 +21,9 @@ function MargenBadge({ margen }) {
     <span
       className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${bajo ? 'animate-pulse' : ''}`}
       style={{
-        background: bajo ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.06)',
-        color: bajo ? '#ef4444' : '#22c55e',
-        border: `1px solid ${bajo ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.15)'}`,
+        background: bajo ? 'rgba(227,77,107,0.08)' : 'rgba(63,191,138,0.06)',
+        color: bajo ? '#E34D6B' : '#3FBF8A',
+        border: `1px solid ${bajo ? 'rgba(227,77,107,0.2)' : 'rgba(63,191,138,0.15)'}`,
       }}
     >
       {bajo && <AlertTriangle size={10} />}
@@ -76,7 +76,7 @@ function RecetaRow({ receta, recetas, stockItem, esFinal, onEdit, onDuplicate, o
           {!esFinal ? (
             stockItem ? (
               <span className="text-xs font-semibold tabular-nums"
-                style={{ color: parseFloat(stockItem.stock_actual) < 0 ? '#ef4444' : 'var(--text-secondary)' }}>
+                style={{ color: parseFloat(stockItem.stock_actual) < 0 ? '#E34D6B' : 'var(--text-secondary)' }}>
                 {(parseFloat(stockItem.stock_actual) || 0).toLocaleString('es-AR', { maximumFractionDigits: 2 })} {stockItem.unidad}
               </span>
             ) : (
@@ -147,7 +147,7 @@ function RecetaRow({ receta, recetas, stockItem, esFinal, onEdit, onDuplicate, o
               aria-label={`Eliminar ${receta.nombre}`}
               className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-red-500/10"
               style={{ color: 'var(--text-xmuted)' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+              onMouseEnter={e => e.currentTarget.style.color = '#E34D6B'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}>
               <Trash2 size={13} />
             </button>
@@ -328,7 +328,7 @@ function ComboRow({ combo, onEdit, onDelete }) {
             <button onClick={() => onDelete(combo, 'combo')}
               className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-red-500/10"
               style={{ color: 'var(--text-xmuted)' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+              onMouseEnter={e => e.currentTarget.style.color = '#E34D6B'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-xmuted)'}>
               <Trash2 size={13} />
             </button>
@@ -541,7 +541,7 @@ export default function RecetasPage() {
           {esRecetas ? (
             <button onClick={openNew}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))', boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.25)' }}>
+              style={{ background: 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}>
               <Plus size={15} />
               <span className="hidden sm:inline">Nueva receta</span>
               <span className="sm:hidden">Nueva</span>
@@ -606,7 +606,7 @@ export default function RecetasPage() {
             {stats.bajoMargen > 0 && (
               <>
                 <span className="w-1 h-1 rounded-full" style={{ background: 'var(--border)' }} />
-                <span className="flex items-center gap-1" style={{ color: '#ef4444' }}>
+                <span className="flex items-center gap-1" style={{ color: '#E34D6B' }}>
                   <AlertTriangle size={11} />
                   <span className="font-semibold">{stats.bajoMargen}</span> con margen bajo (&lt;30%)
                 </span>
@@ -619,7 +619,7 @@ export default function RecetasPage() {
       {/* Error */}
       {error && (
         <div className="px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#ef4444' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#E34D6B' }}>
           {error}
         </div>
       )}
@@ -762,8 +762,8 @@ export default function RecetasPage() {
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 32px 64px rgba(0,0,0,0.3)' }}>
             <div className="text-center space-y-2">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto"
-                style={{ background: 'rgba(239,68,68,0.1)' }}>
-                <Trash2 size={18} style={{ color: '#ef4444' }} />
+                style={{ background: 'rgba(227,77,107,0.1)' }}>
+                <Trash2 size={18} style={{ color: '#E34D6B' }} />
               </div>
               <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>
                 ¿Eliminar {deleteTarget.type}?
@@ -779,7 +779,7 @@ export default function RecetasPage() {
               >Cancelar</button>
               <button onClick={handleDelete} disabled={deleting}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
-                style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)' }}>
+                style={{ background: 'linear-gradient(135deg, #E34D6B, #A82C42)' }}>
                 {deleting ? 'Eliminando…' : 'Eliminar'}
               </button>
             </div>

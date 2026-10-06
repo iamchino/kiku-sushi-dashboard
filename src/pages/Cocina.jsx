@@ -39,8 +39,8 @@ function Elapsed({ createdAt, now }) {
 
   const colors = {
     normal:  { color: 'var(--text-xmuted)',  bg: 'transparent' },
-    alta:    { color: '#fbbf24',  bg: 'rgba(251,191,36,0.1)' },
-    critica: { color: '#f87171',  bg: 'rgba(239,68,68,0.12)' },
+    alta:    { color: '#F2B35C',  bg: 'rgba(242,179,92,0.1)' },
+    critica: { color: '#F2708C',  bg: 'rgba(227,77,107,0.12)' },
   }[urgencia]
 
   return (
@@ -107,23 +107,23 @@ const COLUMNAS = {
   pendiente:  {
     label: 'NUEVOS', icon: Flame, color: 'var(--accent-lift)',
     border: 'rgba(var(--accent-rgb),0.35)', bg: 'rgba(var(--accent-rgb),0.06)',
-    btnBg: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
+    btnBg: 'var(--cta)',
     btnShadow: '0 4px 20px rgba(var(--accent-rgb),0.3)',
     btnLabel: 'TOMAR PEDIDO', btnIcon: ChefHat, qtyColor: 'var(--accent-lift)',
   },
   preparando: {
-    label: 'EN PREPARACIÓN', icon: ChefHat, color: '#4f8ef7',
-    border: 'rgba(79,142,247,0.35)', bg: 'rgba(79,142,247,0.06)',
-    btnBg: 'linear-gradient(135deg, #34d399, #059669)',
-    btnShadow: '0 4px 20px rgba(52,211,153,0.3)',
-    btnLabel: 'MARCAR LISTO', btnIcon: CheckCircle2, qtyColor: '#4f8ef7',
+    label: 'EN PREPARACIÓN', icon: ChefHat, color: '#7FA6F0',
+    border: 'rgba(127,166,240,0.35)', bg: 'rgba(127,166,240,0.06)',
+    btnBg: 'linear-gradient(135deg, #5FD3A3, #2EA075)',
+    btnShadow: '0 4px 20px rgba(95,211,163,0.3)',
+    btnLabel: 'MARCAR LISTO', btnIcon: CheckCircle2, qtyColor: '#7FA6F0',
   },
   listo: {
-    label: 'LISTO PARA SERVIR', icon: ConciergeBell, color: '#34d399',
-    border: 'rgba(52,211,153,0.4)', bg: 'rgba(52,211,153,0.07)',
-    btnBg: 'linear-gradient(135deg, #f59e0b, #d97706)',
-    btnShadow: '0 4px 20px rgba(245,158,11,0.3)',
-    btnLabel: 'EN MESA', btnIcon: ConciergeBell, qtyColor: '#34d399',
+    label: 'LISTO PARA SERVIR', icon: ConciergeBell, color: '#5FD3A3',
+    border: 'rgba(95,211,163,0.4)', bg: 'rgba(95,211,163,0.07)',
+    btnBg: 'linear-gradient(135deg, #E8A23F, #C98424)',
+    btnShadow: '0 4px 20px rgba(232,162,63,0.3)',
+    btnLabel: 'EN MESA', btnIcon: ConciergeBell, qtyColor: '#5FD3A3',
   },
 }
 
@@ -146,13 +146,13 @@ function KdsCard({ tarjeta, onAccion }) {
           <span className="font-mono text-sm font-bold" style={{ color: 'var(--text-xmuted)' }}>#{shortId}</span>
           {pedido.mesa
             ? <span className="text-base font-bold whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>Mesa {pedido.mesa}</span>
-            : <span className="text-sm font-semibold capitalize" style={{ color: '#4f8ef7' }}>{pedido.canal}</span>
+            : <span className="text-sm font-semibold capitalize" style={{ color: '#7FA6F0' }}>{pedido.canal}</span>
           }
         </div>
         <div className="flex items-center gap-2">
           {esAgregado && columna !== 'listo' && (
             <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider"
-              style={{ background: 'rgba(52,211,153,0.18)', color: '#34d399' }}>
+              style={{ background: 'rgba(95,211,163,0.18)', color: '#5FD3A3' }}>
               AGREGADO
             </span>
           )}
@@ -168,12 +168,12 @@ function KdsCard({ tarjeta, onAccion }) {
         <span className="text-lg font-semibold leading-snug" style={{ color: 'var(--text-primary)' }}>
           {item.nombre}
           {item.notas && (
-            <span className="block text-sm italic mt-1" style={{ color: '#fbbf24' }}>📝 {item.notas}</span>
+            <span className="block text-sm italic mt-1" style={{ color: '#F2B35C' }}>📝 {item.notas}</span>
           )}
         </span>
       </div>
       {pedido.notas && (
-        <p className="text-sm italic pt-2" style={{ color: '#fbbf24', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+        <p className="text-sm italic pt-2" style={{ color: '#F2B35C', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
           📝 {pedido.notas}
         </p>
       )}
@@ -345,7 +345,7 @@ export default function CocinaKDS() {
         <div className="flex items-center gap-3">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+            style={{ background: 'var(--cta)' }}
           >
             K
           </div>
@@ -363,7 +363,7 @@ export default function CocinaKDS() {
         <div className="flex items-center gap-3">
           {!connected && (
             <span className="flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full"
-              style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171' }}>
+              style={{ background: 'rgba(227,77,107,0.1)', color: '#F2708C' }}>
               <WifiOff size={12} /> Sin conexión
             </span>
           )}
@@ -393,7 +393,7 @@ export default function CocinaKDS() {
       {/* ── Error banner ── */}
       {(error || aviso) && (
         <div className="px-5 py-2 text-sm flex-shrink-0"
-          style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', borderBottom: '1px solid rgba(239,68,68,0.2)' }}>
+          style={{ background: 'rgba(227,77,107,0.1)', color: '#F2708C', borderBottom: '1px solid rgba(227,77,107,0.2)' }}>
           ⚠️ {aviso || error}
         </div>
       )}

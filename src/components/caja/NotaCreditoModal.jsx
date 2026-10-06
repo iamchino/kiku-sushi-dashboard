@@ -101,7 +101,7 @@ export function NotaCreditoModal({ open, pedido, comprobante, busy, onClose, onC
               style={{
                 background: 'var(--bg-input)',
                 color: 'var(--text-primary)',
-                border: `1px solid ${excede ? '#f87171' : 'var(--border)'}`,
+                border: `1px solid ${excede ? '#F2708C' : 'var(--border)'}`,
               }}
             />
             <p className="mt-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
@@ -126,7 +126,7 @@ export function NotaCreditoModal({ open, pedido, comprobante, busy, onClose, onC
           {error && (
             <div
               className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs"
-              style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+              style={{ background: 'rgba(227,77,107,0.1)', color: '#F2708C', border: '1px solid rgba(227,77,107,0.2)' }}
             >
               <AlertTriangle size={13} className="mt-0.5 shrink-0" />
               <span>{error}</span>
@@ -152,7 +152,7 @@ export function NotaCreditoModal({ open, pedido, comprobante, busy, onClose, onC
               type="submit"
               disabled={busy || excede || totalNc <= 0}
               className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: '#dc2626' }}
+              style={{ background: '#C9384F' }}
             >
               {busy ? <Loader2 size={15} className="animate-spin" /> : <FileMinus2 size={15} />}
               Emitir NC

@@ -140,14 +140,14 @@ export default function EnvioConfig() {
             onClick={handleGuardarBase}
             disabled={saveState === 'saving'}
             className="px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-1.5 disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+            style={{ background: 'var(--cta)' }}
           >
             {saveState === 'saving' ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             Guardar base
           </button>
         </div>
         {saveState === 'ok' && (
-          <span className="flex items-center gap-1 text-xs" style={{ color: '#22c55e' }}>
+          <span className="flex items-center gap-1 text-xs" style={{ color: '#3FBF8A' }}>
             <CheckCircle2 size={13} /> Guardado
           </span>
         )}
@@ -202,7 +202,7 @@ export default function EnvioConfig() {
                 className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium"
                 style={zona.activo
                   ? { background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }
-                  : { background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)', color: '#fbbf24' }}
+                  : { background: 'rgba(242,179,92,0.1)', border: '1px solid rgba(242,179,92,0.2)', color: '#F2B35C' }}
                 title={zona.activo ? 'Zona activa (visible)' : 'Zona inactiva (oculta)'}
               >
                 {zona.activo ? 'Activa' : 'Inactiva'}
@@ -211,7 +211,7 @@ export default function EnvioConfig() {
                 type="button"
                 onClick={() => handleEliminarZona(zona.id)}
                 className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}
+                style={{ color: '#F2708C', border: '1px solid rgba(227,77,107,0.25)' }}
                 title="Eliminar zona"
               >
                 <Trash2 size={13} />
@@ -256,7 +256,7 @@ export default function EnvioConfig() {
       </div>
 
       {saveError && (
-        <div className="rounded-lg px-3 py-2 text-xs flex items-start gap-2" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+        <div className="rounded-lg px-3 py-2 text-xs flex items-start gap-2" style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           <AlertTriangle size={13} className="mt-0.5" />
           <span className="flex-1">{saveError}</span>
           <button type="button" onClick={() => setSaveError(null)}><X size={13} /></button>

@@ -6,8 +6,8 @@ import { ModalShell, Field } from '../finanzas/fields'
 import ConfirmDelete from '../finanzas/ConfirmDelete'
 
 const CHIP = {
-  pagado:       { label: 'Pagada',       bg: 'rgba(34,197,94,0.12)',  color: '#22c55e' },
-  pendiente:    { label: 'Pendiente',    bg: 'rgba(245,158,11,0.14)', color: '#f59e0b' },
+  pagado:       { label: 'Pagada',       bg: 'rgba(63,191,138,0.12)',  color: '#3FBF8A' },
+  pendiente:    { label: 'Pendiente',    bg: 'rgba(232,162,63,0.14)', color: '#E8A23F' },
   en_curso:     { label: 'En curso',     bg: 'var(--accent-soft)',    color: 'var(--accent-lift)' },
   sin_liquidar: { label: 'Sin liquidar', bg: 'var(--bg-active)',      color: 'var(--text-muted)' },
 }
@@ -135,7 +135,7 @@ export default function LiquidacionSection({ horas, enCurso }) {
 
       {error && (
         <div className="px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}>
+          style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}>
           {error}
         </div>
       )}
@@ -200,7 +200,7 @@ export default function LiquidacionSection({ horas, enCurso }) {
                   )}
                   {f.liq && f.estado !== 'pagado' && (
                     <button onClick={() => setDelLiq(f.liq)} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.1)'; e.currentTarget.style.color = '#f87171' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(242,112,140,0.1)'; e.currentTarget.style.color = '#F2708C' }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}>
                       <Trash2 size={13} />
                     </button>
@@ -252,7 +252,7 @@ export default function LiquidacionSection({ horas, enCurso }) {
                   <span className="font-semibold text-sm tabular-nums" style={{ color: 'var(--text-primary)' }}>{fmtMoney(l.total)}</span>
                   <button onClick={() => setDelDia(l)} title="Anular jornal (borra también su egreso)"
                     className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.1)'; e.currentTarget.style.color = '#f87171' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(242,112,140,0.1)'; e.currentTarget.style.color = '#F2708C' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}>
                     <Trash2 size={13} />
                   </button>
@@ -310,7 +310,7 @@ function DiaStrip({ dias, porDia, detalles, onEditar, onEliminar }) {
           const enCurso = delDia.some(j => !j.salida)
           const activo = min > 0 || delDia.length > 0
           const abierto = sel === d.iso
-          const borde = abierto ? 'var(--accent-lift)' : enCurso ? '#f59e0b' : activo ? 'var(--accent-border)' : 'var(--border)'
+          const borde = abierto ? 'var(--accent-lift)' : enCurso ? '#E8A23F' : activo ? 'var(--accent-border)' : 'var(--border)'
           return (
             <button
               key={d.iso}
@@ -333,7 +333,7 @@ function DiaStrip({ dias, porDia, detalles, onEditar, onEliminar }) {
               </span>
               <span
                 className="text-[11px] tabular-nums font-medium"
-                style={{ color: min > 0 ? 'var(--text-primary)' : enCurso ? '#f59e0b' : 'var(--text-xmuted)' }}
+                style={{ color: min > 0 ? 'var(--text-primary)' : enCurso ? '#E8A23F' : 'var(--text-xmuted)' }}
               >
                 {min > 0 ? fmtHorasCompacto(min) : enCurso ? 'abierto' : fmtHorasCompacto(min)}
               </span>
@@ -360,14 +360,14 @@ function DiaStrip({ dias, porDia, detalles, onEditar, onEliminar }) {
               <span style={{ color: 'var(--text-primary)' }}>
                 {fmtHora(j.entrada)} → {j.salida
                   ? fmtHora(j.salida)
-                  : <span style={{ color: '#f59e0b' }}>{j.abierta ? 'en curso' : 'sin salida'}</span>}
+                  : <span style={{ color: '#E8A23F' }}>{j.abierta ? 'en curso' : 'sin salida'}</span>}
                 {/* Un turno que termina al día siguiente sigue siendo el mismo turno */}
                 {j.salida && new Date(j.salida).getDate() !== new Date(j.entrada).getDate() && (
                   <span className="ml-1 text-[9px] normal-case" style={{ color: 'var(--text-xmuted)' }}>(+1 día)</span>
                 )}
               </span>
               <span className="flex items-center gap-2">
-                <span style={{ color: j.salida ? 'var(--text-muted)' : '#f59e0b' }}>
+                <span style={{ color: j.salida ? 'var(--text-muted)' : '#E8A23F' }}>
                   {j.salida
                     ? fmtMinutos(j.minutos_reales ?? j.minutos)
                     : (j.abierta ? `${fmtMinutos(j.transcurrido || 0)} y contando` : 'no suma')}
@@ -383,7 +383,7 @@ function DiaStrip({ dias, porDia, detalles, onEditar, onEliminar }) {
                 {onEliminar && (
                   <button type="button" onClick={() => onEliminar(j)} title="Eliminar esta jornada (borra las dos marcas)"
                     className="p-1 rounded transition-colors" style={{ color: 'var(--text-muted)' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248,113,113,0.12)'; e.currentTarget.style.color = '#f87171' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(242,112,140,0.12)'; e.currentTarget.style.color = '#F2708C' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}>
                     <Trash2 size={11} />
                   </button>
@@ -431,11 +431,11 @@ function EditarJornadaModal({ seed, busy, error, onClose, onConfirm }) {
           la entrada, se toma como del día siguiente (turno que cruza la medianoche).
           Si cambiás el día a otra semana, la jornada se muda a esa semana.
         </p>
-        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
         <button onClick={() => onConfirm({ fecha, horaEntrada, horaSalida })}
           disabled={busy || !fecha || !horaEntrada || !horaSalida}
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}>
+          style={{ background: 'var(--cta)' }}>
           {busy ? 'Guardando…' : 'Guardar corrección'}
         </button>
       </div>

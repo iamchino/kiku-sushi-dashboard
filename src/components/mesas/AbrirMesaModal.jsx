@@ -122,7 +122,7 @@ export default function AbrirMesaModal({ open, mesa, onClose, onAbrir }) {
         <div
           className="flex items-center justify-between px-5 py-3 rounded-t-2xl"
           style={{
-            background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
+            background: 'var(--cta)',
             color: '#ffffff',
             borderBottom: '1px solid var(--accent-border)',
           }}
@@ -271,7 +271,7 @@ export default function AbrirMesaModal({ open, mesa, onClose, onAbrir }) {
           {error && (
             <div
               className="rounded-lg px-3 py-2 text-xs"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171' }}
+              style={{ background: 'rgba(227,77,107,0.08)', border: '1px solid rgba(227,77,107,0.15)', color: '#F2708C' }}
             >
               {error}
             </div>
@@ -282,8 +282,8 @@ export default function AbrirMesaModal({ open, mesa, onClose, onAbrir }) {
             disabled={saving}
             className="w-full py-3 rounded-lg text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50 hover:scale-[1.01]"
             style={{
-              background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))',
-              boxShadow: '0 4px 16px rgba(var(--accent-rgb),0.35)',
+              background: 'var(--cta)',
+              boxShadow: 'var(--cta-shadow)',
             }}
           >
             {saving

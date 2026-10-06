@@ -23,7 +23,7 @@ const LEIDA_OPCIONES = [
 
 // Colores por tipo
 const TIPO_COLOR = {
-  reserva_nueva: '#4f8ef7',
+  reserva_nueva: '#7FA6F0',
   pedido_nuevo:  'var(--accent-lift)',
 }
 
@@ -67,7 +67,7 @@ export default function NotificacionesPage() {
               <button
                 onClick={marcarTodas}
                 className="px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 text-white"
-                style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+                style={{ background: 'var(--cta)' }}
               >
                 <CheckCheck size={12} /> Marcar todas leídas
               </button>
@@ -225,7 +225,7 @@ function NotifItem({ notif, expandido, onToggle, onMarcarLeida, onEliminar }) {
               <Link
                 to={linkDestino}
                 className="px-3 py-1.5 rounded-lg text-[11px] font-medium flex items-center gap-1.5 text-white"
-                style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-deep))' }}
+                style={{ background: 'var(--cta)' }}
               >
                 Ir al detalle <ArrowRight size={11} />
               </Link>
@@ -234,7 +234,7 @@ function NotifItem({ notif, expandido, onToggle, onMarcarLeida, onEliminar }) {
             <button
               onClick={onEliminar}
               className="ml-auto px-3 py-1.5 rounded-lg text-[11px] font-medium flex items-center gap-1.5"
-              style={{ color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}
+              style={{ color: '#F2708C', border: '1px solid rgba(227,77,107,0.25)' }}
             >
               <Trash2 size={11} /> Eliminar
             </button>

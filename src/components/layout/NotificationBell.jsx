@@ -150,7 +150,7 @@ export function NotificationBell() {
                   <button onClick={clearAll} title="Ocultar de la vista (no borra el historial)"
                     className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
                     style={{ color: 'var(--text-xmuted)', background: 'transparent' }}
-                    onMouseEnter={e => { e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.background = 'rgba(220,38,38,0.08)' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#C9384F'; e.currentTarget.style.background = 'rgba(220,38,38,0.08)' }}
                     onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-xmuted)'; e.currentTarget.style.background = 'transparent' }}>
                     <Trash2 size={13} />
                   </button>
