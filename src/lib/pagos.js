@@ -178,3 +178,30 @@ export function cambiosDePago(fila) {
       despues: valorPago(campo, v?.despues),
     }))
 }
+
+/** Egresos pagados del período (fecha del pago, no de carga). */
+export async function cargarEgresosPeriodo(desde, hasta) {
+  let q = supabase
+    .from('egresos')
+    .select('id, fecha, categoria, subtipo, descripcion, monto, medio_pago, estado, periodo, comprobante_nro, pagado_desde, empleado_id, proveedor:proveedores(razon_social), empleado:empleados(nombre, apellido)')
+    .eq('estado', 'pagado')
+    .order('fecha', { ascending: true })
+  if (desde) q = q.gte('fecha', desde)
+  if (hasta) q = q.lte('fecha', hasta)
+  let { data, error } = await q
+  // El embed de `empleados` puede estar vedado al rol (el legajo es de
+  // Personal). En ese caso se reintenta sin él: el reporte usa la descripción
+  // del pago como nombre.
+  if (error) {
+    let q2 = supabase
+      .from('egresos')
+      .select('id, fecha, categoria, subtipo, descripcion, monto, medio_pago, estado, periodo, comprobante_nro, pagado_desde, empleado_id, proveedor:proveedores(razon_social)')
+      .eq('estado', 'pagado')
+      .order('fecha', { ascending: true })
+    if (desde) q2 = q2.gte('fecha', desde)
+    if (hasta) q2 = q2.lte('fecha', hasta)
+    ;({ data, error } = await q2)
+  }
+  if (error) throw new Error(error.message)
+  return data || []
+}

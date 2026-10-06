@@ -17,6 +17,7 @@ import {
   Trash2,
   Usb,
   WalletCards,
+  FileSpreadsheet,
   X, Banknote, Landmark, ChevronDown } from 'lucide-react'
 import { useFacturacion } from '../hooks/useFacturacion'
 import { supabase } from '../lib/supabase'
@@ -24,6 +25,8 @@ import { esNotaCredito, formatReceiptNumber, getAuthorizedComprobante, getNotasC
 import { formatMoney } from '../lib/printing'
 import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../lib/orders'
 import { colorMedioPago, etiquetaMedioPago, lineasDePago, resumenMediosPago } from '../lib/pagosPedido'
+import { exportarReporteContable, resumenEgresos } from '../lib/reporteContable'
+import { cargarEgresosPeriodo } from '../lib/pagos'
 import ArqueoCajaSection from '../components/caja/ArqueoCajaSection'
 import PagosPanel from '../components/caja/PagosPanel'
 import CajaFuertePanel from '../components/caja/CajaFuertePanel'
@@ -777,6 +780,41 @@ export default function CajaPage() {
 
   const resumenPagos = useMemo(() => resumenMediosPago(pedidos), [pedidos])
 
+  // Egresos del mismo período, para la tarjeta de Totales y el reporte. Van
+  // por fecha del pago (día), no por created_at. Sin caja_historico no se
+  // cargan: esa tarjeta no se muestra.
+  const [egresos, setEgresos] = useState([])
+  const [egresosError, setEgresosError] = useState(null)
+  useEffect(() => {
+    if (!veHistorico) { setEgresos([]); return }
+    let vivo = true
+    cargarEgresosPeriodo(dateFrom, dateTo)
+      .then(rows => { if (vivo) { setEgresos(rows); setEgresosError(null) } })
+      .catch(err => { if (vivo) { setEgresos([]); setEgresosError(err.message) } })
+    return () => { vivo = false }
+  }, [veHistorico, dateFrom, dateTo, loading])
+  const resumenPagado = useMemo(() => resumenEgresos(egresos), [egresos])
+
+  const [exportando, setExportando] = useState(false)
+  const handleExportar = async () => {
+    setExportando(true)
+    setNotice(null)
+    try {
+      await exportarReporteContable({
+        pedidos,
+        egresos,
+        desde: dateFrom,
+        hasta: dateTo,
+        negocio: config?.nombre_fantasia || config?.razon_social || 'Kiku Sushi',
+      })
+      setNotice({ type: 'ok', text: 'Reporte descargado. Cobros, pagos y sueldos del período en un Excel.' })
+    } catch (err) {
+      setNotice({ type: 'error', text: `No se pudo armar el reporte: ${err.message || err}` })
+    } finally {
+      setExportando(false)
+    }
+  }
+
   const filteredPedidos = useMemo(() => {
     if (filter === 'todos') return pedidos
     if (filter === 'facturados') return pedidos.filter(getAuthorizedComprobante)
@@ -903,15 +941,29 @@ export default function CajaPage() {
               />
             </div>
           </div>
-          <button
-            onClick={refetch}
-            disabled={loading}
-            className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
-            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-          >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            Actualizar
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {veHistorico && (
+              <button
+                onClick={handleExportar}
+                disabled={loading || exportando}
+                title="Excel con cobros por medio, pagos y sueldos por empleado del período mostrado"
+                className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+                style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+              >
+                {exportando ? <Loader2 size={15} className="animate-spin" /> : <FileSpreadsheet size={15} />}
+                Exportar Excel
+              </button>
+            )}
+            <button
+              onClick={refetch}
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+              style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            >
+              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+              Actualizar
+            </button>
+          </div>
         </header>
 
         {/* Filtro de fecha. Sin caja_historico no se muestra: la pantalla
@@ -991,14 +1043,33 @@ export default function CajaPage() {
           {veHistorico && (
           <GrupoMetricas titulo="Totales" color="#34d399" icon={WalletCards}>
             <FilaMetrica label="Vendido (pedidos)" value={`$${formatMoney(stats.total)}`} />
-            <FilaMetrica label="Total facturado" value={`$${formatMoney(stats.totalFacturado)}`} color="#4f8ef7" />
+            <FilaMetrica label="Facturado" value={`$${formatMoney(stats.totalFacturado)}`} color="#4f8ef7" />
+            <FilaMetrica
+              label="No facturado"
+              value={`$${formatMoney(Math.max(0, stats.total - stats.totalFacturado))}`}
+              color="#fbbf24"
+              apagado={stats.total - stats.totalFacturado <= 0}
+            />
             <FilaMetrica
               label="Notas de crédito"
               value={`-$${formatMoney(stats.totalNotasCredito)}`}
               color="#f87171"
               apagado={!stats.totalNotasCredito}
             />
-            <FilaMetrica label="Neto (post-NC)" value={`$${formatMoney(stats.netoFacturado)}`} color="var(--accent-lift)" fuerte />
+            <FilaMetrica label="Neto facturado" value={`$${formatMoney(stats.netoFacturado)}`} color="var(--accent-lift)" fuerte />
+            <FilaMetrica
+              label="Pagado (egresos)"
+              value={`-$${formatMoney(resumenPagado.total)}`}
+              hint={egresosError ? 'sin acceso' : (resumenPagado.cantidad > 0 ? `${resumenPagado.cantidad} ${resumenPagado.cantidad === 1 ? 'pago' : 'pagos'}` : null)}
+              color="#f97316"
+              apagado={!resumenPagado.total}
+            />
+            <FilaMetrica
+              label="Cobrado − pagado"
+              value={`${resumenPagos.totalCobrado - resumenPagado.total < 0 ? '-' : ''}$${formatMoney(Math.abs(resumenPagos.totalCobrado - resumenPagado.total))}`}
+              color={resumenPagos.totalCobrado - resumenPagado.total < 0 ? '#f87171' : '#34d399'}
+              fuerte
+            />
           </GrupoMetricas>
           )}
         </section>
