@@ -8,6 +8,7 @@ import {
   buildFiscalRequest,
   esNotaCredito,
   getAuthorizedComprobante,
+  getFacturasAutorizadas,
   getNotasCredito,
   letraFromTipo,
   mensajeRechazoArca,
@@ -142,13 +143,16 @@ export function useFacturacion(options = {}) {
 
   const stats = useMemo(() => {
     const total = pedidos.reduce((acc, pedido) => acc + Number(pedido.total || 0), 0)
+    // Facturados = con factura vigente. Una factura anulada por NC deja al
+    // pedido pendiente otra vez (se puede volver a facturar).
     const facturados = pedidos.filter(getAuthorizedComprobante)
     const pendiente = pedidos.filter(pedido => !getAuthorizedComprobante(pedido))
 
-    // Total facturado real (sólo facturas autorizadas)
-    const totalFacturado = facturados.reduce((acc, p) => {
-      const c = getAuthorizedComprobante(p)
-      return acc + Number(c?.importe_total || 0)
+    // Total facturado: TODAS las facturas autorizadas, anuladas incluidas. Las
+    // NC se restan abajo; si acá se dejara afuera la anulada, se restaría dos
+    // veces.
+    const totalFacturado = pedidos.reduce((acc, p) => {
+      return acc + getFacturasAutorizadas(p).reduce((a, c) => a + Number(c.importe_total || 0), 0)
     }, 0)
 
     // Sumar todas las Notas de Crédito autorizadas

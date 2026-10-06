@@ -10,7 +10,7 @@
 // La librería xlsx se carga recién al exportar (import dinámico) para no
 // engordar el bundle de todo el dashboard.
 import { lineasDePago, etiquetaMedioPago, MEDIOS_PAGO_ORDEN } from './pagosPedido'
-import { getAuthorizedComprobante, getNotasCredito, nombreComprobante } from './fiscal'
+import { getAuthorizedComprobante, getFacturasAutorizadas, getNotasCredito, nombreComprobante } from './fiscal'
 import { catLabel, medioLabel } from './finanzas'
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -187,8 +187,10 @@ export function armarHojas({ pedidos = [], egresos = [], desde, hasta, negocio }
   const vendido = activos.reduce((a, p) => a + Number(p.total || 0), 0)
   let facturado = 0, cantFacturados = 0, nc = 0, cantNc = 0
   activos.forEach(p => {
-    const f = getAuthorizedComprobante(p)
-    if (f) { facturado += Number(f.importe_total || 0); cantFacturados += 1 }
+    // Todas las facturas (anuladas incluidas): las NC se restan aparte.
+    getFacturasAutorizadas(p).forEach(f => {
+      facturado += Number(f.importe_total || 0); cantFacturados += 1
+    })
     const ncs = getNotasCredito(p)
     cantNc += ncs.length
     nc += ncs.reduce((a, c) => a + Number(c.importe_total || 0), 0)

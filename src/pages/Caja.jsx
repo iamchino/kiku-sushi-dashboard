@@ -21,7 +21,7 @@ import {
   X, Banknote, Landmark, ChevronDown } from 'lucide-react'
 import { useFacturacion } from '../hooks/useFacturacion'
 import { supabase } from '../lib/supabase'
-import { esNotaCredito, formatReceiptNumber, getAuthorizedComprobante, getNotasCredito, nombreComprobante } from '../lib/fiscal'
+import { esNotaCredito, formatReceiptNumber, getAuthorizedComprobante, getComprobantesAnulados, getNotasCredito, nombreComprobante } from '../lib/fiscal'
 import { formatMoney } from '../lib/printing'
 import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../lib/orders'
 import { colorMedioPago, etiquetaMedioPago, lineasDePago, resumenMediosPago } from '../lib/pagosPedido'
@@ -510,13 +510,17 @@ function EditPedidoModal({ pedido, open, saving, onClose, onSave }) {
 
 function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, onTicket, onEdit, onNotaCredito }) {
   const comprobante = getAuthorizedComprobante(pedido)
+  const anulados = getComprobantesAnulados(pedido)
   const notasCredito = getNotasCredito(pedido)
   const totalNc = notasCredito.reduce((acc, nc) => acc + Number(nc.importe_total || 0), 0)
   const netoFacturado = comprobante ? Math.max(0, Number(comprobante.importe_total || 0) - totalNc) : 0
   const shortId = pedido.id.slice(-4).toUpperCase()
   const items = pedido.pedido_items || []
   const canal = CANAL_LABEL[pedido.canal] || pedido.canal
-  const date = new Date(pedido.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+  // Fecha y hora: la pantalla muestra varios días, la hora sola no alcanza.
+  const date = new Date(pedido.created_at).toLocaleString('es-AR', {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  }).replace(',', '')
   const descuento = clampDiscount(pedido.descuento_porcentaje)
   const comprobanteLabel = comprobante ? nombreComprobante(comprobante.tipo_cbte) : null
 
@@ -596,7 +600,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
                 NC: -${formatMoney(totalNc)}
               </p>
             )}
-            {notasCredito.length > 0 && (
+            {notasCredito.length > 0 && comprobante && (
               <p className="text-[10px] font-semibold" style={{ color: 'var(--accent-lift)' }}>
                 Neto: ${formatMoney(netoFacturado)}
               </p>
@@ -625,10 +629,32 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
               ))}
             </div>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
-              <AlertTriangle size={12} />
-              Sin CAE
-            </span>
+            <div className="flex flex-col items-end gap-1">
+              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
+                <AlertTriangle size={12} />
+                {anulados.length ? 'Factura anulada' : 'Sin CAE'}
+              </span>
+              {anulados.map(f => (
+                <span
+                  key={f.id}
+                  title={`${nombreComprobante(f.tipo_cbte)} anulada por nota de crédito`}
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold line-through"
+                  style={{ background: 'var(--bg-input)', color: 'var(--text-muted)' }}
+                >
+                  {f.letra} {formatReceiptNumber(f.punto_venta, f.numero)}
+                </span>
+              ))}
+              {anulados.length > 0 && notasCredito.map(nc => (
+                <span
+                  key={nc.id}
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold"
+                  style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}
+                >
+                  <FileMinus2 size={11} />
+                  NC {nc.letra} {formatReceiptNumber(nc.punto_venta, nc.numero)}
+                </span>
+              ))}
+            </div>
           )}
         </div>
       </div>

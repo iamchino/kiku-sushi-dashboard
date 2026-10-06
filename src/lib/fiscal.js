@@ -159,12 +159,12 @@ export function splitTax(total, ivaRate = 21) {
   }
 }
 
-export function getAuthorizedComprobante(pedido) {
+/** Todas las facturas autorizadas del pedido (tipos 1, 6, 11), vigentes o anuladas. */
+export function getFacturasAutorizadas(pedido) {
   const comprobantes = pedido?.comprobantes_fiscales || []
-  // Sólo facturas (tipos 1, 6, 11), no notas de crédito
-  return comprobantes.find(
+  return comprobantes.filter(
     c => c.estado === 'autorizado' && [1, 6, 11].includes(Number(c.tipo_cbte)),
-  ) || null
+  )
 }
 
 export function getNotasCredito(pedido) {
@@ -172,6 +172,45 @@ export function getNotasCredito(pedido) {
   return comprobantes.filter(
     c => c.estado === 'autorizado' && esNotaCredito(c.tipo_cbte),
   )
+}
+
+/**
+ * Notas de crédito que corresponden a UNA factura del pedido. Se vinculan por
+ * `cbte_asociado_id`; las NC viejas sin vínculo se reparten a la única factura
+ * del pedido (si hay una sola).
+ */
+export function notasDeFactura(pedido, factura) {
+  if (!factura) return []
+  const ncs = getNotasCredito(pedido)
+  const facturas = getFacturasAutorizadas(pedido)
+  return ncs.filter(nc =>
+    nc.cbte_asociado_id
+      ? nc.cbte_asociado_id === factura.id
+      : facturas.length === 1,
+  )
+}
+
+/** true si las NC cubren el total de la factura: queda anulada. */
+export function facturaAnulada(pedido, factura) {
+  if (!factura) return false
+  const creditado = notasDeFactura(pedido, factura)
+    .reduce((acc, nc) => acc + Number(nc.importe_total || 0), 0)
+  return creditado >= Number(factura.importe_total || 0) - 0.01
+}
+
+/**
+ * Factura VIGENTE del pedido (autorizada y no anulada por nota de crédito).
+ * Si la única factura fue anulada con una NC por el total, devuelve null: el
+ * pedido vuelve a estar "sin facturar" y se puede emitir otra (por ejemplo,
+ * una Factura A en lugar de la B que se anuló).
+ */
+export function getAuthorizedComprobante(pedido) {
+  return getFacturasAutorizadas(pedido).find(f => !facturaAnulada(pedido, f)) || null
+}
+
+/** Facturas del pedido anuladas por nota de crédito. */
+export function getComprobantesAnulados(pedido) {
+  return getFacturasAutorizadas(pedido).filter(f => facturaAnulada(pedido, f))
 }
 
 export function buildArcaQrUrl(comprobante, config) {
