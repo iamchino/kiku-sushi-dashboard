@@ -22,7 +22,7 @@ const TIPOS_DISPONIBLES = [
 // categorizado reciben Factura B; ARCA rechaza A para ellos).
 const CONDICIONES_RECEPTOR_A = CONDICIONES_FACTURA_A
 
-export function FacturarModal({ open, pedido, busy, permiteFacturaA = true, onClose, onConfirm }) {
+export function FacturarModal({ open, pedido, busy, permiteFacturaA = true, errorExterno = null, onClose, onConfirm }) {
   const [tipo, setTipo] = useState(TIPO_CBTE.FACTURA_B)
   const [receptorNombre, setReceptorNombre] = useState('')
   const [receptorCuit, setReceptorCuit] = useState('')
@@ -194,13 +194,13 @@ export function FacturarModal({ open, pedido, busy, permiteFacturaA = true, onCl
             </section>
           )}
 
-          {error && (
+          {(error || errorExterno) && (
             <div
               className="mt-4 flex items-start gap-2 rounded-lg px-3 py-2 text-xs"
               style={{ background: 'rgba(227,77,107,0.1)', color: '#F2708C', border: '1px solid rgba(227,77,107,0.2)' }}
             >
               <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-              <span>{error}</span>
+              <span>{error || errorExterno}</span>
             </div>
           )}
         </div>

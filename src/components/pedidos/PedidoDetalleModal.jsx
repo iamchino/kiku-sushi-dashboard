@@ -822,6 +822,7 @@ export default function PedidoDetalleModal({
         open={facturarOpen}
         pedido={pedido}
         busy={busy}
+        errorExterno={facturarOpen ? error : null}
         permiteFacturaA={Boolean(config?.permite_factura_a)}
         onClose={() => setFacturarOpen(false)}
         onConfirm={handleConfirmarFactura}

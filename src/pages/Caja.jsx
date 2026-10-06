@@ -1213,6 +1213,7 @@ export default function CajaPage() {
         open={Boolean(facturarTarget)}
         pedido={facturarTarget?.pedido}
         busy={Boolean(facturarTarget && busyId === facturarTarget.pedido?.id)}
+        errorExterno={facturarTarget && notice?.type === 'error' ? notice.text : null}
         permiteFacturaA={Boolean(config?.permite_factura_a)}
         onClose={() => setFacturarTarget(null)}
         onConfirm={handleConfirmarFactura}

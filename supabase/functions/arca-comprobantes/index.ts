@@ -112,13 +112,19 @@ Deno.serve(async (req) => {
   // Y que ese usuario pueda cobrar según la matriz de permisos (misma regla
   // que el botón de Caja). Antes alcanzaba con estar logueado: un usuario de
   // cocina podía emitir facturas llamando a esta URL.
-  const supabaseUser = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+  // El JWT del usuario va en Authorization (PostgREST toma de ahí el rol y
+  // los claims); la service key solo pasa el gateway. Así no dependemos de
+  // que SUPABASE_ANON_KEY esté inyectada.
+  const supabaseUser = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     global: { headers: { Authorization: `Bearer ${userJwt}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   })
   const { data: puedeCobrar, error: permError } = await supabaseUser.rpc('puede_cobrar')
-  if (permError || puedeCobrar !== true) {
-    return errorResponse('Tu usuario no tiene permiso para facturar.', 403)
+  if (permError) {
+    return errorResponse(`No se pudo verificar el permiso para facturar: ${permError.message}`, 500)
+  }
+  if (puedeCobrar !== true) {
+    return errorResponse('Tu usuario no tiene permiso para facturar (rol sin cobro en la matriz de permisos).', 403)
   }
 
   // Parsear body
