@@ -188,6 +188,27 @@ Deno.serve(async (req) => {
     }
   }
 
+  // 0) Una factura por pedido. Si ya hay una vigente, NO se llama a ARCA:
+  //    antes se pedía el CAE igual, el insert fallaba por el índice único y
+  //    cada reintento emitía una factura real sin guardarla.
+  if ([1, 6, 11].includes(payload.tipo_cbte)) {
+    const { data: vigente } = await supabaseAdmin
+      .from('comprobantes_fiscales')
+      .select('id, letra, punto_venta, numero')
+      .eq('pedido_id', payload.pedido_id)
+      .eq('estado', 'autorizado')
+      .in('tipo_cbte', [1, 6, 11])
+      .limit(1)
+      .maybeSingle()
+    if (vigente) {
+      const nro = `${String(vigente.punto_venta).padStart(5, '0')}-${String(vigente.numero).padStart(8, '0')}`
+      return errorResponse(
+        `Este pedido ya tiene la Factura ${vigente.letra} ${nro} vigente. Para cambiarla, anulala con una nota de crédito y después facturá de nuevo.`,
+        409,
+      )
+    }
+  }
+
   // 1) Obtener credenciales WSAA (cacheadas)
   let creds
   try {
@@ -367,8 +388,15 @@ Deno.serve(async (req) => {
     .single()
 
   if (insertErr) {
+    // La factura EXISTE en ARCA. Que quede bien claro y con los datos para
+    // recuperarla (SQL-CIERRES 32/33).
+    console.error('[arca-comprobantes] CAE emitido pero no guardado', {
+      pedido_id: payload.pedido_id, tipo_cbte: payload.tipo_cbte,
+      punto_venta: payload.punto_venta, numero: cae.result.numero, cae: cae.result.cae,
+      error: insertErr.message,
+    })
     return errorResponse(
-      `CAE obtenido pero falló el insert: ${insertErr.message}`,
+      `ATENCIÓN: ARCA emitió la factura ${String(payload.punto_venta).padStart(5, '0')}-${String(cae.result.numero).padStart(8, '0')} (CAE ${cae.result.cae}) pero no se pudo guardar: ${insertErr.message}. NO vuelvas a intentar: avisá para recuperarla.`,
       500,
       { comprobante: comprobanteRow },
     )

@@ -159,11 +159,16 @@ export function splitTax(total, ivaRate = 21) {
   }
 }
 
-/** Todas las facturas autorizadas del pedido (tipos 1, 6, 11), vigentes o anuladas. */
+/**
+ * Todas las facturas emitidas del pedido (tipos 1, 6, 11), vigentes o
+ * anuladas. 'anulado' lo pone la base cuando una NC cubre el total
+ * (migración 20261006020000); las NC viejas sin ese estado se detectan por
+ * importe en facturaAnulada().
+ */
 export function getFacturasAutorizadas(pedido) {
   const comprobantes = pedido?.comprobantes_fiscales || []
   return comprobantes.filter(
-    c => c.estado === 'autorizado' && [1, 6, 11].includes(Number(c.tipo_cbte)),
+    c => (c.estado === 'autorizado' || c.estado === 'anulado') && [1, 6, 11].includes(Number(c.tipo_cbte)),
   )
 }
 
@@ -193,6 +198,7 @@ export function notasDeFactura(pedido, factura) {
 /** true si las NC cubren el total de la factura: queda anulada. */
 export function facturaAnulada(pedido, factura) {
   if (!factura) return false
+  if (factura.estado === 'anulado') return true
   const creditado = notasDeFactura(pedido, factura)
     .reduce((acc, nc) => acc + Number(nc.importe_total || 0), 0)
   return creditado >= Number(factura.importe_total || 0) - 0.01
