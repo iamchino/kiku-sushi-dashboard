@@ -58,6 +58,10 @@ export default function ComandaModal({ open, onClose, pedido, items = [], titulo
       setResultado({ tipo: 'error', texto: 'No se pudo imprimir la comanda. Revisá la impresora.' })
       return
     }
+    if (res.via === 'cola') {
+      setResultado({ tipo: 'ok', texto: 'Este equipo no llega a la impresora: la comanda se envió a la PC del local, que la imprime.' })
+      return
+    }
     if (res.via === 'browser' && res.remoteFailed) {
       const motivo = printerClient.state().error
       setResultado({

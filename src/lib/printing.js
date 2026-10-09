@@ -13,6 +13,7 @@ import {
   TRANSFER_ALIAS,
 } from './escposFormatter'
 import { getPrinterConfig } from './printerStore'
+import { encolarTicket, colaHabilitada, tituloTipo } from './colaImpresion'
 
 /**
  * Genera un data URL PNG del QR a partir de la URL de ARCA.
@@ -424,24 +425,64 @@ function buildFiscalHtml(pedido, comprobante, config, opts = {}) {
 // si falla cae al fallback del navegador con el HTML.
 // ============================================================
 
+/**
+ * Intenta imprimir por Comandera Print. Devuelve:
+ *   'remote'  → salió por la impresora;
+ *   'cola'    → este dispositivo no llega a la PC: el ticket quedó en la cola
+ *               para que la PC del local lo imprima (ver colaImpresion.js);
+ *   false     → no se pudo (sin config, impresora con error, cola fallida):
+ *               el caller cae al diálogo del navegador.
+ */
 async function tryRemotePrint(kind, content, extra = {}) {
   if (!canPrintRemote(kind)) return false
   const printer = getPrinterFor(kind)
   const cfg = getPrinterConfig()
+  const job = {
+    printerName: printer.name,
+    type: printer.type,
+    content,
+    fontSize: extra.fontSize ?? cfg.font_size,
+    paperWidth: cfg.paper_width,
+    qrCodeData: extra.qrCodeData,
+  }
   try {
-    await printerClient.print({
-      printerName: printer.name,
-      type: printer.type,
-      content,
-      fontSize: extra.fontSize ?? cfg.font_size,
-      paperWidth: cfg.paper_width,
-      qrCodeData: extra.qrCodeData,
-    })
-    return true
+    await printerClient.print(job)
+    return 'remote'
   } catch (err) {
-    console.warn(`[printing] GG EZ Print fallo para ${kind}, fallback a window.print():`, err.message)
+    console.warn(`[printing] Comandera Print fallo para ${kind}:`, err.message)
+  }
+
+  // Si la PC respondió (la impresora dio error: sin papel, apagada), la cola
+  // no ayuda. Si NO se llegó a la PC, el ticket va a la cola.
+  if (printerClient.state().connected || !colaHabilitada()) return false
+  try {
+    await encolarTicket({
+      tipo: kind === 'customer' ? 'ticket' : kind,
+      titulo: extra.titulo || tituloTipo(kind),
+      printerName: job.printerName,
+      printerType: job.type,
+      content: job.content,
+      fontSize: job.fontSize,
+      paperWidth: job.paperWidth,
+      qrCodeData: job.qrCodeData,
+    })
+    return 'cola'
+  } catch (err) {
+    console.warn('[printing] no se pudo encolar:', err.message)
     return false
   }
+}
+
+/** Título corto para el aviso en la PC: "Comanda · Mesa 5 · 3 ítems". */
+function tituloCola(kind, pedido, extra = '') {
+  const partes = [tituloTipo(kind === 'customer' ? 'ticket' : kind)]
+  if (pedido?.mesa) partes.push(`Mesa ${pedido.mesa}`)
+  else if (pedido?.cliente_nombre || pedido?.nombre_cliente) partes.push(pedido.cliente_nombre || pedido.nombre_cliente)
+  else if (pedido?.id) partes.push(`#${String(pedido.id).slice(-4).toUpperCase()}`)
+  const items = pedido?.pedido_items || pedido?.items || []
+  if (items.length) partes.push(`${items.length} ítem${items.length === 1 ? '' : 's'}`)
+  if (extra) partes.push(extra)
+  return partes.join(' · ')
 }
 
 function charsForFontSize(charsPerLine, fontSize) {
@@ -472,8 +513,8 @@ export async function printComanda(pedido) {
   const remoteConfigured = canPrintRemote('comanda')
 
   try {
-    const ok = await tryRemotePrint('comanda', text, { fontSize })
-    if (ok) return { ok: true, via: 'remote' }
+    const via = await tryRemotePrint('comanda', text, { fontSize, titulo: tituloCola('comanda', pedido, pedido?._ronda_label || '') })
+    if (via) return { ok: true, via }
   } catch (err) {
     console.warn('[printing] error inesperado en impresión remota de comanda:', err?.message)
   }
@@ -497,11 +538,12 @@ export async function printCustomerTicket(pedido, config, opts = {}) {
   const medioPago = opts.medioPago ?? null
   const desglose = opts.desglose ?? null
   const text = buildCustomerTicketText(pedido, config, { width: cfg.chars_per_line, medioPago, desglose })
-  const ok = await tryRemotePrint('ticket', text)
-  if (ok) return
+  const via = await tryRemotePrint('ticket', text, { titulo: tituloCola('ticket', pedido) })
+  if (via) return { ok: true, via }
 
   const shortId = pedido?.id ? String(pedido.id).slice(-4).toUpperCase() : 'NUEVO'
   printDocumentBrowser(`Ticket cliente ${shortId}`, buildCustomerHtml(pedido, config, { medioPago, desglose }))
+  return { ok: true, via: 'browser' }
 }
 
 export async function printFiscalTicket(pedido, comprobante, config, opts = {}) {
@@ -534,9 +576,10 @@ export async function printFiscalTicket(pedido, comprobante, config, opts = {}) 
       qr_url:    enrichedComprobante?.qr_url,
     })
   }
-  const ok = await tryRemotePrint('fiscal', text, { qrCodeData })
-  if (ok) return
-
   const receiptNumber = formatReceiptNumber(enrichedComprobante?.punto_venta, enrichedComprobante?.numero)
+  const via = await tryRemotePrint('fiscal', text, { qrCodeData, titulo: tituloCola('fiscal', pedido, receiptNumber) })
+  if (via) return { ok: true, via }
+
   printDocumentBrowser(`Factura ${receiptNumber}`, buildFiscalHtml(pedido, enrichedComprobante, config, { medioPago, desglose: opts.desglose ?? null }))
+  return { ok: true, via: 'browser' }
 }

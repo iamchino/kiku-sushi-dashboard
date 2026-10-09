@@ -37,6 +37,8 @@ import { usePermisos } from './context/usePermisos'
 import { usePrinterStore } from './lib/printerStore'
 import NotifStatusBanner from './components/NotifStatusBanner'
 import PrinterStatusBanner from './components/PrinterStatusBanner'
+import ColaImpresionPopup from './components/impresion/ColaImpresionPopup'
+import ColaImpresionAvisos from './components/impresion/ColaImpresionAvisos'
 import { initNative } from './lib/native'
 import { initWebNotifs } from './lib/webNotifs'
 import MfaGate from './components/auth/MfaGate'
@@ -56,6 +58,8 @@ function AdminLayout({ children }) {
         <PrinterStatusBanner />
         {children}
       </main>
+      <ColaImpresionPopup />
+      <ColaImpresionAvisos />
     </div>
   )
 }
