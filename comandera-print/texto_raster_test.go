@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // El render de texto tiene que producir un raster con tinta, del ancho del
 // cabezal, y proporcional a la cantidad de líneas.
@@ -41,4 +44,32 @@ func TestRenderVacio(t *testing.T) {
 		t.Fatalf("texto vacío debería devolver nil")
 	}
 	_ = grisDe(0)
+}
+
+// Un ticket con más columnas de las que entran legibles se envuelve: la letra
+// nunca baja de charWMin puntos por carácter.
+func TestLetraNuncaChica(t *testing.T) {
+	cols := 48
+	linea := strings.Repeat("1x Roll de salmon con palta ", 3)[:cols]
+	lineas := envolverLineas([]string{linea, "corta"}, 384/charWMin)
+	if len(lineas) < 3 {
+		t.Fatalf("la línea de %d columnas tenía que partirse: %v", cols, lineas)
+	}
+	for _, l := range lineas {
+		if n := len([]rune(l)); n > 384/charWMin {
+			t.Fatalf("línea de %d columnas supera el máximo: %q", n, l)
+		}
+	}
+	// Y el render completo no falla con ese ancho.
+	if _, err := renderTextoRaster(linea+"\n"+linea, 384, true); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+}
+
+func TestEnvolverRespetaCortas(t *testing.T) {
+	in := []string{"hola", "", "mundo"}
+	out := envolverLineas(in, 32)
+	if len(out) != 3 || out[0] != "hola" || out[1] != "" || out[2] != "mundo" {
+		t.Fatalf("no tenía que tocar nada: %v", out)
+	}
 }

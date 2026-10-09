@@ -31,7 +31,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const version = "1.0.11"
+const version = "1.0.12"
 
 // Ruta del certificado exportado (se completa en main).
 var certCrtPath string

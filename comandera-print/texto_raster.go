@@ -23,6 +23,60 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+// Ancho mínimo de un carácter, en puntos del cabezal.
+const charWMin = 11
+
+// envolverLineas corta en `cols` columnas las líneas más largas, preferentemente
+// en un espacio; la continuación va con una sangría de dos espacios.
+func envolverLineas(lineas []string, cols int) []string {
+	if cols < 4 {
+		return lineas
+	}
+	out := make([]string, 0, len(lineas))
+	for _, l := range lineas {
+		r := []rune(l)
+		// Separadores (----- o =====): se recortan, no se envuelven.
+		if len(r) > cols && esSeparador(r) {
+			out = append(out, string(r[:cols]))
+			continue
+		}
+		primera := true
+		for len(r) > cols {
+			corte := -1
+			for i := cols; i > cols/2; i-- {
+				if r[i] == ' ' {
+					corte = i
+					break
+				}
+			}
+			if corte == -1 {
+				corte = cols
+			}
+			out = append(out, string(r[:corte]))
+			resto := strings.TrimLeft(string(r[corte:]), " ")
+			if resto == "" {
+				r = nil
+				break
+			}
+			r = []rune("  " + resto)
+			primera = false
+		}
+		if r != nil && (len(r) > 0 || primera) {
+			out = append(out, string(r))
+		}
+	}
+	return out
+}
+
+func esSeparador(r []rune) bool {
+	for _, c := range r {
+		if c != r[0] {
+			return false
+		}
+	}
+	return r[0] == '-' || r[0] == '=' || r[0] == '_' || r[0] == '*' || r[0] == '.'
+}
+
 // renderTextoRaster dibuja el texto (multilínea, monoespaciado) y lo devuelve
 // como uno o más bloques GS v 0 listos para mandar a la impresora.
 func renderTextoRaster(texto string, maxPuntos int, negrita bool) ([]byte, error) {
@@ -44,10 +98,17 @@ func renderTextoRaster(texto string, maxPuntos int, negrita bool) ([]byte, error
 		return nil, nil
 	}
 
-	charW := maxPuntos / maxCols
-	if charW < 7 {
-		charW = 7 // piso de legibilidad; si no entra, la línea se recorta
+	// Piso de legibilidad: nunca menos de charWMin puntos por carácter (11 en
+	// un cabezal de 384 = 34 columnas, en uno de 568 = 51). Si el ticket viene
+	// con más columnas (dashboard configurado con un ancho mayor al del papel,
+	// o una línea larga), las líneas se envuelven en vez de achicar la letra:
+	// un ticket con letra microscópica no sirve en cocina.
+	colsMax := maxPuntos / charWMin
+	if maxCols > colsMax {
+		lineas = envolverLineas(lineas, colsMax)
+		maxCols = colsMax
 	}
+	charW := maxPuntos / maxCols
 	if charW > 30 {
 		charW = 30
 	}

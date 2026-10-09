@@ -394,6 +394,13 @@ export default function PrinterConfig() {
         <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
           XP-58 a fuente normal: 32 columnas. A doble: 16. A triple: 10. Si el ticket se corta, bajar a 30.
         </p>
+        {Number(draft.chars_per_line) > ((draft.paper_width || 58) >= 80 ? 48 : 32) && (
+          <p className="rounded-lg px-3 py-2 text-[11px]" style={{ background: 'var(--warn-soft, rgba(245,158,11,.12))', color: 'var(--warn, #f59e0b)' }}>
+            Con {draft.chars_per_line} columnas en papel de {draft.paper_width || 58} mm la letra sale chica:
+            la impresora reparte el ancho del rollo entre las columnas. Para letra normal usá
+            {' '}{(draft.paper_width || 58) >= 80 ? 48 : 32} o menos.
+          </p>
+        )}
       </div>
 
       {/* Guardar */}
