@@ -36,18 +36,21 @@ const PROBE_TIMEOUT_MS = 5000
 // de IP en la red. En un celular falla al instante, así que casi no demora.
 const LOCAL_HOST = '127.0.0.1'
 const LOCAL_CONNECT_TIMEOUT_MS = 1500
+// Comandera Print corre en la PC del local y el dashboard de ESA PC es el único
+// que le habla, siempre por la propia máquina: sin IP de red, sin certificado
+// en los celulares. Los demás dispositivos dejan los tickets en la cola
+// (colaImpresion.js) y esa PC los imprime.
+export const HOST_PC = '127.0.0.1:8443'
 
 /** Mensaje para humanos según cómo falló la conexión. */
 export function explicarFalloConexion(host, motivo) {
   const h = String(host || '').trim()
   const conPuerto = /:\d+$/.test(h) ? h : `${h}:8443`
   if (motivo === 'timeout') {
-    return `Nadie responde en ${h}. Lo más común es que la PC cambió de dirección en el wifi: ` +
-      `en la PC del local, la ventana negra de Comandera Print dice "Escuchando en https://X.X.X.X:8443" — ` +
-      `esa es la dirección que hay que poner acá. Si la ventana no está abierta, abrí ComanderaPrint.exe.`
+    return `Comandera Print no responde en esta PC (${h}). Abrí ComanderaPrint.exe: tiene que quedar la ventana negra diciendo "Escuchando en…".`
   }
-  return `${h} respondió pero el navegador no aceptó la conexión: falta instalar el certificado en ` +
-    `este dispositivo (abrí https://${conPuerto} para probar) o Comandera Print está cerrado.`
+  return `Comandera Print está en ${h} pero el navegador no aceptó la conexión: falta instalar el certificado en ` +
+    `esta PC (abrí https://${conPuerto} para probar) o Comandera Print está cerrado.`
 }
 
 class PrinterClient {
@@ -376,9 +379,8 @@ class PrinterClient {
   }
 
   /** Lista impresoras detectadas por el servicio. */
-  async listPrinters(hostOverride) {
-    const cfg = getPrinterConfig()
-    const host = hostOverride || cfg.server_host
+  async listPrinters() {
+    const host = HOST_PC
     await this.ensureConnected(host)
     const res = await this.send(
       { action: 'list' },
@@ -396,11 +398,10 @@ class PrinterClient {
    * @param {string} job.content - Texto plano del ticket (ESC/POS lo agrega el server).
    * @param {number} [job.fontSize=1]
    * @param {number} [job.paperWidth=58]
-   * @param {string} [job.hostOverride] - Permite testear contra otra IP.
    */
-  async print({ printerName, type, content, fontSize, paperWidth, hostOverride, qrCodeData }) {
+  async print({ printerName, type, content, fontSize, paperWidth, qrCodeData }) {
     const cfg = getPrinterConfig()
-    const host = hostOverride || cfg.server_host
+    const host = HOST_PC
     if (!printerName) throw new Error('Comandera Print: no hay impresora asignada para este tipo de ticket')
 
     const payload = {
@@ -477,8 +478,7 @@ export function getPrinterFor(kind) {
   }
 }
 
-/** True si hay servidor configurado + impresora asignada para ese tipo. */
+/** True si hay impresora asignada para ese tipo (la PC del local la imprime). */
 export function canPrintRemote(kind) {
-  const cfg = getPrinterConfig()
-  return !!(cfg.server_host && getPrinterFor(kind))
+  return !!getPrinterFor(kind)
 }

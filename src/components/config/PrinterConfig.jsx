@@ -53,13 +53,11 @@ const FIELD_STYLE = {
 export default function PrinterConfig() {
   const { loading, config, override, load, save, clearOverride } = usePrinterStore()
 
-  const [host, setHost] = useState('')
   const [target, setTarget] = useState('remote') // remote | local
   const [draft, setDraft] = useState({})
   const [printers, setPrinters] = useState([])
   const [discoverState, setDiscoverState] = useState('idle') // idle|loading|ok|error
   const [discoverError, setDiscoverError] = useState(null)
-  const [discoverViaLocal, setDiscoverViaLocal] = useState(false)
   const [saveState, setSaveState] = useState('idle') // idle|saving|ok|error
   const [saveError, setSaveError] = useState(null)
   const [testState, setTestState] = useState({})       // por kind
@@ -80,23 +78,19 @@ export default function PrinterConfig() {
       paper_width:    config.paper_width || 58,
       chars_per_line: config.chars_per_line || 32,
     })
-    setHost(config.server_host || '')
   }, [config.printer_comanda_name, config.printer_comanda_type,
       config.printer_ticket_name, config.printer_ticket_type,
       config.printer_fiscal_name, config.printer_fiscal_type,
-      config.font_size, config.paper_width, config.chars_per_line, config.server_host])
+      config.font_size, config.paper_width, config.chars_per_line])
 
   const hasLocalOverride = useMemo(() => Object.keys(override).length > 0, [override])
 
   const discoverPrinters = async () => {
     setDiscoverState('loading'); setDiscoverError(null)
     try {
-      // Primero guardamos el host actual al destino elegido para que el cliente lo lea.
-      await save({ server_host: host.trim() }, { target })
-      const list = await printerClient.listPrinters(host.trim())
+      const list = await printerClient.listPrinters()
       setPrinters(list)
       setDiscoverState('ok')
-      setDiscoverViaLocal(!!printerClient.state().viaLocal)
     } catch (err) {
       setDiscoverState('error')
       setDiscoverError(err.message || 'No se pudo conectar')
@@ -106,7 +100,7 @@ export default function PrinterConfig() {
   const handleSave = async () => {
     setSaveState('saving'); setSaveError(null)
     try {
-      await save({ server_host: host.trim(), ...draft }, { target })
+      await save({ ...draft }, { target })
       setSaveState('ok')
       setTimeout(() => setSaveState('idle'), 1800)
     } catch (err) {
@@ -119,7 +113,7 @@ export default function PrinterConfig() {
     setTestState(s => ({ ...s, [kind]: 'loading' }))
     // Guardar primero para que printing.js lea la config correcta.
     try {
-      await save({ server_host: host.trim(), ...draft }, { target })
+      await save({ ...draft }, { target })
     } catch {
       // Si guardar falla seguimos igual: la impresion va a usar el draft de la sesion solo si lo guardamos en local.
     }
@@ -175,8 +169,8 @@ export default function PrinterConfig() {
           directo en la impresora térmica (58 u 80mm, cualquier marca) sin abrir el diálogo del navegador.
         </p>
         <p>
-          Asegurate de tenerlo corriendo en la PC del local. La <em>dirección</em> es la IP que muestra su
-          consola al abrirlo (ej: 192.168.0.10:8443).
+          Tiene que estar abierto en la PC del local, con el dashboard abierto en esa PC. Todo lo que se
+          imprime desde celulares u otras PCs sale por ahí, automáticamente.
         </p>
       </div>
 
@@ -211,12 +205,12 @@ export default function PrinterConfig() {
         )}
       </div>
 
-      {/* Servidor */}
+      {/* Comandera Print en esta PC */}
       <div className="rounded-xl p-4 space-y-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
         <div className="flex items-center gap-2">
           <Plug size={14} style={{ color: 'var(--accent)' }} />
           <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-            Servidor de impresión
+            Comandera Print (la PC del local)
           </p>
           <a href="/descargas/ComanderaPrint.exe" download
             className="ml-auto text-[11px] font-medium underline"
@@ -224,45 +218,32 @@ export default function PrinterConfig() {
             Descargar Comandera Print
           </a>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="text"
-            value={host}
-            onChange={e => setHost(e.target.value)}
-            placeholder="Ej: 192.168.0.42:8443"
-            className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
-            style={FIELD_STYLE}
-          />
+        <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+          Imprime la PC donde corre Comandera Print. Los celulares y las demás PCs no se conectan a la
+          impresora: mandan el ticket a la cola y esa PC lo imprime sola. No hay que configurar ninguna
+          dirección IP ni instalar certificados en los celulares.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2 items-start">
           <button
             type="button"
             onClick={discoverPrinters}
-            disabled={!host.trim() || discoverState === 'loading'}
+            disabled={discoverState === 'loading'}
             className="px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-1.5 disabled:opacity-50"
             style={{ background: 'var(--cta)' }}
           >
             {discoverState === 'loading' ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            Conectar y listar
+            Buscar impresoras en esta PC
           </button>
         </div>
         {discoverState === 'ok' && (
           <div className="flex items-center gap-1.5 text-xs" style={{ color: '#3FBF8A' }}>
-            <CheckCircle2 size={13} /> Conectado. Se detectaron {printers.length} impresora(s).
-          </div>
-        )}
-        {discoverState === 'ok' && discoverViaLocal && (
-          <div className="flex items-start gap-1.5 text-xs" style={{ color: '#E8A23F' }}>
-            <AlertTriangle size={13} className="mt-0.5" />
-            <span>
-              Ojo: la dirección {host.trim()} no responde; se conectó porque esta es la misma PC donde corre
-              Comandera Print. Desde los celulares no va a andar hasta que pongas la IP que muestra la
-              ventana negra en "Escuchando en…".
-            </span>
+            <CheckCircle2 size={13} /> Comandera Print responde en esta PC. Se detectaron {printers.length} impresora(s).
           </div>
         )}
         {discoverState === 'error' && (
           <div className="flex items-start gap-1.5 text-xs" style={{ color: '#E34D6B' }}>
             <AlertTriangle size={13} className="mt-0.5" />
-            <span>No se pudo conectar. {discoverError}</span>
+            <span>{discoverError} Si esta no es la PC del local, es normal: las impresoras se eligen desde esa PC.</span>
           </div>
         )}
       </div>

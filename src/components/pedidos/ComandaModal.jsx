@@ -59,15 +59,15 @@ export default function ComandaModal({ open, onClose, pedido, items = [], titulo
       return
     }
     if (res.via === 'cola') {
-      setResultado({ tipo: 'ok', texto: 'Este equipo no llega a la impresora: la comanda se envió a la PC del local, que la imprime.' })
+      setResultado({ tipo: 'ok', texto: 'Comanda enviada: la imprime la PC del local.' })
       return
     }
     if (res.via === 'browser' && res.remoteFailed) {
       const motivo = printerClient.state().error
       setResultado({
         tipo: 'warn',
-        texto: 'Comandera Print no respondió: se abrió el diálogo de Windows (sale con letra chica). ' +
-          (motivo ? motivo : 'Revisá el aviso rojo de arriba para corregir la dirección.'),
+        texto: 'La impresora no respondió: se abrió el diálogo de Windows (sale con letra chica). ' +
+          (motivo ? motivo : 'Revisá que la impresora esté encendida y con papel.'),
       })
       return
     }

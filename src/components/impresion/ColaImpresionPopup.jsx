@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { CheckCircle2, Loader2, Printer, RefreshCw, Trash2, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { printerClient } from '../../lib/printerClient'
+import { printerClient, HOST_PC } from '../../lib/printerClient'
 import { cargarPendientes, tomarTicket, resolverTicket, reabrirTicket, tituloTipo } from '../../lib/colaImpresion'
 
 // Aviso grande en la PC del local: tickets que dejaron los celulares porque
@@ -56,6 +56,10 @@ export default function ColaImpresionPopup() {
   const procesando = useRef(false)
 
   useEffect(() => printerClient.subscribe(s => setConectado(s.connected)), [])
+  // Cada dispositivo prueba Comandera Print en su propia máquina. En la PC
+  // del local conecta (y queda mantenida); en un celular falla al instante y
+  // en silencio: ese dispositivo imprime por la cola.
+  useEffect(() => printerClient.mantener(HOST_PC), [])
 
   const recargar = useCallback(async () => {
     if (!printerClient.state().connected) return

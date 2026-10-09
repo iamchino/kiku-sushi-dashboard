@@ -426,10 +426,10 @@ function buildFiscalHtml(pedido, comprobante, config, opts = {}) {
 // ============================================================
 
 /**
- * Intenta imprimir por Comandera Print. Devuelve:
- *   'remote'  → salió por la impresora;
- *   'cola'    → este dispositivo no llega a la PC: el ticket quedó en la cola
- *               para que la PC del local lo imprima (ver colaImpresion.js);
+ * Imprime. Devuelve:
+ *   'remote'  → salió por Comandera Print (este dispositivo es la PC del local);
+ *   'cola'    → el ticket quedó en la cola y la PC del local lo imprime
+ *               (ver colaImpresion.js);
  *   false     → no se pudo (sin config, impresora con error, cola fallida):
  *               el caller cae al diálogo del navegador.
  */
@@ -445,16 +445,21 @@ async function tryRemotePrint(kind, content, extra = {}) {
     paperWidth: cfg.paper_width,
     qrCodeData: extra.qrCodeData,
   }
-  try {
-    await printerClient.print(job)
-    return 'remote'
-  } catch (err) {
-    console.warn(`[printing] Comandera Print fallo para ${kind}:`, err.message)
+  // Solo la PC del local tiene Comandera Print (conexión mantenida por la
+  // propia máquina). Si este dispositivo no es esa PC, no se intenta nada: el
+  // ticket va directo a la cola y la PC lo imprime.
+  if (printerClient.state().connected) {
+    try {
+      await printerClient.print(job)
+      return 'remote'
+    } catch (err) {
+      console.warn(`[printing] Comandera Print fallo para ${kind}:`, err.message)
+    }
+    // La PC respondió pero la impresora dio error (sin papel, apagada): la
+    // cola no ayuda. Si el socket se cayó justo ahora, sí va a la cola.
+    if (printerClient.state().connected) return false
   }
-
-  // Si la PC respondió (la impresora dio error: sin papel, apagada), la cola
-  // no ayuda. Si NO se llegó a la PC, el ticket va a la cola.
-  if (printerClient.state().connected || !colaHabilitada()) return false
+  if (!colaHabilitada()) return false
   try {
     await encolarTicket({
       tipo: kind === 'customer' ? 'ticket' : kind,

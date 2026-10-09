@@ -36,7 +36,6 @@ import { PermisosProvider } from './context/PermisosProvider'
 import { usePermisos } from './context/usePermisos'
 import { usePrinterStore } from './lib/printerStore'
 import NotifStatusBanner from './components/NotifStatusBanner'
-import PrinterStatusBanner from './components/PrinterStatusBanner'
 import ColaImpresionPopup from './components/impresion/ColaImpresionPopup'
 import ColaImpresionAvisos from './components/impresion/ColaImpresionAvisos'
 import { initNative } from './lib/native'
@@ -55,7 +54,6 @@ function AdminLayout({ children }) {
       <main className={`flex-1 flex flex-col overflow-y-auto pt-14 lg:pt-0 ${conBottomNav ? 'pb-20 lg:pb-0' : ''}`}>
         <DomainTabs />
         <NotifStatusBanner />
-        <PrinterStatusBanner />
         {children}
       </main>
       <ColaImpresionPopup />

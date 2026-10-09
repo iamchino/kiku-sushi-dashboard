@@ -10,12 +10,16 @@ del navegador (inútil en un celular).
 
 ## Cómo funciona ahora
 
-1. El celular intenta Comandera Print como siempre. Si **no llega a la PC**
-   (timeout, certificado, socket cerrado), deja el ticket en la tabla
-   `cola_impresion` y muestra un aviso flotante: "Enviado a la PC del local,
-   esperando que lo imprima…" que después cambia a "Impreso" / "Error".
-   Si la PC **sí respondió** pero la impresora dio error (sin papel), no se
-   encola: la cola no ayudaría.
+0. **Nadie usa la IP de red.** Cada dispositivo prueba Comandera Print en su
+   propia máquina (`127.0.0.1:8443`, `HOST_PC` en `printerClient.js`). En la
+   PC del local conecta y queda mantenida; en un celular falla al instante y
+   en silencio. No hay banner rojo, ni campo de dirección, ni certificado en
+   los celulares. `server_host` en `impresion_config` ya no se usa.
+1. Un dispositivo que no es esa PC deja el ticket directo en la tabla
+   `cola_impresion` (sin intentar nada) y muestra un aviso flotante:
+   "Enviado a la PC del local, esperando que lo imprima…" que después cambia
+   a "Impreso" / "Error". En la PC, si Comandera Print respondió pero la
+   impresora dio error (sin papel), no se encola: la cola no ayudaría.
 2. La PC (cualquier dispositivo con el dashboard **conectado** a Comandera
    Print) está suscripta por realtime a esa tabla y lo imprime.
 3. **Por defecto imprime solo**, sin tocar nada: muestra un cartelito

@@ -73,7 +73,7 @@ export function explicarResultadoCola(res) {
   if (res.estado === 'impreso') return 'Impreso desde la PC del local.'
   if (res.estado === 'error') return `La PC no pudo imprimirlo: ${res.error || 'error en la impresora'}.`
   if (res.estado === 'descartado') return 'Alguien lo descartó en la PC del local.'
-  return 'Enviado a la PC del local: queda pendiente hasta que alguien lo imprima ahí.'
+  return 'La PC del local no lo imprimió todavía. Fijate que tenga abiertos el dashboard y Comandera Print; cuando los abra, sale solo.'
 }
 
 /** Pendientes vigentes (para la PC): sin vencer; los "imprimiendo" colgados y los errores recientes cuentan. */
