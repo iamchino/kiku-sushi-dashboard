@@ -29,6 +29,11 @@ export default function PrinterStatusBanner() {
 
   useEffect(() => printerClient.subscribe(setEstado), [])
 
+  // Conexión mantenida: conecta al cargar el dashboard, se reconecta sola si
+  // se corta y la verifica cada minuto. Así el primer ticket del turno no paga
+  // la conexión y un corte de wifi no deja el socket "abierto pero muerto".
+  useEffect(() => printerClient.mantener(serverHost), [serverHost])
+
   const check = useCallback(async () => {
     if (!serverHost) return
     setStatus('checking')

@@ -16,7 +16,21 @@
 import { getPrinterConfig } from './printerStore'
 
 const CONNECT_TIMEOUT_MS = 4000
-const REQUEST_TIMEOUT_MS = 8000
+const LIST_TIMEOUT_MS = 8000
+// Imprimir puede tardar: el puente reintenta 2 veces contra el spooler de
+// Windows (hasta ~2 s extra) y una térmica lenta demora unos segundos más. Con
+// 8 s se daba por caído un trabajo que después salía igual → ticket doble
+// (uno por la impresora y otro por el diálogo de Windows).
+const PRINT_TIMEOUT_MS = 20000
+// Conexión mantenida: si se corta (la PC durmió, el wifi parpadeó, cerraron y
+// abrieron Comandera Print) se vuelve a conectar sola, con espera creciente.
+const RECONNECT_MIN_MS = 3000
+const RECONNECT_MAX_MS = 60000
+// Cada tanto, si no hubo tráfico, se manda un "list" para comprobar que el
+// socket sigue vivo de verdad (un wifi caído deja el socket "abierto" pero
+// muerto, y recién se nota al imprimir).
+const KEEPALIVE_MS = 60000
+const PROBE_TIMEOUT_MS = 5000
 // Si la IP configurada no responde, se prueba la propia PC (127.0.0.1). Sirve
 // cuando el dashboard corre en la misma PC que Comandera Print y esa PC cambió
 // de IP en la red. En un celular falla al instante, así que casi no demora.
@@ -46,6 +60,123 @@ class PrinterClient {
     this.nextId = 1
     this.lastError = null
     this.listeners = new Set()  // suscriptores al estado de conexion
+    this.mantenido = null       // host que hay que mantener conectado (null = no)
+    this.reconnectTimer = null
+    this.keepaliveTimer = null
+    this.reconnectEspera = RECONNECT_MIN_MS
+    this.ultimoTrafico = 0      // Date.now() del último mensaje recibido
+    this.cierreManual = false
+  }
+
+  // ── Conexión mantenida ────────────────────────────────────────────────────
+
+  /**
+   * Mantiene la conexión con `host` abierta mientras el dashboard esté
+   * cargado: conecta ya, reconecta sola si se corta y la verifica cada tanto.
+   * Devuelve una función para dejar de mantenerla.
+   */
+  mantener(host) {
+    const limpio = String(host || '').trim()
+    if (!limpio) { this.dejarDeMantener(); return () => {} }
+    if (this.mantenido === limpio) return () => this.dejarDeMantener()
+
+    this.dejarDeMantener()
+    this.mantenido = limpio
+    this.reconnectEspera = RECONNECT_MIN_MS
+    this.onVisible = () => { if (document.visibilityState === 'visible') this.reconectarAhora() }
+    this.onOnline = () => this.reconectarAhora()
+    document.addEventListener('visibilitychange', this.onVisible)
+    window.addEventListener('online', this.onOnline)
+    this.conectarSilencioso()
+    return () => this.dejarDeMantener()
+  }
+
+  dejarDeMantener() {
+    this.mantenido = null
+    if (this.onVisible) document.removeEventListener('visibilitychange', this.onVisible)
+    if (this.onOnline) window.removeEventListener('online', this.onOnline)
+    this.onVisible = null
+    this.onOnline = null
+    clearTimeout(this.reconnectTimer); this.reconnectTimer = null
+    clearInterval(this.keepaliveTimer); this.keepaliveTimer = null
+  }
+
+  async conectarSilencioso() {
+    if (!this.mantenido) return
+    try {
+      await this.ensureConnected(this.mantenido)
+      this.reconnectEspera = RECONNECT_MIN_MS
+      this.programarKeepalive()
+    } catch {
+      this.programarReconexion()
+    }
+  }
+
+  programarReconexion() {
+    if (!this.mantenido || this.reconnectTimer) return
+    const espera = this.reconnectEspera
+    this.reconnectEspera = Math.min(RECONNECT_MAX_MS, espera * 2)
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null
+      this.conectarSilencioso()
+    }, espera)
+  }
+
+  /** Al volver a la pestaña o recuperar red: sin esperar el backoff. */
+  reconectarAhora() {
+    if (!this.mantenido) return
+    clearTimeout(this.reconnectTimer); this.reconnectTimer = null
+    this.reconnectEspera = RECONNECT_MIN_MS
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      // Puede estar "abierto" pero muerto (la PC durmió): comprobar.
+      this.sondear().catch(() => {})
+      return
+    }
+    this.conectarSilencioso()
+  }
+
+  programarKeepalive() {
+    clearInterval(this.keepaliveTimer)
+    this.keepaliveTimer = setInterval(() => {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return
+      if (Date.now() - this.ultimoTrafico < KEEPALIVE_MS - 5000) return
+      this.sondear().catch(() => {})
+    }, KEEPALIVE_MS)
+  }
+
+  /**
+   * Comprueba que el socket responde (un "list" corto). Si no, lo cierra para
+   * que la reconexión lo levante de nuevo. Rechaza si está muerto.
+   */
+  async sondear() {
+    try {
+      await this.send(
+        { action: 'list' },
+        msg => msg.type === 'printer_list' && Array.isArray(msg.printers),
+        PROBE_TIMEOUT_MS
+      )
+    } catch (err) {
+      console.warn('[printerClient] el socket no responde, se reconecta:', err.message)
+      this.cerrarSocket()
+      throw err
+    }
+  }
+
+  /** Cierra el socket actual sin tocar el "mantener". */
+  cerrarSocket() {
+    const ws = this.ws
+    this.ws = null
+    this.hostReal = null
+    if (ws) { try { ws.close() } catch { /* ignore */ } }
+    this.flushPending(new Error('Conexion cerrada'))
+    this.notify()
+    this.programarReconexion()
+  }
+
+  /** True si el error es del socket (no de la impresora): vale reintentar. */
+  static esCaidaDeSocket(err) {
+    const m = String(err?.message || '')
+    return m.includes('socket no conectado') || m.includes('Conexion cerrada')
   }
 
   /** Subscribirse al estado del cliente. cb({ connected, host, error }). */
@@ -159,11 +290,15 @@ class PrinterClient {
         settled = true
         clearTimeout(timeoutId)
         this.lastError = null
+        this.ultimoTrafico = Date.now()
         this.notify()
         resolve(ws)
       }
 
-      ws.onmessage = (event) => this.handleMessage(event.data)
+      ws.onmessage = (event) => {
+        this.ultimoTrafico = Date.now()
+        this.handleMessage(event.data)
+      }
 
       ws.onerror = () => {
         // El navegador no expone detalle, solo el evento.
@@ -177,10 +312,13 @@ class PrinterClient {
       }
 
       ws.onclose = () => {
-        if (this.ws === ws) { this.ws = null; this.hostReal = null }
+        const eraElActual = this.ws === ws
+        if (eraElActual) { this.ws = null; this.hostReal = null }
         this.notify()
         // Rechazamos cualquier request en vuelo: caller hara fallback.
         this.flushPending(new Error('Conexion cerrada'))
+        // Se cortó una conexión que estaba andando: volver a levantarla.
+        if (eraElActual && settled && !this.cierreManual) this.programarReconexion()
       }
     })
   }
@@ -210,7 +348,7 @@ class PrinterClient {
     })
   }
 
-  send(payload, match) {
+  send(payload, match, timeoutMs = LIST_TIMEOUT_MS) {
     return new Promise((resolve, reject) => {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
         reject(new Error('Comandera Print: socket no conectado'))
@@ -223,7 +361,7 @@ class PrinterClient {
           this.queue.splice(idx, 1)
           reject(new Error('Comandera Print: la PC recibió el pedido pero no respondió (¿impresora apagada o sin papel?)'))
         }
-      }, REQUEST_TIMEOUT_MS)
+      }, timeoutMs)
 
       this.queue.push({ id, resolve, reject, match, timeoutId })
       try {
@@ -244,7 +382,8 @@ class PrinterClient {
     await this.ensureConnected(host)
     const res = await this.send(
       { action: 'list' },
-      msg => msg.type === 'printer_list' && Array.isArray(msg.printers)
+      msg => msg.type === 'printer_list' && Array.isArray(msg.printers),
+      LIST_TIMEOUT_MS
     )
     return res.printers || []
   }
@@ -264,31 +403,53 @@ class PrinterClient {
     const host = hostOverride || cfg.server_host
     if (!printerName) throw new Error('Comandera Print: no hay impresora asignada para este tipo de ticket')
 
+    const payload = {
+      action: 'print',
+      data: {
+        printer_name: printerName,
+        type: type || 'USB',
+        content: String(content || ''),
+        font_size: Number(fontSize || cfg.font_size || 1),
+        paper_width: Number(paperWidth || cfg.paper_width || 58),
+        ...(qrCodeData ? { qr_code_data: String(qrCodeData) } : {}),
+      },
+    }
+    const esRespuesta = msg => msg.status === 'success' || msg.status === 'error'
+
     await this.ensureConnected(host)
 
-    return this.send(
-      {
-        action: 'print',
-        data: {
-          printer_name: printerName,
-          type: type || 'USB',
-          content: String(content || ''),
-          font_size: Number(fontSize || cfg.font_size || 1),
-          paper_width: Number(paperWidth || cfg.paper_width || 58),
-          ...(qrCodeData ? { qr_code_data: String(qrCodeData) } : {}),
-        },
-      },
-      msg => msg.status === 'success' || msg.status === 'error'
-    )
+    // Socket abierto pero sin tráfico hace rato: puede estar muerto (la PC
+    // durmió, el wifi se cayó). Un sondeo corto antes de mandar el ticket
+    // evita esperar 20 s para enterarse; si está muerto, se reconecta.
+    if (Date.now() - this.ultimoTrafico > KEEPALIVE_MS) {
+      try { await this.sondear() } catch { /* se reconecta abajo */ }
+      await this.ensureConnected(host)
+    }
+
+    try {
+      return await this.send(payload, esRespuesta, PRINT_TIMEOUT_MS)
+    } catch (err) {
+      // Se cortó el socket justo al mandar (no llegó a la PC): una vez más
+      // con conexión nueva. Si fue timeout NO se reintenta: el ticket puede
+      // estar saliendo igual y se duplicaría.
+      if (!PrinterClient.esCaidaDeSocket(err)) throw err
+      console.warn('[printerClient] se cortó al imprimir, se reconecta y reintenta:', err.message)
+      this.cerrarSocket()
+      await this.ensureConnected(host)
+      return await this.send(payload, esRespuesta, PRINT_TIMEOUT_MS)
+    }
   }
 
   disconnect() {
+    this.cierreManual = true
+    this.dejarDeMantener()
     if (this.ws) {
       try { this.ws.close() } catch { /* ignore */ }
       this.ws = null
       this.hostReal = null
     }
     this.flushPending(new Error('Desconectado manualmente'))
+    this.cierreManual = false
   }
 }
 
