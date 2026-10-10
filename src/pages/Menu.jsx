@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import {
   Plus, Search, Edit2, Trash2, Eye, EyeOff,
   UtensilsCrossed, Truck, RefreshCw, AlertCircle, Package, Sparkles, TrendingUp, Megaphone, Utensils, Infinity as InfinityIcon,
-  GripVertical, MoveVertical, Flame
+  GripVertical, MoveVertical, Flame, Sun
 } from 'lucide-react'
 import { useMenu } from '../hooks/useMenu'
 import { normalizeSearch } from '../utils/normalize'
@@ -12,6 +12,7 @@ import BannerTab from '../components/menu/BannerTab'
 import OmakaseTab from '../components/menu/OmakaseTab'
 import LibreTab from '../components/menu/LibreTab'
 import NovedadTab from '../components/menu/NovedadTab'
+import MediodiaTab from '../components/menu/MediodiaTab'
 import AjustePreciosModal from '../components/menu/AjustePreciosModal'
 
 const TABS = [
@@ -22,6 +23,7 @@ const TABS = [
   { id: 'omakase',    label: 'Omakase',            icon: Utensils },
   { id: 'libre',      label: 'Kiku Libre',         icon: InfinityIcon },
   { id: 'novedad',    label: 'Nuevo',              icon: Flame },
+  { id: 'mediodia',   label: 'Mediodías',          icon: Sun },
 ]
 
 const BADGE_COLORS = {
@@ -48,8 +50,9 @@ export default function MenuPage() {
   const esOmakase = activeTab === 'omakase'
   const esLibre = activeTab === 'libre'
   const esNovedad = activeTab === 'novedad'
+  const esMediodia = activeTab === 'mediodia'
   // "config" = tabs que no listan productos (Especiales Web, Banner web, Omakase, Nuevo).
-  const esConfig = esEspeciales || esBanner || esOmakase || esNovedad || esLibre
+  const esConfig = esEspeciales || esBanner || esOmakase || esNovedad || esLibre || esMediodia
 
   const {
     grouped, categories, stats,
@@ -275,6 +278,9 @@ export default function MenuPage() {
 
       {/* ── Tab Nuevo (el plato del momento en la web, autocontenido) ── */}
       {esNovedad && <NovedadTab />}
+
+      {/* ── Tab Mediodías (menú del mes en la web, autocontenido) ── */}
+      {esMediodia && <MediodiaTab />}
 
       {/* ── Stats bar ── */}
       {!esConfig && !loading && (

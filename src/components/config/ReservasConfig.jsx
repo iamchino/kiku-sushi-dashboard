@@ -181,6 +181,11 @@ export default function ReservasConfig() {
             Franjas por día
           </p>
         </div>
+        <p className="text-[11px] leading-relaxed pb-2" style={{ color: 'var(--text-muted)' }}>
+          Es el calendario del local para toda la web: además de las reservas, define qué días se toman
+          pedidos online, el horario del pie de página y de la sección "Pedir". Ej.: prendé <strong style={{ color: 'var(--text-secondary)' }}>Noche</strong> en
+          Lunes y la web pasa a decir "Lun–Sáb" sola.
+        </p>
         {/* Encabezado */}
         <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-1 pb-1">
           <span />
