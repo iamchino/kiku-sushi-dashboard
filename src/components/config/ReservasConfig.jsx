@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   CalendarClock, Save, Loader2, CheckCircle2, AlertTriangle,
-  Sun, Moon, Plus, X, UtensilsCrossed, Trash2,
+  Sun, Moon, Plus, X, UtensilsCrossed, Trash2, Truck,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
@@ -10,7 +10,9 @@ import { supabase } from '../../lib/supabase'
  *
  * Dos tablas (lectura pública, escritura admin):
  *   • reservas_dias   (7 filas dow 0..6): qué franjas abre cada día
- *                      (mediodía / noche). El día "abre" si alguna es true.
+ *                      (mediodía / noche) y si ese día se toman pedidos
+ *                      online (delivery / take away), que es independiente:
+ *                      el lunes abre el salón pero no hay delivery.
  *   • reservas_config (fila única id=1): los turnos (slots) de cada franja.
  *
  * El form de reservas de la web lee exactamente esto. Un día sin franjas no
@@ -36,7 +38,7 @@ const ordenarSlots = (arr) =>
 
 export default function ReservasConfig() {
   const [loading, setLoading] = useState(true)
-  const [dias, setDias] = useState([])          // [{dow, mediodia, noche}]
+  const [dias, setDias] = useState([])          // [{dow, mediodia, noche, pedidos}]
   const [cfg, setCfg] = useState({ mediodia_slots: [], noche_slots: [], orden_llegada_slots: [] })
   // Menús ofrecidos al reservar mediodía: [{id, nombre, precio, detalle[], activo}]
   const [menus, setMenus] = useState([])
@@ -60,6 +62,7 @@ export default function ReservasConfig() {
         dow,
         mediodia: Boolean(porDow.get(dow)?.mediodia),
         noche: Boolean(porDow.get(dow)?.noche),
+        pedidos: Boolean(porDow.get(dow)?.pedidos),
       })))
 
       setCfg({
@@ -122,6 +125,8 @@ export default function ReservasConfig() {
       out.push('Tenés días con mediodía habilitado pero no cargaste ningún turno de mediodía: esos días no van a mostrar horarios.')
     if (algunaNoche && cfg.noche_slots.length === 0 && cfg.orden_llegada_slots.length === 0)
       out.push('Tenés noches habilitadas pero sin turnos de noche cargados.')
+    if (!dias.some(d => d.pedidos))
+      out.push('Ningún día tiene Pedidos prendido: la web no va a tomar pedidos de delivery ni take away (si la columna no existe todavía, corré la migración 20261012).')
     return out
   }, [dias, cfg])
 
@@ -129,7 +134,7 @@ export default function ReservasConfig() {
     setSaveState('saving'); setError(null)
     try {
       const upDias = supabase.from('reservas_dias').upsert(
-        dias.map(d => ({ dow: d.dow, mediodia: d.mediodia, noche: d.noche })),
+        dias.map(d => ({ dow: d.dow, mediodia: d.mediodia, noche: d.noche, pedidos: d.pedidos })),
         { onConflict: 'dow' },
       )
       const upCfg = supabase.from('reservas_config').upsert({
@@ -182,20 +187,22 @@ export default function ReservasConfig() {
           </p>
         </div>
         <p className="text-[11px] leading-relaxed pb-2" style={{ color: 'var(--text-muted)' }}>
-          Es el calendario del local para toda la web: además de las reservas, define qué días se toman
-          pedidos online, el horario del pie de página y de la sección "Pedir". Ej.: prendé <strong style={{ color: 'var(--text-secondary)' }}>Noche</strong> en
-          Lunes y la web pasa a decir "Lun–Sáb" sola.
+          Es el calendario del local para toda la web. <strong style={{ color: 'var(--text-secondary)' }}>Mediodía</strong> y{' '}
+          <strong style={{ color: 'var(--text-secondary)' }}>Noche</strong> son las reservas del salón (y el horario del pie de página).{' '}
+          <strong style={{ color: 'var(--text-secondary)' }}>Pedidos</strong> es aparte: qué días se toman pedidos online de
+          delivery y take away. Ej.: lunes con Noche prendida y Pedidos apagada = se reserva, pero no hay delivery.
         </p>
         {/* Encabezado */}
-        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-1 pb-1">
+        <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-1 pb-1">
           <span />
           <span className="text-[10px] font-semibold uppercase tracking-wide text-center w-20" style={{ color: 'var(--text-xmuted)' }}>Mediodía</span>
           <span className="text-[10px] font-semibold uppercase tracking-wide text-center w-20" style={{ color: 'var(--text-xmuted)' }}>Noche</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-center w-20" style={{ color: 'var(--text-xmuted)' }} title="Delivery y take away">Pedidos</span>
         </div>
         {dias.map(d => {
           const cerrado = !d.mediodia && !d.noche
           return (
-            <div key={d.dow} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-1.5 rounded-lg"
+            <div key={d.dow} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 py-1.5 rounded-lg"
               style={{ borderTop: '1px solid var(--border)' }}>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium" style={{ color: cerrado ? 'var(--text-xmuted)' : 'var(--text-primary)' }}>
@@ -208,6 +215,9 @@ export default function ReservasConfig() {
               </div>
               <div className="w-20 flex justify-center">
                 <Toggle on={d.noche} onClick={() => setDia(d.dow, 'noche', !d.noche)} icon={Moon} />
+              </div>
+              <div className="w-20 flex justify-center">
+                <Toggle on={d.pedidos} onClick={() => setDia(d.dow, 'pedidos', !d.pedidos)} icon={Truck} />
               </div>
             </div>
           )
