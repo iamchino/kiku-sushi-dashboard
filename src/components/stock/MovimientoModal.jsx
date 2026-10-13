@@ -29,6 +29,9 @@ export default function MovimientoModal({
   item,
   recetas = [],
   defaultTipoStock = 'materia_prima',
+  // 'entrada' | 'ajuste' | 'merma' | null: abre el modal ya parado en ese
+  // movimiento (botón "+" de la fila). null = editar datos.
+  movimientoInicial = null,
   onSaveItem,
   onSaveMovimiento,
 }) {
@@ -44,8 +47,8 @@ export default function MovimientoModal({
     if (!open) return
 
     setError(null)
-    setRegistrarMov(false)
-    setTipoMov('entrada')
+    setRegistrarMov(Boolean(item && movimientoInicial))
+    setTipoMov(movimientoInicial || 'entrada')
     setCantidadMov('')
     setNotasMov('')
 
@@ -62,7 +65,7 @@ export default function MovimientoModal({
       receta_id: item.receta_id || '',
       notas: item.notas || '',
     } : emptyForm(defaultTipoStock))
-  }, [open, item, defaultTipoStock])
+  }, [open, item, defaultTipoStock, movimientoInicial])
 
   if (!open) return null
 
@@ -163,6 +166,108 @@ export default function MovimientoModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
+          {item && (
+            <div className="rounded-xl p-4 space-y-3" style={{ background: 'var(--bg-input)', border: `1px solid ${registrarMov ? 'var(--accent-border)' : 'var(--border)'}` }}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide font-semibold" style={{ color: 'var(--text-muted)' }}>Stock actual</p>
+                  <p className="text-2xl font-bold tabular-nums leading-tight" style={{ color: actual < 0 ? '#E34D6B' : 'var(--text-primary)' }}>
+                    {actual.toLocaleString('es-AR', { maximumFractionDigits: 2 })} <span className="text-sm font-normal" style={{ color: 'var(--text-muted)' }}>{form.unidad}</span>
+                  </p>
+                </div>
+                {registrarMov && (
+                  <button type="button" onClick={() => { setRegistrarMov(false); setCantidadMov(''); setError(null) }}
+                    className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+                    No cambiar el stock
+                  </button>
+                )}
+              </div>
+              {actual < 0 && !registrarMov && (
+                <p className="text-[11px] leading-relaxed" style={{ color: '#E34D6B' }}>
+                  Quedó en negativo: se descontaron ventas o producciones sin haber cargado la compra. Cargá la
+                  <strong> Entrada</strong> de lo que compraron, o un <strong>Ajuste</strong> con lo que hay contado.
+                </p>
+              )}
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                El stock se cambia con un movimiento, así queda en el historial quién, cuándo y cuánto:
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {TIPOS.map(t => {
+                  const TIcon = t.icon
+                  const active = registrarMov && tipoMov === t.id
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => { setTipoMov(t.id); setRegistrarMov(true); setError(null) }}
+                      className="flex flex-col items-center gap-1.5 py-2.5 rounded-xl transition-all"
+                      style={{
+                        background: active ? `${t.color}15` : 'var(--bg-card)',
+                        border: `1px solid ${active ? t.color + '40' : 'var(--border)'}`,
+                        color: active ? t.color : 'var(--text-secondary)',
+                      }}
+                    >
+                      <TIcon size={14} />
+                      <span className="text-[10px] font-semibold">{t.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {registrarMov && (
+                <div className="space-y-3 pt-1">
+                  <p className="text-[10px] text-center" style={{ color: 'var(--text-muted)' }}>
+                    {TIPOS.find(t => t.id === tipoMov)?.desc}
+                  </p>
+                  <div className="space-y-1.5">
+                    <label style={labelStyle}>
+                      {tipoMov === 'ajuste' ? 'Nuevo stock exacto' : 'Cantidad a sumar/restar'}
+                      <span className="ml-1" style={{ color: 'var(--text-xmuted)' }}>({form.unidad})</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={cantidadMov}
+                      onChange={e => setCantidadMov(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-lg text-sm outline-none text-center text-lg font-semibold"
+                      style={{ ...inputStyle, background: 'var(--bg-card)' }}
+                      placeholder="0"
+                      autoFocus
+                    />
+                  </div>
+
+                  {cantidadMov && !isNaN(cant) && (
+                    <div className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                      <div className="text-center flex-1">
+                        <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Actual</p>
+                        <p className="text-base font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>{actual} {form.unidad}</p>
+                      </div>
+                      <div className="text-2xl font-light" style={{ color: 'var(--text-xmuted)' }}>→</div>
+                      <div className="text-center flex-1">
+                        <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Nuevo</p>
+                        <p className="text-base font-bold tabular-nums" style={{ color: preview < parseFloat(form.stock_minimo || 0) ? '#E34D6B' : '#3FBF8A' }}>
+                          {preview.toFixed(2)} {form.unidad}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <label style={labelStyle}>Notas del movimiento <span style={{ color: 'var(--text-xmuted)' }}>(opcional)</span></label>
+                    <input
+                      value={notasMov}
+                      onChange={e => setNotasMov(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+                      style={{ ...inputStyle, background: 'var(--bg-card)' }}
+                      placeholder="Ej: compra del martes, proveedor X"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <label style={labelStyle}>Nombre *</label>
             <input
@@ -197,22 +302,22 @@ export default function MovimientoModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <label style={labelStyle}>Stock actual</label>
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                value={form.stock_actual}
-                onChange={e => setForm(f => ({ ...f, stock_actual: e.target.value }))}
-                disabled={registrarMov || Boolean(item)}
-                title={item ? 'Se cambia con un movimiento o un conteo' : undefined}
-                className="w-full px-3 py-2.5 rounded-lg text-sm outline-none disabled:opacity-50"
-                style={inputStyle}
-                placeholder="0"
-              />
-            </div>
+          <div className={`grid ${item ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
+            {!item && (
+              <div className="space-y-1.5">
+                <label style={labelStyle}>Stock actual</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={form.stock_actual}
+                  onChange={e => setForm(f => ({ ...f, stock_actual: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                  placeholder="0"
+                />
+              </div>
+            )}
             <div className="space-y-1.5">
               <label style={labelStyle}>{normTipoStock(form) === 'servicio' ? 'Objetivo' : 'Minimo'}</label>
               <input
@@ -337,97 +442,6 @@ export default function MovimientoModal({
             />
           </div>
 
-          {item && (
-            <div className="pt-4 mt-2 space-y-4" style={{ borderTop: '1px solid var(--border)' }}>
-              <label className="flex items-center gap-2 cursor-pointer group w-fit">
-                <input
-                  type="checkbox"
-                  checked={registrarMov}
-                  onChange={e => setRegistrarMov(e.target.checked)}
-                  className="rounded w-4 h-4 cursor-pointer"
-                  style={{ accentColor: 'var(--accent)' }}
-                />
-                <span className="text-sm font-medium transition-colors" style={{ color: registrarMov ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                  Registrar entrada / movimiento en historial
-                </span>
-              </label>
-
-              {registrarMov && (
-                <div className="p-4 rounded-xl space-y-4" style={{ background: 'rgba(0,0,0,0.1)', border: '1px solid var(--border)' }}>
-                  <div className="grid grid-cols-3 gap-2">
-                    {TIPOS.map(t => {
-                      const TIcon = t.icon
-                      const active = tipoMov === t.id
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => setTipoMov(t.id)}
-                          className="flex flex-col items-center gap-1.5 py-2.5 rounded-xl transition-all"
-                          style={{
-                            background: active ? `${t.color}15` : 'var(--bg-input)',
-                            border: `1px solid ${active ? t.color + '40' : 'var(--border)'}`,
-                            color: active ? t.color : 'var(--text-muted)',
-                          }}
-                        >
-                          <TIcon size={14} />
-                          <span className="text-[10px] font-semibold">{t.label}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <p className="text-[10px] text-center" style={{ color: 'var(--text-muted)' }}>
-                    {TIPOS.find(t => t.id === tipoMov)?.desc}
-                  </p>
-
-                  <div className="space-y-1.5">
-                    <label style={labelStyle}>
-                      {tipoMov === 'ajuste' ? 'Nuevo stock exacto' : 'Cantidad a sumar/restar'}
-                      <span className="ml-1" style={{ color: 'var(--text-xmuted)' }}>({form.unidad})</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={cantidadMov}
-                      onChange={e => setCantidadMov(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-lg text-sm outline-none text-center text-lg font-semibold"
-                      style={inputStyle}
-                      placeholder="0"
-                      autoFocus={registrarMov}
-                    />
-                  </div>
-
-                  {cantidadMov && !isNaN(cant) && (
-                    <div className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
-                      <div className="text-center flex-1">
-                        <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Actual</p>
-                        <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{actual} {form.unidad}</p>
-                      </div>
-                      <div className="text-2xl font-light" style={{ color: 'var(--text-xmuted)' }}>-</div>
-                      <div className="text-center flex-1">
-                        <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Nuevo</p>
-                        <p className="text-base font-bold" style={{ color: preview < parseFloat(form.stock_minimo || 0) ? '#E34D6B' : '#3FBF8A' }}>
-                          {preview.toFixed(2)} {form.unidad}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-1.5">
-                    <label style={labelStyle}>Notas del movimiento <span style={{ color: 'var(--text-xmuted)' }}>(opcional)</span></label>
-                    <input
-                      value={notasMov}
-                      onChange={e => setNotasMov(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
-                      style={inputStyle}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
           {error && <p className="text-xs" style={{ color: '#E34D6B' }}>{error}</p>}
 
           <div className="flex gap-3 pt-2 flex-shrink-0">
@@ -447,7 +461,7 @@ export default function MovimientoModal({
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
               style={{ background: 'var(--cta)', boxShadow: 'var(--cta-shadow)' }}
             >
-              {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : (item ? 'Guardar cambios' : 'Crear item')}
+              {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : (item ? (registrarMov ? `Registrar ${TIPOS.find(t => t.id === tipoMov)?.label.toLowerCase()} y guardar` : 'Guardar cambios') : 'Crear item')}
             </button>
           </div>
         </form>

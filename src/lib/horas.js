@@ -51,6 +51,29 @@ export function arDateISO(ts) {
   return AR_DATE_FMT.format(new Date(ts))
 }
 
+const AR_TIME_FMT = new Intl.DateTimeFormat('en-GB', {
+  timeZone: AR_TZ, hour: '2-digit', minute: '2-digit', hour12: false,
+})
+
+// timestamptz | Date → 'HH:MM' en hora de Argentina.
+export function arTimeHM(ts) {
+  return AR_TIME_FMT.format(new Date(ts)).replace('24:', '00:')
+}
+
+// 'YYYY-MM-DD' + 'HH:MM' en hora de Argentina → Date (instante real).
+// Argentina no tiene horario de verano: el desfasaje es siempre -03:00. Así
+// la marca queda bien aunque el celular esté en otra zona horaria.
+export function arLocalToDate(fecha, hora) {
+  return new Date(`${fecha}T${hora}:00-03:00`)
+}
+
+// 'YYYY-MM-DD' → el día siguiente, 'YYYY-MM-DD'.
+export function diaSiguienteISO(iso) {
+  const d = new Date(`${iso}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString().slice(0, 10)
+}
+
 // Los 7 días de la semana que empieza en `inicio` (lunes), como
 // [{ iso, corta, num }] listos para pintar la tira Lun→Dom.
 // corta: 'lun'..'dom' · num: día del mes.

@@ -200,11 +200,26 @@ Deno.serve(async (req) => {
         if (bloqueo) return errorResponse(bloqueo);
       }
 
-      // Desvincular el empleado (si lo hay) antes de borrar el login.
+      // Desvincular lo que apunte a este login antes de borrarlo. Las FKs ya
+      // son ON DELETE SET NULL / CASCADE (migración 20261013), esto es cinturón
+      // y tiradores: si alguna tabla nueva quedó sin regla, igual no bloquea.
       await admin.from("empleados").update({ user_id: null }).eq("user_id", userId);
+      await admin.from("mozos").update({ user_id: null }).eq("user_id", userId);
+      await admin.from("produccion_listas").update({ creado_por: null }).eq("creado_por", userId);
 
       const { error } = await admin.auth.admin.deleteUser(userId);
-      if (error) throw error;
+      if (error) {
+        // "Database error deleting user" no dice nada: traducimos lo típico.
+        const msg = String(error.message || "");
+        if (/database error/i.test(msg)) {
+          return errorResponse(
+            "La base no dejó borrar el usuario: hay datos que todavía lo referencian. " +
+            "Corré la migración 20261013 (SQL-CIERRES 39) y volvé a intentar.",
+            500,
+          );
+        }
+        throw error;
+      }
       return jsonResponse({ ok: true });
     }
 

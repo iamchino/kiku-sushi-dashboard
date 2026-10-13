@@ -3,7 +3,7 @@ import {
   Plus, Edit2, Trash2, LogIn, LogOut, MapPin, ListChecks, Clock, AlertTriangle,
   ChevronDown, ChevronRight, Moon,
 } from 'lucide-react'
-import { fmtFechaHora, fmtHora, fmtMinutos, fmtDiaOperativo } from '../../lib/horas'
+import { fmtFechaHora, fmtHora, fmtMinutos, fmtDiaOperativo, arDateISO, arTimeHM, arLocalToDate, diaSiguienteISO } from '../../lib/horas'
 import { agruparPorDia } from '../../lib/turnos'
 import { ModalShell, Field, Select, TextArea } from '../finanzas/fields'
 import ConfirmDelete from '../finanzas/ConfirmDelete'
@@ -92,14 +92,14 @@ export default function FichajesSection({ horas, empleados }) {
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <button
-                    onClick={() => setModal({ seed: { empleado_id: t.empleado_id, tipo: 'salida' } })}
+                    onClick={() => setModal({ seed: { empleado_id: t.empleado_id, tipo: 'salida' }, turno: t })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
                     style={{ background: 'rgba(232,162,63,0.14)', color: '#E8A23F' }}>
                     <LogOut size={12} /> Cargar salida
                   </button>
                   {t.entradaMarca && (
                     <>
-                      <IconBtn onClick={() => setModal({ fichaje: t.entradaMarca })} title="Corregir la hora de entrada">
+                      <IconBtn onClick={() => setModal({ fichaje: t.entradaMarca, turno: t })} title="Corregir la hora de entrada">
                         <Edit2 size={13} />
                       </IconBtn>
                       <IconBtn danger onClick={() => setDel(t.entradaMarca)} title="Borrar la marca de entrada">
@@ -168,9 +168,9 @@ export default function FichajesSection({ horas, empleados }) {
               <div className="space-y-2">
                 {g.turnos.map(t => (
                   <TurnoCard key={t.id} turno={t} nombre={nombreDe(t)}
-                    onEditarMarca={m => setModal({ fichaje: m })}
+                    onEditarMarca={m => setModal({ fichaje: m, turno: t })}
                     onBorrarMarca={m => setDel(m)}
-                    onCargarSalida={() => setModal({ seed: { empleado_id: t.empleado_id, tipo: 'salida' } })} />
+                    onCargarSalida={() => setModal({ seed: { empleado_id: t.empleado_id, tipo: 'salida' }, turno: t })} />
                 ))}
               </div>
             </div>
@@ -189,6 +189,7 @@ export default function FichajesSection({ horas, empleados }) {
         <FichajeModal
           initial={modal?.fichaje || null}
           seed={modal?.seed || null}
+          turno={modal?.turno || null}
           empleados={activos}
           onClose={() => setModal(null)}
           onSave={async (form) => {
@@ -363,24 +364,54 @@ function MarcaRow({ f, onEditar, onBorrar }) {
   )
 }
 
-function FichajeModal({ initial, seed, empleados, onClose, onSave }) {
+function FichajeModal({ initial, seed, turno, empleados, onClose, onSave }) {
+  // Todo en hora de Argentina, sin depender de la zona horaria del celular.
   const base = initial ? new Date(initial.ts) : new Date()
   const [empleadoId, setEmpleadoId] = useState(initial?.empleado_id || seed?.empleado_id || empleados[0]?.id || '')
   const [tipo, setTipo]             = useState(initial?.tipo || seed?.tipo || 'entrada')
-  const [fecha, setFecha]           = useState(() => {
-    const d = new Date(base.getTime() - base.getTimezoneOffset() * 60000)
-    return d.toISOString().slice(0, 10)
-  })
-  const [hora, setHora]             = useState(() => base.toTimeString().slice(0, 5))
+  // La otra marca del turno (si la hay), para validar el orden y para que la
+  // salida que falta arranque en el día de la entrada.
+  const entradaDelTurno = turno?.entrada && initial?.tipo !== 'entrada' ? new Date(turno.entrada) : null
+  const salidaDelTurno  = turno?.salida && initial?.tipo !== 'salida' ? new Date(turno.salida) : null
+  const [fecha, setFecha]           = useState(() => arDateISO(initial ? base : (entradaDelTurno || base)))
+  const [hora, setHora]             = useState(() => (initial || !entradaDelTurno ? arTimeHM(base) : ''))
   const [nota, setNota]             = useState(initial?.nota || '')
   const [busy, setBusy]             = useState(false)
   const [error, setError]           = useState(null)
+  const [pasoAlDiaSiguiente, setPasoAlDiaSiguiente] = useState(false)
+
+  // Salida de madrugada: "01:00" con la fecha de la entrada quedaría ANTES de
+  // la entrada. En ese caso la fecha salta sola al día siguiente y se avisa.
+  const onHora = (h) => {
+    setHora(h)
+    setPasoAlDiaSiguiente(false)
+    setError(null)
+    if (tipo !== 'salida' || !entradaDelTurno || !h) return
+    if (fecha === arDateISO(entradaDelTurno) && arLocalToDate(fecha, h) <= entradaDelTurno) {
+      setFecha(diaSiguienteISO(fecha))
+      setPasoAlDiaSiguiente(true)
+    }
+  }
 
   const handle = async () => {
     if (!empleadoId || !fecha || !hora) { setError('Completá empleado, fecha y hora.'); return }
+    const ts = arLocalToDate(fecha, hora)
+    if (Number.isNaN(ts.getTime())) { setError('Fecha u hora inválidas.'); return }
+    // Coherencia con la otra marca del turno.
+    if (tipo === 'salida' && entradaDelTurno && ts <= entradaDelTurno) {
+      setError(`La salida tiene que ser después de la entrada (${fmtFechaHora(entradaDelTurno)}). Si salió después de medianoche, la fecha es la del día siguiente.`)
+      return
+    }
+    if (tipo === 'entrada' && salidaDelTurno && ts >= salidaDelTurno) {
+      setError(`La entrada tiene que ser antes de la salida (${fmtFechaHora(salidaDelTurno)}).`)
+      return
+    }
+    if (tipo === 'salida' && entradaDelTurno && ts - entradaDelTurno > 20 * 60 * 60 * 1000) {
+      setError('Ese turno duraría más de 20 horas. Revisá la fecha de la salida.')
+      return
+    }
     setBusy(true); setError(null)
     try {
-      const ts = new Date(`${fecha}T${hora}`)  // hora local → instante real
       await onSave({ empleado_id: empleadoId, tipo, ts: ts.toISOString(), nota: nota || null })
       onClose()
     } catch (err) {
@@ -395,13 +426,23 @@ function FichajeModal({ initial, seed, empleados, onClose, onSave }) {
           options={empleados.map(e => ({ value: e.id, label: `${e.nombre} ${e.apellido || ''}`.trim() }))} />
         <Select label="Tipo" value={tipo} onChange={setTipo} required
           options={[{ value: 'entrada', label: 'Entrada' }, { value: 'salida', label: 'Salida' }]} />
+        {entradaDelTurno && tipo === 'salida' && (
+          <p className="text-[11px] rounded-lg px-3 py-2" style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
+            Cierra la entrada del <span className="capitalize">{fmtFechaHora(entradaDelTurno)}</span>.
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Fecha" type="date" value={fecha} onChange={setFecha} required />
-          <Field label="Hora" type="time" value={hora} onChange={setHora} required />
+          <Field label="Fecha" type="date" value={fecha} onChange={v => { setFecha(v); setPasoAlDiaSiguiente(false); setError(null) }} required />
+          <Field label="Hora" type="time" value={hora} onChange={onHora} required />
         </div>
-        {tipo === 'salida' && (
+        {pasoAlDiaSiguiente ? (
+          <p className="text-[11px]" style={{ color: '#E8A23F' }}>
+            Pasó la medianoche: la fecha quedó en el día siguiente ({fmtDiaOperativo(fecha)}). El turno
+            igual se cuenta en el día en que empezó.
+          </p>
+        ) : tipo === 'salida' && (
           <p className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>
-            Si el turno terminó después de la medianoche, cargá la fecha del día
+            Si el turno terminó después de la medianoche, la fecha es la del día
             siguiente: el turno igual queda contado en el día en que empezó.
           </p>
         )}

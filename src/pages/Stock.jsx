@@ -182,6 +182,14 @@ function ItemRow({ item, showCostColumns = true, updatePrecio, openEdit, setDele
         <td className="px-2 py-3">
           <div className="flex items-center gap-0.5 justify-end opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
             <button
+              onClick={() => openEdit(item, 'entrada')}
+              className="h-7 px-2 rounded-lg flex items-center gap-1 text-[11px] font-semibold"
+              style={{ color: '#3FBF8A', border: '1px solid rgba(63,191,138,0.35)' }}
+              title="Cargar una entrada (compra) de este ítem"
+            >
+              <Plus size={12} /> Entrada
+            </button>
+            <button
               onClick={() => openEdit(item)}
               className="w-7 h-7 rounded-lg flex items-center justify-center"
               style={{ color: 'var(--text-xmuted)' }}
@@ -329,6 +337,7 @@ export default function StockPage() {
   const [search, setSearch] = useState('')
   const [modalEdit, setModalEdit] = useState(null)
   const [modoEdicion, setModoEdicion] = useState(false)
+  const [movimientoInicial, setMovimientoInicial] = useState(null) // 'entrada' | 'ajuste' | 'merma' | null
   const [defaultTipoStock, setDefaultTipoStock] = useState('materia_prima')
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
@@ -392,8 +401,9 @@ export default function StockPage() {
     filtered.filter(i => getTipoStock(i) === 'materia_prima'),
   [filtered])
 
-  const openEdit = (item) => {
+  const openEdit = (item, movimiento = null) => {
     setModalEdit(item)
+    setMovimientoInicial(movimiento)
     setDefaultTipoStock(getTipoStock(item))
     setModoEdicion(true)
   }
@@ -642,8 +652,9 @@ export default function StockPage() {
 
       <MovimientoModal
         open={modoEdicion}
-        onClose={() => { setModoEdicion(false); setModalEdit(null) }}
+        onClose={() => { setModoEdicion(false); setModalEdit(null); setMovimientoInicial(null) }}
         item={modalEdit}
+        movimientoInicial={movimientoInicial}
         recetas={recetas}
         defaultTipoStock={defaultTipoStock}
         onSaveItem={handleSaveItem}
