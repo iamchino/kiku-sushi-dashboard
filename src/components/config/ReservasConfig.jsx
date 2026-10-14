@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   CalendarClock, Save, Loader2, CheckCircle2, AlertTriangle,
-  Sun, Moon, Plus, X, UtensilsCrossed, Trash2, Truck,
+  Sun, Moon, Plus, X, UtensilsCrossed, Trash2, Truck, Timer,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
@@ -39,7 +39,7 @@ const ordenarSlots = (arr) =>
 export default function ReservasConfig() {
   const [loading, setLoading] = useState(true)
   const [dias, setDias] = useState([])          // [{dow, mediodia, noche, pedidos}]
-  const [cfg, setCfg] = useState({ mediodia_slots: [], noche_slots: [], orden_llegada_slots: [] })
+  const [cfg, setCfg] = useState({ mediodia_slots: [], noche_slots: [], orden_llegada_slots: [], anticipacion_min_minutos: 0, anticipacion_max_dias: 30 })
   // Menús ofrecidos al reservar mediodía: [{id, nombre, precio, detalle[], activo}]
   const [menus, setMenus] = useState([])
   const [saveState, setSaveState] = useState('idle')  // idle|saving|ok|error
@@ -69,6 +69,8 @@ export default function ReservasConfig() {
         mediodia_slots: c.data?.mediodia_slots || [],
         noche_slots: c.data?.noche_slots || [],
         orden_llegada_slots: c.data?.orden_llegada_slots || [],
+        anticipacion_min_minutos: Number(c.data?.anticipacion_min_minutos ?? 0),
+        anticipacion_max_dias: Number(c.data?.anticipacion_max_dias ?? 30),
       })
       setMenus(Array.isArray(c.data?.menus_mediodia)
         ? c.data.menus_mediodia.map(m => ({
@@ -142,6 +144,8 @@ export default function ReservasConfig() {
         mediodia_slots: ordenarSlots(cfg.mediodia_slots),
         noche_slots: ordenarSlots(cfg.noche_slots),
         orden_llegada_slots: ordenarSlots(cfg.orden_llegada_slots),
+        anticipacion_min_minutos: Math.max(0, Math.min(1440, Math.round(Number(cfg.anticipacion_min_minutos) || 0))),
+        anticipacion_max_dias: Math.max(1, Math.min(365, Math.round(Number(cfg.anticipacion_max_dias) || 30))),
         menus_mediodia: menusParaGuardar(),
         updated_at: new Date().toISOString(),
       })
@@ -251,6 +255,56 @@ export default function ReservasConfig() {
         placeholder="22:30"
         hint="Estos horarios se pueden reservar pero quedan como orden de llegada, sin mesa asignada."
       />
+
+      {/* Anticipación */}
+      <div className="rounded-xl p-4 space-y-3" style={card}>
+        <div className="flex items-center gap-2">
+          <Timer size={14} style={{ color: 'var(--accent)' }} />
+          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+            Con cuánta anticipación se puede reservar por la web
+          </p>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Mínimo antes del turno</label>
+            <div className="flex flex-wrap gap-1.5">
+              {[[0, 'Sin mínimo'], [30, '30 min'], [60, '1 h'], [120, '2 h'], [180, '3 h']].map(([m, label]) => (
+                <button key={m} type="button" onClick={() => setCfg(c => ({ ...c, anticipacion_min_minutos: m }))}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold"
+                  style={Number(cfg.anticipacion_min_minutos) === m
+                    ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
+                    : { background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                  {label}
+                </button>
+              ))}
+              <input type="number" min="0" max="1440" step="5"
+                value={cfg.anticipacion_min_minutos}
+                onChange={e => setCfg(c => ({ ...c, anticipacion_min_minutos: e.target.value === '' ? 0 : Number(e.target.value) }))}
+                className="w-20 px-2 py-1.5 rounded-lg text-xs outline-none"
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                title="Minutos" />
+              <span className="text-[11px] self-center" style={{ color: 'var(--text-xmuted)' }}>min</span>
+            </div>
+            <p className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>
+              {Number(cfg.anticipacion_min_minutos) === 0
+                ? 'Se puede reservar hasta el momento del turno: solo se rechaza un horario que ya pasó.'
+                : `Un horario que esté a menos de ${cfg.anticipacion_min_minutos} minutos no se ofrece en la web.`}
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Hasta cuántos días adelante</label>
+            <div className="flex items-center gap-2">
+              <input type="number" min="1" max="365"
+                value={cfg.anticipacion_max_dias}
+                onChange={e => setCfg(c => ({ ...c, anticipacion_max_dias: e.target.value === '' ? 30 : Number(e.target.value) }))}
+                className="w-24 px-3 py-2 rounded-lg text-sm outline-none"
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>días</span>
+            </div>
+            <p className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>La web muestra fechas hasta ese límite.</p>
+          </div>
+        </div>
+      </div>
 
       {/* Menús de mediodía */}
       <div className="rounded-xl p-4 space-y-3" style={card}>
