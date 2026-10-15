@@ -374,7 +374,7 @@ function ComboRow({ combo, onEdit, onDelete }) {
                           {receta?.nombre || 'Receta Desconocida'}
                         </td>
                         <td className="py-1.5 text-right tabular-nums" style={{ color: 'var(--text-secondary)' }}>
-                          {ci.cantidad}
+                          {parseFloat(ci.cantidad)}{parseFloat(ci.piezas_por_unidad) > 0 ? ` pzas (de ${parseFloat(ci.piezas_por_unidad)})` : ''}
                         </td>
                         <td className="py-1.5 text-right tabular-nums hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>
                           ${costoUnitario.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}

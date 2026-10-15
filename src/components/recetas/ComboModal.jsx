@@ -2,6 +2,11 @@ import { useState, useEffect, useMemo } from 'react'
 import { X, Loader2, Plus, Trash2, Package } from 'lucide-react'
 import { precioVentaDe } from '../../utils/precio'
 import Buscador from '../ui/Buscador'
+import { unidadesDeItem } from '../../hooks/useCombos'
+
+// Piezas por unidad sugeridas para una receta: si rinde más de 1, ya está
+// expresada por pieza; si es un roll entero, 10 piezas por defecto.
+const piezasSugeridas = (receta) => (parseFloat(receta?.porciones) > 1 ? 1 : 10)
 
 export default function ComboModal({
   open, onClose, combo, recetasDisponibles, menuItems, onSave,
@@ -27,6 +32,8 @@ export default function ComboModal({
         (combo.combo_items || []).map(ci => ({
           receta_id: ci.receta_id,
           cantidad: String(ci.cantidad || 1),
+          por_piezas: parseFloat(ci.piezas_por_unidad) > 0,
+          piezas_por_unidad: parseFloat(ci.piezas_por_unidad) > 0 ? String(ci.piezas_por_unidad) : '',
         }))
       )
     } else {
@@ -38,13 +45,19 @@ export default function ComboModal({
     }
   }, [open, combo])
 
+  // Lo que se guarda: piezas_por_unidad solo si la fila está en modo piezas.
+  const itemEfectivo = (item) => ({
+    ...item,
+    piezas_por_unidad: item.por_piezas ? item.piezas_por_unidad : null,
+  })
+
   // ── Cálculos en vivo ──────────────────────────────────────────────────────
   const costoTotal = useMemo(() => {
     return items.reduce((sum, item) => {
       const receta = recetasDisponibles.find(r => r.id === item.receta_id)
       if (!receta) return sum
       const costoPorcion = receta._costoPorcion || 0
-      return sum + costoPorcion * (parseInt(item.cantidad) || 0)
+      return sum + costoPorcion * unidadesDeItem(itemEfectivo(item))
     }, 0)
   }, [items, recetasDisponibles])
 
@@ -59,11 +72,25 @@ export default function ComboModal({
     ? ((precioVentaFinal - costoTotal) / precioVentaFinal) * 100
     : null
 
-  const totalPiezas = items.reduce((s, i) => s + (parseInt(i.cantidad) || 0), 0)
+  // Piezas del combo (lo que se muestra en el resumen): la cantidad de cada fila.
+  const totalPiezas = items.reduce((s, i) => s + (parseFloat(i.cantidad) || 0), 0)
 
   // ── Items CRUD ────────────────────────────────────────────────────────────
   const addItem = () => {
-    setItems(prev => [...prev, { receta_id: '', cantidad: '1' }])
+    setItems(prev => [...prev, { receta_id: '', cantidad: '1', por_piezas: false, piezas_por_unidad: '' }])
+  }
+
+  const togglePiezas = (idx) => {
+    setItems(prev => prev.map((item, i) => {
+      if (i !== idx) return item
+      const receta = recetasDisponibles.find(r => r.id === item.receta_id)
+      const activar = !item.por_piezas
+      return {
+        ...item,
+        por_piezas: activar,
+        piezas_por_unidad: activar ? (item.piezas_por_unidad || String(piezasSugeridas(receta))) : item.piezas_por_unidad,
+      }
+    }))
   }
 
   const updateItem = (idx, field, value) => {
@@ -82,8 +109,13 @@ export default function ComboModal({
     if (!nombre.trim()) { setError('Nombre del combo requerido.'); return }
     if (items.length === 0) { setError('Agregá al menos una receta al combo.'); return }
 
-    const valid = items.filter(i => i.receta_id && parseInt(i.cantidad) > 0)
+    const valid = items
+      .filter(i => i.receta_id && parseFloat(i.cantidad) > 0)
+      .map(itemEfectivo)
     if (valid.length === 0) { setError('Completá las recetas con cantidad válida.'); return }
+    if (valid.some(i => i.piezas_por_unidad !== null && !(parseFloat(i.piezas_por_unidad) > 0))) {
+      setError('En las filas por piezas, indicá cuántas piezas trae una unidad de la receta.'); return
+    }
 
     setSaving(true); setError(null)
 
@@ -205,13 +237,13 @@ export default function ComboModal({
             {items.map((item, idx) => {
               const receta = recetasDisponibles.find(r => r.id === item.receta_id)
               const costoPorcion = receta?._costoPorcion || 0
-              const costoLinea = costoPorcion * (parseInt(item.cantidad) || 0)
+              const costoLinea = costoPorcion * unidadesDeItem(itemEfectivo(item))
 
               return (
-                <div key={idx} className="flex items-center gap-2 p-2.5 rounded-lg"
+                <div key={idx} className="flex items-center gap-2 p-2.5 rounded-lg flex-wrap"
                   style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
-                  {/* Selector de receta */}
-                  <div className="flex-1 min-w-0">
+                  {/* Selector de receta: ocupa la primera línea entera; abajo cantidad, unidad y costo */}
+                  <div className="basis-full min-w-0">
                     <Buscador
                       compact
                       allowEmpty={false}
@@ -225,15 +257,36 @@ export default function ComboModal({
                   {/* Cantidad */}
                   <div className="flex items-center gap-1">
                     <span className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>×</span>
-                    <input type="number" min="1" value={item.cantidad}
+                    <input type="number" min="0.001" step="any" value={item.cantidad}
                       onChange={e => updateItem(idx, 'cantidad', e.target.value)}
                       className="w-14 px-2 py-1.5 rounded text-xs text-center outline-none"
                       style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                     />
+                    {/* Unidad de la cantidad: unidades de la receta o piezas */}
+                    <button type="button" onClick={() => togglePiezas(idx)}
+                      title={item.por_piezas ? 'Cantidad en piezas. Click para contar unidades enteras de la receta.' : 'Cantidad en unidades enteras de la receta. Click para contar piezas.'}
+                      className="px-2 py-1.5 rounded text-[11px] font-semibold whitespace-nowrap"
+                      style={item.por_piezas
+                        ? { background: 'rgba(249,115,22,0.12)', color: '#f97316', border: '1px solid rgba(249,115,22,0.35)' }
+                        : { background: 'var(--bg-card)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                      {item.por_piezas ? 'piezas' : 'unid.'}
+                    </button>
+                    {item.por_piezas && (
+                      <span className="flex items-center gap-1 text-[10px] whitespace-nowrap" style={{ color: 'var(--text-xmuted)' }}>
+                        de
+                        <input type="number" min="1" step="any" value={item.piezas_por_unidad}
+                          onChange={e => updateItem(idx, 'piezas_por_unidad', e.target.value)}
+                          title="Cuántas piezas trae una unidad de la receta"
+                          className="w-12 px-1.5 py-1.5 rounded text-xs text-center outline-none"
+                          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                        />
+                        por unidad
+                      </span>
+                    )}
                   </div>
 
                   {/* Costo parcial */}
-                  <span className="text-[11px] font-semibold w-16 text-right tabular-nums flex-shrink-0"
+                  <span className="text-[11px] font-semibold flex-1 text-right tabular-nums"
                     style={{ color: costoLinea > 0 ? '#f97316' : 'var(--text-xmuted)' }}>
                     {costoLinea > 0 ? `$${costoLinea.toLocaleString('es-AR', { maximumFractionDigits: 0 })}` : '—'}
                   </span>

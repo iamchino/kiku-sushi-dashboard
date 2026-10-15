@@ -9,6 +9,43 @@ import { precioVentaDe } from '../utils/precio'
  * Cada combo tiene items que referencian recetas existentes.
  * El costo se calcula: Σ(costo_porción_receta × cantidad)
  */
+// Unidades de receta que representa un ítem del combo: si tiene
+// piezas_por_unidad, la cantidad está en piezas (3 piezas de un roll de 10
+// = 0,3 rolls). Si no, la cantidad ya son unidades de la receta.
+export function unidadesDeItem(item) {
+  const cant = parseFloat(item?.cantidad) || 0
+  const ppu = parseFloat(item?.piezas_por_unidad)
+  return ppu > 0 ? cant / ppu : cant
+}
+
+const COLS_NUEVAS = ['piezas_por_unidad']
+const sinColumnaNueva = (err) =>
+  err && COLS_NUEVAS.find(c => new RegExp(`\\b${c}\\b`).test(err.message || ''))
+
+function filasItems(comboId, items) {
+  return items.map(item => {
+    const ppu = parseFloat(item.piezas_por_unidad)
+    return {
+      combo_id:  comboId,
+      receta_id: item.receta_id,
+      cantidad:  parseFloat(item.cantidad) || 1,
+      piezas_por_unidad: ppu > 0 ? ppu : null,
+    }
+  })
+}
+
+// Inserta los ítems; si la base no tiene la columna nueva (SQL 44 sin
+// correr), los guarda sin ella (cantidad en unidades, como antes).
+async function insertarItems(comboId, items) {
+  let rows = filasItems(comboId, items)
+  let { error } = await supabase.from('combo_items').insert(rows)
+  if (sinColumnaNueva(error)) {
+    rows = rows.map(r => { const resto = { ...r }; delete resto.piezas_por_unidad; return resto })
+    ;({ error } = await supabase.from('combo_items').insert(rows))
+  }
+  return error
+}
+
 export function useCombos(recetasConCostos = [], menuItems = []) {
   const [combos,  setCombos]  = useState([])
   const [loading, setLoading] = useState(true)
@@ -56,7 +93,7 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
       const comboItemsConCostos = (combo.combo_items || []).map(item => {
         const receta = item.recetas
         const costoPorcion = receta ? costoPorcionReceta(receta) : 0
-        const costoTotalLinea = costoPorcion * (item.cantidad || 1)
+        const costoTotalLinea = costoPorcion * unidadesDeItem(item)
         return { ...item, _costoUnitario: costoPorcion, _costoTotalLinea: costoTotalLinea }
       })
 
@@ -87,7 +124,7 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
       const resumen = (combo.combo_items || [])
         .map(item => {
           const nombre = item.recetas?.nombre || 'Desconocida'
-          return `${nombre} ×${item.cantidad}`
+          return `${nombre} ×${item.cantidad}${parseFloat(item.piezas_por_unidad) > 0 ? ' pzas' : ''}`
         })
         .join(', ')
 
@@ -99,7 +136,7 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
         _margen: margen,
         _menuItem: menuItem,
         _resumen: resumen,
-        _totalItems: (combo.combo_items || []).reduce((s, i) => s + (i.cantidad || 1), 0),
+        _totalItems: (combo.combo_items || []).reduce((s, i) => s + (parseFloat(i.cantidad) || 0), 0),
       }
     })
   }, [combos, menuItems, costoPorcionReceta])
@@ -122,12 +159,7 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
 
     // 2. Crear items
     if (items?.length) {
-      const rows = items.map(item => ({
-        combo_id:  combo.id,
-        receta_id: item.receta_id,
-        cantidad:  parseInt(item.cantidad) || 1,
-      }))
-      const { error: e2 } = await supabase.from('combo_items').insert(rows)
+      const e2 = await insertarItems(combo.id, items)
       if (e2) return e2
     }
 
@@ -159,12 +191,7 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
     if (e2) return e2
 
     if (items?.length) {
-      const rows = items.map(item => ({
-        combo_id:  id,
-        receta_id: item.receta_id,
-        cantidad:  parseInt(item.cantidad) || 1,
-      }))
-      const { error: e3 } = await supabase.from('combo_items').insert(rows)
+      const e3 = await insertarItems(id, items)
       if (e3) return e3
     }
 
