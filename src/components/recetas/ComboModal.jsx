@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { X, Loader2, Plus, Trash2, Package } from 'lucide-react'
 import { precioVentaDe } from '../../utils/precio'
+import Buscador from '../ui/Buscador'
 
 export default function ComboModal({
   open, onClose, combo, recetasDisponibles, menuItems, onSave,
@@ -153,16 +154,12 @@ export default function ComboModal({
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2 space-y-1.5">
               <label style={labelStyle}>Producto del menú (opcional)</label>
-              <select value={menuItemId} onChange={e => setMenuItemId(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
-                style={inputStyle}>
-                <option value="">— Sin vincular —</option>
-                {menuItems.map(mi => (
-                  <option key={mi.id} value={mi.id}>
-                    {mi.nombre} {mi.precio ? `(${mi.precio})` : ''}
-                  </option>
-                ))}
-              </select>
+              <Buscador
+                value={menuItemId}
+                onChange={setMenuItemId}
+                placeholder="Buscar producto del menú…"
+                opciones={menuItems.map(mi => ({ value: mi.id, label: mi.nombre, detalle: mi.precio || '' }))}
+              />
             </div>
             <div className="space-y-1.5">
               <label style={labelStyle}>Precio $</label>
@@ -214,16 +211,16 @@ export default function ComboModal({
                 <div key={idx} className="flex items-center gap-2 p-2.5 rounded-lg"
                   style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
                   {/* Selector de receta */}
-                  <select value={item.receta_id} onChange={e => updateItem(idx, 'receta_id', e.target.value)}
-                    className="flex-1 px-2 py-1.5 rounded text-xs outline-none min-w-0"
-                    style={{ background: 'transparent', color: 'var(--text-primary)', border: 'none' }}>
-                    <option value="">Seleccionar receta…</option>
-                    {recetasDisponibles.map(r => (
-                      <option key={r.id} value={r.id}>
-                        {r.nombre} (${r._costoPorcion?.toFixed(0) || '?'}/u)
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex-1 min-w-0">
+                    <Buscador
+                      compact
+                      allowEmpty={false}
+                      value={item.receta_id}
+                      placeholder="Buscar receta…"
+                      onChange={v => updateItem(idx, 'receta_id', v)}
+                      opciones={recetasDisponibles.map(r => ({ value: r.id, label: r.nombre, detalle: `$${r._costoPorcion?.toFixed(0) || '?'}/u` }))}
+                    />
+                  </div>
 
                   {/* Cantidad */}
                   <div className="flex items-center gap-1">

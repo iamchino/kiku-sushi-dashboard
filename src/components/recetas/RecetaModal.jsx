@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { X, Loader2, Plus, Trash2 } from 'lucide-react'
 import { TIPOS_RECETA, UNIDADES_RINDE, tipoReceta, normTipoStock, unidadRindeCorta } from '../../lib/stockNiveles'
 import { precioVentaDe } from '../../utils/precio'
+import Buscador from '../ui/Buscador'
 
 export default function RecetaModal({
   open, onClose, receta, mode = receta ? 'edit' : 'create', recetas = [], stockItems, menuItems, onSave, costoIngrediente,
@@ -228,16 +229,12 @@ export default function RecetaModal({
             {esFinal ? (
             <div className="col-span-2 space-y-1.5">
               <label style={labelStyle}>Producto del menú (opcional)</label>
-              <select value={menuItemId} onChange={e => setMenuItemId(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
-                style={inputStyle}>
-                <option value="">— Sin vincular —</option>
-                {menuItems.map(mi => (
-                  <option key={mi.id} value={mi.id}>
-                    {mi.nombre} {mi.precio ? `(${mi.precio})` : ''}
-                  </option>
-                ))}
-              </select>
+              <Buscador
+                value={menuItemId}
+                onChange={setMenuItemId}
+                placeholder="Buscar producto del menú…"
+                opciones={menuItems.map(mi => ({ value: mi.id, label: mi.nombre, detalle: mi.precio || '' }))}
+              />
             </div>
             ) : (
               <div className="col-span-2 text-[11px] self-end pb-2" style={{ color: 'var(--text-xmuted)' }}>
@@ -316,46 +313,41 @@ export default function RecetaModal({
                 <div key={idx} className="flex items-center gap-2 p-2 rounded-lg"
                   style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
                   {/* Selector de ingrediente */}
-                  <select value={valSelect} onChange={e => {
-                      const v = e.target.value
-                      if (!v) { updateIng(idx, 'id', ''); updateIng(idx, 'tipo', 'stock'); return }
-                      const [t, id] = v.split(':')
-                      updateIng(idx, 'id', id)
-                      updateIng(idx, 'tipo', t)
-                    }}
-                    className="flex-1 px-2 py-1.5 rounded text-xs outline-none min-w-0"
-                    style={{ background: 'transparent', color: 'var(--text-primary)', border: 'none' }}>
-                    <option value="">Seleccionar…</option>
-                    <optgroup label="Materia prima">
-                      {materiaPrimaItems.map(s => (
-                        <option key={`stock:${s.id}`} value={`stock:${s.id}`} disabled={usedIds.includes(`stock:${s.id}`) && valSelect !== `stock:${s.id}`}>
-                          {s.nombre} ({s.unidad})
-                        </option>
-                      ))}
-                    </optgroup>
-                    {produccionItems.length > 0 && (
-                      <optgroup label="Stock elaborado suelto">
-                        {produccionItems.map(s => (
-                          <option key={`stock:${s.id}`} value={`stock:${s.id}`} disabled={(usedIds.includes(`stock:${s.id}`) && valSelect !== `stock:${s.id}`) || s.receta_id === receta?.id}>
-                            {s.nombre} ({s.unidad})
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                    {[['Producción intermedia', recetasIntermedias], ['Rolls de servicio', recetasServicio]].map(([label, lista]) => lista.length > 0 && (
-                      <optgroup key={label} label={label}>
-                        {lista.map(r => (
-                          <option key={`subreceta:${r.id}`} value={`subreceta:${r.id}`} disabled={usedIds.includes(`subreceta:${r.id}`) && valSelect !== `subreceta:${r.id}`}>
-                            {r.nombre} ({tipoReceta(r) === 'servicio' ? 'rolls' : `rinde ${r.porciones} ${unidadRindeCorta(r)}`})
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                    {/* Una subreceta vieja que quedó como "final" pero ya estaba cargada */}
-                    {isSub && ing.id && !recetasIntermedias.some(r => r.id === ing.id) && !recetasServicio.some(r => r.id === ing.id) && (
-                      <option value={`subreceta:${ing.id}`}>{recetas.find(r => r.id === ing.id)?.nombre || 'Receta'}</option>
-                    )}
-                  </select>
+                  <div className="flex-1 min-w-0">
+                    <Buscador
+                      compact
+                      allowEmpty={false}
+                      value={valSelect}
+                      placeholder="Buscar ingrediente…"
+                      onChange={v => {
+                        if (!v) { updateIng(idx, 'id', ''); updateIng(idx, 'tipo', 'stock'); return }
+                        const [t, id] = v.split(':')
+                        updateIng(idx, 'id', id)
+                        updateIng(idx, 'tipo', t)
+                      }}
+                      grupos={[
+                        { label: 'Materia prima', opciones: materiaPrimaItems.map(s => ({
+                          value: `stock:${s.id}`, label: s.nombre, detalle: s.unidad,
+                          disabled: usedIds.includes(`stock:${s.id}`) && valSelect !== `stock:${s.id}`,
+                        })) },
+                        { label: 'Stock elaborado suelto', opciones: produccionItems.map(s => ({
+                          value: `stock:${s.id}`, label: s.nombre, detalle: s.unidad,
+                          disabled: (usedIds.includes(`stock:${s.id}`) && valSelect !== `stock:${s.id}`) || s.receta_id === receta?.id,
+                        })) },
+                        ...[['Producción intermedia', recetasIntermedias], ['Rolls de servicio', recetasServicio]].map(([label, lista]) => ({
+                          label, opciones: lista.map(r => ({
+                            value: `subreceta:${r.id}`, label: r.nombre,
+                            detalle: tipoReceta(r) === 'servicio' ? 'rolls' : `rinde ${r.porciones} ${unidadRindeCorta(r)}`,
+                            disabled: usedIds.includes(`subreceta:${r.id}`) && valSelect !== `subreceta:${r.id}`,
+                          })),
+                        })),
+                        // Una subreceta vieja que quedó como "final" pero ya estaba cargada
+                        { label: 'Otras', opciones: isSub && ing.id && !recetasIntermedias.some(r => r.id === ing.id) && !recetasServicio.some(r => r.id === ing.id)
+                          ? [{ value: `subreceta:${ing.id}`, label: recetas.find(r => r.id === ing.id)?.nombre || 'Receta' }]
+                          : [] },
+                      ]}
+                    />
+                  </div>
 
                   {/* Cantidad */}
                   <input type="number" step="0.001" min="0" value={ing.cantidad}
