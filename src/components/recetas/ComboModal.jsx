@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { X, Loader2, Plus, Trash2, Package } from 'lucide-react'
+import { precioVentaDe } from '../../utils/precio'
 
 export default function ComboModal({
   open, onClose, combo, recetasDisponibles, menuItems, onSave,
@@ -47,9 +48,7 @@ export default function ComboModal({
   }, [items, recetasDisponibles])
 
   const menuItem = menuItems.find(m => m.id === menuItemId)
-  const precioMenuVinculado = menuItem
-    ? parseFloat(String(menuItem.precio).replace(/[^0-9.,]/g, '').replace(',', '.'))
-    : null
+  const precioMenuVinculado = precioVentaDe(menuItem)
 
   const precioVentaFinal = parseFloat(precio) > 0
     ? parseFloat(precio)

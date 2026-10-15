@@ -24,6 +24,31 @@ export const TIPOS_RECETA = [
     ayuda: 'Rolls que se arman para el servicio. Rinde en rolls (1 = un roll entero).' },
 ]
 
+// En qué se cuenta lo que rinde una receta (y su stock, si lleva).
+// Los rolls de servicio van siempre en 'roll'.
+export const UNIDADES_RINDE = [
+  { id: 'porc', label: 'Porciones',  corto: 'porc.', plural: 'porciones',  singular: 'porción' },
+  { id: 'u',    label: 'Unidades',   corto: 'u.',    plural: 'unidades',   singular: 'unidad' },
+  { id: 'kg',   label: 'Kilos',      corto: 'kg',    plural: 'kilos',      singular: 'kilo' },
+  { id: 'g',    label: 'Gramos',     corto: 'g',     plural: 'gramos',     singular: 'gramo' },
+  { id: 'l',    label: 'Litros',     corto: 'l',     plural: 'litros',     singular: 'litro' },
+  { id: 'ml',   label: 'Mililitros', corto: 'ml',    plural: 'mililitros', singular: 'mililitro' },
+]
+
+export const unidadRinde = (r) => {
+  if (tipoReceta(r) === 'servicio') return 'roll'
+  return UNIDADES_RINDE.some(u => u.id === r?.unidad_rinde) ? r.unidad_rinde : 'porc'
+}
+
+// Etiqueta corta de la unidad del rinde: 'porc.', 'kg', 'roll'…
+export const unidadRindeCorta = (r) => {
+  const u = unidadRinde(r)
+  return u === 'roll' ? 'roll' : (UNIDADES_RINDE.find(x => x.id === u)?.corto || u)
+}
+
+// Producto de reventa: se vende tal cual se compra (bebidas). Receta final 1:1.
+export const esReventa = (r) => tipoReceta(r) === 'final' && !!r?.reventa
+
 export const normTipoStock = (item) =>
   item?.tipo_stock === 'produccion' || item?.tipo_stock === 'servicio'
     ? item.tipo_stock

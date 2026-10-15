@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { normTipoStock, esElaborado } from '../lib/stockNiveles'
+import { precioVentaDe } from '../utils/precio'
 
 export function costoStockUnitario(stock, allRecetas = [], visited = new Set()) {
   if (esElaborado(stock) && stock.receta_id && !visited.has(stock.receta_id)) {
@@ -45,9 +46,8 @@ export function costoRecetaTotal(receta, allRecetas = [], visited = new Set()) {
 }
 
 function parsePrecioVenta(menuItem) {
-  if (!menuItem?.precio) return null
-  const num = parseFloat(String(menuItem.precio).replace(/[^0-9.,]/g, '').replace(',', '.'))
-  return isNaN(num) ? null : num
+  // "$12.500" NO es 12.5: parser AR (precio_num si existe).
+  return precioVentaDe(menuItem)
 }
 
 export function useRecetas() {
@@ -72,7 +72,7 @@ export function useRecetas() {
         .order('nombre'),
       supabase
         .from('menu_items')
-        .select('id, nombre, precio, tipo, categoria, menu_item_variantes(*)')
+        .select('id, nombre, precio, precio_num, tipo, categoria, menu_item_variantes(*)')
         .order('nombre'),
     ])
 
@@ -167,20 +167,32 @@ export function useRecetas() {
     return 0
   }, [recetas, recetasConCostos])
 
-  const createReceta = async ({ nombre, menu_item_id, porciones, notas, tipo = 'final', lleva_stock = false, ingredientes }) => {
-    const { data: receta, error: e1 } = await supabase
-      .from('recetas')
-      .insert({
-        nombre,
-        menu_item_id: menu_item_id || null,
-        porciones: porciones || 1,
-        notas: notas || null,
-        // es_subreceta la mantiene la base como espejo de tipo (trigger).
-        tipo,
-        lleva_stock: tipo !== 'final' ? true : !!lleva_stock,
-      })
-      .select()
-      .single()
+  // Columnas nuevas (SQL 43: unidad_rinde, reventa). Si la base todavía no las
+  // tiene, se guarda sin ellas en vez de fallar.
+  const COLS_NUEVAS = ['unidad_rinde', 'reventa']
+  const sinColumnaNueva = (err) =>
+    err && COLS_NUEVAS.find(c => new RegExp(`\\b${c}\\b`).test(err.message || ''))
+
+  const filaReceta = ({ nombre, menu_item_id, porciones, notas, tipo = 'final', lleva_stock = false, unidad_rinde, reventa }) => ({
+    nombre,
+    menu_item_id: menu_item_id || null,
+    porciones: porciones || 1,
+    notas: notas || null,
+    // es_subreceta la mantiene la base como espejo de tipo (trigger).
+    tipo,
+    lleva_stock: tipo !== 'final' ? true : (!!lleva_stock && !reventa),
+    unidad_rinde: unidad_rinde || 'porc',
+    reventa: tipo === 'final' && !!reventa,
+  })
+
+  const createReceta = async (data) => {
+    const { ingredientes } = data
+    let fila = filaReceta(data)
+    let { data: receta, error: e1 } = await supabase.from('recetas').insert(fila).select().single()
+    if (sinColumnaNueva(e1)) {
+      for (const c of COLS_NUEVAS) delete fila[c]
+      ;({ data: receta, error: e1 } = await supabase.from('recetas').insert(fila).select().single())
+    }
 
     if (e1) return e1
 
@@ -199,20 +211,14 @@ export function useRecetas() {
     return null
   }
 
-  const updateReceta = async (id, { nombre, menu_item_id, porciones, notas, tipo = 'final', lleva_stock = false, ingredientes }) => {
-    const { error: e1 } = await supabase
-      .from('recetas')
-      .update({
-        nombre,
-        menu_item_id: menu_item_id || null,
-        porciones: porciones || 1,
-        notas: notas || null,
-        // es_subreceta la mantiene la base como espejo de tipo (trigger).
-        tipo,
-        lleva_stock: tipo !== 'final' ? true : !!lleva_stock,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
+  const updateReceta = async (id, data) => {
+    const { ingredientes } = data
+    let fila = { ...filaReceta(data), updated_at: new Date().toISOString() }
+    let { error: e1 } = await supabase.from('recetas').update(fila).eq('id', id)
+    if (sinColumnaNueva(e1)) {
+      for (const c of COLS_NUEVAS) delete fila[c]
+      ;({ error: e1 } = await supabase.from('recetas').update(fila).eq('id', id))
+    }
 
     if (e1) return e1
 

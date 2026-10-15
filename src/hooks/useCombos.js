@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { costoStockUnitario } from './useRecetas'
+import { precioVentaDe } from '../utils/precio'
 
 /**
  * Hook para gestionar combos (agrupación de recetas con cantidades).
@@ -45,7 +46,7 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
     if (recetaConCostos?._costoPorcion !== undefined) return recetaConCostos._costoPorcion
 
     const total = costoReceta(receta)
-    const porciones = parseInt(receta?.porciones) || 1
+    const porciones = parseFloat(receta?.porciones) || 1
     return total / porciones
   }, [costoReceta, recetasConCostos])
 
@@ -73,9 +74,8 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
       let precioVenta = null
       if (combo.precio && parseFloat(combo.precio) > 0) {
         precioVenta = parseFloat(combo.precio)
-      } else if (menuItem?.precio) {
-        const num = parseFloat(String(menuItem.precio).replace(/[^0-9.,]/g, '').replace(',', '.'))
-        precioVenta = isNaN(num) ? null : num
+      } else if (menuItem) {
+        precioVenta = precioVentaDe(menuItem)
       }
 
       // Margen

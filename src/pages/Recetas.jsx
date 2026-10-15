@@ -1,14 +1,14 @@
 import { useState, useMemo } from 'react'
 import {
   Plus, RefreshCw, BookOpen, Search, Edit2, Trash2, Copy,
-  AlertTriangle, ChevronDown, ChevronUp, Package, ChefHat
+  AlertTriangle, ChevronDown, ChevronUp, Package, ChefHat, Wine
 } from 'lucide-react'
 import { useRecetas } from '../hooks/useRecetas'
 import { normalizeSearch } from '../utils/normalize'
 import { useCombos } from '../hooks/useCombos'
 import RecetaModal from '../components/recetas/RecetaModal'
 import ComboModal from '../components/recetas/ComboModal'
-import { tipoReceta, stockDeReceta, TIPOS_RECETA } from '../lib/stockNiveles'
+import { tipoReceta, stockDeReceta, esReventa, unidadRindeCorta, TIPOS_RECETA } from '../lib/stockNiveles'
 
 // ── Badge de margen ─────────────────────────────────────────────────────────
 function MargenBadge({ margen }) {
@@ -63,10 +63,10 @@ function RecetaRow({ receta, recetas, stockItem, esFinal, onEdit, onDuplicate, o
               Lleva stock
             </span>
           )}
-          {receta.porciones > 1 && (
+          {parseFloat(receta.porciones) !== 1 && !esReventa(receta) && (
             <span className="text-[10px] ml-2 px-1.5 py-0.5 rounded"
               style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
-              rendimiento: {receta.porciones}
+              rinde {parseFloat(receta.porciones).toLocaleString('es-AR', { maximumFractionDigits: 3 })} {esFinal ? '' : unidadRindeCorta(receta)}
             </span>
           )}
         </td>
@@ -198,8 +198,8 @@ function RecetaRow({ receta, recetas, stockItem, esFinal, onEdit, onDuplicate, o
                       const sub = recetas.find(r => r.id === ri.subreceta_id)
                       if (sub) {
                         nombre = `[Sub-receta] ${sub.nombre}`
-                        unidad = 'porc.'
-                        infoPrecio = `$${sub._costoPorcion.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}/porc`
+                        unidad = unidadRindeCorta(sub)
+                        infoPrecio = `$${sub._costoPorcion.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}/${unidad}`
                         costo = cant * sub._costoPorcion
                       }
                     }
@@ -364,7 +364,7 @@ function ComboRow({ combo, onEdit, onDelete }) {
                       const r = ri.stock ? (parseFloat(ri.stock.rendimiento) || 1) : 1
                       const c = parseFloat(ri.cantidad) || 0
                       return sum + c * (p / (r > 0 ? r : 1))
-                    }, 0) / (parseInt(receta?.porciones) || 1)) || 0);
+                    }, 0) / (parseFloat(receta?.porciones) || 1)) || 0);
 
                     const costoTotalLinea = ci._costoTotalLinea ?? (costoUnitario * ci.cantidad)
 
@@ -407,8 +407,12 @@ function ComboRow({ combo, onEdit, onDelete }) {
 
 // ── Página principal ─────────────────────────────────────────────────────────
 export default function RecetasPage() {
-  const [activeTab,    setActiveTab]    = useState('final') // 'final' | 'intermedia' | 'servicio' | 'combos'
+  const [activeTab,    setActiveTab]    = useState('final') // 'final' | 'intermedia' | 'servicio' | 'reventa' | 'combos'
   const esRecetas = activeTab !== 'combos'
+  // Pestaña de la receta: las de reventa (bebidas 1:1) van aparte de los platos.
+  const tabDeReceta = (r) => esReventa(r) ? 'reventa' : tipoReceta(r)
+  const tipoDelTab = activeTab === 'reventa' ? 'final' : activeTab
+  const esTabFinal = tipoDelTab === 'final'
   const [search,       setSearch]       = useState('')
   const [modalOpen,    setModalOpen]    = useState(false)
   const [editItem,     setEditItem]     = useState(null)
@@ -442,10 +446,10 @@ export default function RecetasPage() {
 
   // Buscar
   const recetasDelTab = useMemo(
-    () => recetas.filter(r => tipoReceta(r) === activeTab),
+    () => recetas.filter(r => tabDeReceta(r) === activeTab),
     [recetas, activeTab],
   )
-  const contarTipo = (t) => recetas.filter(r => tipoReceta(r) === t).length
+  const contarTipo = (t) => recetas.filter(r => tabDeReceta(r) === t).length
 
   const filteredRecetas = useMemo(() => {
     if (!search.trim()) return recetasDelTab
@@ -526,7 +530,7 @@ export default function RecetasPage() {
             Fichas Técnicas
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            Productos finales, producción intermedia, rolls de servicio y combos
+            Productos finales, producción intermedia, rolls de servicio, bebidas de reventa y combos
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -562,6 +566,7 @@ export default function RecetasPage() {
       <div className="flex gap-4 border-b overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
         {[
           ...TIPOS_RECETA.map(t => ({ id: t.id, label: t.label, icon: ChefHat, color: 'var(--accent)', count: contarTipo(t.id) })),
+          { id: 'reventa', label: 'Bebidas y reventa', icon: Wine, color: '#0ea5e9', count: contarTipo('reventa') },
           { id: 'combos', label: 'Combos', icon: Package, color: '#f97316', count: combos.length },
         ].map(t => {
           const active = activeTab === t.id
@@ -636,7 +641,7 @@ export default function RecetasPage() {
               <div className="flex flex-col items-center justify-center py-20 gap-3 border rounded-xl" style={{ borderColor: 'var(--border)' }}>
                 <BookOpen size={36} style={{ color: 'var(--text-xmuted)' }} />
                 <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                  {search ? `Sin resultados para "${search}"` : 'No hay recetas todavía'}
+                  {search ? `Sin resultados para "${search}"` : activeTab === 'reventa' ? 'No hay bebidas ni artículos de reventa todavía' : 'No hay recetas todavía'}
                 </p>
                 {!search && (
                   <button onClick={openNew} className="text-xs" style={{ color: 'var(--accent-lift)' }}>
@@ -665,7 +670,7 @@ export default function RecetasPage() {
                       <tr style={{ borderBottom: '1px solid var(--border)' }}>
                         <th className="w-10" />
                         {esRecetas ? (
-                          ['Receta', activeTab === 'final' ? 'Producto' : 'Stock', 'Ing.', 'Costo', 'Venta', 'Margen', ''].map((h, i) => (
+                          [activeTab === 'reventa' ? 'Bebida / artículo' : 'Receta', esTabFinal ? 'Producto' : 'Stock', 'Ing.', 'Costo', 'Venta', 'Margen', ''].map((h, i) => (
                             <th
                               key={i}
                               className={`px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-left whitespace-nowrap
@@ -704,8 +709,8 @@ export default function RecetasPage() {
                             key={r.id}
                             receta={r}
                             recetas={recetas}
-                            esFinal={activeTab === 'final'}
-                            stockItem={activeTab === 'final' ? null : stockDeReceta(r.id, recetas, stockItems)}
+                            esFinal={esTabFinal}
+                            stockItem={esTabFinal ? null : stockDeReceta(r.id, recetas, stockItems)}
                             onEdit={openEdit}
                             onDuplicate={openDuplicate}
                             onDelete={handleDeleteTarget}
@@ -737,7 +742,8 @@ export default function RecetasPage() {
           menuItems={menuItems}
           onSave={handleSaveReceta}
           costoIngrediente={costoIngrediente}
-          defaultTipo={activeTab}
+          defaultTipo={tipoDelTab}
+          defaultReventa={activeTab === 'reventa'}
         />
       )}
 

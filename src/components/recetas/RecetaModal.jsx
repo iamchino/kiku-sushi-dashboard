@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { X, Loader2, Plus, Trash2 } from 'lucide-react'
-import { TIPOS_RECETA, tipoReceta, normTipoStock } from '../../lib/stockNiveles'
+import { TIPOS_RECETA, UNIDADES_RINDE, tipoReceta, normTipoStock, unidadRindeCorta } from '../../lib/stockNiveles'
+import { precioVentaDe } from '../../utils/precio'
 
 export default function RecetaModal({
   open, onClose, receta, mode = receta ? 'edit' : 'create', recetas = [], stockItems, menuItems, onSave, costoIngrediente,
-  defaultTipo = 'final',
+  defaultTipo = 'final', defaultReventa = false,
 }) {
   const isDuplicate = mode === 'duplicate'
   const [nombre,      setNombre]      = useState('')
@@ -13,6 +14,8 @@ export default function RecetaModal({
   const [notas,       setNotas]       = useState('')
   const [tipo,        setTipo]        = useState('final')
   const [llevaStock,  setLlevaStock]  = useState(false)
+  const [unidadRinde, setUnidadRinde] = useState('porc')
+  const [reventa,     setReventa]     = useState(false)
   const [ingredientes, setIngredientes] = useState([]) // [{id, tipo: 'stock'|'subreceta', cantidad}]
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState(null)
@@ -28,6 +31,8 @@ export default function RecetaModal({
       setNotas(receta.notas || '')
       setTipo(tipoReceta(receta))
       setLlevaStock(!!receta.lleva_stock)
+      setUnidadRinde(UNIDADES_RINDE.some(u => u.id === receta.unidad_rinde) ? receta.unidad_rinde : 'porc')
+      setReventa(!!receta.reventa)
       setIngredientes(
         (receta.receta_ingredientes || []).map(ri => {
           if (ri.subreceta_id) return { id: ri.subreceta_id, tipo: 'subreceta', cantidad: String(ri.cantidad) }
@@ -41,9 +46,11 @@ export default function RecetaModal({
       setNotas('')
       setTipo(defaultTipo)
       setLlevaStock(false)
+      setUnidadRinde('porc')
+      setReventa(!!defaultReventa)
       setIngredientes([])
     }
-  }, [open, receta, isDuplicate, defaultTipo])
+  }, [open, receta, isDuplicate, defaultTipo, defaultReventa])
 
   // ── Cálculos en vivo ──────────────────────────────────────────────────────
   const costoTotal = useMemo(() => {
@@ -61,7 +68,8 @@ export default function RecetaModal({
     }, 0)
   }, [ingredientes, stockItems, costoIngrediente])
 
-  const costoPorPorcion = costoTotal / (parseInt(porciones) || 1)
+  const rinde = parseFloat(porciones) || 1
+  const costoPorPorcion = costoTotal / rinde
   const materiaPrimaItems = stockItems.filter(s => normTipoStock(s) === 'materia_prima')
   // Los ítems elaborados que son "la cara de stock" de una receta se eligen por
   // la receta (grupo Producción intermedia / Rolls de servicio). Acá quedan solo
@@ -72,11 +80,15 @@ export default function RecetaModal({
   const recetasIntermedias = recetas.filter(r => tipoReceta(r) === 'intermedia' && r.id !== receta?.id)
   const recetasServicio = recetas.filter(r => tipoReceta(r) === 'servicio' && r.id !== receta?.id)
   const esFinal = tipo === 'final'
+  const esReventa = esFinal && reventa
+  const esServicio = tipo === 'servicio'
+  // Unidad en que se cuenta el rinde (los rolls de servicio van en rolls).
+  const unidadInfo = UNIDADES_RINDE.find(u => u.id === unidadRinde) || UNIDADES_RINDE[0]
+  const unidadLabel = esServicio ? 'rolls' : unidadInfo.plural
+  const unidadSingular = esServicio ? 'roll' : unidadInfo.singular
 
   const menuItem = menuItems.find(m => m.id === menuItemId)
-  const precioVenta = menuItem
-    ? parseFloat(String(menuItem.precio).replace(/[^0-9.,]/g, '').replace(',', '.'))
-    : null
+  const precioVenta = precioVentaDe(menuItem)
   const margen = precioVenta && precioVenta > 0
     ? ((precioVenta - costoPorPorcion) / precioVenta) * 100
     : null
@@ -110,10 +122,12 @@ export default function RecetaModal({
     const err = await onSave(isDuplicate ? null : receta?.id, {
       nombre: nombre.trim(),
       menu_item_id: esFinal ? (menuItemId || null) : null,
-      porciones: parseInt(porciones) || 1,
+      porciones: rinde,
+      unidad_rinde: esServicio ? 'porc' : unidadRinde,
+      reventa: esReventa,
       notas: notas.trim() || null,
       tipo,
-      lleva_stock: esFinal ? llevaStock : true,
+      lleva_stock: esFinal ? (esReventa ? false : llevaStock) : true,
       ingredientes: valid,
     })
 
@@ -189,6 +203,16 @@ export default function RecetaModal({
             </p>
             {esFinal && (
               <label className="flex items-start gap-2 cursor-pointer pt-1">
+                <input type="checkbox" checked={reventa} onChange={e => { setReventa(e.target.checked); if (e.target.checked) setLlevaStock(false) }}
+                  className="w-4 h-4 rounded mt-0.5" style={{ accentColor: 'var(--accent)' }} />
+                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  Reventa: se vende tal cual se compra (bebidas, etc.). Un solo ingrediente del
+                  inventario y se lista aparte, en "Bebidas y reventa".
+                </span>
+              </label>
+            )}
+            {esFinal && !reventa && (
+              <label className="flex items-start gap-2 cursor-pointer pt-1">
                 <input type="checkbox" checked={llevaStock} onChange={e => setLlevaStock(e.target.checked)}
                   className="w-4 h-4 rounded mt-0.5" style={{ accentColor: 'var(--accent)' }} />
                 <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -217,19 +241,43 @@ export default function RecetaModal({
             </div>
             ) : (
               <div className="col-span-2 text-[11px] self-end pb-2" style={{ color: 'var(--text-xmuted)' }}>
-                {tipo === 'servicio'
+                {esServicio
                   ? 'Rinde en rolls: 1 = un roll entero. En el producto final, un roll de 10 piezas lleva "1" de este roll y rinde 10.'
-                  : 'El stock de esta receta se cuenta en porciones de lo que rinde.'}
+                  : `Lo que rinde esta receta con los ingredientes de abajo. Su stock se cuenta en ${unidadLabel}: al producirla se suman y al usarla se descuentan.`}
               </div>
             )}
             <div className="space-y-1.5">
-              <label style={labelStyle}>{tipo === 'servicio' ? 'Rinde (rolls)' : esFinal ? 'Rinde (porciones / piezas)' : 'Rinde (porciones)'}</label>
-              <input type="number" min="1" value={porciones}
+              <label style={labelStyle}>{esServicio ? 'Rinde (rolls)' : esFinal ? 'Rinde (porciones / piezas)' : 'Rinde'}</label>
+              <input type="number" min="0.001" step="any" value={porciones}
                 onChange={e => setPorciones(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
                 style={inputStyle} />
             </div>
           </div>
+
+          {/* Unidad del rinde: en qué se cuenta (porciones, kilos, litros…) */}
+          {!esServicio && !esReventa && (esFinal ? llevaStock : true) && (
+            <div className="space-y-1.5">
+              <label style={labelStyle}>Se cuenta en</label>
+              <div className="flex flex-wrap gap-1.5">
+                {UNIDADES_RINDE.map(u => {
+                  const active = unidadRinde === u.id
+                  return (
+                    <button key={u.id} type="button" onClick={() => setUnidadRinde(u.id)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                      style={active
+                        ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
+                        : { background: 'var(--bg-input)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                      {u.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-[11px]" style={{ color: 'var(--text-xmuted)' }}>
+                Ej.: una salsa que rinde 2,5 litros → Rinde 2,5 y "Litros". Inventario y Producción usan la misma unidad.
+              </p>
+            </div>
+          )}
 
           {/* ═══════ INGREDIENTES (BOM) ═══════ */}
           <div className="space-y-2">
@@ -298,7 +346,7 @@ export default function RecetaModal({
                       <optgroup key={label} label={label}>
                         {lista.map(r => (
                           <option key={`subreceta:${r.id}`} value={`subreceta:${r.id}`} disabled={usedIds.includes(`subreceta:${r.id}`) && valSelect !== `subreceta:${r.id}`}>
-                            {r.nombre} ({tipoReceta(r) === 'servicio' ? 'rolls' : `rinde ${r.porciones}`})
+                            {r.nombre} ({tipoReceta(r) === 'servicio' ? 'rolls' : `rinde ${r.porciones} ${unidadRindeCorta(r)}`})
                           </option>
                         ))}
                       </optgroup>
@@ -317,7 +365,7 @@ export default function RecetaModal({
                     style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   />
                   <span className="text-[10px] w-6 flex-shrink-0" style={{ color: 'var(--text-xmuted)' }}>
-                    {isSub ? (tipoReceta(recetas.find(r => r.id === ing.id)) === 'servicio' ? 'roll' : 'porc.') : (stock?.unidad || '')}
+                    {isSub ? unidadRindeCorta(recetas.find(r => r.id === ing.id)) : (stock?.unidad || '')}
                   </span>
 
                   {/* Costo parcial */}
@@ -353,9 +401,9 @@ export default function RecetaModal({
                     ${costoTotal.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                   </span>
                 </div>
-                {parseInt(porciones) > 1 && (
+                {rinde !== 1 && (
                   <div className="flex items-center justify-between text-xs">
-                    <span style={{ color: 'var(--text-muted)' }}>Costo por porción ({porciones})</span>
+                    <span style={{ color: 'var(--text-muted)' }}>Costo por {esFinal ? 'porción' : unidadSingular} (rinde {porciones})</span>
                     <span className="font-bold tabular-nums" style={{ color: 'var(--accent-lift)' }}>
                       ${costoPorPorcion.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </span>
