@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Wallet, Plus, AlertTriangle, Link2, Clock, CheckCircle2, Pencil, Trash2, History } from 'lucide-react'
+import { Wallet, Plus, AlertTriangle, Link2, Clock, CheckCircle2, Pencil, Trash2, History, Search, X } from 'lucide-react'
 import { usePagos } from '../../hooks/usePagos'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 import HistorialPago from '../pagos/HistorialPago'
 import ConfirmDelete from '../finanzas/ConfirmDelete'
 import { CATEGORIAS, fmtMoney, fmtFecha, catLabel, catColor, medioLabel, localDateISO } from '../../lib/finanzas'
+import { normalizeSearch } from '../../utils/normalize'
 
 // Pagos centralizados: TODOS los egresos del negocio se registran acá, con la
 // caja abierta o cerrada. Un pago es un egreso — Finanzas lo ve al instante.
@@ -38,13 +39,28 @@ export default function PagosPanel() {
   const [hastaCustom, setHastaCustom] = useState('')
   const [categoria, setCategoria] = useState('todas')
   const [estado, setEstado] = useState('todos')
+  const [busqueda, setBusqueda] = useState('')
 
   const { desde, hasta } = useMemo(
     () => calcularRango(rango, desdeCustom, hastaCustom),
     [rango, desdeCustom, hastaCustom],
   )
 
-  const { pagos, turnoAbierto, loading, error, recargar, anularPago } = usePagos({ desde, hasta, categoria, estado })
+  const { pagos: pagosDelFiltro, turnoAbierto, loading, error, recargar, anularPago } = usePagos({ desde, hasta, categoria, estado })
+
+  // Lupa: busca por descripción, proveedor, empleado, categoría, medio, notas
+  // o monto. Sin acentos y por palabras ("carn efec" → carnicería en efectivo).
+  const pagos = useMemo(() => {
+    const palabras = normalizeSearch(busqueda).split(/\s+/).filter(Boolean)
+    if (palabras.length === 0) return pagosDelFiltro
+    return pagosDelFiltro.filter(p => {
+      const texto = normalizeSearch([
+        p.descripcion, p.proveedor?.razon_social, p.empleado?.nombre, p.empleado?.apellido,
+        catLabel(p.categoria), medioLabel(p.medio_pago), p.notas, String(p.monto ?? ''), fmtMoney(p.monto || 0),
+      ].filter(Boolean).join(' '))
+      return palabras.every(w => texto.includes(w))
+    })
+  }, [pagosDelFiltro, busqueda])
   const [modal, setModal] = useState(false)      // false | true (alta) | fila (edición)
   const [aviso, setAviso] = useState(null)
   const [anulando, setAnulando] = useState(null)
@@ -112,6 +128,23 @@ export default function PagosPanel() {
           <option value="pagado">Solo pagados</option>
           <option value="pendiente">Solo pendientes</option>
         </select>
+        <div className="relative flex-1 min-w-[200px] max-w-xs">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-xmuted)' }} />
+          <input
+            value={busqueda} onChange={e => setBusqueda(e.target.value)}
+            placeholder="Buscar pago (nombre, proveedor, monto…)"
+            aria-label="Buscar pago"
+            className="w-full rounded-lg pl-8 pr-8 py-2 text-xs outline-none"
+            style={{ ...selectStyle, color: 'var(--text-primary)' }}
+          />
+          {busqueda && (
+            <button type="button" onClick={() => setBusqueda('')} aria-label="Limpiar búsqueda"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded flex items-center justify-center"
+              style={{ color: 'var(--text-xmuted)' }}>
+              <X size={12} />
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -132,13 +165,13 @@ export default function PagosPanel() {
         <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="skeleton h-12 rounded-xl" />)}</div>
       ) : pagos.length === 0 ? (
         <p className="text-xs py-2" style={{ color: 'var(--text-xmuted)' }}>
-          No hay pagos con estos filtros.
+          {busqueda ? `Ningún pago coincide con "${busqueda}" en este período.` : 'No hay pagos con estos filtros.'}
         </p>
       ) : (
         <>
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-              {pagos.length} pago{pagos.length !== 1 ? 's' : ''}
+              {pagos.length} pago{pagos.length !== 1 ? 's' : ''}{busqueda && pagos.length !== pagosDelFiltro.length ? ` de ${pagosDelFiltro.length}` : ''}
             </span>
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
               Total pagado: <strong style={{ color: 'var(--text-primary)' }}>{fmtMoney(total)}</strong>
