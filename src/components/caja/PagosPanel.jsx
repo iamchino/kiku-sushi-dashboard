@@ -208,6 +208,11 @@ export default function PagosPanel() {
                         <Link2 size={10} /> caja fuerte
                       </span>
                     )}
+                    {p.pagado_desde === 'banco' && (
+                      <span className="flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                        <Link2 size={10} /> {p.cuenta?.nombre || 'cuenta del negocio'}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">

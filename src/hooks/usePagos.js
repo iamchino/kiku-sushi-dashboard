@@ -33,7 +33,11 @@ export function usePagos(opciones = {}) {
   const [empleados, setEmpleados] = useState([])
   const [turnoAbierto, setTurnoAbierto] = useState(null)
   // Nombre de la cuenta bancaria del negocio (white-label, sale de web_config).
+  // Queda como plan B si la tabla cuentas_negocio todavía no existe.
   const [bancoCuenta, setBancoCuenta] = useState(BANCO_FALLBACK)
+  // Cuentas desde las que salen las transferencias (Configuración → Negocio).
+  // Vacío = la migración de cuentas no corrió: se usa bancoCuenta como antes.
+  const [cuentas, setCuentas] = useState([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
 
@@ -42,20 +46,27 @@ export function usePagos(opciones = {}) {
     try {
       let pagosQuery = null
       if (lista) {
-        let q = supabase
-          .from('egresos')
-          .select('*, proveedor:proveedores(razon_social), empleado:empleados(nombre, apellido)')
-          .order('fecha', { ascending: false })
-          .order('created_at', { ascending: false })
-          .limit(limite)
-        if (desde) q = q.gte('fecha', desde)
-        if (hasta) q = q.lte('fecha', hasta)
-        if (categoria && categoria !== 'todas') q = q.eq('categoria', categoria)
-        if (estado && estado !== 'todos') q = q.eq('estado', estado)
-        pagosQuery = q
+        const armar = (conCuenta) => {
+          let q = supabase
+            .from('egresos')
+            .select(conCuenta
+              ? '*, proveedor:proveedores(razon_social), empleado:empleados(nombre, apellido), cuenta:cuentas_negocio(nombre)'
+              : '*, proveedor:proveedores(razon_social), empleado:empleados(nombre, apellido)')
+            .order('fecha', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(limite)
+          if (desde) q = q.gte('fecha', desde)
+          if (hasta) q = q.lte('fecha', hasta)
+          if (categoria && categoria !== 'todas') q = q.eq('categoria', categoria)
+          if (estado && estado !== 'todos') q = q.eq('estado', estado)
+          return q
+        }
+        // Con el embed de la cuenta; si la migración de cuentas no corrió, el
+        // embed falla y se reintenta sin él (la lista no se cae por eso).
+        pagosQuery = armar(true).then(res => res.error ? armar(false) : res)
       }
 
-      const [pagosRes, empRes, turnoRes, cfgRes] = await Promise.all([
+      const [pagosRes, empRes, turnoRes, cfgRes, ctasRes] = await Promise.all([
         pagosQuery || Promise.resolve({ data: [], error: null }),
         // Solo id y nombre, vía RPC: no expone sueldo_base ni el legajo.
         supabase.rpc('empleados_para_pagos'),
@@ -67,6 +78,8 @@ export function usePagos(opciones = {}) {
           .eq('estado', 'abierto')
           .order('created_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('web_config').select('banco_cuenta').eq('id', 1).maybeSingle(),
+        supabase.from('cuentas_negocio').select('id, nombre, tipo, activa, orden')
+          .order('orden', { ascending: true }).order('nombre', { ascending: true }),
       ])
       if (pagosRes.error) throw pagosRes.error
       // empleados puede fallar sin permiso; no bloquea el resto
@@ -78,6 +91,8 @@ export function usePagos(opciones = {}) {
       setTurnoAbierto(turnoRes.error ? null : turnoRes.data)
       // Si falta la columna (migración sin correr) se usa el texto genérico.
       setBancoCuenta(cfgRes.error ? BANCO_FALLBACK : (cfgRes.data?.banco_cuenta?.trim() || BANCO_FALLBACK))
+      // Sin la tabla (migración sin correr) queda vacío y el modal usa bancoCuenta.
+      setCuentas(ctasRes.error ? [] : (ctasRes.data || []))
     } catch (err) {
       setError(err.message)
     } finally {
@@ -104,6 +119,9 @@ export function usePagos(opciones = {}) {
       p_comprobante:  form.comprobante_nro || null,
       p_notas:        form.notas || null,
       p_origen:       form.origen || 'auto',
+      // Solo se manda si hay cuenta elegida: con la base vieja (sin ese
+      // parámetro) mandarlo haría fallar el RPC.
+      ...(form.cuenta_id ? { p_cuenta_id: form.cuenta_id } : {}),
     })
     if (e) throw new Error(e.message)
     await cargar()
@@ -129,7 +147,7 @@ export function usePagos(opciones = {}) {
   }, [cargar])
 
   return {
-    pagos, empleados, turnoAbierto, bancoCuenta, loading, error,
+    pagos, empleados, turnoAbierto, bancoCuenta, cuentas, loading, error,
     registrarPago, editarPago, anularPago, historialDePago,
     recargar: cargar,
   }

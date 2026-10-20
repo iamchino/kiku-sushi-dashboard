@@ -36,7 +36,7 @@ export function Field({ label, value, onChange, placeholder, icon: Icon, inputMo
   )
 }
 
-export function Select({ label, value, onChange, options, required }) {
+export function Select({ label, value, onChange, options, required, hint }) {
   return (
     <div>
       <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
@@ -54,6 +54,7 @@ export function Select({ label, value, onChange, options, required }) {
           <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>
         ))}
       </select>
+      {hint && <p className="mt-1 text-[11px]" style={{ color: 'var(--text-xmuted)' }}>{hint}</p>}
     </div>
   )
 }

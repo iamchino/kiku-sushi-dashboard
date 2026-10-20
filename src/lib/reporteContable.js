@@ -130,7 +130,7 @@ export function armarHojas({ pedidos = [], egresos = [], desde, hasta, negocio }
     'Medio de pago': medioLabel(e.medio_pago),
     'Salió de': e.pagado_desde === 'caja' ? 'Caja del día'
       : e.pagado_desde === 'caja_fuerte' ? 'Caja fuerte'
-      : e.pagado_desde === 'banco' ? 'Banco' : '',
+      : e.pagado_desde === 'banco' ? (e.cuenta?.nombre || 'Banco') : '',
     'Comprobante': e.comprobante_nro || '',
     'Monto': num(e.monto),
   }))

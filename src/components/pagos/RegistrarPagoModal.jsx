@@ -37,7 +37,7 @@ export default function RegistrarPagoModal({
   // deuda cuando faltan DIAS_ANTES_DE_SER_DEUDA días para el vencimiento.
   modoProyeccion = false,
 }) {
-  const { empleados, turnoAbierto, bancoCuenta, registrarPago, editarPago } = usePagos({ lista: false })
+  const { empleados, turnoAbierto, bancoCuenta, cuentas, registrarPago, editarPago } = usePagos({ lista: false })
   const { proveedores } = useProveedores()
 
   const edicion = Boolean(initial)
@@ -59,12 +59,14 @@ export default function RegistrarPagoModal({
         notas: initial.notas || '',
         // 'auto' mantiene el origen que ya tenía el pago.
         origen: initial.pagado_desde || 'auto',
+        cuenta_id: initial.cuenta_id || '',
       }
     : {
         categoria: 'proveedores', descripcion: '', monto: '', medio_pago: 'efectivo',
         estado: estadoInicial, fecha: localDateISO(), proveedor_id: '', empleado_id: '',
         subtipo: '', periodo: '', vencimiento: '', comprobante_nro: '', notas: '',
         origen: origenInicial || 'auto',
+        cuenta_id: '',
       })
   const [motivo, setMotivo] = useState('')
   const [busy, setBusy]   = useState(false)
@@ -95,6 +97,39 @@ export default function RegistrarPagoModal({
     return 'ninguno'
   }, [pendiente, esEfectivo, esTransferencia, form.origen, turnoAbierto])
 
+  // Cuentas del negocio (Configuración → Negocio). Para elegir se ofrecen las
+  // activas; una cuenta desactivada que el pago YA tenía se sigue mostrando
+  // para no perderla al editar.
+  const cuentasOfrecidas = useMemo(() => {
+    const activas = (cuentas || []).filter(c => c.activa)
+    if (form.cuenta_id && !activas.some(c => c.id === form.cuenta_id)) {
+      const vieja = (cuentas || []).find(c => c.id === form.cuenta_id)
+      if (vieja) return [...activas, { ...vieja, nombre: `${vieja.nombre} (desactivada)` }]
+    }
+    return activas
+  }, [cuentas, form.cuenta_id])
+  const hayCuentas = cuentasOfrecidas.length > 0
+
+  // La cuenta efectiva: la elegida si sigue disponible; si no, la primera
+  // activa (que es también la que usa la base cuando no se manda ninguna).
+  const cuentaResuelta = useMemo(() => {
+    if (origenResuelto !== 'banco' || !hayCuentas) return ''
+    if (cuentasOfrecidas.some(c => c.id === form.cuenta_id)) return form.cuenta_id
+    return cuentasOfrecidas[0].id
+  }, [origenResuelto, hayCuentas, cuentasOfrecidas, form.cuenta_id])
+  const nombreCuenta = hayCuentas
+    ? (cuentasOfrecidas.find(c => c.id === cuentaResuelta)?.nombre || bancoCuenta)
+    : bancoCuenta
+
+  // El select de transferencia junta origen + cuenta en un solo valor:
+  //   'banco:<id>' → esa cuenta · 'ninguno' → otra cuenta / sin origen.
+  const valorCuenta = origenResuelto === 'banco' ? `banco:${cuentaResuelta}` : 'ninguno'
+  const elegirCuenta = (v) => {
+    if (v === 'ninguno') { set('origen')('ninguno'); return }
+    const id = v.startsWith('banco:') ? v.slice(6) : ''
+    setForm(f => ({ ...f, origen: 'banco', cuenta_id: id }))
+  }
+
   const efectoCaja = useMemo(() => {
     if (modoProyeccion) {
       const natural = naturalezaPendiente(form.vencimiento || null)
@@ -117,12 +152,12 @@ export default function RegistrarPagoModal({
     }
     if (esTransferencia) {
       if (origenResuelto === 'banco') return turnoAbierto
-        ? `Sale de ${bancoCuenta}: se lista en el turno abierto pero NO afecta el arqueo ni la diferencia del cierre. Esa cuenta no pasa por la caja del local.`
-        : `Sale de ${bancoCuenta}. Queda registrado como egreso; no afecta ningún arqueo.`
+        ? `Sale de ${nombreCuenta}: se lista en el turno abierto pero NO afecta el arqueo ni la diferencia del cierre. Esa cuenta no pasa por la caja del local.`
+        : `Sale de ${nombreCuenta}. Queda registrado como egreso; no afecta ningún arqueo.`
       return 'Transferencia sin origen registrado: queda anotada, sin descontar de ninguna cuenta.'
     }
     return 'No es efectivo ni transferencia: se registra sin tocar la caja ni la cuenta del banco.'
-  }, [modoProyeccion, form.vencimiento, pendiente, turnoAbierto, esEfectivo, esTransferencia, origenResuelto, bancoCuenta, edicion])
+  }, [modoProyeccion, form.vencimiento, pendiente, turnoAbierto, esEfectivo, esTransferencia, origenResuelto, nombreCuenta, edicion])
 
   const valido = form.descripcion.trim() && Number(form.monto) > 0 && (!esSueldo || form.empleado_id)
 
@@ -130,7 +165,7 @@ export default function RegistrarPagoModal({
     setBusy(true); setError(null)
     try {
       if (edicion) {
-        const resultado = await editarPago(initial, { ...form, origen: origenResuelto }, motivo)
+        const resultado = await editarPago(initial, { ...form, origen: origenResuelto, cuenta_id: cuentaResuelta }, motivo)
         onRegistrado?.(
           resultado?.descuenta_arqueo
             ? 'Pago corregido. El movimiento de la caja del día se actualizó con él.'
@@ -146,6 +181,7 @@ export default function RegistrarPagoModal({
         ...form,
         estado: modoProyeccion ? 'pendiente' : form.estado,
         origen: origenResuelto,
+        cuenta_id: cuentaResuelta,
       })
       onRegistrado?.(
         form.estado === 'pendiente'
@@ -153,7 +189,7 @@ export default function RegistrarPagoModal({
               ? 'Guardado. Como vence enseguida, entró directo como DEUDA.'
               : 'Guardado como PROYECCIÓN. Va a pasar a deuda solo, cerca del vencimiento.')
           : resultado?.origen === 'banco'
-          ? `Pago registrado. Salió de ${bancoCuenta}: queda a la vista en el turno, sin afectar el arqueo.`
+          ? `Pago registrado. Salió de ${resultado?.cuenta_nombre || nombreCuenta}: queda a la vista en el turno, sin afectar el arqueo.`
           : resultado?.descuenta_arqueo
           ? 'Pago registrado. Salió de la caja del día: el arqueo ya lo descuenta.'
           : resultado?.origen === 'caja_fuerte'
@@ -197,12 +233,21 @@ export default function RegistrarPagoModal({
             ]} />
         )}
 
-        {esTransferencia && !pendiente && (
-          <Select label="¿De qué cuenta sale la transferencia?" value={origenResuelto} onChange={set('origen')}
-            options={[
-              { value: 'banco', label: `${bancoCuenta} (no afecta el arqueo del turno)` },
-              { value: 'ninguno', label: 'Otra cuenta / sin registrar origen' },
-            ]} />
+        {esTransferencia && !pendiente && (hayCuentas
+          ? (
+            <Select label="¿De qué cuenta sale la transferencia?" value={valorCuenta} onChange={elegirCuenta}
+              hint="Las cuentas se cargan en Configuración → Negocio."
+              options={[
+                ...cuentasOfrecidas.map(c => ({ value: `banco:${c.id}`, label: c.nombre })),
+                { value: 'ninguno', label: 'Otra cuenta / sin registrar origen' },
+              ]} />
+          ) : (
+            <Select label="¿De qué cuenta sale la transferencia?" value={origenResuelto} onChange={set('origen')}
+              options={[
+                { value: 'banco', label: `${bancoCuenta} (no afecta el arqueo del turno)` },
+                { value: 'ninguno', label: 'Otra cuenta / sin registrar origen' },
+              ]} />
+          )
         )}
 
         <Field label="Descripción" value={form.descripcion} onChange={set('descripcion')}

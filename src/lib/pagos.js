@@ -50,6 +50,7 @@ export async function editarPago(pago, form, motivo = null) {
     p_notas:        form.notas || null,
     p_origen:       form.origen || 'auto',
     p_motivo:       motivo?.trim() || null,
+    ...(form.cuenta_id ? { p_cuenta_id: form.cuenta_id } : {}),
   })
   if (!error) return data
   if (!faltaLaFuncion(error)) throw new Error(error.message)
@@ -143,6 +144,7 @@ export const CAMPO_PAGO = {
   notas: 'notas',
   caja_turno_id: 'turno de caja',
   pagado_desde: 'de dónde salió',
+  cuenta_id: 'cuenta',
   recurrente: 'recurrente',
 }
 
@@ -158,6 +160,7 @@ export function valorPago(campo, valor) {
   if (campo === 'monto') return `$${Number(valor).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
   if (campo === 'pagado_desde') return ORIGEN_TEXTO[valor] || String(valor)
   if (campo === 'caja_turno_id' || campo === 'proveedor_id' || campo === 'empleado_id') return 'asignado'
+  if (campo === 'cuenta_id') return 'asignada'
   if (typeof valor === 'boolean') return valor ? 'sí' : 'no'
   return String(valor)
 }
@@ -183,15 +186,16 @@ export function cambiosDePago(fila) {
 export async function cargarEgresosPeriodo(desde, hasta) {
   let q = supabase
     .from('egresos')
-    .select('id, fecha, categoria, subtipo, descripcion, monto, medio_pago, estado, periodo, comprobante_nro, pagado_desde, empleado_id, proveedor:proveedores(razon_social), empleado:empleados(nombre, apellido)')
+    .select('id, fecha, categoria, subtipo, descripcion, monto, medio_pago, estado, periodo, comprobante_nro, pagado_desde, empleado_id, proveedor:proveedores(razon_social), empleado:empleados(nombre, apellido), cuenta:cuentas_negocio(nombre)')
     .eq('estado', 'pagado')
     .order('fecha', { ascending: true })
   if (desde) q = q.gte('fecha', desde)
   if (hasta) q = q.lte('fecha', hasta)
   let { data, error } = await q
   // El embed de `empleados` puede estar vedado al rol (el legajo es de
-  // Personal). En ese caso se reintenta sin él: el reporte usa la descripción
-  // del pago como nombre.
+  // Personal) y el de `cuentas_negocio` no existe si esa migración no corrió.
+  // En ese caso se reintenta sin ellos: el reporte usa la descripción del
+  // pago como nombre y "Banco" como cuenta.
   if (error) {
     let q2 = supabase
       .from('egresos')
