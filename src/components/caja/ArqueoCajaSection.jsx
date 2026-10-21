@@ -518,9 +518,20 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
   )
   const diferenciaTotal = totalContado - totalEsperado
 
+  // Lo contado es plata física: nunca puede ser negativo. La base lo rechaza
+  // (check cierre_monto >= 0) con un mensaje críptico, así que el signo se
+  // saca acá y se avisa en claro.
   const updateContado = (id, value) => {
-    setContadoPorMedio(prev => ({ ...prev, [id]: value }))
+    const limpio = String(value ?? '').replace(/-/g, '')
+    setError(limpio !== String(value ?? '') ? 'Lo contado no puede ser negativo: anotá lo que hay físicamente (si no hay nada, 0).' : null)
+    setContadoPorMedio(prev => ({ ...prev, [id]: limpio }))
   }
+
+  // Esperado negativo = se registraron más salidas de efectivo desde la caja
+  // del día que lo que entró. Físicamente no puede pasar: algún pago salió en
+  // realidad de otro lado, o faltó registrar un ingreso. Se avisa antes de
+  // cerrar, porque cerrar así deja la diferencia como "sobrante".
+  const mediosNegativos = medios.filter(medio => Number(medio.esperado || 0) < 0)
 
   // El submit del formulario ya NO cierra el turno: solo abre la confirmación.
   const pedirConfirmacion = (e) => {
@@ -553,6 +564,23 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
         Anota lo contado en cada medio. La diferencia se calcula contra lo esperado del turno.
       </p>
 
+      {mediosNegativos.length > 0 && (
+        <div className="mb-3 rounded-lg px-3 py-2.5 text-xs leading-5" style={{ background: 'rgba(242,179,92,0.12)', border: '1px solid rgba(242,179,92,0.35)', color: 'var(--text-primary)' }}>
+          <p className="font-semibold" style={{ color: '#F2B35C' }}>
+            <AlertTriangle size={12} className="inline -mt-0.5 mr-1" />
+            {mediosNegativos.map(m => `${m.label}: esperado $${formatMoney(m.esperado)}`).join(' · ')}
+          </p>
+          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
+            Un esperado negativo quiere decir que se registraron más salidas desde la caja del día
+            (${formatMoney(Math.abs(mediosNegativos.reduce((a, m) => a + Math.min(0, Number(m.movimientos || 0)), 0)))} en
+            pagos y egresos) que lo que entró. Eso no puede pasar con plata física: o algún pago salió en
+            realidad de la <strong>caja fuerte</strong> u otro lado (corregilo en <strong>Pagos → lápiz → "¿De dónde sale el efectivo?"</strong>),
+            o faltó registrar un <strong>ingreso</strong> de efectivo a la caja (Movimiento → Ingreso, por ejemplo un retiro de la caja fuerte).
+            Si cerrás así, anotá lo que hay físicamente y la diferencia va a quedar como sobrante.
+          </p>
+        </div>
+      )}
+
       <form
         onSubmit={pedirConfirmacion}
         onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
@@ -582,6 +610,7 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
                 </span>
                 <input
                   inputMode="decimal"
+                  min="0"
                   value={contadoPorMedio[medio.id] ?? ''}
                   onChange={e => updateContado(medio.id, e.target.value)}
                   placeholder="$0"
@@ -650,6 +679,12 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
             {resumen.pedidosSinPago?.length > 0 && (
               <p className="mt-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C' }}>
                 Atención: {resumen.pedidosSinPago.length} pedido(s) del turno todavía no tienen pago registrado (${formatMoney(resumen.pedidosSinPagoTotal)}).
+              </p>
+            )}
+            {mediosNegativos.length > 0 && (
+              <p className="mt-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C' }}>
+                El esperado en {mediosNegativos.map(m => m.label.toLowerCase()).join(' y ')} es negativo: la diferencia
+                de abajo incluye ese faltante de registro como sobrante. Si preferís, cancelá y corregí los pagos primero.
               </p>
             )}
             <div className="mt-3 flex items-center justify-between text-sm">

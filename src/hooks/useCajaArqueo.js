@@ -611,6 +611,14 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
   }) => {
     if (!turno_id) throw new Error('No hay turno abierto para cerrar.')
 
+    // Lo contado es plata física: ningún medio puede ser negativo. La base
+    // tiene el check cierre_monto >= 0 y lo rechaza con un mensaje críptico
+    // ("violates check constraint caja_turnos_cierre_monto_check").
+    const negativo = MEDIOS_ARQUEO.find(medio => parseAmount(contado_por_medio[medio.id]) < 0)
+    if (negativo) {
+      throw new Error(`Lo contado en ${negativo.label.toLowerCase()} no puede ser negativo. Anotá lo que hay físicamente (0 si no hay nada); si el esperado es negativo, el problema está en los pagos registrados desde la caja del día, no en el conteo.`)
+    }
+
     // Total contado y esperado sumando TODOS los medios (no solo efectivo).
     const counted = MEDIOS_ARQUEO.reduce(
       (acc, medio) => acc + parseAmount(contado_por_medio[medio.id]), 0,
@@ -643,7 +651,12 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
       })
       .eq('id', turno_id)
 
-    if (updateError) throw updateError
+    if (updateError) {
+      if (/cierre_monto_check/.test(updateError.message || '')) {
+        throw new Error('La base no acepta un total contado negativo. Anotá lo que hay físicamente en cada medio (0 si no hay nada).')
+      }
+      throw updateError
+    }
     await fetchData()
   }, [fetchData])
 
