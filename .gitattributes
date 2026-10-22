@@ -1,0 +1,12 @@
+# Fin de línea consistente entre Windows y Mac: en el repo siempre LF, cada
+# máquina lo convierte al hacer checkout. (Los archivos que ya estaban con
+# CRLF en el repo quedan como están hasta que se toquen.)
+* text=auto
+*.png binary
+*.jpg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.exe binary
+*.keystore binary

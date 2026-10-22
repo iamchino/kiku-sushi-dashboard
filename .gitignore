@@ -53,3 +53,6 @@ kiku-print/*.log
 kiku-print/certificados/
 kiku-print/config.json
 kiku-print/INSTALAR-ESTE-CERTIFICADO.crt
+
+# Parches de Claude: se aplican con `git am` y se borran. Nunca se commitean.
+*.patch
