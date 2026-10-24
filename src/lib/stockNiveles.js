@@ -123,3 +123,60 @@ export function explotarReceta(receta, porciones, recetas = [], stockItems = [],
   bajar(receta, porciones, 0)
   return [...acc.values()]
 }
+
+// ─── Vínculos de la carta (menu_item_stock_vinculos) ────────────────────────
+// Cada producto de la carta (o cada variante) apunta a una receta (final o
+// intermedia) o a un ítem de inventario, con una cantidad. Es el espejo de la
+// función consumos_stock_pedido() de la base (migración 20261024000000): esto
+// es la vista previa de la pantalla; la base es la que descuenta.
+//
+// Regla con variantes: los vínculos del producto (variante_id null) valen para
+// todas las variantes y su cantidad se multiplica por las piezas de la variante
+// vendida; los de una variante puntual se suman y su cantidad es por unidad.
+
+export const GRUPOS_VINCULO = [
+  { id: 'final',      label: 'Productos finales' },
+  { id: 'intermedia', label: 'Producción intermedia' },
+  { id: 'inventario', label: 'Inventario (bebidas, reventa, insumos)' },
+]
+
+// Vínculos que aplican a una venta de `variante` (null = producto sin variantes):
+// los del producto (se multiplican por piezas) y los de esa variante (no).
+export function vinculosQueAplican(vinculos = [], varianteId = null) {
+  return vinculos
+    .filter(v => !v.variante_id || v.variante_id === varianteId)
+    .map(v => ({ ...v, porPieza: !v.variante_id }))
+}
+
+/**
+ * Qué ítems de stock consume vender `unidades` de un producto.
+ *   vinculos   filas de menu_item_stock_vinculos del producto
+ *   variante   la variante vendida ({ id, piezas }) o null
+ * Devuelve [{ stock_id, nombre, unidad, cantidad, stock_actual, tipo_stock }].
+ */
+export function consumosDeVinculos(vinculos, variante, unidades = 1, recetas = [], stockItems = []) {
+  const lista = vinculosQueAplican(vinculos, variante?.id || null)
+  const piezasVariante = parseFloat(variante?.piezas) || 1
+  const acc = new Map()
+  const sumar = (c) => {
+    if (!c || !(c.cantidad > 0)) return
+    const prev = acc.get(c.stock_id)
+    if (prev) prev.cantidad += c.cantidad
+    else acc.set(c.stock_id, { ...c })
+  }
+  for (const v of lista) {
+    const cant = (parseFloat(v.cantidad) || 0) * unidades * (v.porPieza ? piezasVariante : 1)
+    if (!(cant > 0)) continue
+    if (v.stock_id) {
+      const s = stockItems.find(x => x.id === v.stock_id)
+      if (s) sumar({
+        stock_id: s.id, nombre: s.nombre, unidad: s.unidad, cantidad: cant,
+        stock_actual: parseFloat(s.stock_actual) || 0, tipo_stock: normTipoStock(s),
+      })
+    } else if (v.receta_id) {
+      const r = recetas.find(x => x.id === v.receta_id)
+      for (const c of explotarReceta(r, cant, recetas, stockItems, true)) sumar(c)
+    }
+  }
+  return [...acc.values()]
+}

@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Trash2, Loader2, ImageIcon, Plus } from 'lucide-react'
+import VinculosStockSection from './VinculosStockSection'
+import { useVinculosDeProducto, destinoDeVinculo } from '../../hooks/useVinculosStock'
 
 const ETIQUETAS = ['', 'Popular', 'Premium', 'Nuevo', 'Limitado']
 
@@ -21,6 +23,9 @@ const EMPTY = {
 export default function ProductModal({ open, onClose, item, tipo, categories, onSave }) {
   const [form, setForm] = useState(EMPTY)
   const [variantes, setVariantes] = useState([])
+  // Stock que descuenta: [{ id?, destino: 'receta:<id>'|'stock:<id>', cantidad, varianteIdx }]
+  const [vinculos, setVinculos] = useState([])
+  const { vinculos: vinculosGuardados } = useVinculosDeProducto(open ? item?.id : null)
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -62,6 +67,22 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
     setErrorMsg(null)
   }, [item, open])
 
+  // Vínculos guardados → estado del modal. La variante se referencia por su
+  // posición en la lista (las nuevas todavía no tienen id).
+  useEffect(() => {
+    if (!item) { setVinculos([]); return }
+    const ordenVariantes = (item.menu_item_variantes || []).map(v => v.id)
+    setVinculos(vinculosGuardados.map(v => {
+      const idx = v.variante_id ? ordenVariantes.indexOf(v.variante_id) : -1
+      return {
+        id: v.id,
+        destino: destinoDeVinculo(v),
+        cantidad: String(parseFloat(v.cantidad) || 1),
+        varianteIdx: idx >= 0 ? idx : null,
+      }
+    }))
+  }, [item, vinculosGuardados])
+
   if (!open) return null
 
   const handleField = (e) => {
@@ -80,6 +101,10 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
 
   const removeVariante = (idx) => {
     setVariantes(v => v.filter((_, i) => i !== idx))
+    // Los vínculos de esa variante se van con ella; los de las siguientes se corren.
+    setVinculos(vs => vs
+      .filter(v => v.varianteIdx !== idx)
+      .map(v => v.varianteIdx !== null && v.varianteIdx > idx ? { ...v, varianteIdx: v.varianteIdx - 1 } : v))
   }
 
   // ── Image handlers ──────────────────────────────────────────────────────
@@ -117,11 +142,39 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
       return
     }
 
+    // Vínculos de stock: todos con destino y cantidad > 0.
+    const vinculosIncompletos = vinculos.filter(v => !v.destino || !(parseFloat(v.cantidad) > 0))
+    if (vinculosIncompletos.length > 0) {
+      setErrorMsg('En "Stock que descuenta" elegí qué baja y una cantidad mayor a cero (o sacá la fila).')
+      return
+    }
+    // La variante se manda como posición dentro de las variantes válidas (las
+    // nuevas no tienen id hasta que se guardan). Si la variante quedó afuera
+    // por incompleta, el vínculo se descarta.
+    const posValida = variantes.map(v => validVariantes.indexOf(v))
+    const vinculosPayload = vinculos
+      .map(v => {
+        const [tipo, id] = v.destino.split(':')
+        const varianteIdx = v.varianteIdx === null || v.varianteIdx === undefined ? null : posValida[v.varianteIdx]
+        if (varianteIdx === -1 || varianteIdx === undefined) return null
+        return {
+          receta_id: tipo === 'receta' ? id : null,
+          stock_id: tipo === 'stock' ? id : null,
+          cantidad: parseFloat(v.cantidad),
+          variante_idx: varianteIdx,
+        }
+      })
+      .filter(Boolean)
+
     setSaving(true)
     setErrorMsg(null)
 
-    // Pasar variantes al onSave
-    const payload = { ...form, variantes: validVariantes.length > 0 ? validVariantes : [] }
+    // Pasar variantes y vínculos al onSave
+    const payload = {
+      ...form,
+      variantes: validVariantes.length > 0 ? validVariantes : [],
+      vinculos: vinculosPayload,
+    }
     const err = await onSave(payload, imageFile)
     setSaving(false)
     if (err) {
@@ -302,6 +355,14 @@ export default function ProductModal({ open, onClose, item, tipo, categories, on
                   </p>
                 )}
               </div>
+
+              {/* ── STOCK QUE DESCUENTA ── */}
+              <VinculosStockSection
+                open={open}
+                vinculos={vinculos}
+                onChange={setVinculos}
+                variantes={variantes}
+              />
 
               {/* Etiqueta + Orden en row */}
               <div className="grid grid-cols-2 gap-3">

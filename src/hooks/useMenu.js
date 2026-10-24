@@ -9,6 +9,41 @@ function precioParaGuardar(valor) {
   return parseCurrencyValue(valor)
 }
 
+// Vínculos de stock del producto (menu_item_stock_vinculos): se reemplazan
+// enteros. `vinculos` viene del modal con `variante_idx` (posición dentro de
+// las variantes guardadas) y acá se traduce al id real de la variante.
+async function guardarVinculos(menuItemId, vinculos, varianteIds) {
+  const { error: delError } = await supabase
+    .from('menu_item_stock_vinculos')
+    .delete()
+    .eq('menu_item_id', menuItemId)
+  // Sin vínculos para guardar y la tabla no existe (SQL 48 sin correr): no
+  // hay nada que perder, el producto ya se guardó.
+  if (delError && !(vinculos || []).length && /menu_item_stock_vinculos/i.test(delError.message || '')) return null
+  if (delError) return delError
+
+  const filas = (vinculos || [])
+    .map((v, i) => {
+      const esDeVariante = v.variante_idx !== null && v.variante_idx !== undefined
+      const variante_id = esDeVariante ? (varianteIds[v.variante_idx] || null) : null
+      // un vínculo "para una variante" cuya variante no se pudo resolver se descarta
+      if (esDeVariante && !variante_id) return null
+      if (!v.receta_id && !v.stock_id) return null
+      return {
+        menu_item_id: menuItemId,
+        variante_id,
+        receta_id: v.receta_id || null,
+        stock_id: v.stock_id || null,
+        cantidad: parseFloat(v.cantidad) || 1,
+        orden: i,
+      }
+    })
+    .filter(Boolean)
+  if (filas.length === 0) return null
+  const { error } = await supabase.from('menu_item_stock_vinculos').insert(filas)
+  return error
+}
+
 export function useMenu(tipo) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -47,7 +82,7 @@ export function useMenu(tipo) {
 
   // CRUD items
   const createItem = async (payload) => {
-    const { variantes, ...itemPayload } = payload
+    const { variantes, vinculos, ...itemPayload } = payload
 
     // ── Auto-orden ───────────────────────────────────────────────────────
     // Un producto nuevo va al FINAL de su propia categoria (no arriba de todo).
@@ -92,6 +127,7 @@ export function useMenu(tipo) {
     if (e1) return e1
 
     // Crear variantes si las hay
+    const varianteIds = []
     if (variantes?.length > 0) {
       const rows = variantes.map((v, i) => ({
         menu_item_id: created.id,
@@ -100,8 +136,16 @@ export function useMenu(tipo) {
         precio: parseCurrencyValue(v.precio),
         orden: i,
       }))
-      const { error: e2 } = await supabase.from('menu_item_variantes').insert(rows)
+      const { data: creadas, error: e2 } = await supabase
+        .from('menu_item_variantes').insert(rows).select('id, orden')
       if (e2) return e2
+      for (const c of (creadas || [])) varianteIds[c.orden] = c.id
+    }
+
+    // Stock que descuenta
+    if (vinculos !== undefined) {
+      const e3 = await guardarVinculos(created.id, vinculos, varianteIds)
+      if (e3) return e3
     }
 
     fetchItems()
@@ -109,7 +153,7 @@ export function useMenu(tipo) {
   }
 
   const updateItem = async (id, payload) => {
-    const { variantes, ...itemPayload } = payload
+    const { variantes, vinculos, ...itemPayload } = payload
     // El precio SOLO se toca si el que llama lo manda. Antes se escribía siempre
     // (`precio: payload.precio ? … : null`), así que cualquier update parcial —
     // por ejemplo ocultar/mostrar un producto— dejaba el precio en null y el
@@ -137,6 +181,8 @@ export function useMenu(tipo) {
     // pedido_items.variante_id apunta a la variante y la base no deja borrarla.
     // Además, conservar el id mantiene el vínculo con los pedidos abiertos
     // (el descuento de stock usa las piezas de la variante).
+    // Ids de las variantes en el orden del modal (para los vínculos de stock).
+    const varianteIds = []
     if (variantes !== undefined) {
       const { data: actuales, error: readError } = await supabase
         .from('menu_item_variantes')
@@ -163,6 +209,7 @@ export function useMenu(tipo) {
           .update(campos)
           .eq('id', varId)
         if (upError) return upError
+        varianteIds[campos.orden] = varId
       }
 
       // 2) Crear las nuevas
@@ -170,8 +217,10 @@ export function useMenu(tipo) {
         .filter(x => !x.id || !idsActuales.has(x.id))
         .map(({ id: _omit, ...campos }) => { void _omit; return campos })
       if (nuevas.length > 0) {
-        const { error: insError } = await supabase.from('menu_item_variantes').insert(nuevas)
+        const { data: creadas, error: insError } = await supabase
+          .from('menu_item_variantes').insert(nuevas).select('id, orden')
         if (insError) return insError
+        for (const c of (creadas || [])) varianteIds[c.orden] = c.id
       }
 
       // 3) Borrar las que se sacaron. Si ya se vendieron, la base deja el
@@ -185,6 +234,13 @@ export function useMenu(tipo) {
           .in('id', borrar)
         if (delError) return delError
       }
+    }
+
+    // Stock que descuenta: solo si el que llama lo manda (el modal siempre;
+    // ocultar/mostrar o reordenar no pasan por acá).
+    if (vinculos !== undefined) {
+      const e3 = await guardarVinculos(id, vinculos, varianteIds)
+      if (e3) return e3
     }
 
     fetchItems()

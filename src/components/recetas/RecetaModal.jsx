@@ -235,6 +235,10 @@ export default function RecetaModal({
                 placeholder="Buscar producto del menú…"
                 opciones={menuItems.map(mi => ({ value: mi.id, label: mi.nombre, detalle: mi.precio || '' }))}
               />
+              <p className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
+                Sirve para el precio de venta y el margen. Qué baja del stock al vender (cantidades por variante,
+                latas, producción intermedia) se define en Menú → editar producto → "Stock que descuenta".
+              </p>
             </div>
             ) : (
               <div className="col-span-2 text-[11px] self-end pb-2" style={{ color: 'var(--text-xmuted)' }}>
