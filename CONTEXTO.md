@@ -176,6 +176,12 @@ Parche `facturar-error-visible.patch` (+ redeploy de `arca-comprobantes`).
 - arca-comprobantes: el chequeo de `puede_cobrar()` (capa 1) usa el JWT del usuario con la service key como apikey (antes dependía de SUPABASE_ANON_KEY) y devuelve el motivo si la RPC falla.
 - Si después del parche sigue fallando, el cartel rojo dentro del modal dice la causa real.
 
+## Últimos cambios (2026-10-29, 2) — Corregir el nombre del cliente antes de descargar / imprimir
+Parche `kiku-sushi-dashboard\facturas-editar-cliente.patch` (base 0bcb9c8). Sin SQL.
+- Pedido de Manu: poder editar la razón social antes de descargar o imprimir. El botón **PDF** de Caja ahora abre `components/caja/ComprobanteDatosModal.jsx`: razón social / nombre y domicilio del cliente, prellenados con lo que tiene el comprobante; botones Guardar, Imprimir ticket y Descargar PDF (los tres guardan primero si hubo cambios). Guarda en `comprobantes_fiscales.receptor_nombre` / `receptor_domicilio` con update directo (policy "permisos escritura" = `puede_tabla('comprobantes_fiscales','editar')`; si RLS bloquea, avisa). El CUIT/DNI y la condición IVA no se editan: viajaron a ARCA. El CAE no cambia (ARCA autoriza por documento, no por nombre).
+- Los chips (factura, NC, anuladas) siguen descargando directo, sin modal. `useFacturacion` ya exportaba `imprimirTicket`; Caja lo usa para imprimir con el comprobante actualizado.
+- Probado con Playwright y Supabase mockeado: modal, cambio de nombre, descarga y el PDF sale con el nombre nuevo. Build OK, lint 31.
+
 ## Últimos cambios (2026-10-29) — Facturas y notas de crédito en PDF (A4)
 Parche `kiku-sushi-dashboard\facturas-pdf.patch` (base 5782797). Sin SQL. Dependencia nueva: `jspdf` 4.2.1 (se carga con import dinámico: ~130 KB gz solo cuando alguien descarga un PDF).
 - Pedido de Manu: poder descargar las facturas A y B en PDF. `src/lib/facturaPdf.js`: `armarFacturaPdf(pedido, comprobante, config, { medioPago })` arma la hoja A4 con el formato clásico de ARCA (letra + COD. en el recuadro, emisor / comprobante, condición de venta, receptor, detalle, totales, QR, CAE y vto). Factura A: precios netos, columna IVA, "Importe Neto Gravado" + "IVA 21%". Factura B/C: precios con IVA y bloque Ley 27.743 (IVA contenido). NC/ND: una línea que referencia la factura original (por `cbte_asociado_id` o `arca_request.cbtes_asociados`) + motivo si está en `arca_request.motivo`. Salto de página automático con cabecera repetida y "Pág. n/N". Archivo: `Factura-B-00002-00000325.pdf`. Los datos salen de los mismos campos que el ticket térmico (`buildFiscalTicketText`): si cambia uno, cambiar el otro.
@@ -499,7 +505,7 @@ es **32** (no 31).
 5. ~~Impresión (09/10)~~ HECHO y funcionando. Ver sección 09/10.
 
 ### ▶ PRÓXIMA SESIÓN — con qué seguir
-- **Facturas PDF (29/10)**: `kiku-sync am facturas-pdf.patch` (dashboard). Probar en Caja con una factura real: botón PDF y chips.
+- **Facturas PDF (29/10)**: ~~facturas-pdf.patch~~ pusheado (0bcb9c8). Falta `kiku-sync am facturas-editar-cliente.patch`. Probar en Caja con una factura real: botón PDF → modal → cambiar nombre → PDF y ticket.
 - **Stock desde la carta (24/10)**: `scripts/kiku-sync.sh am vinculos-stock-menu.patch` (Mac) + correr **SQL 48** en Supabase. Después, en Menú → editar producto → "Stock que descuenta": cargar las bebidas (lata → ítem de inventario) y los productos con variantes x2/x4/x6 (una receta, cantidad por variante). Verificar con un pedido real: `select stock_descontado, descuento_detalle from pedidos order by created_at desc limit 3;`.
 - **Repo como fuente de verdad (21/10)**: aplicar `repo-fuente-de-verdad.patch` (dashboard) y `web-limpieza-y-gitattributes.patch` (web), borrar los sueltos de Desktop\kiku, hacer la puesta a punto de la Mac (`docs/DOS-MAQUINAS.md`). A partir de ahí Claude lee CONTEXTO.md del repo y lo actualiza dentro del parche del dashboard.
 - **Cierre de caja (21/10)**: `git am cierre-contado-no-negativo.patch` + push. Correr SQL 47 y corregir el origen de los pagos en efectivo del 20/10 (o cargar el ingreso que faltó) antes de cerrar ese turno; si no, cerrar con contado real (0) y queda sobrante de $260.000.

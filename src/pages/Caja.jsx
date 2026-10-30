@@ -35,6 +35,7 @@ import CajaFuertePanel from '../components/caja/CajaFuertePanel'
 import { usePermisos } from '../context/usePermisos'
 import FacturarModal from '../components/caja/FacturarModal'
 import NotaCreditoModal from '../components/caja/NotaCreditoModal'
+import ComprobanteDatosModal from '../components/caja/ComprobanteDatosModal'
 
 const FILTERS = [
   { id: 'pendientes', label: 'Pendientes de facturación' },
@@ -510,7 +511,7 @@ function EditPedidoModal({ pedido, open, saving, onClose, onSave }) {
   )
 }
 
-function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, onTicket, onEdit, onNotaCredito, onPdf }) {
+function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, onTicket, onEdit, onNotaCredito, onPdf, onPdfDirecto }) {
   const comprobante = getAuthorizedComprobante(pedido)
   const anulados = getComprobantesAnulados(pedido)
   const notasCredito = getNotasCredito(pedido)
@@ -612,7 +613,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
             <div className="flex flex-col items-end gap-1">
               <button
                 type="button"
-                onClick={() => onPdf(pedido, comprobante)}
+                onClick={() => onPdfDirecto(pedido, comprobante)}
                 title={`${comprobanteLabel} · descargar PDF`}
                 className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold hover:underline"
                 style={{ background: 'rgba(95,211,163,0.12)', color: '#5FD3A3' }}
@@ -625,7 +626,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
                 <button
                   key={nc.id}
                   type="button"
-                  onClick={() => onPdf(pedido, nc)}
+                  onClick={() => onPdfDirecto(pedido, nc)}
                   title={`${nombreComprobante(nc.tipo_cbte)} por $${formatMoney(nc.importe_total)} · descargar PDF`}
                   className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold hover:underline"
                   style={{ background: 'rgba(227,77,107,0.12)', color: '#F2708C' }}
@@ -646,7 +647,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
                 <button
                   key={f.id}
                   type="button"
-                  onClick={() => onPdf(pedido, f)}
+                  onClick={() => onPdfDirecto(pedido, f)}
                   title={`${nombreComprobante(f.tipo_cbte)} anulada por nota de crédito · descargar PDF`}
                   className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold hover:underline"
                   style={{ background: 'var(--bg-input)', color: 'var(--text-muted)' }}
@@ -659,7 +660,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
                 <button
                   key={nc.id}
                   type="button"
-                  onClick={() => onPdf(pedido, nc)}
+                  onClick={() => onPdfDirecto(pedido, nc)}
                   title={`${nombreComprobante(nc.tipo_cbte)} · descargar PDF`}
                   className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold hover:underline"
                   style={{ background: 'rgba(227,77,107,0.12)', color: '#F2708C' }}
@@ -745,7 +746,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
           <button
             onClick={() => onPdf(pedido, comprobante)}
             disabled={busy}
-            title="Descargar la factura en PDF (hoja A4)"
+            title="Revisar el nombre del cliente y descargar el PDF (hoja A4) o imprimir el ticket"
             className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-50"
             style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
           >
@@ -813,6 +814,7 @@ export default function CajaPage() {
     refetch,
     imprimirComanda,
     imprimirTicketNoFiscal,
+    imprimirTicket,
     actualizarPedido,
     facturarEImprimir,
     emitirNotaCredito,
@@ -825,6 +827,7 @@ export default function CajaPage() {
   const [notice, setNotice] = useState(null)
   const [facturarTarget, setFacturarTarget] = useState(null)        // { pedido }
   const [ncTarget, setNcTarget] = useState(null)                     // { pedido, comprobante }
+  const [datosTarget, setDatosTarget] = useState(null)               // { pedido, comprobante } → editar cliente / PDF / ticket
   const [seccion, setSeccion] = useState('facturacion')
   // La seccion Caja fuerte ES la vista del saldo, asi que pide `ver`. Poder
   // depositar (`editar`) no la abre: para eso esta el boton "Guardar en caja
@@ -916,20 +919,34 @@ export default function CajaPage() {
     setNcTarget({ pedido, comprobante })
   }
 
-  // Factura / NC en PDF (A4). Forma de pago: la del pedido; si se pagó con
-  // varios medios, se listan todos.
-  const handlePdf = async (pedido, comprobante) => {
+  // Forma de pago para el comprobante: la del pedido; con varios medios se
+  // listan todos.
+  const medioPagoDe = (pedido) => {
+    const lineas = lineasDePago(pedido)
+    return lineas.length > 1
+      ? lineas.map(l => etiquetaMedioPago(l.medio)).join(' + ')
+      : (lineas[0]?.medio ?? pedido.medio_pago ?? null)
+  }
+
+  // Factura / NC en PDF (A4), directo (chips).
+  const descargarPdf = async (pedido, comprobante) => {
     setNotice(null)
     try {
-      const lineas = lineasDePago(pedido)
-      const medioPago = lineas.length > 1
-        ? lineas.map(l => etiquetaMedioPago(l.medio)).join(' + ')
-        : (lineas[0]?.medio ?? pedido.medio_pago ?? null)
-      const archivo = await descargarFacturaPdf(pedido, comprobante, config, { medioPago })
+      const archivo = await descargarFacturaPdf(pedido, comprobante, config, { medioPago: medioPagoDe(pedido) })
       setNotice({ type: 'ok', text: `Descargado ${archivo}.` })
     } catch (err) {
       setNotice({ type: 'error', text: err.message || 'No se pudo generar el PDF.' })
+      throw err
     }
+  }
+
+  // Botón PDF: abre el modal para revisar/corregir el cliente antes de
+  // descargar o imprimir.
+  const handlePdf = (pedido, comprobante) => setDatosTarget({ pedido, comprobante })
+
+  const imprimirConDatos = async (pedido, comprobante) => {
+    await imprimirTicket(pedido, comprobante, medioPagoDe(pedido))
+    setNotice({ type: 'ok', text: 'Ticket reimpreso.' })
   }
 
   const handleConfirmarNc = async ({ total, motivo }) => {
@@ -1237,6 +1254,7 @@ export default function CajaPage() {
                     onEdit={setEditingPedido}
                     onNotaCredito={handleNotaCredito}
                     onPdf={handlePdf}
+                    onPdfDirecto={descargarPdf}
                   />
                 ))}
               </div>
@@ -1261,6 +1279,16 @@ export default function CajaPage() {
         permiteFacturaA={Boolean(config?.permite_factura_a)}
         onClose={() => setFacturarTarget(null)}
         onConfirm={handleConfirmarFactura}
+      />
+
+      <ComprobanteDatosModal
+        open={Boolean(datosTarget)}
+        pedido={datosTarget?.pedido}
+        comprobante={datosTarget?.comprobante}
+        onClose={() => setDatosTarget(null)}
+        onDescargar={descargarPdf}
+        onImprimir={imprimirConDatos}
+        onGuardado={() => refetch()}
       />
 
       <NotaCreditoModal
