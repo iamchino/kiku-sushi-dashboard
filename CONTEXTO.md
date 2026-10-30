@@ -176,6 +176,13 @@ Parche `facturar-error-visible.patch` (+ redeploy de `arca-comprobantes`).
 - arca-comprobantes: el chequeo de `puede_cobrar()` (capa 1) usa el JWT del usuario con la service key como apikey (antes dependía de SUPABASE_ANON_KEY) y devuelve el motivo si la RPC falla.
 - Si después del parche sigue fallando, el cartel rojo dentro del modal dice la causa real.
 
+## Últimos cambios (2026-10-29) — Facturas y notas de crédito en PDF (A4)
+Parche `kiku-sushi-dashboard\facturas-pdf.patch` (base 5782797). Sin SQL. Dependencia nueva: `jspdf` 4.2.1 (se carga con import dinámico: ~130 KB gz solo cuando alguien descarga un PDF).
+- Pedido de Manu: poder descargar las facturas A y B en PDF. `src/lib/facturaPdf.js`: `armarFacturaPdf(pedido, comprobante, config, { medioPago })` arma la hoja A4 con el formato clásico de ARCA (letra + COD. en el recuadro, emisor / comprobante, condición de venta, receptor, detalle, totales, QR, CAE y vto). Factura A: precios netos, columna IVA, "Importe Neto Gravado" + "IVA 21%". Factura B/C: precios con IVA y bloque Ley 27.743 (IVA contenido). NC/ND: una línea que referencia la factura original (por `cbte_asociado_id` o `arca_request.cbtes_asociados`) + motivo si está en `arca_request.motivo`. Salto de página automático con cabecera repetida y "Pág. n/N". Archivo: `Factura-B-00002-00000325.pdf`. Los datos salen de los mismos campos que el ticket térmico (`buildFiscalTicketText`): si cambia uno, cambiar el otro.
+- Caja → tarjeta del pedido: botón **PDF** al lado de "Reimprimir ticket" y, además, los chips de la factura vigente, de las NC y de las facturas anuladas son clickeables y descargan su PDF. Forma de pago: la del pedido; con varios medios se listan ("Efectivo + Transferencia").
+- Verificado: PDFs generados en Node (A, B, NC y una factura de 60 ítems en 3 páginas) y revisados como imagen; build OK, lint 31, verificar:permisos OK.
+- Pendiente opcional: el mismo botón en el modal de detalle del pedido (mesas) y mandar el PDF por WhatsApp/mail al cliente.
+
 ## Últimos cambios (2026-10-24) — Stock vinculado desde la carta (latas, intermedias, variantes)
 Parche `vinculos-stock-menu.patch` (dashboard, base 06a1506) + **SQL 48** (= migración 20261024000000). Sin cambios en la web.
 - **Problema**: el vínculo stock ↔ carta era `recetas.menu_item_id` (la receta apunta al producto, solo tipo final, una receta = un producto). Por eso no se podía descontar una lata de Coca ni una producción intermedia, y "Langostino furai x2/x4/x6" (un producto, tres variantes) obligaba a tres recetas iguales (seis con carta + delivery).
@@ -492,6 +499,7 @@ es **32** (no 31).
 5. ~~Impresión (09/10)~~ HECHO y funcionando. Ver sección 09/10.
 
 ### ▶ PRÓXIMA SESIÓN — con qué seguir
+- **Facturas PDF (29/10)**: `kiku-sync am facturas-pdf.patch` (dashboard). Probar en Caja con una factura real: botón PDF y chips.
 - **Stock desde la carta (24/10)**: `scripts/kiku-sync.sh am vinculos-stock-menu.patch` (Mac) + correr **SQL 48** en Supabase. Después, en Menú → editar producto → "Stock que descuenta": cargar las bebidas (lata → ítem de inventario) y los productos con variantes x2/x4/x6 (una receta, cantidad por variante). Verificar con un pedido real: `select stock_descontado, descuento_detalle from pedidos order by created_at desc limit 3;`.
 - **Repo como fuente de verdad (21/10)**: aplicar `repo-fuente-de-verdad.patch` (dashboard) y `web-limpieza-y-gitattributes.patch` (web), borrar los sueltos de Desktop\kiku, hacer la puesta a punto de la Mac (`docs/DOS-MAQUINAS.md`). A partir de ahí Claude lee CONTEXTO.md del repo y lo actualiza dentro del parche del dashboard.
 - **Cierre de caja (21/10)**: `git am cierre-contado-no-negativo.patch` + push. Correr SQL 47 y corregir el origen de los pagos en efectivo del 20/10 (o cargar el ingreso que faltó) antes de cerrar ese turno; si no, cerrar con contado real (0) y queda sobrante de $260.000.

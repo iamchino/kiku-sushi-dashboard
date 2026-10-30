@@ -18,6 +18,7 @@ import {
   Usb,
   WalletCards,
   FileSpreadsheet,
+  Download,
   X, Banknote, Landmark, ChevronDown } from 'lucide-react'
 import { useFacturacion } from '../hooks/useFacturacion'
 import { supabase } from '../lib/supabase'
@@ -27,6 +28,7 @@ import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, c
 import { colorMedioPago, etiquetaMedioPago, lineasDePago, resumenMediosPago } from '../lib/pagosPedido'
 import { exportarReporteContable, resumenEgresos } from '../lib/reporteContable'
 import { cargarEgresosPeriodo } from '../lib/pagos'
+import { descargarFacturaPdf } from '../lib/facturaPdf'
 import ArqueoCajaSection from '../components/caja/ArqueoCajaSection'
 import PagosPanel from '../components/caja/PagosPanel'
 import CajaFuertePanel from '../components/caja/CajaFuertePanel'
@@ -508,7 +510,7 @@ function EditPedidoModal({ pedido, open, saving, onClose, onSave }) {
   )
 }
 
-function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, onTicket, onEdit, onNotaCredito }) {
+function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, onTicket, onEdit, onNotaCredito, onPdf }) {
   const comprobante = getAuthorizedComprobante(pedido)
   const anulados = getComprobantesAnulados(pedido)
   const notasCredito = getNotasCredito(pedido)
@@ -608,24 +610,30 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
           </div>
           {comprobante ? (
             <div className="flex flex-col items-end gap-1">
-              <span
-                title={comprobanteLabel}
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold"
+              <button
+                type="button"
+                onClick={() => onPdf(pedido, comprobante)}
+                title={`${comprobanteLabel} · descargar PDF`}
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold hover:underline"
                 style={{ background: 'rgba(95,211,163,0.12)', color: '#5FD3A3' }}
               >
                 <CheckCircle2 size={12} />
                 {comprobante.letra} {formatReceiptNumber(comprobante.punto_venta, comprobante.numero)}
-              </span>
+                <Download size={11} />
+              </button>
               {notasCredito.map(nc => (
-                <span
+                <button
                   key={nc.id}
-                  title={`${nombreComprobante(nc.tipo_cbte)} por $${formatMoney(nc.importe_total)}`}
-                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold"
+                  type="button"
+                  onClick={() => onPdf(pedido, nc)}
+                  title={`${nombreComprobante(nc.tipo_cbte)} por $${formatMoney(nc.importe_total)} · descargar PDF`}
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold hover:underline"
                   style={{ background: 'rgba(227,77,107,0.12)', color: '#F2708C' }}
                 >
                   <FileMinus2 size={11} />
                   NC {nc.letra} {formatReceiptNumber(nc.punto_venta, nc.numero)} (-${formatMoney(nc.importe_total)})
-                </span>
+                  <Download size={11} />
+                </button>
               ))}
             </div>
           ) : (
@@ -635,24 +643,31 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
                 {anulados.length ? 'Factura anulada' : 'Sin CAE'}
               </span>
               {anulados.map(f => (
-                <span
+                <button
                   key={f.id}
-                  title={`${nombreComprobante(f.tipo_cbte)} anulada por nota de crédito`}
-                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold line-through"
+                  type="button"
+                  onClick={() => onPdf(pedido, f)}
+                  title={`${nombreComprobante(f.tipo_cbte)} anulada por nota de crédito · descargar PDF`}
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold hover:underline"
                   style={{ background: 'var(--bg-input)', color: 'var(--text-muted)' }}
                 >
-                  {f.letra} {formatReceiptNumber(f.punto_venta, f.numero)}
-                </span>
+                  <span className="line-through">{f.letra} {formatReceiptNumber(f.punto_venta, f.numero)}</span>
+                  <Download size={11} />
+                </button>
               ))}
               {anulados.length > 0 && notasCredito.map(nc => (
-                <span
+                <button
                   key={nc.id}
-                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold"
+                  type="button"
+                  onClick={() => onPdf(pedido, nc)}
+                  title={`${nombreComprobante(nc.tipo_cbte)} · descargar PDF`}
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold hover:underline"
                   style={{ background: 'rgba(227,77,107,0.12)', color: '#F2708C' }}
                 >
                   <FileMinus2 size={11} />
                   NC {nc.letra} {formatReceiptNumber(nc.punto_venta, nc.numero)}
-                </span>
+                  <Download size={11} />
+                </button>
               ))}
             </div>
           )}
@@ -726,6 +741,18 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
           <ReceiptText size={14} />
           Ticket no fiscal
         </button>
+        {comprobante && (
+          <button
+            onClick={() => onPdf(pedido, comprobante)}
+            disabled={busy}
+            title="Descargar la factura en PDF (hoja A4)"
+            className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-50"
+            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+          >
+            <Download size={14} />
+            PDF
+          </button>
+        )}
         {comprobante && (
           <button
             onClick={() => onNotaCredito(pedido, comprobante)}
@@ -887,6 +914,22 @@ export default function CajaPage() {
 
   const handleNotaCredito = (pedido, comprobante) => {
     setNcTarget({ pedido, comprobante })
+  }
+
+  // Factura / NC en PDF (A4). Forma de pago: la del pedido; si se pagó con
+  // varios medios, se listan todos.
+  const handlePdf = async (pedido, comprobante) => {
+    setNotice(null)
+    try {
+      const lineas = lineasDePago(pedido)
+      const medioPago = lineas.length > 1
+        ? lineas.map(l => etiquetaMedioPago(l.medio)).join(' + ')
+        : (lineas[0]?.medio ?? pedido.medio_pago ?? null)
+      const archivo = await descargarFacturaPdf(pedido, comprobante, config, { medioPago })
+      setNotice({ type: 'ok', text: `Descargado ${archivo}.` })
+    } catch (err) {
+      setNotice({ type: 'error', text: err.message || 'No se pudo generar el PDF.' })
+    }
   }
 
   const handleConfirmarNc = async ({ total, motivo }) => {
@@ -1193,6 +1236,7 @@ export default function CajaPage() {
                     onTicket={handleTicket}
                     onEdit={setEditingPedido}
                     onNotaCredito={handleNotaCredito}
+                    onPdf={handlePdf}
                   />
                 ))}
               </div>
