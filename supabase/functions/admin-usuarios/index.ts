@@ -85,6 +85,16 @@ async function bloqueaPorUltimoAdmin(
 // app_metadata.role, escrito solo con la service key desde acá).
 const VALID_ROLES = ["empleado", "mozo", "cocina", "finanzas", "admin"];
 
+// Los roles se crean desde Permisos → Roles (tabla public.roles). Un rol vale
+// si está en esa tabla; los 5 de arriba quedan como plan B si la tabla no
+// responde (instalación vieja sin la fase 1 de permisos).
+async function rolValido(admin: AdminClient, role: string): Promise<boolean> {
+  if (!/^[a-z][a-z0-9_]{1,30}$/.test(role)) return false;
+  const { data, error } = await admin.from("roles").select("id").eq("id", role).maybeSingle();
+  if (error) return VALID_ROLES.includes(role);
+  return Boolean(data);
+}
+
 // Acá había una lista blanca de emails (PROTEGIDOS) que espejaba
 // is_finanzas_user() y FINANZAS_EMAILS. Se fue: el rol es la única fuente de
 // verdad (ver 20260906030000_roles_sin_lista_blanca.sql). La única regla que
@@ -171,7 +181,8 @@ Deno.serve(async (req) => {
     if (action === "crear") {
       const email = String(body.email ?? "").trim().toLowerCase();
       const password = String(body.password ?? "");
-      const role = VALID_ROLES.includes(String(body.role)) ? String(body.role) : "empleado";
+      const rolePedido = String(body.role ?? "");
+      const role = rolePedido && (await rolValido(admin, rolePedido)) ? rolePedido : "empleado";
 
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return errorResponse("Email inválido");
       if (password.length < 8) return errorResponse("La contraseña debe tener al menos 8 caracteres");
@@ -231,7 +242,7 @@ Deno.serve(async (req) => {
       const userId = String(body.user_id ?? "");
       const role = String(body.role ?? "");
       if (!userId) return errorResponse("Falta user_id");
-      if (!VALID_ROLES.includes(role)) return errorResponse(`Rol inválido: ${role}`);
+      if (!(await rolValido(admin, role))) return errorResponse(`Rol inválido: ${role}. Crealo primero en Permisos → Roles.`);
 
       const { data: target, error: getErr } = await admin.auth.admin.getUserById(userId);
       if (getErr) throw getErr;

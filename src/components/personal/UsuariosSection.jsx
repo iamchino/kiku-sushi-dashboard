@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Plus, Trash2, KeyRound, UserCog, AlertTriangle, Loader2, ShieldCheck, ShieldOff } from 'lucide-react'
 import { useUsuarios } from '../../hooks/useUsuarios'
 import { supabase } from '../../lib/supabase'
@@ -6,7 +6,11 @@ import { ModalShell, Field, Select } from '../finanzas/fields'
 import ConfirmDelete from '../finanzas/ConfirmDelete'
 import AccesosPanel from './AccesosPanel'
 
-const ROLES = [
+// Los 5 roles de siempre: quedan como plan B si la tabla `roles` no responde.
+// La lista real sale de Permisos → Roles (tabla public.roles), que es donde
+// se crean los roles nuevos (ej. "produccion"): si no se leyera de ahí, un
+// rol creado en Permisos no se podría asignar a ningún login.
+const ROLES_BASE = [
   { value: 'empleado', label: 'Empleado (solo fichaje)' },
   { value: 'mozo',     label: 'Mozo' },
   { value: 'cocina',   label: 'Cocina' },
@@ -21,6 +25,26 @@ const ROLE_CHIP = {
   finanzas: { bg: 'rgba(63,191,138,0.14)', color: '#3FBF8A' },
   admin:    { bg: 'rgba(168,85,247,0.14)', color: '#a855f7' },
 }
+// Roles creados desde Permisos: chip neutro.
+const ROLE_CHIP_OTRO = { bg: 'rgba(242,179,92,0.14)', color: '#F2B35C' }
+
+/** Roles asignables: los de la tabla `roles` (orden de Permisos); si falla, los 5 base. */
+function useRolesAsignables() {
+  const [roles, setRoles] = useState(ROLES_BASE)
+  useEffect(() => {
+    let alive = true
+    supabase.from('roles').select('id, nombre, descripcion, orden').order('orden').order('id')
+      .then(({ data, error }) => {
+        if (!alive || error || !data?.length) return
+        setRoles(data.map(r => ({
+          value: r.id,
+          label: r.nombre && r.nombre !== r.id ? `${r.nombre}${r.descripcion ? ` (${r.descripcion})` : ''}` : (ROLES_BASE.find(b => b.value === r.id)?.label || r.id),
+        })))
+      })
+    return () => { alive = false }
+  }, [])
+  return roles
+}
 
 const nombreDe = (e) => `${e.nombre} ${e.apellido || ''}`.trim()
 
@@ -34,6 +58,7 @@ export default function UsuariosSection({ empleados }) {
     usuarios, loading, error,
     crearUsuario, eliminarUsuario, cambiarPassword, cambiarRol, resetearMfa, vincularEmpleado,
   } = useUsuarios()
+  const ROLES = useRolesAsignables()
 
   const [nuevo, setNuevo]       = useState(false)
   const [delUser, setDelUser]   = useState(null)
@@ -156,7 +181,7 @@ export default function UsuariosSection({ empleados }) {
       ) : (
         <div className="space-y-2">
           {usuarios.map(u => {
-            const chip = ROLE_CHIP[u.role] || ROLE_CHIP.admin
+            const chip = ROLE_CHIP[u.role] || ROLE_CHIP_OTRO
             const trabajando = busy === u.id
             const vinculoActual = u.empleado?.empleado_id || ''
             const pidiendo = confirmar?.userId === u.id
@@ -308,6 +333,7 @@ export default function UsuariosSection({ empleados }) {
 }
 
 function UsuarioModal({ empleadosSinLogin, onClose, onSave }) {
+  const ROLES = useRolesAsignables()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole]         = useState('empleado')

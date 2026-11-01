@@ -176,6 +176,14 @@ Parche `facturar-error-visible.patch` (+ redeploy de `arca-comprobantes`).
 - arca-comprobantes: el chequeo de `puede_cobrar()` (capa 1) usa el JWT del usuario con la service key como apikey (antes dependía de SUPABASE_ANON_KEY) y devuelve el motivo si la RPC falla.
 - Si después del parche sigue fallando, el cartel rojo dentro del modal dice la causa real.
 
+## Últimos cambios (2026-11-01) — Roles creados en Permisos no se podían asignar a un login
+Parche `kiku-sushi-dashboard\roles-de-la-tabla.patch` (base f219b1c). Sin SQL. **Requiere `supabase functions deploy admin-usuarios`** (sin eso el desplegable muestra el rol nuevo pero la Edge responde "Rol inválido").
+- Reporte de Noe (01/11): crearon el rol "produccion" en Permisos → Roles y no aparecía para vincular un usuario. Causa: dos listas fijas con los 5 roles originales: `ROLES` en `components/personal/UsuariosSection.jsx` (desplegables de la fila y del alta) y `VALID_ROLES` en la Edge `admin-usuarios` (acciones `crear` y `rol`).
+- Front: `useRolesAsignables()` lee `public.roles` (lectura autenticada desde la fase 1) y arma los desplegables con nombre + descripción; los 5 base quedan de plan B si la tabla no responde. Chip neutro (naranja) para roles nuevos.
+- Edge: `rolValido()` consulta `public.roles` con la service key; si la tabla no está, cae a `VALID_ROLES`. Mensaje claro: "Rol inválido: X. Crealo primero en Permisos → Roles."
+- Lo que ve un rol nuevo lo decide la matriz de Permisos (ya era así); `is_operational_user()` deja entrar a quien tenga edición sobre pedidos o stock (20260906100000).
+- **Wi-Fi del local (mismo reporte)**: en el Wi-Fi de Kiku el dashboard da "no se puede conectar a esta página web" y en el del vecino anda. No es código: es DNS/bloqueo del router del local. Diagnóstico pedido a Noe: con el celu en el Wi-Fi de Kiku, probar google.com; poner DNS privado `dns.google` (Android) / DNS manual 8.8.8.8 (iPhone) y reintentar; si así anda, cambiar el DNS del router a 8.8.8.8 / 1.1.1.1 y revisar control parental / sitios bloqueados. Ojo con la IP fija que se puso en la PC "noeli" para la impresora: si en el router se tocó el DNS en ese momento, puede ser la causa.
+
 ## Últimos cambios (2026-10-29, 2) — Corregir el nombre del cliente antes de descargar / imprimir
 Parche `kiku-sushi-dashboard\facturas-editar-cliente.patch` (base 0bcb9c8). Sin SQL.
 - Pedido de Manu: poder editar la razón social antes de descargar o imprimir. El botón **PDF** de Caja ahora abre `components/caja/ComprobanteDatosModal.jsx`: razón social / nombre y domicilio del cliente, prellenados con lo que tiene el comprobante; botones Guardar, Imprimir ticket y Descargar PDF (los tres guardan primero si hubo cambios). Guarda en `comprobantes_fiscales.receptor_nombre` / `receptor_domicilio` con update directo (policy "permisos escritura" = `puede_tabla('comprobantes_fiscales','editar')`; si RLS bloquea, avisa). El CUIT/DNI y la condición IVA no se editan: viajaron a ARCA. El CAE no cambia (ARCA autoriza por documento, no por nombre).
@@ -505,6 +513,7 @@ es **32** (no 31).
 5. ~~Impresión (09/10)~~ HECHO y funcionando. Ver sección 09/10.
 
 ### ▶ PRÓXIMA SESIÓN — con qué seguir
+- **Roles nuevos (01/11)**: `kiku-sync am roles-de-la-tabla.patch` + `supabase functions deploy admin-usuarios` (desde la Mac/PC con Supabase CLI logueada, o pegando `supabase/functions/admin-usuarios/index.ts` en el editor de Edge Functions del panel de Supabase). Después: Equipo → Usuarios → asignar "produccion" al login nuevo y revisar en Permisos qué ve ese rol. Wi-Fi: esperar el diagnóstico de Noe.
 - **Facturas PDF (29/10)**: ~~facturas-pdf.patch~~ pusheado (0bcb9c8). Falta `kiku-sync am facturas-editar-cliente.patch`. Probar en Caja con una factura real: botón PDF → modal → cambiar nombre → PDF y ticket.
 - **Stock desde la carta (24/10)**: `scripts/kiku-sync.sh am vinculos-stock-menu.patch` (Mac) + correr **SQL 48** en Supabase. Después, en Menú → editar producto → "Stock que descuenta": cargar las bebidas (lata → ítem de inventario) y los productos con variantes x2/x4/x6 (una receta, cantidad por variante). Verificar con un pedido real: `select stock_descontado, descuento_detalle from pedidos order by created_at desc limit 3;`.
 - **Repo como fuente de verdad (21/10)**: aplicar `repo-fuente-de-verdad.patch` (dashboard) y `web-limpieza-y-gitattributes.patch` (web), borrar los sueltos de Desktop\kiku, hacer la puesta a punto de la Mac (`docs/DOS-MAQUINAS.md`). A partir de ahí Claude lee CONTEXTO.md del repo y lo actualiza dentro del parche del dashboard.
