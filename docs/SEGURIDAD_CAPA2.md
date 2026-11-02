@@ -1,3 +1,5 @@
+> **Estado 01/11/2026:** el 2FA obligatorio está DESACTIVADO desde el 08/10 por decisión de los directivos (SQL-CIERRES 35). El código sigue listo; cómo reactivarlo está en `CONTEXTO.md` (08/10) y la recomendación en `docs/SEGURIDAD_HARDENING.md` §3.2.
+
 # Seguridad · Capa 2 — Segundo factor, sesiones y accesos
 
 ## Qué hace

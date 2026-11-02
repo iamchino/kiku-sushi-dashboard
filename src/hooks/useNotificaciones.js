@@ -131,7 +131,7 @@ export function useNotificaciones() {
         ({ new: row }) => {
           const { toNotifShape, playBeep, playReservaBeep } = handlersRef.current
           const n = toNotifShape(row)
-          console.log('[notif] persistida recibida:', n.tipo, n.mensaje)
+          console.log('[notif] persistida recibida:', n.tipo)
 
           setNotifs(prev => {
             // Evitar duplicado si ya está (improbable pero protege contra

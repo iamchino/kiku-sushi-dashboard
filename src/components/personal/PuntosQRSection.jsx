@@ -101,12 +101,23 @@ function PuntoCard({ punto, actualizarPunto, regenerarToken }) {
     if (!qrUrl) return
     const w = window.open('', '_blank')
     if (!w) return
-    w.document.write(`<!doctype html><html><head><title>QR Fichaje · ${punto.nombre}</title>
-      <style>body{font-family:sans-serif;display:flex;flex-direction:column;align-items:center;gap:12px;padding:40px}
-      img{width:420px;height:420px}h1{font-size:22px;margin:0}p{color:#555;margin:0;font-size:14px}</style></head>
-      <body><h1>KIKU SUSHI · Fichaje</h1><p>${punto.nombre} — escaneá con la cámara para fichar entrada/salida</p>
-      <img src="${qrUrl}" onload="window.print()"/></body></html>`)
-    w.document.close()
+    // Sin HTML interpolado: el nombre del punto lo carga el staff y podría
+    // traer HTML; y sin `onload=` inline, que la CSP (script-src 'self')
+    // bloquea. Se arma el DOM a mano y se imprime desde acá.
+    const d = w.document
+    d.open()
+    d.write('<!doctype html><html><head><meta charset="utf-8"><title>QR Fichaje</title></head><body></body></html>')
+    d.close()
+    d.title = `QR Fichaje · ${punto.nombre}`
+    const style = d.createElement('style')
+    style.textContent = 'body{font-family:sans-serif;display:flex;flex-direction:column;align-items:center;gap:12px;padding:40px}img{width:420px;height:420px}h1{font-size:22px;margin:0}p{color:#555;margin:0;font-size:14px}'
+    d.head.appendChild(style)
+    const h1 = d.createElement('h1'); h1.textContent = 'KIKU SUSHI · Fichaje'
+    const p = d.createElement('p'); p.textContent = `${punto.nombre} — escaneá con la cámara para fichar entrada/salida`
+    const img = d.createElement('img'); img.alt = 'QR de fichaje'
+    img.addEventListener('load', () => { w.focus(); w.print() })
+    img.src = qrUrl
+    d.body.append(h1, p, img)
   }, [qrUrl, punto.nombre])
 
   const copiar = useCallback(async () => {

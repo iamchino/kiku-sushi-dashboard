@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html"
 	"image"
 	"image/color"
 	"image/png"
@@ -31,7 +32,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const version = "1.0.12"
+const version = "1.0.13"
 
 // Ruta del certificado exportado (se completa en main).
 var certCrtPath string
@@ -45,6 +46,17 @@ type Config struct {
 	Papel     int    `json:"papel"`      // 0 = usar el del dashboard | 58 | 80 (fuerza el ancho real)
 	Modo      string `json:"modo"`       // "imagen" (default: texto como raster, sale igual en todas) | "comandos"
 	UpdateURL string `json:"update_url"` // JSON de versión publicado por el dashboard
+	// Hardening 1.0.13:
+	//  · EscucharEnRed: false (default) = solo 127.0.0.1. Desde el 09/10/2026 los
+	//    celulares no se conectan a la impresora (cola en Supabase), así que no
+	//    hay motivo para exponer el puerto a la red del local.
+	//  · OrigenesPermitidos: orígenes web que pueden abrir el websocket. Vacío =
+	//    cualquier *.vercel.app, localhost y el propio equipo.
+	//  · PermitirRedExterna: false (default) = impresoras de red solo en rangos
+	//    privados (192.168/10/172.16) y puerto 9100.
+	EscucharEnRed      bool     `json:"escuchar_en_red"`
+	OrigenesPermitidos []string `json:"origenes_permitidos"`
+	PermitirRedExterna bool     `json:"permitir_red_externa"`
 }
 
 func cargarConfig(dir string) Config {
@@ -68,6 +80,64 @@ func cargarConfig(dir string) Config {
 	return cfg
 }
 
+// origenAceptado decide qué páginas web pueden hablarle al websocket.
+// Sin Origin (programas, curl) se acepta: no es un navegador y el puerto ya
+// está limitado a esta PC. Con Origin: los configurados, cualquier
+// https://*.vercel.app, localhost y la propia IP.
+func origenAceptado(r *http.Request) bool {
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	if origin == "" {
+		return true
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(u.Hostname())
+	for _, o := range cfg.OrigenesPermitidos {
+		if strings.EqualFold(strings.TrimSuffix(strings.TrimSpace(o), "/"), strings.TrimSuffix(origin, "/")) {
+			return true
+		}
+	}
+	if u.Scheme == "https" && strings.HasSuffix(host, ".vercel.app") {
+		return true
+	}
+	if host == "localhost" || host == "127.0.0.1" {
+		return true
+	}
+	for _, ip := range ipsLocales() {
+		if host == ip {
+			return true
+		}
+	}
+	log.Printf("✘ Origen rechazado en el websocket: %s (agregarlo a origenes_permitidos en config.json si corresponde)", origin)
+	return false
+}
+
+// direccionImpresoraPermitida evita que el dashboard (o cualquiera que llegue
+// al puerto) use este programa para mandar bytes a cualquier host:puerto.
+// Solo IPs privadas y puerto 9100, salvo permitir_red_externa.
+func direccionImpresoraPermitida(addr string) error {
+	if cfg.PermitirRedExterna {
+		return nil
+	}
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fmt.Errorf("dirección de impresora inválida: %s", addr)
+	}
+	if port != "9100" {
+		return fmt.Errorf("solo se permite el puerto 9100 para impresoras de red (permitir_red_externa en config.json para otros)")
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return fmt.Errorf("la impresora de red tiene que indicarse por IP, no por nombre: %s", host)
+	}
+	if !ip.IsPrivate() && !ip.IsLoopback() {
+		return fmt.Errorf("la IP %s no es de la red local", host)
+	}
+	return nil
+}
+
 // ── Mensajes del protocolo (idéntico a GG EZ Print) ──────────────────────────
 type wsRequest struct {
 	Action string `json:"action"`
@@ -88,8 +158,9 @@ type printerEntry struct {
 
 var (
 	upgrader = websocket.Upgrader{
-		// El dashboard corre en otro origen (vercel.app): hay que aceptarlo.
-		CheckOrigin: func(r *http.Request) bool { return true },
+		// El dashboard corre en otro origen (vercel.app): se acepta ese y los
+		// configurados. Cualquier otra página abierta en esta PC, no.
+		CheckOrigin: origenAceptado,
 	}
 	// Un trabajo por vez: dos tickets a la misma impresora no se pisan.
 	printMu sync.Mutex
@@ -128,6 +199,9 @@ func imprimirRed(direccion string, datos []byte) error {
 	addr := strings.TrimSpace(direccion)
 	if !strings.Contains(addr, ":") {
 		addr += ":9100"
+	}
+	if err := direccionImpresoraPermitida(addr); err != nil {
+		return err
 	}
 	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
@@ -263,7 +337,7 @@ func atenderPruebaImpresion(w http.ResponseWriter, r *http.Request) {
 	if imp == "" {
 		opciones := ""
 		for _, p := range listarImpresoras() {
-			opciones += fmt.Sprintf(`<option value="%s">%s (USB)</option>`, p.Name, p.Name)
+			opciones += fmt.Sprintf(`<option value="%s">%s (USB)</option>`, html.EscapeString(p.Name), html.EscapeString(p.Name))
 		}
 		fmt.Fprintf(w, `<html><body style="font-family:sans-serif;background:#111;color:#eee;padding:40px;max-width:520px">
 <h1>🖨 Ticket de prueba de tamaños</h1>
@@ -293,7 +367,7 @@ entiende la impresora.</p>
 	}
 	printMu.Unlock()
 	if err != nil {
-		fmt.Fprintf(w, `<html><body style="font-family:sans-serif;background:#111;color:#f87171;padding:40px">✘ Error: %s</body></html>`, err.Error())
+		fmt.Fprintf(w, `<html><body style="font-family:sans-serif;background:#111;color:#f87171;padding:40px">✘ Error: %s</body></html>`, html.EscapeString(err.Error()))
 		return
 	}
 	fmt.Fprint(w, `<html><body style="font-family:sans-serif;background:#111;color:#4ade80;padding:40px">✔ Ticket de prueba enviado. Sacale una foto.</body></html>`)
@@ -366,7 +440,7 @@ la impresora imprime exactamente esto</b>, píxel por píxel.</p>
 <form method="get"><p>Probar con otro contenido (p. ej. la URL real de un comprobante):<br>
 <input name="data" style="width:100%%;padding:10px;border-radius:8px;border:none" placeholder="https://www.afip.gob.ar/fe/qr/?p=...">
 <button style="margin-top:8px;padding:10px 18px;border-radius:8px;border:none;background:#4ade80;font-weight:bold">Generar</button></p></form>
-</body></html>`, url.QueryEscape(datos), datos)
+</body></html>`, url.QueryEscape(datos), html.EscapeString(datos))
 }
 
 // Página de estado: sirve para verificar que el certificado quedó instalado
@@ -387,7 +461,7 @@ abrí <b>http://ESTA-IP:8442</b> (con http, sin s) y descargalo, o
 <a href="/cert.crt" style="color:#4ade80">bajalo directo acá</a>.</p>
 <p>¿Querés verificar el QR sin impresora? <a href="/prueba" style="color:#4ade80">Prueba del QR</a>.</p>
 <p style="color:#888">El dashboard se conecta solo. No hay nada más que hacer acá.</p>
-</body></html>`, version, strings.Join(nombres, "\n"))
+</body></html>`, version, html.EscapeString(strings.Join(nombres, "\n")))
 }
 
 func ipsLocales() []string {
@@ -413,11 +487,21 @@ func ipsLocales() []string {
 	return linkLocal
 }
 
+// rotarLog evita que el log crezca para siempre: pasados los 5 MB se
+// renombra a .1 (una sola copia) y se arranca de cero.
+func rotarLog(path string) {
+	if st, err := os.Stat(path); err == nil && st.Size() > 5*1024*1024 {
+		_ = os.Remove(path + ".1")
+		_ = os.Rename(path, path+".1")
+	}
+}
+
 func main() {
 	exe, _ := os.Executable()
 	dir := filepath.Dir(exe)
 
 	// Log a consola Y a archivo, para poder revisar qué pasó.
+	rotarLog(filepath.Join(dir, "comandera-print.log"))
 	logFile, err := os.OpenFile(filepath.Join(dir, "comandera-print.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err == nil {
 		log.SetOutput(newDualWriter(os.Stdout, logFile))
@@ -456,6 +540,15 @@ func main() {
 	http.HandleFunc("/prueba-impresion", atenderPruebaImpresion)
 	http.HandleFunc("/", atenderStatus)
 
+	// Desde 1.0.13 solo se escucha en esta PC (127.0.0.1), salvo que
+	// config.json diga escuchar_en_red: true. El dashboard de esta PC se
+	// conecta por 127.0.0.1; los celulares mandan los tickets por la cola.
+	bindHost := "127.0.0.1"
+	if cfg.EscucharEnRed {
+		bindHost = ""
+		log.Printf("⚠ escuchar_en_red: true — el puerto queda abierto a toda la red del local")
+	}
+
 	// Puerto HTTP común (sin candado): reparte el certificado a dispositivos
 	// nuevos y permite la prueba del QR sin certificado instalado.
 	go func() {
@@ -464,10 +557,10 @@ func main() {
 		mux.HandleFunc("/prueba.png", atenderPruebaPNG)
 		mux.HandleFunc("/prueba-impresion", atenderPruebaImpresion)
 		mux.HandleFunc("/", atenderPaginaCert)
-		_ = http.ListenAndServe(":8442", mux)
+		_ = http.ListenAndServe(bindHost+":8442", mux)
 	}()
 
-	addr := fmt.Sprintf(":%d", cfg.Puerto)
+	addr := fmt.Sprintf("%s:%d", bindHost, cfg.Puerto)
 	ips := ipsLocales()
 	for _, ip := range ips {
 		log.Printf("Escuchando en https://%s%s  (dashboard: usar %s como servidor de impresión)", ip, addr, ip)

@@ -159,13 +159,16 @@ async function sendOne(sub: Sub, payload: string, pub: string, priv: string, sub
 // ── Handler ─────────────────────────────────────────────────────────────────
 // Secreto compartido con la base (private.config.push_web_secret). Sin él,
 // cualquiera con la URL podía hacer sonar los teléfonos de cocina y mozos
-// con avisos falsos. Si la variable no está configurada todavía, se acepta
-// y se avisa por log, para que el deploy no corte las notificaciones.
+// con avisos falsos. Hardening 01/11/2026: si la variable no está
+// configurada se RECHAZA (antes se aceptaba todo): mejor que dejen de sonar
+// las notificaciones a que cualquiera las dispare. Configurar
+// PUSH_WEB_SECRET en Edge Functions → Secrets con el mismo valor que
+// private.config.push_web_secret.
 function autorizado(req: Request): boolean {
   const esperado = Deno.env.get("PUSH_WEB_SECRET") ?? "";
   if (!esperado) {
-    console.warn("[push-web] PUSH_WEB_SECRET no configurado: aceptando sin verificar");
-    return true;
+    console.error("[push-web] PUSH_WEB_SECRET no configurado: se rechaza la llamada");
+    return false;
   }
   const recibido = req.headers.get("x-push-secret") ?? "";
   if (recibido.length !== esperado.length) return false;

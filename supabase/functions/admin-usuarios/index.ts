@@ -25,12 +25,27 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 // CORS inline (sin depender de ../_shared) para poder pegar esta función
 // tal cual en el editor del Dashboard de Supabase si no se usa la CLI.
+// Origen permitido: ALLOWED_ORIGINS (lista separada por comas). Sin la
+// variable, '*' con aviso en el log. Ver _shared/cors.ts para el detalle.
+const ORIGENES = (Deno.env.get("ALLOWED_ORIGINS") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+if (ORIGENES.length === 0) console.warn("[cors] ALLOWED_ORIGINS no configurado: se responde *");
+function origenPermitido(req?: Request): string {
+  if (ORIGENES.length === 0 || ORIGENES.includes("*")) return "*";
+  const origin = req?.headers.get("origin") ?? "";
+  return ORIGENES.includes(origin) ? origin : ORIGENES[0];
+}
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": origenPermitido(),
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Vary": "Origin",
 };
+function conCors(resp: Response, req: Request): Response {
+  const headers = new Headers(resp.headers);
+  headers.set("Access-Control-Allow-Origin", origenPermitido(req));
+  return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers });
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -101,7 +116,9 @@ async function rolValido(admin: AdminClient, role: string): Promise<boolean> {
 // queda es estructural y no nombra a nadie: el sistema nunca se puede quedar
 // sin ningún admin.
 
-Deno.serve(async (req) => {
+Deno.serve(async (req) => conCors(await atender(req), req));
+
+async function atender(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return errorResponse("Método no permitido", 405);
 
@@ -338,4 +355,4 @@ Deno.serve(async (req) => {
     const msg = err instanceof Error ? err.message : String(err);
     return jsonResponse({ ok: false, error: msg }, 500);
   }
-});
+}

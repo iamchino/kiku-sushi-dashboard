@@ -1,10 +1,18 @@
-# Backup diario completo (esquema + datos del schema public) de la base de
-# producción. Queda guardado como artefacto del workflow por 30 días.
+# Backup diario de la base de producción (schemas public + private, más los
+# datos de auth: usuarios, identidades y factores 2FA). Queda guardado como
+# artefacto del workflow por 30 días, CIFRADO con GPG (clave simétrica).
 #
-# Restaurar: bajar el artefacto → descomprimir → correr el .sql contra una
-# base nueva (o pedirle a Claude que lo haga).
+# Secrets necesarios (Settings → Secrets and variables → Actions):
+#   DATABASE_URL        conexión directa a Postgres (la misma que dump-esquema)
+#   BACKUP_PASSPHRASE   frase larga (≥ 32 caracteres). Guardarla en un gestor
+#                       de contraseñas: sin ella el backup no se puede abrir.
 #
-# Requiere el secret DATABASE_URL (el mismo que dump-esquema).
+# Restaurar (docs/SEGURIDAD_HARDENING.md → "Backup y recuperación"):
+#   gpg --batch --passphrase "$BACKUP_PASSPHRASE" -d backup-FECHA.sql.gz.gpg | gunzip > backup.sql
+#   psql "$DATABASE_URL_NUEVA" -f backup.sql
+#
+# Hardening 01/11/2026: cifrado obligatorio, permisos mínimos del token,
+# auth + private incluidos, prueba de integridad del archivo antes de subirlo.
 name: backup-diario
 
 on:
@@ -12,27 +20,49 @@ on:
     - cron: "0 6 * * *"   # 06:00 UTC = 03:00 Argentina, todos los días
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   backup:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - name: Dump completo
+      - name: Dump cifrado
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
-          if [ -z "$DATABASE_URL" ]; then
-            echo "::error::Falta el secret DATABASE_URL."
+          set -euo pipefail
+          if [ -z "$DATABASE_URL" ]; then echo "::error::Falta el secret DATABASE_URL."; exit 1; fi
+          if [ -z "$BACKUP_PASSPHRASE" ] || [ "${#BACKUP_PASSPHRASE}" -lt 32 ]; then
+            echo "::error::Falta el secret BACKUP_PASSPHRASE (mínimo 32 caracteres). El backup no se sube sin cifrar."
             exit 1
           fi
           fecha=$(date +%Y-%m-%d)
-          docker run --rm postgres:17-alpine \
-            pg_dump "$DATABASE_URL" --schema=public --no-owner \
+          # public + private (config, secretos de push) en un dump; auth aparte
+          # (solo datos: la estructura la pone Supabase).
+          docker run --rm -e DATABASE_URL postgres:17-alpine \
+            pg_dump "$DATABASE_URL" --schema=public --schema=private --no-owner --no-privileges \
             | gzip > "backup-$fecha.sql.gz"
-          ls -lh backup-*.sql.gz
+          docker run --rm -e DATABASE_URL postgres:17-alpine \
+            pg_dump "$DATABASE_URL" --schema=auth --data-only --no-owner \
+              --table=auth.users --table=auth.identities --table=auth.mfa_factors \
+            | gzip > "backup-auth-$fecha.sql.gz" || echo "::warning::No se pudo respaldar auth (permisos). El dump de public/private sí se hizo."
+          # Integridad: el gzip tiene que abrirse y el dump tener tablas.
+          gunzip -t "backup-$fecha.sql.gz"
+          gunzip -c "backup-$fecha.sql.gz" | grep -c "^CREATE TABLE" | xargs -I{} sh -c '[ {} -gt 20 ] || { echo "::error::El dump tiene muy pocas tablas ({})"; exit 1; }'
+          for f in backup-*.sql.gz; do
+            gpg --batch --yes --symmetric --cipher-algo AES256 --pinentry-mode loopback \
+                --passphrase "$BACKUP_PASSPHRASE" -o "$f.gpg" "$f"
+            rm -f "$f"
+          done
+          ls -lh backup-*.gpg
 
       - name: Guardar como artefacto (30 días)
         uses: actions/upload-artifact@v4
         with:
           name: backup-${{ github.run_id }}
-          path: backup-*.sql.gz
+          path: backup-*.gpg
           retention-days: 30
+          if-no-files-found: error

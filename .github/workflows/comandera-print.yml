@@ -17,6 +17,10 @@ on:
       - '.github/workflows/comandera-print.yml'
   workflow_dispatch: {}
 
+# Solo lo que necesita: commitear el exe compilado en public/descargas.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -46,7 +50,9 @@ jobs:
           mkdir -p public/descargas
           cp comandera-print/ComanderaPrint.exe public/descargas/ComanderaPrint.exe
           cp comandera-print/ComanderaPrint.exe public/descargas/KikuPrint.exe
-          printf '{"version":"%s","url":"https://kiku-sushi-dashboard.vercel.app/descargas/ComanderaPrint.exe"}\n' "$VERSION" \
+          # sha256 del exe: Comandera Print 1.0.13+ lo verifica antes de instalar.
+          SHA=$(sha256sum comandera-print/ComanderaPrint.exe | cut -d' ' -f1)
+          printf '{"version":"%s","url":"https://kiku-sushi-dashboard.vercel.app/descargas/ComanderaPrint.exe","sha256":"%s"}\n' "$VERSION" "$SHA" \
             > public/descargas/comandera-print-version.json
           cp public/descargas/comandera-print-version.json public/descargas/kiku-print-version.json
           git config user.name  "comandera-bot"

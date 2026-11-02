@@ -7,7 +7,7 @@
 // Body    : FiscalRequestPayload (ver types.ts)
 
 import { createClient } from 'npm:@supabase/supabase-js@^2.45.4'
-import { corsHeaders, errorResponse, jsonResponse } from '../_shared/cors.ts'
+import { conCors, corsHeaders, errorResponse, jsonResponse } from '../_shared/cors.ts'
 import { getWsaaCredentials, type ArcaLogEntry } from './wsaa.ts'
 import { feCaeSolicitar, feCompUltimoAutorizado } from './wsfe.ts'
 import type { Ambiente, FiscalRequestPayload } from './types.ts'
@@ -76,7 +76,10 @@ function buildQrUrl(args: {
   return `https://www.arca.gob.ar/fe/qr/?p=${encodeURIComponent(base64)}`
 }
 
-Deno.serve(async (req) => {
+// Los headers CORS se ajustan al Origin de cada request (ver _shared/cors.ts).
+Deno.serve(async (req) => conCors(await atender(req), req))
+
+async function atender(req: Request): Promise<Response> {
   // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -407,4 +410,4 @@ Deno.serve(async (req) => {
     comprobante: inserted,
     observaciones: cae.result.observaciones || [],
   })
-})
+}

@@ -574,11 +574,11 @@ export async function printFiscalTicket(pedido, comprobante, config, opts = {}) 
   // texto para que el servicio nunca imprima el literal "{{QR}}" ni texto crudo.
   if (!qrCodeData) {
     text = text.split('{{QR}}').join('')
+    // Sin datos del receptor ni el CAE en la consola (el qr_url los lleva en base64).
     console.warn('[printing] qr_code_data vacío — el QR no se va a imprimir. Comprobante:', {
       tipo_cbte: enrichedComprobante?.tipo_cbte,
       numero:    enrichedComprobante?.numero,
-      cae:       enrichedComprobante?.cae,
-      qr_url:    enrichedComprobante?.qr_url,
+      tiene_cae: Boolean(enrichedComprobante?.cae),
     })
   }
   const receiptNumber = formatReceiptNumber(enrichedComprobante?.punto_venta, enrichedComprobante?.numero)

@@ -106,8 +106,29 @@ async function sendPush(
   return res.status;
 }
 
+// Hardening 01/11/2026: antes cualquiera con la URL podía disparar avisos
+// falsos (la función se deploya con --no-verify-jwt porque la llama un
+// Database Webhook, no un usuario). Ahora exige el header x-push-secret con
+// el valor de PUSH_WEB_SECRET (el mismo que usa push-web). En Supabase →
+// Database → Webhooks, agregar ese header al webhook de `pedidos`; si el
+// webhook ya no se usa (la app Android no está en uso), borrarlo.
+function autorizado(req: Request): boolean {
+  const esperado = Deno.env.get("PUSH_WEB_SECRET") ?? "";
+  if (!esperado) {
+    console.error("[push-pedidos] PUSH_WEB_SECRET no configurado: se rechaza la llamada");
+    return false;
+  }
+  const recibido = req.headers.get("x-push-secret") ?? "";
+  if (recibido.length !== esperado.length) return false;
+  let diff = 0;
+  for (let i = 0; i < esperado.length; i++) diff |= recibido.charCodeAt(i) ^ esperado.charCodeAt(i);
+  return diff === 0;
+}
+
 Deno.serve(async (req) => {
   try {
+    if (req.method !== "POST") return new Response("method", { status: 405 });
+    if (!autorizado(req)) return new Response("unauthorized", { status: 401 });
     const payload = (await req.json()) as WebhookPayload;
     if (payload.table !== "pedidos") {
       return new Response("ignored", { status: 200 });
