@@ -77,12 +77,14 @@ am() {
     *kiku-sushi-dashboard*) r=kiku-sushi-dashboard ;;
   esac
   local d="$BASE/$r"
-  echo "${GRIS}Aplicando $(basename "$archivo") en $r…${FIN}"
+  # Ojo bash 3.2 (el de macOS): "$r…" rompe (lee la variable como "r?") y
+  # "$@" vacío con set -u también. Por eso ${r} y ${1:+"$@"}.
+  echo "${GRIS}Aplicando $(basename "$archivo") en ${r}...${FIN}"
   git -C "$d" pull --rebase -q origin master
-  git -C "$d" am "$@" "$(cd "$(dirname "$archivo")" && pwd)/$(basename "$archivo")"
+  git -C "$d" am ${1:+"$@"} "$(cd "$(dirname "$archivo")" && pwd)/$(basename "$archivo")"
   git -C "$d" push -q origin master
   rm -f "$archivo"
-  echo "${VERDE}✓ $r: $(git -C "$d" log --oneline -1) — subido, parche borrado.${FIN}"
+  echo "${VERDE}OK ${r}: $(git -C "$d" log --oneline -1) - subido, parche borrado.${FIN}"
 }
 
 cmd="${1:-status}"
