@@ -56,3 +56,6 @@ kiku-print/INSTALAR-ESTE-CERTIFICADO.crt
 
 # Parches de Claude: se aplican con `git am` y se borran. Nunca se commitean.
 *.patch
+
+# Estado local de la CLI de Supabase (lo escribe `supabase link`); no es codigo.
+supabase/.temp/
