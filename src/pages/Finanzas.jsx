@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
-import { PieChart, CalendarClock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { PieChart, CalendarClock, ChevronLeft, ChevronRight, Table2 } from 'lucide-react'
 import { calcularPeriodo, shiftRef, localDateISO } from '../lib/finanzas'
 import ResumenFinanzas from '../components/finanzas/ResumenFinanzas'
 import ProyeccionPagos from '../components/finanzas/ProyeccionPagos'
+import CashflowMensual from '../components/finanzas/cashflow/CashflowMensual'
 
 const GRANS = [
   { id: 'dia',  label: 'Día' },
@@ -10,13 +11,15 @@ const GRANS = [
   { id: 'anio', label: 'Año' },
 ]
 
-// Finanzas quedó en dos vistas: el Resumen (la foto del negocio, con cierres
-// de caja e historial de pagos desplegables adentro) y la Proyección de pagos
+// Finanzas tiene tres vistas: el Resumen (la foto del negocio, con cierres
+// de caja e historial de pagos desplegables adentro), el Cash flow (la
+// planilla mes a mes: lo real y lo estimado) y la Proyección de pagos
 // (lo comprometido a futuro). El resto se mudó a su lugar natural:
 // egresos/pagos a Caja → Pagos, proveedores a su propia pantalla y el legajo
 // de empleados a Personal → Empleados.
 const SECCIONES = [
   { id: 'resumen',    label: 'Resumen',             icon: PieChart },
+  { id: 'cashflow',   label: 'Cash flow',           icon: Table2 },
   { id: 'proyeccion', label: 'Proyección de pagos', icon: CalendarClock },
 ]
 
@@ -34,7 +37,7 @@ export default function FinanzasPage() {
   const cambiarGran = (g) => { setGran(g); setRefDate(new Date()) }
 
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
+    <div className={`p-4 md:p-6 space-y-5 mx-auto w-full ${seccion === 'cashflow' ? 'max-w-7xl' : 'max-w-5xl'}`}>
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -98,6 +101,7 @@ export default function FinanzasPage() {
       {/* Contenido */}
       <div className="mt-1">
         {seccion === 'resumen'    && <ResumenFinanzas desde={desde} hasta={hasta} label={label} />}
+        {seccion === 'cashflow'   && <CashflowMensual />}
         {seccion === 'proyeccion' && <ProyeccionPagos />}
       </div>
     </div>

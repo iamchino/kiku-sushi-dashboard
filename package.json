@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "verificar:permisos": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-paridad-permisos.mjs && node --import ./scripts/registrar-resolver.mjs scripts/verificar-permisos-front.mjs",
+    "verificar:cashflow": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-cashflow.mjs",
     "verificar:cuentas": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-cuentas-corrientes.mjs",
     "preview": "vite preview",
     "android:sync": "vite build && npx cap sync android",

@@ -109,6 +109,9 @@ const EMBEBIDOS = {
     /comprobantes_fiscales\(/.test(sel) && `(select coalesce(json_agg(c), '[]'::json) from public.comprobantes_fiscales c where c.pedido_id = t.id) as comprobantes_fiscales`,
     /pagos\(/.test(sel) && `(select coalesce(json_agg(json_build_object('id', pg.id, 'medio_pago', pg.medio_pago, 'monto', pg.monto, 'numero_operacion', pg.numero_operacion, 'notas', pg.notas, 'created_at', pg.created_at)), '[]'::json) from public.pagos pg where pg.pedido_id = t.id) as pagos`,
   ].filter(Boolean),
+  egresos: (sel) => [
+    /proveedor:proveedores\(/.test(sel) && `(select json_build_object('razon_social', pr.razon_social) from public.proveedores pr where pr.id = t.proveedor_id) as proveedor`,
+  ].filter(Boolean),
   cuenta_corriente_movimientos: (sel) => [
     /cuenta:cuentas_corrientes\(/.test(sel) && `(select json_build_object('nombre', cc.nombre) from public.cuentas_corrientes cc where cc.id = t.cuenta_id) as cuenta`,
   ].filter(Boolean),
@@ -130,7 +133,9 @@ function manejarRest(req, url, bodyTxt) {
     if (!rettype) return { status: 404, json: { code: 'PGRST202', message: `Could not find the function public.${path.slice(4)} in the schema cache` } }
     const sql = retset === 'true'
       ? `select coalesce(json_agg(r), '[]'::json) from public.${fn}(${args}) r`
-      : `select to_json(public.${fn}(${args}))`
+      : rettype === 'void'
+        ? `select 'null' from (select public.${fn}(${args})) v`
+        : `select to_json(public.${fn}(${args}))`
     const r = correr(sql, claims)
     if (!r.ok) return { status: 400, json: r.error }
     return { status: 200, text: r.out === '' ? 'null' : r.out }

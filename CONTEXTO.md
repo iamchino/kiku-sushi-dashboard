@@ -70,12 +70,14 @@ Todo esto corre en el sandbox, en el repo clonado:
 
 - Dashboard: `npm run build` + `npm run verificar:permisos` (**372 chequeos**:
   115 de paridad + 257 del front) + `npm run verificar:cuentas` (lógica de
-  cuentas corrientes). Lint (`npx eslint src`) tiene **baseline de 31 problemas**
+  cuentas corrientes) + `npm run verificar:cashflow` (cash flow; reproduce la
+  planilla de administración número por número). Lint (`npx eslint src`) tiene **baseline de 31 problemas**
   preexistentes — comparar contra 31, no contra 0.
 - **Pruebas de punta a punta (desde 12/11): `scripts/e2e/`.** Postgres local +
   `minirest.mjs` (mini PostgREST sobre ese Postgres, con RLS y triggers reales)
   + Playwright sobre el dashboard compilado. `scripts/e2e/correr-cuentas-corrientes.sh`
-  corre todo; `scripts/e2e/README.md` explica cómo reusarlo para otra pantalla.
+  y `scripts/e2e/correr-cashflow.sh` corren cada batería; `scripts/e2e/README.md`
+  explica cómo reusarlo para otra pantalla.
   Usarlo para cualquier cambio que toque cobro, caja o permisos.
 - Web: `npm run build` + `npx vitest run` (28 tests).
 - **SQL: `pglast` para sintaxis y `pgserver` (pip) para correrlo contra un
@@ -140,6 +142,7 @@ lo que le sacaste.
 ### Trampas que ya mordieron
 - **`create or replace view` resetea `security_invoker`** si no se vuelve a escribir el `with (security_invoker = on)`: al tocar `pagos_arqueo` o cualquier vista de la capa 1 hay que repetirlo, o la vista vuelve a saltearse el RLS.
 - **El `orden` de un recurso con pantalla decide la pantalla por defecto del rol** (la primera visible). Un recurso nuevo de Dinero con orden < 220 le cambia el inicio a finanzas.
+- **Sumar plata de muchos días en el navegador se corta en 1000 filas** (tope por defecto de la API de Supabase) y no da error: da un número más chico. Para totales de un mes o más, agregar en la base (RPC) como hace `cashflow_mensual`.
 - **Un medio de pago nuevo no es solo el check de `pagos`**: hay listas en `pagosPedido.js`, `useCajaArqueo.js` (MEDIOS_ARQUEO = solo plata), `SplitPagoLines`, los dos modales de cobro, `escposFormatter`, `reporteContable` y `useFinanzas`. `cuenta_corriente` está a propósito FUERA de MEDIOS_ARQUEO y de MEDIOS_PAGO_ORDEN.
 
 - **`parseAmount` y los números.** Estaba escrita para texto es-AR y hacía
@@ -184,6 +187,17 @@ Parche `facturar-error-visible.patch` (+ redeploy de `arca-comprobantes`).
 - Causa de que "no pase nada": el error de ARCA/Edge se mostraba en la página, DETRÁS del modal "Facturar pedido". Ahora FacturarModal recibe `errorExterno` (Caja.jsx y PedidoDetalleModal.jsx).
 - arca-comprobantes: el chequeo de `puede_cobrar()` (capa 1) usa el JWT del usuario con la service key como apikey (antes dependía de SUPABASE_ANON_KEY) y devuelve el motivo si la RPC falla.
 - Si después del parche sigue fallando, el cartel rojo dentro del modal dice la causa real.
+
+## Últimos cambios (2026-11-12, 2) — Cash flow mensual con estimados (Finanzas → Cash flow)
+**SQL-CIERRES 55** (= migración 20261113000000; `55a` es un diagnóstico opcional de solo lectura) + parche `cashflow-mensual.patch`. Es una **primera versión para mostrarle a administración**: Manu la presenta y después se ajusta.
+- Pedido (audio de la dueña + captura del Excel de la chica nueva de administración): un cash flow por mes "como un Excel", para ver qué hay que pagar cada mes y proyectar los siguientes. Se eligió la opción 2 de tres: tabla mensual + estimados editables (sin proyección automática).
+- **Pestaña nueva en Finanzas** (entre Resumen y Proyección de pagos): conceptos en filas, meses en columnas, Total al final. Vista de 6 o 12 meses, flechas para moverse. Arriba: tres tarjetas (flujo neto del mes, saldo a fin del período, meses en alerta) y un gráfico de flujo neto por mes.
+- **De dónde sale cada número**: mes pasado = real (cobros de `pagos` sin canjes + `egresos` pagados). Mes en curso y futuros = el **mayor** entre lo estimado y lo ya cargado (pagado + pendientes con vencimiento en ese mes; lo vencido impago cae en el mes en curso). Estimado va en cursiva. Los pendientes sin fecha no entran en ningún mes y se avisan abajo.
+- **Categorías agrupadas como la planilla** (`GRUPOS` en `src/lib/cashflow.js`, se cambia ahí sin tocar la base): Mercadería = mercadería + proveedores · Personal = sueldos · Local y servicios = alquiler + servicios · Impuestos y tasas · Comisiones y financieros · Operativos = mantenimiento + marketing · Inversiones y otros = otros. **Categoría de egreso nueva `comisiones`** ("Comisiones y financieros") para que esa fila tenga de dónde salir: aparece en Registrar pago.
+- **Estimar**: tocar una celda del mes en curso o futuro (Enter guarda, Esc cancela, vacío borra), o el botón del calendario de cada fila para completar varios meses con % de aumento mensual (ofrece el promedio real de los últimos 3 meses como punto de partida). "Saldo y alertas": saldo inicial + desde qué mes + saldo mínimo de seguridad → filas Saldo final y Estado (OK / BAJO MÍNIMO / NEGATIVO). Indicadores: mercadería, personal y flujo neto como % de ingresos. Tocar una celda de egresos de un mes pasado (o el ícono en las demás) lista los pagos que la componen. Exportar Excel con el mismo orden.
+- Base: `cashflow_estimados` (mes, concepto, monto), `cashflow_config` (una fila), `cashflow_mensual(desde, hasta)` (suma por mes **en la base**, por mes de Argentina), `cashflow_guardar_estimados(jsonb)`, `cashflow_guardar_config(...)`. Permiso: el de Finanzas (`puede_tabla`); con Finanzas en solo ver, la tabla se ve y exporta pero no se edita.
+- **Hallazgo**: `useFinanzas` (el Resumen) trae los cobros fila por fila sin paginar; si un mes tiene más de 1000 cobros y el proyecto tiene el tope por defecto de la API, "Entró" suma de menos. El cash flow no tiene ese problema (suma en la base). El `55a` lo deja ver; si se confirma, pasar el Resumen a un agregado en la base.
+- Probado con `scripts/e2e/correr-cashflow.sh`: SQL (zona horaria en el borde del mes, canjes afuera, RLS), 53 chequeos en navegador contra Postgres real con más de 1000 cobros por mes, rol de solo lectura, celular y base sin el SQL 55.
 
 ## Últimos cambios (2026-11-12) — Cuentas corrientes (canjes): sección nueva + medio de pago
 **SQL-CIERRES 54** (= migración 20261112000000; `54a` es un diagnóstico opcional de solo lectura) + parche `cuentas-corrientes.patch`.
@@ -551,7 +565,8 @@ es **32** (no 31).
 5. ~~Impresión (09/10)~~ HECHO y funcionando. Ver sección 09/10.
 
 ### ▶ PRÓXIMA SESIÓN — con qué seguir
-- **Cuentas corrientes (12/11)**: correr **SQL 54** en Supabase (de día) → `scripts/kiku-sync.sh am ~/Downloads/cuentas-corrientes.patch`. Después: Dinero → Cuentas corrientes → crear la cuenta de la revista con el monto acordado y sus datos fiscales, y cargar con "Agregar consumo" lo ya consumido (el primer canje fue de $117.700; el `54a` lista los pedidos viejos cerrados con 100 % de descuento). Probar con una mesa real: Cobrar → Cuenta corriente. Si a algún rol que cobra (uno creado desde Permisos) no le aparece el medio, revisar que tenga Mesas o Caja con edición. Pendiente de definir con los contadores: cómo facturan el canje. Ideas si lo piden: avisar cuando una cuenta está por vencer o por agotarse; registrar el canje como gasto de marketing.
+- **Cash flow (12/11)**: correr **SQL 55** → `scripts/kiku-sync.sh am ~/Downloads/cashflow-mensual.patch`. Manu se lo muestra a administración y vuelve con cambios: lo más probable es que pidan otro agrupamiento de categorías (`GRUPOS` en `src/lib/cashflow.js`), ingresos abiertos por canal o medio, o gastos fijos que se repitan solos (hoy se completan con el botón del calendario). Correr el `55a` y, si algún mes pasa de 1000 cobros, arreglar el Resumen (ver hallazgo).
+- **Cuentas corrientes (12/11)**: ~~SQL 54 + `cuentas-corrientes.patch`~~ HECHO (3203c4d en GitHub, Manu confirmó). Queda del lado del local: Dinero → Cuentas corrientes → crear la cuenta de la revista con el monto acordado y sus datos fiscales, y cargar con "Agregar consumo" lo ya consumido (el primer canje fue de $117.700; el `54a` lista los pedidos viejos cerrados con 100 % de descuento). Probar con una mesa real: Cobrar → Cuenta corriente. Si a algún rol que cobra (uno creado desde Permisos) no le aparece el medio, revisar que tenga Mesas o Caja con edición. Pendiente de definir con los contadores: cómo facturan el canje. Ideas si lo piden: avisar cuando una cuenta está por vencer o por agotarse; registrar el canje como gasto de marketing.
 - **Pedidos lunes (02/11)**: correr SQL 53 (es lo que arregla el rechazo; sin SQL el parche no cambia nada) + aplicar los dos parches.
 - **Hardening (01/11)**: `kiku-sync am hardening-dashboard.patch` y `hardening-web.patch`; después el checklist §8 de `docs/SEGURIDAD_HARDENING.md` (SQL 49→50→52→51, secretos, redeploy de Edge, BACKUP_PASSPHRASE, pg_cron, Auth). Fase 1 completa en 30 días; siguiente paso de código: auditoría de cambios sensibles (capa 3) y `npm audit fix`.
 - **Roles nuevos (01/11)**: `kiku-sync am roles-de-la-tabla.patch` + `supabase functions deploy admin-usuarios` (desde la Mac/PC con Supabase CLI logueada, o pegando `supabase/functions/admin-usuarios/index.ts` en el editor de Edge Functions del panel de Supabase). Después: Equipo → Usuarios → asignar "produccion" al login nuevo y revisar en Permisos qué ve ese rol. Wi-Fi: esperar el diagnóstico de Noe.

@@ -9,6 +9,8 @@ export const CATEGORIAS = [
   { id: 'impuestos',     label: 'Impuestos',     color: '#ef4444' },
   { id: 'mantenimiento', label: 'Mantenimiento', color: '#eab308' },
   { id: 'marketing',     label: 'Marketing',     color: '#22c55e' },
+  // Comisiones de tarjetas y apps, gastos bancarios, intereses (desde el SQL 55).
+  { id: 'comisiones',    label: 'Comisiones y financieros', color: '#6366f1' },
   { id: 'otros',         label: 'Otros',         color: '#94a3b8' },
 ]
 

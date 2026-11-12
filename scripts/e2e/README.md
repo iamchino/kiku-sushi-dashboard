@@ -12,23 +12,25 @@ Playwright, que están en el sandbox.
 ## Correr todo
 
 ```bash
-scripts/e2e/correr-cuentas-corrientes.sh
+scripts/e2e/correr-cuentas-corrientes.sh   # cobro con cuenta corriente, caja, arqueo (SQL 54)
+scripts/e2e/correr-cashflow.sh             # Finanzas → Cash flow (SQL 55)
 ```
 
-Arma la base plantilla si no existe, compila el dashboard apuntando al backend
-local, corre la batería de SQL y las de navegador, y deja capturas en
-`scripts/e2e/shots/`. Termina con `✓ batería completa OK` o lista lo que falló.
+Cada una arma la base plantilla si no existe, compila el dashboard apuntando al
+backend local, corre la batería de SQL y las de navegador, y deja capturas en
+`scripts/e2e/shots/`. Terminan con `✓ batería … OK` o listan lo que falló.
 
 ## Piezas
 
 | Archivo | Qué hace |
 | --- | --- |
 | `crear-base.sh` | Levanta Postgres (`/var/tmp/pgtest`, puerto 5499, usuario `nobody`) y arma la base plantilla `kk`: `stubs-supabase.sql` + `provision/esquema_base.sql` + migraciones posteriores al dump. `--forzar` la rearma. |
-| `prep-db.sh <db> <si\|no> [sin-datos]` | Clona `kk`, siembra la matriz de permisos, aplica (o no) la migración de cuentas corrientes y carga `seed-ui.sql`. |
+| `prep-db.sh <db> <si\|no\|lista> [sin-datos]` | Clona `kk`, siembra la matriz de permisos, aplica las migraciones opcionales (`si` = todas, `no` = ninguna, o palabras del nombre: `cuentas_corrientes`) y carga `seed-ui.sql`. |
 | `minirest.mjs <puerto> <db>` | Mini PostgREST + GoTrue + ARCA de juguete. Cada request corre como `authenticated` con los claims del JWT que manda el navegador. Soporta `eq/neq/gte/lte/in/is`, `order`, `limit`, insert/update/delete con `returning`, RPC y los embebidos que usa el front (`pedidos` → items, comprobantes, pagos). Lo que no entiende lo loguea. |
-| `lib.mjs` | `abrir(rol)` abre el navegador ya logueado como `admin`, `finanzas` o `mozo`; `sql()` consulta la base; `check()` anota cada chequeo. |
+| `lib.mjs` | `abrir(rol)` abre el navegador ya logueado como `admin`, `finanzas`, `mozo` o `administracion` (rol de solo lectura de Finanzas); `sql()` consulta la base; `check()` anota cada chequeo. |
 | `cc-sql.sql` | Batería de SQL de cuentas corrientes: RLS por rol, trigger de saldo, re-cobro, cambio de medio, cuenta inactiva, vista del arqueo, grants de anon. |
 | `cc-t*.mjs` | Flujos en el navegador (sección, cobrar mesa, cerrar pedido, pago dividido, Caja, Excel, arqueo, cierre de turno, permisos, celular, base sin el SQL 54, tarjeta / sin pago). |
+| `cf-sql.sql`, `cf-t*.mjs` | Cash flow: agregado por mes y zona horaria, RLS, edición de estimados, saldo, Excel, rol de solo lectura, base sin el SQL 55. `seed-cashflow.sql` carga tres meses de cobros y pagos de ejemplo (más de 1000 cobros por mes) y `cf-capturas.mjs` saca las capturas para mostrar. |
 
 ## Para probar otra cosa
 
@@ -41,4 +43,5 @@ local, corre la batería de SQL y las de navegador, y deja capturas en
 Trampas: nunca encadenar `pkill` en un comando del sandbox (mata la shell): usar
 `stop-rest.sh` / `stop-serve.sh`. La clave de sesión en localStorage es
 `sb-127-auth-token` (sale del host `127.0.0.1`). El tema se fuerza con
-`kiku-dashboard-theme`.
+`kiku-dashboard-theme`. El contenido scrollea adentro de `<main>`, así que
+`fullPage` no alcanza: para capturar una pantalla larga, agrandar el viewport.

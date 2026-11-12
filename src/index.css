@@ -217,6 +217,17 @@
   box-shadow: var(--cta-shadow);
 }
 
+/* Cash flow: celdas de la planilla que se pueden tocar (editar o ver detalle). */
+.cf-editable { cursor: pointer; border-radius: 4px; }
+.cf-editable:hover { background: var(--bg-hover); box-shadow: inset 0 -1px 0 var(--accent-border); }
+.cf-editable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* La columna Total queda pegada a la derecha al deslizar la planilla. */
+.cf-total { background: var(--bg-card); }
+.cf-total.cf-fondo { background: var(--bg-input); }
+@media (min-width: 640px) {
+  .cf-total { position: sticky; right: 0; z-index: 1; }
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }

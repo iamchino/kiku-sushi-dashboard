@@ -6,6 +6,8 @@ export const USERS = {
   admin:    { id: '00000000-0000-0000-0000-0000000000a1', email: 'admin@kiku.test', role: 'admin' },
   finanzas: { id: '00000000-0000-0000-0000-0000000000f1', email: 'finanzas@kiku.test', role: 'finanzas' },
   mozo:     { id: '00000000-0000-0000-0000-0000000000b1', email: 'mozo@kiku.test', role: 'mozo' },
+  // Rol creado desde Permisos (seed-cashflow.sql): ve Finanzas, no edita.
+  administracion: { id: '00000000-0000-0000-0000-0000000000d1', email: 'administracion@kiku.test', role: 'administracion' },
 }
 export function sesion(u) {
   const exp = Math.floor(Date.now() / 1000) + 86400

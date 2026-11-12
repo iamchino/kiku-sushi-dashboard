@@ -1,0 +1,16 @@
+// Dashboard nuevo sobre una base SIN el SQL 55: la pestaña avisa y el resto de Finanzas sigue andando.
+import { abrir, BASE, check, resumen } from './lib.mjs'
+const { browser, page, errores } = await abrir('finanzas', { viewport: { width: 1440, height: 1000 } })
+await page.goto(BASE + '/finanzas', { waitUntil: 'networkidle' })
+await page.waitForTimeout(600)
+check('sin SQL 55: el Resumen carga', (await page.locator('main').innerText()).includes('ENTRÓ') || /Entró/i.test(await page.locator('main').innerText()))
+await page.getByRole('button', { name: 'Cash flow' }).click()
+await page.getByText(/Falta correr el SQL 55/).waitFor()
+check('sin SQL 55: la pestaña avisa qué falta', true)
+check('sin SQL 55: no muestra una tabla vacía', await page.getByRole('table').count() === 0)
+await page.getByRole('button', { name: 'Proyección de pagos' }).click()
+await page.waitForTimeout(500)
+check('sin SQL 55: Proyección de pagos sigue andando', /pendiente|Deuda|Proyecci/i.test(await page.locator('main').innerText()))
+check('sin errores de consola', errores.length === 0, errores.join(' | '))
+await browser.close()
+process.exit(resumen() ? 1 : 0)

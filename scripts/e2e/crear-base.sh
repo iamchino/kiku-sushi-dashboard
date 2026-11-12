@@ -31,7 +31,9 @@ $PG -d kk -q -v ON_ERROR_STOP=1 -f "$AQUI/stubs-supabase.sql"
 $PG -d kk -q -f "$RAIZ/provision/esquema_base.sql" 2>&1 | grep -c ERROR | sed 's/^/esquema_base: errores ignorables = /'
 for f in "$RAIZ"/supabase/migrations/2026082[0-9]*.sql "$RAIZ"/supabase/migrations/2026083*.sql "$RAIZ"/supabase/migrations/202609*.sql "$RAIZ"/supabase/migrations/20261[01]*.sql; do
   [ -f "$f" ] || continue
-  case "$f" in *cuentas_corrientes*) continue ;; esac   # la aplica prep-db.sh según la prueba
+  # Las migraciones "opcionales" las aplica prep-db.sh según la prueba (así se
+  # puede probar el dashboard nuevo contra una base que todavía no las tiene).
+  case "$f" in *cuentas_corrientes*|*cashflow_mensual*) continue ;; esac
   $PG -d kk -q -f "$f" 2>&1 | grep ERROR | grep -v "supabase_admin\|transaction_timeout\|pg_net\|supabase_realtime\|recurso_tablas_recurso_id_fkey\|rol_permisos_recurso_id_fkey" | sed "s|^|$(basename "$f"): |" || true
 done
 echo "base kk lista"
