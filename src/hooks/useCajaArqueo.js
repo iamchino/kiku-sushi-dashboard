@@ -12,6 +12,16 @@ export const MEDIOS_ARQUEO = [
   { id: 'tarjeta_credito', label: 'Tarjeta credito', short: 'Credito' },
 ]
 
+// Cobros a cuenta corriente (canjes): están en `pagos` como cualquier otro
+// cobro, pero NO son plata. Se muestran aparte y nunca entran en el esperado,
+// en lo contado ni en "ventas cobradas". Por eso no está en MEDIOS_ARQUEO.
+export const MEDIO_CUENTA_CORRIENTE_ARQUEO = { id: 'cuenta_corriente', label: 'Cuenta corriente', short: 'Cta. cte.' }
+
+/** True si el pago es un consumo a cuenta corriente (no entra al arqueo). */
+export function esPagoCuentaCorriente(pago) {
+  return pago?.medio_pago === MEDIO_CUENTA_CORRIENTE_ARQUEO.id
+}
+
 // Medios disponibles al registrar un movimiento manual. Incluye nota de credito
 // (cuando queda saldo a favor de algun egreso), que no existe como pago.
 export const MEDIOS_MOVIMIENTO = [
@@ -182,6 +192,15 @@ function resumenDeTurno(turno, pagos, movimientos) {
     cantidad: medio.cantidad,
   }))
 
+  // Canjes del turno: aparte de todo lo anterior (esperadoPorMedio solo
+  // recorre MEDIOS_ARQUEO, así que estos pagos nunca entraron en ninguna suma).
+  const pagosCuentaCorriente = pagosTurno.filter(esPagoCuentaCorriente)
+  const cuentaCorriente = {
+    ...MEDIO_CUENTA_CORRIENTE_ARQUEO,
+    total: sum(pagosCuentaCorriente, row => row.monto),
+    cantidad: pagosCuentaCorriente.length,
+  }
+
   return {
     pagosTurno,
     movimientosTurno,
@@ -189,6 +208,7 @@ function resumenDeTurno(turno, pagos, movimientos) {
     apertura,
     esperadoPorMedio,
     ventasPorMedio,
+    cuentaCorriente,
     efectivoEsperado: esperadoPorMedio.find(medio => medio.id === 'efectivo')?.esperado || apertura,
     totalEsperado: sum(esperadoPorMedio, medio => medio.esperado),
   }
@@ -453,7 +473,7 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
 
   const resumen = useMemo(() => {
     const base = resumenDeTurno(turnoActual, pagos, movimientos)
-    const { pagosTurno, movimientosTurno, movimientosBanco, apertura, esperadoPorMedio, ventasPorMedio } = base
+    const { pagosTurno, movimientosTurno, movimientosBanco, apertura, esperadoPorMedio, ventasPorMedio, cuentaCorriente } = base
 
     const pagosEfectivo = ventasPorMedio.find(medio => medio.id === 'efectivo')?.total || 0
     const movimientosFirmados = movimientosTurno.reduce((acc, mov) => (
@@ -483,10 +503,13 @@ export function useCajaArqueo({ dateFrom = null, dateTo = null } = {}) {
       movimientosTurno,
       movimientosBanco,
       ventasPorMedio,
+      cuentaCorriente,
       esperadoPorMedio,
       apertura,
       pagosEfectivo,
-      ventasTotal: sum(pagosTurno, row => row.monto),
+      // Solo plata: lo cargado a cuenta corriente no es una venta cobrada.
+      ventasTotal: sum(pagosTurno.filter(pago => !esPagoCuentaCorriente(pago)), row => row.monto),
+      pagosCobrados: pagosTurno.filter(pago => !esPagoCuentaCorriente(pago)).length,
       movimientosIngresos,
       movimientosEgresos,
       movimientosNeto: movimientosFirmados,

@@ -6,11 +6,15 @@
 //   · cobros  → `pedidos` + `pagos` (lineasDePago / resumenMediosPago)
 //   · pagos   → `egresos` con estado 'pagado'
 //   · sueldos → `egresos` de categoría 'sueldos', agrupados por empleado y mes
+//   · cuentas corrientes (canjes) → `cuentas_corrientes_saldos` y sus
+//     movimientos. Lo cobrado a cuenta figura en Cobros con su medio propio,
+//     pero NO suma al total cobrado: no es plata que haya entrado.
 //
 // La librería xlsx se carga recién al exportar (import dinámico) para no
 // engordar el bundle de todo el dashboard.
-import { lineasDePago, etiquetaMedioPago, MEDIOS_PAGO_ORDEN } from './pagosPedido'
-import { getAuthorizedComprobante, getFacturasAutorizadas, getNotasCredito, nombreComprobante } from './fiscal'
+import { lineasDePago, etiquetaMedioPago, esCuentaCorriente, MEDIOS_PAGO_ORDEN } from './pagosPedido'
+import { estadoCuenta, fechaCorta } from './cuentasCorrientes'
+import { COND_IVA_RECEPTOR_LABEL, fechaHoyAR, getAuthorizedComprobante, getFacturasAutorizadas, getNotasCredito, nombreComprobante } from './fiscal'
 import { catLabel, medioLabel } from './finanzas'
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -87,10 +91,11 @@ function nombreEmpleado(e) {
   return e?.descripcion || 'Sin empleado'
 }
 
-export function armarHojas({ pedidos = [], egresos = [], desde, hasta, negocio }) {
+export function armarHojas({ pedidos = [], egresos = [], cuentasCorrientes = null, cuentasDePagos = null, desde, hasta, negocio }) {
   // ── Cobros: una fila por línea de pago ──────────────────────────────────
   const cobrosFilas = []
   const cobrosPorMedio = new Map()
+  const canjes = { cobros: 0, monto: 0 }   // lo cargado a cuenta corriente
   let sinCobro = 0
   pedidos.forEach(p => {
     if (p.estado === 'cancelado') return
@@ -98,9 +103,13 @@ export function armarHojas({ pedidos = [], egresos = [], desde, hasta, negocio }
     const factura = getAuthorizedComprobante(p)
     if (lineas.length === 0) { sinCobro += 1; return }
     lineas.forEach(l => {
-      const prev = cobrosPorMedio.get(l.medio) || { cobros: 0, monto: 0 }
-      prev.cobros += 1; prev.monto += l.monto
-      cobrosPorMedio.set(l.medio, prev)
+      if (esCuentaCorriente(l.medio)) {
+        canjes.cobros += 1; canjes.monto += l.monto
+      } else {
+        const prev = cobrosPorMedio.get(l.medio) || { cobros: 0, monto: 0 }
+        prev.cobros += 1; prev.monto += l.monto
+        cobrosPorMedio.set(l.medio, prev)
+      }
       cobrosFilas.push({
         'Fecha': fechaAR(l.at || p.created_at),
         'Hora': horaAR(l.at || p.created_at),
@@ -115,6 +124,7 @@ export function armarHojas({ pedidos = [], egresos = [], desde, hasta, negocio }
           ? `${String(factura.punto_venta).padStart(5, '0')}-${String(factura.numero).padStart(8, '0')}`
           : '',
         'CAE': factura?.cae || '',
+        'Cuenta corriente': esCuentaCorriente(l.medio) ? (cuentasDePagos?.get(l.id) || 'Sí') : '',
       })
     })
   })
@@ -217,7 +227,10 @@ export function armarHojas({ pedidos = [], egresos = [], desde, hasta, negocio }
       return [etiquetaMedioPago(id) === 'Sin registrar' ? medioLabel(id) : etiquetaMedioPago(id),
         c.cobros, $(c.monto), $(p), $(c.monto - p)]
     }),
-    ['TOTAL', cobrosFilas.length, $(totalCobrado), $(totalPagado), $(totalCobrado - totalPagado)],
+    ['TOTAL', cobrosFilas.length - canjes.cobros, $(totalCobrado), $(totalPagado), $(totalCobrado - totalPagado)],
+    ...(canjes.cobros > 0
+      ? [['Cuenta corriente (canjes: no es dinero, no suma al total)', canjes.cobros, $(canjes.monto)]]
+      : []),
     [],
     ['PAGOS POR CATEGORÍA'],
     ['Categoría', 'Pagado'],
@@ -235,13 +248,64 @@ export function armarHojas({ pedidos = [], egresos = [], desde, hasta, negocio }
     ['Pedidos sin cobro registrado', sinCobro],
   ]
 
+  // ── Cuentas corrientes (canjes) ─────────────────────────────────────────
+  // Estado de cada cuenta a hoy + lo consumido dentro del período, y el
+  // detalle de los movimientos del período.
+  const cuentas = cuentasCorrientes?.cuentas || []
+  const movsPeriodo = cuentasCorrientes?.movimientos || []
+  const hoy = fechaHoyAR()
+  const consumidoPeriodo = new Map()
+  movsPeriodo.forEach(m => {
+    consumidoPeriodo.set(m.cuenta_id, (consumidoPeriodo.get(m.cuenta_id) || 0) + Number(m.monto || 0))
+  })
+  const cuentasFilas = cuentas.map(c => ({
+    'Cuenta': c.nombre,
+    'Razón social': c.razon_social || '',
+    'CUIT': c.cuit || '',
+    'Condición IVA': COND_IVA_RECEPTOR_LABEL[Number(c.condicion_iva)] || '',
+    'Vigencia desde': fechaCorta(c.vigencia_desde),
+    'Vigencia hasta': fechaCorta(c.vigencia_hasta),
+    'Estado': estadoCuenta(c, hoy).label,
+    'Monto acordado': num(c.monto_acordado),
+    'Consumido en el período': num(consumidoPeriodo.get(c.id) || 0),
+    'Consumido total': num(c.consumido),
+    'Saldo': num(c.saldo),
+    'Notas del acuerdo': c.notas || '',
+  }))
+  if (cuentasFilas.length > 1) {
+    cuentasFilas.push({
+      'Cuenta': 'TOTAL', 'Razón social': '', 'CUIT': '', 'Condición IVA': '',
+      'Vigencia desde': '', 'Vigencia hasta': '', 'Estado': '',
+      'Monto acordado': num(cuentas.reduce((a, c) => a + c.monto_acordado, 0)),
+      'Consumido en el período': num([...consumidoPeriodo.values()].reduce((a, v) => a + v, 0)),
+      'Consumido total': num(cuentas.reduce((a, c) => a + c.consumido, 0)),
+      'Saldo': num(cuentas.reduce((a, c) => a + c.saldo, 0)),
+      'Notas del acuerdo': '',
+    })
+  }
+  const nombreCuenta = new Map(cuentas.map(c => [c.id, c.nombre]))
+  const numeroPedido = new Map(pedidos.map(p => [p.id, p.numero]))
+  const cuentasMovimientos = [...movsPeriodo]
+    .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)) || String(a.created_at || '').localeCompare(String(b.created_at || '')))
+    .map(m => ({
+      'Fecha': fechaCorta(m.fecha),
+      'Cuenta': nombreCuenta.get(m.cuenta_id) || '',
+      'Detalle': m.detalle || '',
+      'Nro. operación': m.numero_operacion || '',
+      'Pedido': m.pedido_id ? (numeroPedido.get(m.pedido_id) ?? '') : '',
+      'Origen': m.pago_id ? 'Cobro en caja' : 'Cargado a mano',
+      'Monto': num(m.monto),
+    }))
+
   return {
     resumen,
     cobros: cobrosFilas,
     pagos: pagosFilas,
     sueldosResumen: sueldosFilas,
     sueldosDetalle,
-    totales: { vendido, facturado, nc, totalCobrado, totalPagado },
+    cuentas: cuentasFilas,
+    cuentasMovimientos,
+    totales: { vendido, facturado, nc, totalCobrado, totalPagado, canjes: canjes.monto },
   }
 }
 
@@ -267,9 +331,9 @@ function aplicarFormatoMoneda(XLSX, ws, columnas) {
   }
 }
 
-export async function exportarReporteContable({ pedidos, egresos, desde, hasta, negocio }) {
+export async function exportarReporteContable({ pedidos, egresos, cuentasCorrientes, cuentasDePagos, desde, hasta, negocio }) {
   const XLSX = await import('xlsx')
-  const hojas = armarHojas({ pedidos, egresos, desde, hasta, negocio })
+  const hojas = armarHojas({ pedidos, egresos, cuentasCorrientes, cuentasDePagos, desde, hasta, negocio })
   const wb = XLSX.utils.book_new()
 
   const wsResumen = XLSX.utils.aoa_to_sheet(hojas.resumen)
@@ -301,6 +365,20 @@ export async function exportarReporteContable({ pedidos, egresos, desde, hasta, 
     wsDet['!cols'] = anchos(hojas.sueldosDetalle)
     aplicarFormatoMoneda(XLSX, wsDet, [6])
     XLSX.utils.book_append_sheet(wb, wsDet, 'Sueldos detalle')
+  }
+
+  // Cuentas corrientes (canjes): solo si hay cuentas y el usuario las ve.
+  if (hojas.cuentas.length) {
+    const wsCc = XLSX.utils.json_to_sheet(hojas.cuentas)
+    wsCc['!cols'] = anchos(hojas.cuentas, 12)
+    aplicarFormatoMoneda(XLSX, wsCc, [7, 8, 9, 10])
+    XLSX.utils.book_append_sheet(wb, wsCc, 'Cuentas corrientes')
+  }
+  if (hojas.cuentasMovimientos.length) {
+    const wsCcMov = XLSX.utils.json_to_sheet(hojas.cuentasMovimientos)
+    wsCcMov['!cols'] = anchos(hojas.cuentasMovimientos)
+    aplicarFormatoMoneda(XLSX, wsCcMov, [6])
+    XLSX.utils.book_append_sheet(wb, wsCcMov, 'Cuentas corr. movimientos')
   }
 
   const slug = (negocio || 'reporte').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')

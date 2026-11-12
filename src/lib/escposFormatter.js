@@ -45,6 +45,7 @@ export const MEDIO_PAGO_LABELS = {
   tarjeta_credito: 'Tarjeta Credito',
   tarjeta_debito:  'Tarjeta Debito',
   transferencia:   'Transferencia',
+  cuenta_corriente: 'Cuenta corriente',
   sin_pago:        'Sin pago',
 }
 

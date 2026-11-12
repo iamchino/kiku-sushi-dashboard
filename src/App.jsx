@@ -25,6 +25,7 @@ import CajaPage from './pages/Caja'
 import NotificacionesPage from './pages/Notificaciones'
 import ProveedoresPage from './pages/Proveedores'
 import FinanzasPage from './pages/Finanzas'
+import CuentasCorrientesPage from './pages/CuentasCorrientes'
 import PersonalPage from './pages/Personal'
 import FicharPage from './pages/Fichar'
 import MisHorasPage from './pages/MisHoras'
@@ -177,6 +178,7 @@ function AppRoutes() {
           <Route path="/notificaciones" element={<NotificacionesPage />} />
           <Route path="/proveedores" element={<ProveedoresPage />} />
           <Route path="/finanzas" element={<FinanzasPage />} />
+          <Route path="/cuentas-corrientes" element={<CuentasCorrientesPage />} />
           <Route path="/personal" element={<PersonalPage />} />
           {/* Fichaje también disponible para otros roles vinculados a un empleado
               (p. ej. un mozo o cocina que ficha con su mismo login). */}

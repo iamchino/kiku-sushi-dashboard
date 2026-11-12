@@ -24,7 +24,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react'
-import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, afectaArqueo, parseAmount, useCajaArqueo } from '../../hooks/useCajaArqueo'
+import { MEDIOS_ARQUEO, MEDIOS_MOVIMIENTO, MEDIO_CUENTA_CORRIENTE_ARQUEO, TIPOS_MOVIMIENTO_CAJA, TIPOS_MOVIMIENTO_DISPLAY, afectaArqueo, esPagoCuentaCorriente, parseAmount, useCajaArqueo } from '../../hooks/useCajaArqueo'
 import { useHistorialCierres } from '../../hooks/useHistorialCierres'
 import { supabase } from '../../lib/supabase'
 import { formatMoney } from '../../lib/printing'
@@ -832,8 +832,12 @@ function MovimientosList({ movimientos, busy, onEdit, onDelete }) {
 }
 
 function medioLabel(id) {
+  if (id === MEDIO_CUENTA_CORRIENTE_ARQUEO.id) return MEDIO_CUENTA_CORRIENTE_ARQUEO.label
   return MEDIOS_ARQUEO.find(medio => medio.id === id)?.label || id
 }
+
+// Verde agua: el color de los canjes en todo el dashboard (no es plata).
+const COLOR_CANJE = '#1FB8A6'
 
 function pagoDetalle(pago) {
   const partes = []
@@ -842,10 +846,12 @@ function pagoDetalle(pago) {
   if (canal) partes.push(canal)
   if (pago.pedido_id) partes.push(`#${String(pago.pedido_id).slice(-4).toUpperCase()}`)
   if (pago.numero_operacion) partes.push(`Op. ${pago.numero_operacion}`)
+  // Canjes: a qué cuenta corriente se cargó (si el usuario ve esa sección).
+  if (pago.cuenta_corriente_nombre) partes.unshift(pago.cuenta_corriente_nombre)
   return partes.join(' - ')
 }
 
-function ConciliacionPanel({ ventasPorMedio, pagos }) {
+function ConciliacionPanel({ ventasPorMedio, pagos, cuentaCorriente }) {
   // Set de medios seleccionados. Vacio = mostrar todos.
   const [seleccionados, setSeleccionados] = useState(() => new Set())
 
@@ -905,6 +911,28 @@ function ConciliacionPanel({ ventasPorMedio, pagos }) {
             </button>
           )
         })}
+        {/* Canjes: se listan para poder revisarlos, pero no son plata y no
+            entran en el esperado ni en lo contado. */}
+        {cuentaCorriente?.cantidad > 0 && (
+          <button
+            type="button"
+            onClick={() => toggle(cuentaCorriente.id)}
+            className="flex items-center justify-between rounded-lg px-3 py-3 text-left transition-colors sm:col-span-2"
+            style={seleccionados.has(cuentaCorriente.id)
+              ? { background: 'var(--accent-soft)', border: '1px solid var(--accent-border)' }
+              : { background: 'var(--bg-input)', border: `1px dashed ${COLOR_CANJE}80` }}
+          >
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{cuentaCorriente.label}</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {cuentaCorriente.cantidad} {cuentaCorriente.cantidad === 1 ? 'consumo' : 'consumos'} · canje, no entra al arqueo
+              </p>
+            </div>
+            <p className="text-sm font-bold" style={{ color: COLOR_CANJE }}>
+              ${formatMoney(cuentaCorriente.total)}
+            </p>
+          </button>
+        )}
       </div>
 
       <div className="mt-4">
@@ -933,7 +961,7 @@ function ConciliacionPanel({ ventasPorMedio, pagos }) {
                     {[pagoDetalle(pago), timeLabel(pago.created_at)].filter(Boolean).join(' - ')}
                   </p>
                 </div>
-                <p className="shrink-0 text-sm font-bold" style={{ color: pago.medio_pago === 'efectivo' ? '#5FD3A3' : 'var(--accent-lift)' }}>
+                <p className="shrink-0 text-sm font-bold" style={{ color: esPagoCuentaCorriente(pago) ? COLOR_CANJE : pago.medio_pago === 'efectivo' ? '#5FD3A3' : 'var(--accent-lift)' }}>
                   ${formatMoney(pago.monto)}
                 </p>
               </div>
@@ -967,6 +995,9 @@ function CierreDetalle({ turno, movimientos, pagos }) {
     const total = rows.reduce((acc, row) => acc + Number(row.monto || 0), 0)
     return { ...medio, total, cantidad: rows.length }
   })
+  // Canjes del turno: informativo, fuera del cierre por medio.
+  const canjes = turnoPagos.filter(esPagoCuentaCorriente)
+  const canjesTotal = canjes.reduce((acc, row) => acc + Number(row.monto || 0), 0)
 
   return (
     <div className="mt-1 space-y-4 rounded-lg p-3" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
@@ -1024,6 +1055,12 @@ function CierreDetalle({ turno, movimientos, pagos }) {
               <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>${formatMoney(medio.total)}</span>
             </div>
           ))}
+          {canjes.length > 0 && (
+            <div className="flex items-center justify-between rounded px-2 py-1.5 text-xs sm:col-span-2" style={{ background: 'var(--bg-card)', border: `1px dashed ${COLOR_CANJE}80` }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Cuenta corriente · {canjes.length} (canje, fuera del arqueo)</span>
+              <span className="font-semibold" style={{ color: COLOR_CANJE }}>${formatMoney(canjesTotal)}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1999,13 +2036,13 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Metric label="Efectivo esperado" value={`$${formatMoney(resumen.efectivoEsperado)}`} detail={`Apertura $${formatMoney(resumen.apertura)}`} icon={Banknote} color="#5FD3A3" />
-            <Metric label="Ventas cobradas" value={`$${formatMoney(resumen.ventasTotal)}`} detail={`${resumen.pagosTurno.length} pagos registrados`} icon={WalletCards} color="#7FA6F0" />
+            <Metric label="Ventas cobradas" value={`$${formatMoney(resumen.ventasTotal)}`} detail={`${resumen.pagosCobrados ?? resumen.pagosTurno.length} pagos registrados`} icon={WalletCards} color="#7FA6F0" />
             <Metric label="Movimientos netos" value={`${resumen.movimientosNeto >= 0 ? '+' : '-'}$${formatMoney(Math.abs(resumen.movimientosNeto))}`} detail={`+${formatMoney(resumen.movimientosIngresos)} / -${formatMoney(resumen.movimientosEgresos)}`} icon={Calculator} color={resumen.movimientosNeto >= 0 ? '#5FD3A3' : '#F2708C'} />
             <Metric label="Revision" value={resumen.pedidosSinPago.length} detail={`Pedidos sin pago: $${formatMoney(resumen.pedidosSinPagoTotal)}`} icon={AlertTriangle} color={resumen.pedidosSinPago.length > 0 ? '#F2B35C' : diferenciaColor(diferenciaActiva)} />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-            <ConciliacionPanel ventasPorMedio={resumen.ventasPorMedio} pagos={resumen.pagosTurno} />
+            <ConciliacionPanel ventasPorMedio={resumen.ventasPorMedio} pagos={resumen.pagosTurno} cuentaCorriente={resumen.cuentaCorriente} />
 
             <Panel>
               <div className="flex items-start gap-3">

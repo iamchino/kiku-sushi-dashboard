@@ -69,8 +69,14 @@ circuito: Manu ya está logueado como `iamchino` en su máquina.
 Todo esto corre en el sandbox, en el repo clonado:
 
 - Dashboard: `npm run build` + `npm run verificar:permisos` (**372 chequeos**:
-  115 de paridad + 257 del front). Lint tiene **baseline de 32 problemas**
-  preexistentes — comparar contra 32, no contra 0.
+  115 de paridad + 257 del front) + `npm run verificar:cuentas` (lógica de
+  cuentas corrientes). Lint (`npx eslint src`) tiene **baseline de 31 problemas**
+  preexistentes — comparar contra 31, no contra 0.
+- **Pruebas de punta a punta (desde 12/11): `scripts/e2e/`.** Postgres local +
+  `minirest.mjs` (mini PostgREST sobre ese Postgres, con RLS y triggers reales)
+  + Playwright sobre el dashboard compilado. `scripts/e2e/correr-cuentas-corrientes.sh`
+  corre todo; `scripts/e2e/README.md` explica cómo reusarlo para otra pantalla.
+  Usarlo para cualquier cambio que toque cobro, caja o permisos.
 - Web: `npm run build` + `npx vitest run` (28 tests).
 - **SQL: `pglast` para sintaxis y `pgserver` (pip) para correrlo contra un
   Postgres real.** Esto último no es opcional: en esta sesión encontró dos bugs
@@ -132,6 +138,9 @@ Config recomendada para el rol admin (el encargado):
 lo que le sacaste.
 
 ### Trampas que ya mordieron
+- **`create or replace view` resetea `security_invoker`** si no se vuelve a escribir el `with (security_invoker = on)`: al tocar `pagos_arqueo` o cualquier vista de la capa 1 hay que repetirlo, o la vista vuelve a saltearse el RLS.
+- **El `orden` de un recurso con pantalla decide la pantalla por defecto del rol** (la primera visible). Un recurso nuevo de Dinero con orden < 220 le cambia el inicio a finanzas.
+- **Un medio de pago nuevo no es solo el check de `pagos`**: hay listas en `pagosPedido.js`, `useCajaArqueo.js` (MEDIOS_ARQUEO = solo plata), `SplitPagoLines`, los dos modales de cobro, `escposFormatter`, `reporteContable` y `useFinanzas`. `cuenta_corriente` está a propósito FUERA de MEDIOS_ARQUEO y de MEDIOS_PAGO_ORDEN.
 
 - **`parseAmount` y los números.** Estaba escrita para texto es-AR y hacía
   `String(v).replace(/\./g,'')` sobre TODO. Un número con centavos perdía el
@@ -175,6 +184,19 @@ Parche `facturar-error-visible.patch` (+ redeploy de `arca-comprobantes`).
 - Causa de que "no pase nada": el error de ARCA/Edge se mostraba en la página, DETRÁS del modal "Facturar pedido". Ahora FacturarModal recibe `errorExterno` (Caja.jsx y PedidoDetalleModal.jsx).
 - arca-comprobantes: el chequeo de `puede_cobrar()` (capa 1) usa el JWT del usuario con la service key como apikey (antes dependía de SUPABASE_ANON_KEY) y devuelve el motivo si la RPC falla.
 - Si después del parche sigue fallando, el cartel rojo dentro del modal dice la causa real.
+
+## Últimos cambios (2026-11-12) — Cuentas corrientes (canjes): sección nueva + medio de pago
+**SQL-CIERRES 54** (= migración 20261112000000; `54a` es un diagnóstico opcional de solo lectura) + parche `cuentas-corrientes.patch`.
+- Pedido de la dueña (dos audios): los canjes (una revista, etc.) se llevaban en un cuaderno y la mesa se cerraba con 100 % de descuento → venta en $0 y nadie sabía el saldo. Manu pidió además que se pueda hacer **Factura A** a la empresa del canje.
+- **Dinero → Cuentas corrientes** (`/cuentas-corrientes`, recurso `cuentas_corrientes`, admin + finanzas, orden 225 para no cambiar la pantalla por defecto de finanzas): cuenta con nombre, monto acordado, vigencia opcional, notas del acuerdo y datos fiscales; tarjetas con acordado / consumido / saldo y barra; consumos con fecha, detalle, nro. de operación, monto y saldo corrido; "Agregar consumo" a mano (lo del cuaderno) y devoluciones. Borrar solo sin consumos; si no, desactivar.
+- **"Cuenta corriente" como medio de pago** en Cobrar mesa y Cerrar pedido (un medio o dentro de Dividir; no en "Por consumo"). Solo aparece si hay cuentas activas. El pago va a `pagos` con `medio_pago = 'cuenta_corriente'` + `cuenta_corriente_id`; **un trigger crea el movimiento** de la cuenta y, si el pago se borra (re-cobro), el movimiento se va con él. El pedido conserva su valor real. Si el saldo no alcanza: avisa y un botón arma el pago dividido (saldo a la cuenta + resto con otro medio). Con CUIT + razón social + condición IVA en la cuenta, **la Factura A se precarga**.
+- **No es plata**: no entra al arqueo (esperado / contado / cierre), ni a "Total cobrado" de Caja, ni a los ingresos de Finanzas. Se muestra aparte: fila "Cuenta corriente (canjes)" en Formas de pago, recuadro punteado en Conciliación y en el detalle de cierres. "Vendido" sí lo incluye (es una venta a valor real).
+- **Excel de contadores**: columna "Cuenta corriente" en Cobros, fila aparte en Resumen (no suma al TOTAL) y dos hojas nuevas: "Cuentas corrientes" (estado de cada cuenta + consumido en el período) y "Cuentas corr. movimientos".
+- Base: `cuentas_corrientes`, `cuenta_corriente_movimientos`, vista `cuentas_corrientes_saldos` (security_invoker), triggers `pagos_cuenta_corriente_validar` (cuenta activa + saldo, con lock de la fila para que dos cajas no se pisen) y `pagos_cuenta_corriente_sync`, RPC `cuentas_corrientes_para_cobro()` (lo único que ve la caja / el mozo: nombre, saldo y datos fiscales de las activas), `pagos_arqueo` con dos columnas nuevas al final. Los movimientos que vienen de un cobro no se editan a mano (RLS): se corrigen re-cobrando desde Caja.
+- El front tolera que el SQL no esté corrido (no ofrece el medio, la sección redirige) y el SQL tolera el front viejo: el orden de despliegue no rompe nada.
+- Lógica pura en `src/lib/cuentasCorrientes.js` (testeable con node), lecturas en `cuentasCorrientesApi.js`. `registrarPago` valida saldo ANTES de borrar los pagos previos; los modales lo validan antes de facturar.
+- Probado con `scripts/e2e/` (128 chequeos en navegador contra Postgres real + batería SQL + concurrencia). `verificar-permisos-front.mjs` ahora acepta rutas cuyo recurso se declara en una migración posterior al seed.
+- **Decisiones que quedaron**: cómo se factura un canje lo definen los contadores (el sistema deja Factura A, B o sin factura). Con pago mitad canje / mitad plata la factura sale por el total a nombre de quien se elija. No se registra el canje como gasto de marketing en Finanzas (no se pidió). El saldo corrido usa el monto acordado de hoy: si se amplía el acuerdo, los saldos históricos de la tabla se recalculan.
 
 ## Últimos cambios (2026-11-02) — Pedidos online: los días del dashboard no se respetaban al confirmar
 **SQL-CIERRES 53** (= migración 20261102000000) + parche `kiku-sushi-dashboard\pedidos-horario-dashboard.patch` (agrega la migración, saca `supabase/.temp` del repo y lo ignora) + `kiku-sushi-web\web-horario-atencion.patch`.
@@ -529,6 +551,7 @@ es **32** (no 31).
 5. ~~Impresión (09/10)~~ HECHO y funcionando. Ver sección 09/10.
 
 ### ▶ PRÓXIMA SESIÓN — con qué seguir
+- **Cuentas corrientes (12/11)**: correr **SQL 54** en Supabase (de día) → `scripts/kiku-sync.sh am ~/Downloads/cuentas-corrientes.patch`. Después: Dinero → Cuentas corrientes → crear la cuenta de la revista con el monto acordado y sus datos fiscales, y cargar con "Agregar consumo" lo ya consumido (el primer canje fue de $117.700; el `54a` lista los pedidos viejos cerrados con 100 % de descuento). Probar con una mesa real: Cobrar → Cuenta corriente. Si a algún rol que cobra (uno creado desde Permisos) no le aparece el medio, revisar que tenga Mesas o Caja con edición. Pendiente de definir con los contadores: cómo facturan el canje. Ideas si lo piden: avisar cuando una cuenta está por vencer o por agotarse; registrar el canje como gasto de marketing.
 - **Pedidos lunes (02/11)**: correr SQL 53 (es lo que arregla el rechazo; sin SQL el parche no cambia nada) + aplicar los dos parches.
 - **Hardening (01/11)**: `kiku-sync am hardening-dashboard.patch` y `hardening-web.patch`; después el checklist §8 de `docs/SEGURIDAD_HARDENING.md` (SQL 49→50→52→51, secretos, redeploy de Edge, BACKUP_PASSPHRASE, pg_cron, Auth). Fase 1 completa en 30 días; siguiente paso de código: auditoría de cambios sensibles (capa 3) y `npm audit fix`.
 - **Roles nuevos (01/11)**: `kiku-sync am roles-de-la-tabla.patch` + `supabase functions deploy admin-usuarios` (desde la Mac/PC con Supabase CLI logueada, o pegando `supabase/functions/admin-usuarios/index.ts` en el editor de Edge Functions del panel de Supabase). Después: Equipo → Usuarios → asignar "produccion" al login nuevo y revisar en Permisos qué ve ese rol. Wi-Fi: esperar el diagnóstico de Noe.

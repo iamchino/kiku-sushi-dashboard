@@ -4,8 +4,11 @@
 // medio, soporta pago dividido). Para cobros viejos o hechos fuera de caja se
 // cae al campo `pedidos.medio_pago`, que guarda un único medio informado.
 import { MEDIO_PAGO_LABELS } from './escposFormatter'
+import { COLOR_CUENTA_CORRIENTE, LABEL_CUENTA_CORRIENTE, MEDIO_CUENTA_CORRIENTE } from './cuentasCorrientes'
 
-// Orden y color de los medios que acepta la base (constraint de `pagos`).
+// Orden y color de los medios que son PLATA (los que entran al arqueo y al
+// total cobrado). 'cuenta_corriente' también es un medio válido en `pagos`,
+// pero es un canje: se informa siempre aparte y nunca se suma a estos.
 export const MEDIOS_PAGO_ORDEN = [
   { id: 'efectivo',        label: 'Efectivo',        color: '#34d399' },
   { id: 'transferencia',   label: 'Transferencia',   color: '#4f8ef7' },
@@ -13,12 +16,18 @@ export const MEDIOS_PAGO_ORDEN = [
   { id: 'tarjeta_credito', label: 'Tarjeta crédito', color: '#f472b6' },
 ]
 
+/** True si el medio es un consumo a cuenta corriente (no es plata). */
+export function esCuentaCorriente(medio) {
+  return medio === MEDIO_CUENTA_CORRIENTE
+}
+
 /**
  * Etiqueta legible de un medio de pago para pantalla (con acentos).
  * Los tickets impresos usan MEDIO_PAGO_LABELS, que va sin acentos por ESC/POS.
  */
 export function etiquetaMedioPago(medio) {
   if (!medio || medio === 'sin_pago') return 'Sin registrar'
+  if (esCuentaCorriente(medio)) return LABEL_CUENTA_CORRIENTE
   return MEDIOS_PAGO_ORDEN.find(m => m.id === medio)?.label
     || MEDIO_PAGO_LABELS[medio]
     || String(medio)
@@ -26,6 +35,7 @@ export function etiquetaMedioPago(medio) {
 
 /** Color asociado a un medio de pago (gris si es desconocido). */
 export function colorMedioPago(medio) {
+  if (esCuentaCorriente(medio)) return COLOR_CUENTA_CORRIENTE
   return MEDIOS_PAGO_ORDEN.find(m => m.id === medio)?.color || 'var(--text-secondary)'
 }
 
@@ -39,6 +49,7 @@ export function lineasDePago(pedido) {
     return pagos
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
       .map(p => ({
+        id: p.id || null,
         medio: p.medio_pago,
         monto: Number(p.monto) || 0,
         nroOp: p.numero_operacion || null,
@@ -63,9 +74,13 @@ export function lineasDePago(pedido) {
  * Resumen del conjunto de pedidos por medio de pago.
  * `medios` trae siempre los cuatro del catálogo (aunque estén en cero) más los
  * que aparezcan en los datos y no estén catalogados.
+ *
+ * Lo cargado a cuenta corriente va aparte en `cuentaCorriente`: no está en
+ * `medios` ni en `totalCobrado`, porque no es plata que haya entrado.
  */
 export function resumenMediosPago(pedidos = []) {
   const acumulado = new Map()
+  const cuentaCorriente = { monto: 0, cobros: 0 }
   let sinRegistrar = 0
   let totalCobrado = 0
 
@@ -76,6 +91,11 @@ export function resumenMediosPago(pedidos = []) {
       return
     }
     lineas.forEach(linea => {
+      if (esCuentaCorriente(linea.medio)) {
+        cuentaCorriente.monto += linea.monto
+        cuentaCorriente.cobros += 1
+        return
+      }
       const prev = acumulado.get(linea.medio) || { monto: 0, cobros: 0 }
       prev.monto += linea.monto
       prev.cobros += 1
@@ -92,5 +112,5 @@ export function resumenMediosPago(pedidos = []) {
     .filter(([id]) => !MEDIOS_PAGO_ORDEN.some(m => m.id === id))
     .map(([id, v]) => ({ id, label: etiquetaMedioPago(id), color: 'var(--text-secondary)', ...v }))
 
-  return { medios: [...catalogados, ...fueraDeCatalogo], sinRegistrar, totalCobrado }
+  return { medios: [...catalogados, ...fueraDeCatalogo], cuentaCorriente, sinRegistrar, totalCobrado }
 }

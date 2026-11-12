@@ -26,8 +26,11 @@ export function useFinanzas(desde, hasta) {
     const { start, end } = rangoISO(desde, hasta)
     try {
       const [pagosRes, egresosRes, turnosRes, pendRes] = await Promise.all([
+        // Sin los consumos a cuenta corriente (canjes): no son plata que
+        // haya entrado, así que no cuentan como ingreso.
         supabase.from('pagos')
           .select('monto, medio_pago, created_at')
+          .neq('medio_pago', 'cuenta_corriente')
           .gte('created_at', start).lte('created_at', end),
         supabase.from('egresos')
           .select('monto, categoria, estado, fecha')

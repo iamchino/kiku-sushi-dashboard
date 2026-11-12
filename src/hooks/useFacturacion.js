@@ -16,6 +16,8 @@ import {
 } from '../lib/fiscal'
 import { printComanda, printCustomerTicket, printFiscalTicket } from '../lib/printing'
 import { calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../lib/orders'
+import { MEDIO_CUENTA_CORRIENTE } from '../lib/cuentasCorrientes'
+import { validarCobroCuentaCorriente } from '../lib/cuentasCorrientesApi'
 
 const ARCA_API_BASE = (import.meta.env.VITE_ARCA_API_URL || '').replace(/\/$/, '')
 const ARCA_COMPROBANTES_URL = import.meta.env.VITE_ARCA_COMPROBANTES_URL
@@ -215,19 +217,20 @@ export function useFacturacion(options = {}) {
    * @param {object} args
    * @param {object} args.pedido
    * @param {object} [args.comprobante] - Si el pago se asocia a una factura emitida.
-   * @param {'efectivo'|'transferencia'|'tarjeta_credito'|'tarjeta_debito'|'sin_pago'} args.medio_pago
-   * @param {string} [args.numero_operacion] - Cupón del posnet (sólo tarjetas).
+   * @param {'efectivo'|'transferencia'|'tarjeta_credito'|'tarjeta_debito'|'cuenta_corriente'|'sin_pago'} args.medio_pago
+   * @param {string} [args.numero_operacion] - Cupón del posnet (tarjetas) o voucher (cuenta corriente).
    * @param {number} [args.monto] - Default total del pedido.
    * @param {string} [args.notas]
+   * @param {string} [args.cuenta_corriente_id] - Obligatorio con medio 'cuenta_corriente'.
    */
-  const registrarPago = useCallback(async ({ pedido, comprobante, medio_pago, numero_operacion, monto, notas, pagos }) => {
+  const registrarPago = useCallback(async ({ pedido, comprobante, medio_pago, numero_operacion, monto, notas, pagos, cuenta_corriente_id }) => {
     if (!pedido?.id) throw new Error('Falta pedido_id para registrar el pago.')
 
     // Normalizamos a una lista de líneas de pago (soporta pago único o dividido).
     const lista = (Array.isArray(pagos) && pagos.length > 0
       ? pagos
       : (medio_pago && medio_pago !== 'sin_pago'
-          ? [{ medio_pago, numero_operacion, monto: monto ?? pedido.total }]
+          ? [{ medio_pago, numero_operacion, monto: monto ?? pedido.total, cuenta_corriente_id }]
           : [])
     )
       .map(p => ({
@@ -235,6 +238,7 @@ export function useFacturacion(options = {}) {
         numero_operacion: p.numero_operacion,
         monto: Number(p.monto || 0),
         notas: p.notas ?? null,
+        cuenta_corriente_id: p.medio_pago === MEDIO_CUENTA_CORRIENTE ? (p.cuenta_corriente_id || null) : null,
       }))
       .filter(p => p.medio_pago && p.medio_pago !== 'sin_pago' && p.monto > 0)
 
@@ -246,6 +250,12 @@ export function useFacturacion(options = {}) {
         throw new Error('Ingresá el número de operación de la tarjeta.')
       }
     }
+
+    // Cuenta corriente: se valida cuenta y saldo ANTES de borrar los pagos
+    // previos. La base también lo valida (trigger), pero si rechazara el
+    // insert después del delete el pedido quedaría sin ningún cobro.
+    const problemaCuenta = await validarCobroCuentaCorriente(pedido.id, lista)
+    if (problemaCuenta) throw new Error(problemaCuenta)
 
     // Buscamos el turno vigente para ligarle el pago. Incluimos 'reabierto'
     // (no solo 'abierto'): si se reabrió el turno para corregir y se sigue
@@ -277,6 +287,9 @@ export function useFacturacion(options = {}) {
       monto: p.monto,
       notas: (p.notas ?? notas) ? String(p.notas ?? notas).trim() : null,
       ...(turnoAbierto?.id ? { caja_turno_id: turnoAbierto.id } : {}),
+      // Solo se manda la columna cuando hace falta: así el cobro normal sigue
+      // andando aunque la migración de cuentas corrientes no esté aplicada.
+      ...(p.cuenta_corriente_id ? { cuenta_corriente_id: p.cuenta_corriente_id } : {}),
     }))
 
     let { data, error: insertErr } = await supabase.from('pagos').insert(rows).select()

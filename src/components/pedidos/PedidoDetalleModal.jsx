@@ -4,7 +4,7 @@ import {
   X, Printer, Ban, Receipt, User, Phone, MapPin,
   Clock, Tag, ExternalLink, AlertCircle, Loader2, Utensils, Truck,
   ShoppingBag, CheckCircle2, Lock, Plus, Minus, Trash2, Banknote, Gift, RotateCcw,
-  Pencil, AlertTriangle, CreditCard, Send, Wallet,
+  Pencil, AlertTriangle, CreditCard, Send, Wallet, Handshake,
 } from 'lucide-react'
 import { getEstadoSimple, getTipoPedido } from '../../hooks/usePedidos'
 import { useFacturacion } from '../../hooks/useFacturacion'
@@ -53,6 +53,7 @@ function medioIcon(medio) {
   if (medio === 'efectivo') return Banknote
   if (medio === 'transferencia') return Send
   if (medio === 'tarjeta_credito' || medio === 'tarjeta_debito') return CreditCard
+  if (medio === 'cuenta_corriente') return Handshake
   return Wallet
 }
 

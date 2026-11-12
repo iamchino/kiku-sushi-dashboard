@@ -10,6 +10,7 @@ import {
   Lock,
   Receipt,
   Send,
+  Handshake,
   X,
 } from 'lucide-react'
 import { useFacturacion } from '../../hooks/useFacturacion'
@@ -20,6 +21,13 @@ import SplitPagoLines, { nuevaLinea, lineasValidas, lineasAPagos, resumenMedios 
 import CobroPorConsumo, { nuevaCuenta, cuentasAPagos, desgloseFromCuentas } from './CobroPorConsumo'
 import ElegirComprobante from '../caja/ElegirComprobante'
 import { comprobanteInicial, opcionesFactura, validarComprobante } from '../../lib/comprobante'
+import CuentaCorrienteCobro from '../pedidos/CuentaCorrienteCobro'
+import { useCuentasCobro } from '../../hooks/useCuentasCobro'
+import {
+  COLOR_CUENTA_CORRIENTE, LABEL_CUENTA_CORRIENTE, MEDIO_CUENTA_CORRIENTE,
+  cuentaTieneDatosFiscales, cuentaUsable, facturaDesdeCuenta,
+} from '../../lib/cuentasCorrientes'
+import { validarCobroCuentaCorriente } from '../../lib/cuentasCorrientesApi'
 
 /**
  * Modal de cobro de mesa.
@@ -32,6 +40,11 @@ import { comprobanteInicial, opcionesFactura, validarComprobante } from '../../l
  *      - Facturar + ticket      (ARCA + imprime + registra pago + cierra mesa)
  *      - Cerrar sin imprimir    (registra pago + cierra mesa)
  *  3) Si la mesa ya tenía factura emitida, el botón de facturar pasa a "Re-imprimir".
+ *
+ * "Cuenta corriente" (canjes) aparece como un medio más solo si hay cuentas
+ * activas: se elige la cuenta, se descuenta de su saldo y NO entra al arqueo.
+ * Si el saldo no alcanza se cobra la diferencia con otro medio (Dividir
+ * importe). Con datos fiscales en la cuenta se precarga la Factura A.
  */
 
 const MEDIOS_PAGO = [
@@ -41,6 +54,7 @@ const MEDIOS_PAGO = [
   { id: 'transferencia',    label: 'Transferencia',     icon: Send,       color: '#8FB2F2' },
   { id: 'sin_pago',         label: 'Sin pago',           icon: Ban,        color: '#94a3b8' },
 ]
+const MEDIO_CC = { id: MEDIO_CUENTA_CORRIENTE, label: LABEL_CUENTA_CORRIENTE, icon: Handshake, color: COLOR_CUENTA_CORRIENTE }
 
 const TARJETAS = new Set(['tarjeta_credito', 'tarjeta_debito'])
 
@@ -61,12 +75,18 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
   const [asignacion, setAsignacion] = useState({})
   const [consumoResult, setConsumoResult] = useState({ computed: [], valido: false })
   const [factura, setFactura] = useState(comprobanteInicial())
+  // Cuenta corriente (modo "Un medio"): a qué cuenta va y su voucher opcional.
+  const cuentasCC = useCuentasCobro(open)
+  const [cuentaCcId, setCuentaCcId] = useState(null)
+  const [nroOpCc, setNroOpCc] = useState('')
 
   // Reset al abrir
   useEffect(() => {
     if (!open) return
     setMedio(null)
     setNroOp('')
+    setCuentaCcId(null)
+    setNroOpCc('')
     setError(null)
     setLoadingAction(null)
     setModo('simple')
@@ -84,7 +104,38 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
     [pedido],
   )
 
+  // Cuenta a la que se le factura: la elegida en "Un medio" o la primera línea
+  // a cuenta corriente en "Dividir importe".
+  const cuentaFacturaId = modo === 'simple'
+    ? (medio === MEDIO_CUENTA_CORRIENTE ? cuentaCcId : null)
+    : modo === 'medio'
+      ? (lineas.find(l => l.medio === MEDIO_CUENTA_CORRIENTE && l.cuentaId)?.cuentaId || null)
+      : null
+  const cuentaFactura = cuentasCC.find(c => c.id === cuentaFacturaId) || null
+  const permiteFacturaA = Boolean(config?.permite_factura_a)
+
+  // Al elegir una cuenta con datos fiscales se precarga la Factura A a su
+  // nombre (se puede volver a B a mano). Al dejar de usar la cuenta, si el
+  // comprobante seguía siendo el precargado, vuelve al del pedido.
+  useEffect(() => {
+    if (!open) return
+    if (cuentaFactura && permiteFacturaA && cuentaTieneDatosFiscales(cuentaFactura)) {
+      setFactura(facturaDesdeCuenta(cuentaFactura))
+    } else if (!cuentaFactura) {
+      setFactura(prev => (prev.autoCuenta ? comprobanteInicial(pedido) : prev))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, cuentaFactura?.id, permiteFacturaA])
+
   if (!open || !pedido) return null
+
+  const mediosPago = cuentasCC.length > 0
+    ? [...MEDIOS_PAGO.filter(m => m.id !== 'sin_pago'), MEDIO_CC, ...MEDIOS_PAGO.filter(m => m.id === 'sin_pago')]
+    : MEDIOS_PAGO
+  const esCuentaCorriente = medio === MEDIO_CUENTA_CORRIENTE
+  const cuentaCc = cuentasCC.find(c => c.id === cuentaCcId) || null
+  const cuentaCcOk = !esCuentaCorriente
+    || (cuentaUsable(cuentaCc) && Number(pedido.total || 0) <= Number(cuentaCc.saldo || 0) + 1)
 
   const needsNroOp = medio && TARJETAS.has(medio)
   const nroOpOk = needsNroOp ? String(nroOp).trim().length > 0 : true
@@ -92,10 +143,23 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
   const { subtotal, descuentoMonto } = applyStoredDiscount(itemsPedido, pedido)
   const desgloseConsumo = modo === 'consumo' ? desgloseFromCuentas(consumoResult.computed) : undefined
   const medioOk = modo === 'medio'
-    ? lineasValidas(lineas, pedido.total)
+    ? lineasValidas(lineas, pedido.total, cuentasCC)
     : modo === 'consumo'
       ? consumoResult.valido
-      : (Boolean(medio) && nroOpOk)
+      : (Boolean(medio) && nroOpOk && cuentaCcOk)
+  // Lo que se va a registrar en `pagos` (null = "Sin pago": no registra nada).
+  const pagosPlaneados = modo === 'consumo'
+    ? cuentasAPagos(consumoResult.computed)
+    : modo === 'medio'
+      ? lineasAPagos(lineas)
+      : (medio && medio !== 'sin_pago'
+          ? [{
+              medio_pago: medio,
+              monto: pedido.total,
+              numero_operacion: needsNroOp ? nroOp.trim() : (esCuentaCorriente ? (nroOpCc.trim() || null) : null),
+              ...(esCuentaCorriente ? { cuenta_corriente_id: cuentaCcId } : {}),
+            }]
+          : null)
   // Medio que se imprime en el ticket (resumen si se divide por importe; en modo
   // consumo el desglose por persona se imprime aparte).
   const medioTicket = modo === 'medio' ? resumenMedios(lineas) : modo === 'consumo' ? null : medio
@@ -106,35 +170,28 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
       setError(modo === 'consumo'
         ? 'Revisá la división por persona: asigná todos los ítems y elegí medio de pago en cada cuenta.'
         : modo === 'medio'
-          ? 'El total dividido tiene que coincidir con el monto a cobrar.'
-          : 'Elegí un medio de pago antes de continuar.')
+          ? 'El total dividido tiene que coincidir con el monto a cobrar (y lo que va a cuenta corriente no puede superar su saldo).'
+          : esCuentaCorriente
+            ? 'Elegí la cuenta corriente. Si el saldo no alcanza, cobrá la diferencia con otro medio.'
+            : 'Elegí un medio de pago antes de continuar.')
       return
     }
     setError(null)
     setLoadingAction(kind)
     try {
+      // 0) Cuenta corriente: saldo al momento, ANTES de imprimir o facturar
+      //    (si no alcanza no tiene que salir ninguna factura).
+      const problemaCuenta = await validarCobroCuentaCorriente(pedido.id, pagosPlaneados || [])
+      if (problemaCuenta) { setError(problemaCuenta); return }
+
       const comprobanteUsado = await fn()
 
       // 1) Registrar el pago en la BD (para arqueo). "Sin pago" cierra sin sumar caja.
-      if (modo === 'consumo') {
+      if (pagosPlaneados) {
         await registrarPago({
           pedido,
           comprobante: comprobanteUsado || comprobanteAutorizado,
-          pagos: cuentasAPagos(consumoResult.computed),
-        })
-      } else if (modo === 'medio') {
-        await registrarPago({
-          pedido,
-          comprobante: comprobanteUsado || comprobanteAutorizado,
-          pagos: lineasAPagos(lineas),
-        })
-      } else if (medio !== 'sin_pago') {
-        await registrarPago({
-          pedido,
-          comprobante: comprobanteUsado || comprobanteAutorizado,
-          medio_pago: medio,
-          numero_operacion: needsNroOp ? nroOp.trim() : null,
-          monto: pedido.total,
+          pagos: pagosPlaneados,
         })
       }
 
@@ -287,11 +344,11 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
                 onChange={(computed, valido) => setConsumoResult({ computed, valido })}
               />
             ) : modo === 'medio' ? (
-              <SplitPagoLines total={pedido.total} lineas={lineas} setLineas={setLineas} />
+              <SplitPagoLines total={pedido.total} lineas={lineas} setLineas={setLineas} cuentas={cuentasCC} />
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-2">
-                  {MEDIOS_PAGO.map(opt => {
+                  {mediosPago.map(opt => {
                     const Icon = opt.icon
                     const active = medio === opt.id
                     return (
@@ -335,6 +392,28 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
                     )}
                   </div>
                 )}
+
+                {esCuentaCorriente && (
+                  <CuentaCorrienteCobro
+                    cuentas={cuentasCC}
+                    cuentaId={cuentaCcId}
+                    setCuentaId={id => { setCuentaCcId(id); setError(null) }}
+                    nroOp={nroOpCc}
+                    setNroOp={setNroOpCc}
+                    total={pedido.total}
+                    disabled={Boolean(loadingAction)}
+                    onDividir={cuenta => {
+                      const total = Math.round(Number(pedido.total || 0))
+                      const aCuenta = Math.floor(Number(cuenta.saldo || 0))
+                      setLineas([
+                        nuevaLinea(MEDIO_CUENTA_CORRIENTE, aCuenta, { cuentaId: cuenta.id, nroOp: nroOpCc }),
+                        nuevaLinea('efectivo', total - aCuenta),
+                      ])
+                      setModo('medio')
+                      setError(null)
+                    }}
+                  />
+                )}
               </>
             )}
           </div>
@@ -343,7 +422,7 @@ export default function CobrarMesaModal({ open, onClose, pedido, onCerrarMesa })
             <ElegirComprobante
               value={factura}
               onChange={f => { setFactura(f); setError(null) }}
-              permiteFacturaA={Boolean(config?.permite_factura_a)}
+              permiteFacturaA={permiteFacturaA}
               disabled={Boolean(loadingAction)}
             />
           )}

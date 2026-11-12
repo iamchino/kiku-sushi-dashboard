@@ -14,7 +14,7 @@
 //
 // Uso:  node scripts/verificar-permisos-front.mjs
 // ────────────────────────────────────────────────────────────────────────────
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { canAccessRoute, canAccessFinanzas } from '../src/context/role.js'
@@ -138,6 +138,19 @@ const SIN_RECURSO_ESPERADO = new Set(['/dashboard', '*'])
 const appJsx = readFileSync(join(raiz, 'src/App.jsx'), 'utf8')
 const rutasRouter = [...appJsx.matchAll(/<Route\s+path="([^"]+)"/g)].map(m => m[1])
 const rutasCatalogo = new Set(recursosSeed.map(r => r.ruta).filter(Boolean))
+// Las pantallas agregadas después del seed declaran su recurso en su propia
+// migración (insert into public.recursos … con la ruta). Cuentan como
+// declaradas. No están en el catálogo del fallback, así que esas páginas
+// además se protegen solas con puede('<recurso>') (ver CuentasCorrientes.jsx).
+const dirMigraciones = join(raiz, 'supabase/migrations')
+for (const archivo of readdirSync(dirMigraciones).filter(f => f.endsWith('.sql'))) {
+  const sql = readFileSync(join(dirMigraciones, archivo), 'utf8')
+    .split('\n').map(l => l.replace(/--.*$/, '')).join('\n')
+  if (!sql.includes('insert into public.recursos')) continue
+  for (const m of sql.matchAll(new RegExp(`\\('${ID}',\\s*'[^']*',\\s*'[^']*',\\s*'(/[^']*)'`, 'g'))) {
+    rutasCatalogo.add(m[1])
+  }
+}
 const huerfanas = [...new Set(rutasRouter)]
   .filter(r => !SIN_RECURSO_ESPERADO.has(r) && !rutasCatalogo.has(r))
 chequear('ninguna ruta del router quedó sin recurso', huerfanas, [])

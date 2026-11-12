@@ -1,0 +1,23 @@
+// Cierre de turno con canjes en el turno: el arqueo solo cuenta plata.
+import { abrir, BASE, sql, check, resumen } from './lib.mjs'
+const { browser, page, errores } = await abrir('admin')
+await page.goto(BASE + '/caja', { waitUntil: 'networkidle' })
+await page.getByRole('button', { name: /Arqueo/ }).first().click()
+await page.waitForTimeout(1500)
+const inputs = page.locator('main input[placeholder="$0"]')
+await inputs.nth(1).fill('172200')
+await page.waitForTimeout(300)
+const t = await page.locator('main').innerText()
+console.log('  ', (t.match(/Total esperado[^]{0,40}/i)?.[0] || '').replace(/\s+/g, ' '), '·', (t.match(/Diferencia[^]{0,40}/i)?.[0] || '').replace(/\s+/g, ' '))
+check('total esperado del cierre = solo plata', /Total esperado\s*\$172\.200,00/i.test(t))
+await page.getByRole('button', { name: 'Cerrar turno' }).click()
+await page.waitForTimeout(1200)
+const confirmar = page.getByRole('button', { name: /Confirmar|Cerrar turno/ })
+if (await confirmar.count() > 1) { await confirmar.last().click(); await page.waitForTimeout(1200) }
+const fila = sql("select estado||'|'||cierre_monto||'|'||efectivo_esperado||'|'||diferencia||'|'||(denominaciones_cierre->'medios'->'efectivo'->>'esperado')||'|'||coalesce(denominaciones_cierre->'medios'->>'cuenta_corriente','sin-cc') from caja_turnos")
+console.log('   turno:', fila)
+check('turno cerrado sin diferencia', fila === 'cerrado|172200.00|172200.00|0.00|172200|sin-cc', fila)
+await page.screenshot({ path: 'shots/12-cierre.png' })
+check('sin errores de consola', errores.length === 0, errores.join(' | '))
+await browser.close()
+process.exit(resumen() ? 1 : 0)

@@ -25,7 +25,8 @@ import { supabase } from '../lib/supabase'
 import { esNotaCredito, formatReceiptNumber, getAuthorizedComprobante, getComprobantesAnulados, getNotasCredito, nombreComprobante } from '../lib/fiscal'
 import { formatMoney } from '../lib/printing'
 import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, clampDiscount, parseCurrencyValue } from '../lib/orders'
-import { colorMedioPago, etiquetaMedioPago, lineasDePago, resumenMediosPago } from '../lib/pagosPedido'
+import { colorMedioPago, esCuentaCorriente, etiquetaMedioPago, lineasDePago, resumenMediosPago } from '../lib/pagosPedido'
+import { cargarCuentasDePagos, cargarEstadoCuentas } from '../lib/cuentasCorrientesApi'
 import { exportarReporteContable, resumenEgresos } from '../lib/reporteContable'
 import { cargarEgresosPeriodo } from '../lib/pagos'
 import { descargarFacturaPdf } from '../lib/facturaPdf'
@@ -511,7 +512,7 @@ function EditPedidoModal({ pedido, open, saving, onClose, onSave }) {
   )
 }
 
-function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, onTicket, onEdit, onNotaCredito, onPdf, onPdfDirecto }) {
+function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, onTicket, onEdit, onNotaCredito, onPdf, onPdfDirecto, cuentasDePagos }) {
   const comprobante = getAuthorizedComprobante(pedido)
   const anulados = getComprobantesAnulados(pedido)
   const notasCredito = getNotasCredito(pedido)
@@ -532,6 +533,8 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
   const pagoLineas = lineasDePago(pedido)
   const pagoDividido = pagoLineas.length > 1
   const totalCobrado = pagoLineas.reduce((acc, l) => acc + l.monto, 0)
+  // A qué cuenta corriente se cargó cada línea (solo lo ve quien tiene la sección).
+  const cuentaDe = (linea) => (esCuentaCorriente(linea.medio) ? cuentasDePagos?.get(linea.id) : null)
   const pagoColor = pagoDividido ? 'var(--accent-lift)' : colorMedioPago(pagoLineas[0]?.medio)
   const pagoLabel = pagoDividido ? 'Pago dividido' : etiquetaMedioPago(pagoLineas[0]?.medio)
 
@@ -689,6 +692,7 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
                 <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
                   <span className="inline-block h-2 w-2 rounded-full" style={{ background: colorMedioPago(linea.medio) }} />
                   {etiquetaMedioPago(linea.medio)}
+                  {cuentaDe(linea) && <span style={{ color: 'var(--text-secondary)' }}>· {cuentaDe(linea)}</span>}
                   {linea.nroOp && <span style={{ color: 'var(--text-muted)' }}>· op. {linea.nroOp}</span>}
                   {linea.at && (
                     <span style={{ color: 'var(--text-muted)' }}>
@@ -836,6 +840,21 @@ export default function CajaPage() {
 
   const resumenPagos = useMemo(() => resumenMediosPago(pedidos), [pedidos])
 
+  // Nombre de la cuenta corriente de cada cobro a cuenta (canjes). Se pide
+  // solo si hay alguno en pantalla.
+  const [cuentasDePagos, setCuentasDePagos] = useState(() => new Map())
+  const idsPagosCuenta = useMemo(() => (
+    pedidos.flatMap(p => (p.pagos || []).filter(pg => esCuentaCorriente(pg.medio_pago)).map(pg => pg.id))
+      .sort().join(',')
+  ), [pedidos])
+  useEffect(() => {
+    let vivo = true
+    cargarCuentasDePagos(idsPagosCuenta ? idsPagosCuenta.split(',') : [])
+      .then(mapa => { if (vivo) setCuentasDePagos(mapa) })
+      .catch(() => {})
+    return () => { vivo = false }
+  }, [idsPagosCuenta])
+
   // Egresos del mismo período, para la tarjeta de Totales y el reporte. Van
   // por fecha del pago (día), no por created_at. Sin caja_historico no se
   // cargan: esa tarjeta no se muestra.
@@ -856,9 +875,14 @@ export default function CajaPage() {
     setExportando(true)
     setNotice(null)
     try {
+      // Estado de las cuentas corrientes (canjes). Vacío si el usuario no
+      // tiene esa sección: el reporte sale igual, sin esas hojas.
+      const cuentasCorrientes = await cargarEstadoCuentas(dateFrom, dateTo).catch(() => null)
       await exportarReporteContable({
         pedidos,
         egresos,
+        cuentasCorrientes,
+        cuentasDePagos,
         desde: dateFrom,
         hasta: dateTo,
         negocio: config?.nombre_fantasia || config?.razon_social || 'Kiku Sushi',
@@ -1122,6 +1146,14 @@ export default function CajaPage() {
               />
             )}
             <FilaMetrica label="Total cobrado" value={`$${formatMoney(resumenPagos.totalCobrado)}`} fuerte />
+            {resumenPagos.cuentaCorriente.cobros > 0 && (
+              <FilaMetrica
+                label="Cuenta corriente (canjes)"
+                value={`$${formatMoney(resumenPagos.cuentaCorriente.monto)}`}
+                hint={`${resumenPagos.cuentaCorriente.cobros} ${resumenPagos.cuentaCorriente.cobros === 1 ? 'consumo' : 'consumos'} · no es plata`}
+                color={colorMedioPago('cuenta_corriente')}
+              />
+            )}
           </GrupoMetricas>
 
           {/* Totales acumulados del período: es la foto del negocio, no la
@@ -1246,6 +1278,7 @@ export default function CajaPage() {
                   <PedidoCajaCard
                     key={pedido.id}
                     pedido={pedido}
+                    cuentasDePagos={cuentasDePagos}
                     arcaReady={arcaReady}
                     busy={busyId === pedido.id}
                     onComanda={imprimirComanda}

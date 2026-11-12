@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   CreditCard,
   FileText,
+  Handshake,
   Loader2,
   Lock,
   Printer,
@@ -19,6 +20,13 @@ import { formatMoney } from '../../lib/printing'
 import SplitPagoLines, { nuevaLinea, lineasValidas, lineasAPagos, resumenMedios } from './SplitPagoLines'
 import ElegirComprobante from '../caja/ElegirComprobante'
 import { comprobanteInicial, opcionesFactura, validarComprobante } from '../../lib/comprobante'
+import CuentaCorrienteCobro from './CuentaCorrienteCobro'
+import { useCuentasCobro } from '../../hooks/useCuentasCobro'
+import {
+  COLOR_CUENTA_CORRIENTE, LABEL_CUENTA_CORRIENTE, MEDIO_CUENTA_CORRIENTE,
+  cuentaTieneDatosFiscales, cuentaUsable, facturaDesdeCuenta,
+} from '../../lib/cuentasCorrientes'
+import { validarCobroCuentaCorriente } from '../../lib/cuentasCorrientesApi'
 
 const MEDIOS_PAGO = [
   { id: 'efectivo',         label: 'Efectivo',          icon: Banknote,   color: '#5FD3A3' },
@@ -27,6 +35,8 @@ const MEDIOS_PAGO = [
   { id: 'transferencia',    label: 'Transferencia',     icon: Send,       color: '#8FB2F2' },
   { id: 'sin_pago',         label: 'Sin pago',          icon: Ban,        color: '#94a3b8' },
 ]
+// Canjes: solo se ofrece si hay cuentas corrientes activas. No entra al arqueo.
+const MEDIO_CC = { id: MEDIO_CUENTA_CORRIENTE, label: LABEL_CUENTA_CORRIENTE, icon: Handshake, color: COLOR_CUENTA_CORRIENTE }
 
 const TICKET_OPTIONS = [
   { id: 'fiscal', label: 'Ticket fiscal', icon: Receipt },
@@ -54,6 +64,9 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
   const [dividir, setDividir] = useState(false)
   const [lineas, setLineas] = useState([])
   const [factura, setFactura] = useState(comprobanteInicial())
+  const cuentasCC = useCuentasCobro(open)
+  const [cuentaCcId, setCuentaCcId] = useState(null)
+  const [nroOpCc, setNroOpCc] = useState('')
 
   const comprobanteAutorizado = useMemo(
     () => (pedido ? getAuthorizedComprobante(pedido) : null),
@@ -65,6 +78,8 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
     setMedio('efectivo')
     setTicket('no_fiscal')
     setNroOp('')
+    setCuentaCcId(null)
+    setNroOpCc('')
     setLoading(false)
     setError(null)
     setDividir(false)
@@ -73,20 +88,61 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, pedido?.id, pedido?.total])
 
+  // Cuenta a la que se le factura: la elegida como único medio o la primera
+  // línea a cuenta corriente del pago dividido.
+  const cuentaFacturaId = dividir
+    ? (lineas.find(l => l.medio === MEDIO_CUENTA_CORRIENTE && l.cuentaId)?.cuentaId || null)
+    : (medio === MEDIO_CUENTA_CORRIENTE ? cuentaCcId : null)
+  const cuentaFactura = cuentasCC.find(c => c.id === cuentaFacturaId) || null
+  const permiteFacturaA = Boolean(config?.permite_factura_a)
+
+  // Con datos fiscales en la cuenta se precarga la Factura A a su nombre (se
+  // puede volver a B). Al dejar la cuenta, vuelve el comprobante del pedido.
+  useEffect(() => {
+    if (!open) return
+    if (cuentaFactura && permiteFacturaA && cuentaTieneDatosFiscales(cuentaFactura)) {
+      setFactura(facturaDesdeCuenta(cuentaFactura))
+    } else if (!cuentaFactura) {
+      setFactura(prev => (prev.autoCuenta ? comprobanteInicial(pedido) : prev))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, cuentaFactura?.id, permiteFacturaA])
+
   if (!open || !pedido) return null
+
+  const mediosPago = cuentasCC.length > 0
+    ? [...MEDIOS_PAGO.filter(m => m.id !== 'sin_pago'), MEDIO_CC, ...MEDIOS_PAGO.filter(m => m.id === 'sin_pago')]
+    : MEDIOS_PAGO
+  const esCuentaCorriente = medio === MEDIO_CUENTA_CORRIENTE
+  const cuentaCc = cuentasCC.find(c => c.id === cuentaCcId) || null
+  const cuentaCcOk = !esCuentaCorriente
+    || (cuentaUsable(cuentaCc) && Number(pedido.total || 0) <= Number(cuentaCc.saldo || 0) + 1)
 
   const needsNroOp = TARJETAS.has(medio)
   const nroOpOk = needsNroOp ? String(nroOp).trim().length > 0 : true
   const fiscalDisponible = Boolean(arcaReady || comprobanteAutorizado)
-  const pagoOk = dividir ? lineasValidas(lineas, pedido.total) : nroOpOk
+  const pagoOk = dividir ? lineasValidas(lineas, pedido.total, cuentasCC) : (nroOpOk && cuentaCcOk)
   const canSubmit = !loading && pagoOk && (ticket !== 'fiscal' || fiscalDisponible)
   const medioTicket = dividir ? resumenMedios(lineas) : medio
+  // Lo que se va a registrar en `pagos` (null = "Sin pago": no registra nada).
+  const pagosPlaneados = dividir
+    ? lineasAPagos(lineas)
+    : (medio !== 'sin_pago'
+        ? [{
+            medio_pago: medio,
+            monto: pedido.total,
+            numero_operacion: needsNroOp ? nroOp.trim() : (esCuentaCorriente ? (nroOpCc.trim() || null) : null),
+            ...(esCuentaCorriente ? { cuenta_corriente_id: cuentaCcId } : {}),
+          }]
+        : null)
 
   const submit = async () => {
     if (!pagoOk) {
       setError(dividir
-        ? 'El total dividido tiene que coincidir con el monto a cobrar.'
-        : 'Ingresa el numero de operacion del posnet.')
+        ? 'El total dividido tiene que coincidir con el monto a cobrar (y lo que va a cuenta corriente no puede superar su saldo).'
+        : esCuentaCorriente
+          ? 'Elegi la cuenta corriente. Si el saldo no alcanza, cobra la diferencia con otro medio.'
+          : 'Ingresa el numero de operacion del posnet.')
       return
     }
     if (ticket === 'fiscal' && !fiscalDisponible) {
@@ -101,6 +157,10 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
     setLoading(true)
     setError(null)
     try {
+      // Cuenta corriente: saldo al momento, ANTES de imprimir o facturar.
+      const problemaCuenta = await validarCobroCuentaCorriente(pedido.id, pagosPlaneados || [])
+      if (problemaCuenta) { setError(problemaCuenta); return }
+
       let comprobanteUsado = comprobanteAutorizado
 
       if (ticket === 'fiscal') {
@@ -113,19 +173,11 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
         await imprimirTicketNoFiscal(pedido, medioTicket)
       }
 
-      if (dividir) {
+      if (pagosPlaneados) {
         await registrarPago({
           pedido,
           comprobante: comprobanteUsado,
-          pagos: lineasAPagos(lineas),
-        })
-      } else if (medio !== 'sin_pago') {
-        await registrarPago({
-          pedido,
-          comprobante: comprobanteUsado,
-          medio_pago: medio,
-          numero_operacion: needsNroOp ? nroOp.trim() : null,
-          monto: pedido.total,
+          pagos: pagosPlaneados,
         })
       }
 
@@ -190,11 +242,11 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
             </div>
 
             {dividir ? (
-              <SplitPagoLines total={pedido.total} lineas={lineas} setLineas={setLineas} />
+              <SplitPagoLines total={pedido.total} lineas={lineas} setLineas={setLineas} cuentas={cuentasCC} />
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-2">
-                  {MEDIOS_PAGO.map(opt => {
+                  {mediosPago.map(opt => {
                     const Icon = opt.icon
                     const active = medio === opt.id
                     return (
@@ -241,6 +293,28 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
                     />
                   </label>
                 )}
+
+                {esCuentaCorriente && (
+                  <CuentaCorrienteCobro
+                    cuentas={cuentasCC}
+                    cuentaId={cuentaCcId}
+                    setCuentaId={id => { setCuentaCcId(id); setError(null) }}
+                    nroOp={nroOpCc}
+                    setNroOp={setNroOpCc}
+                    total={pedido.total}
+                    disabled={loading}
+                    onDividir={cuenta => {
+                      const total = Math.round(Number(pedido.total || 0))
+                      const aCuenta = Math.floor(Number(cuenta.saldo || 0))
+                      setLineas([
+                        nuevaLinea(MEDIO_CUENTA_CORRIENTE, aCuenta, { cuentaId: cuenta.id, nroOp: nroOpCc }),
+                        nuevaLinea('efectivo', total - aCuenta),
+                      ])
+                      setDividir(true)
+                      setError(null)
+                    }}
+                  />
+                )}
               </>
             )}
           </section>
@@ -276,7 +350,7 @@ export default function CerrarPedidoModal({ open, pedido, onClose, onCerrarPedid
                 <ElegirComprobante
                   value={factura}
                   onChange={f => { setFactura(f); setError(null) }}
-                  permiteFacturaA={Boolean(config?.permite_factura_a)}
+                  permiteFacturaA={permiteFacturaA}
                   disabled={loading}
                 />
               </div>
