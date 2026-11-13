@@ -10,6 +10,7 @@
     "verificar:permisos": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-paridad-permisos.mjs && node --import ./scripts/registrar-resolver.mjs scripts/verificar-permisos-front.mjs",
     "verificar:cashflow": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-cashflow.mjs",
     "verificar:cuentas": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-cuentas-corrientes.mjs",
+    "verificar:compras": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-compras.mjs",
     "preview": "vite preview",
     "android:sync": "vite build && npx cap sync android",
     "android:open": "vite build && npx cap sync android && npx cap open android"

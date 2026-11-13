@@ -43,6 +43,8 @@ export function costoReal(item) {
   return precio / rend
 }
 
+const COLS_MOVIMIENTO = 'id, tipo, cantidad, stock_antes, stock_despues, notas, created_at'
+
 export function useStock() {
   const [items,   setItems]   = useState([])
   const [recetas, setRecetas] = useState([])
@@ -52,11 +54,16 @@ export function useStock() {
   const fetchStock = useCallback(async () => {
     setLoading(true)
     setError(null)
+    // Con el SQL 56 cada movimiento trae quién lo hizo y si vino de una boleta.
+    // Si la base todavía no tiene esas columnas, pedirlas hace fallar toda la
+    // consulta: se reintenta sin ellas y la pantalla sigue como antes.
+    const pedirStock = (columnas) => supabase
+      .from('stock')
+      .select(`*, stock_movimientos(${columnas})`)
+      .order('nombre')
     const [resStock, resRecetas] = await Promise.all([
-      supabase
-        .from('stock')
-        .select('*, stock_movimientos(id, tipo, cantidad, stock_antes, stock_despues, notas, created_at)')
-        .order('nombre'),
+      pedirStock(`${COLS_MOVIMIENTO}, usuario_nombre, origen`)
+        .then(res => (res.error ? pedirStock(COLS_MOVIMIENTO) : res)),
       supabase
         .from('recetas')
         .select('id, nombre, porciones, es_subreceta, tipo, lleva_stock')

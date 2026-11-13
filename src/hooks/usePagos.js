@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { editarPago as editarPagoRpc, anularPago as anularPagoRpc, historialDePago } from '../lib/pagos'
+import { registrarCompra as registrarCompraRpc, editarCompra as editarCompraRpc } from '../lib/comprasApi'
 
 // Texto por defecto si la instalación todavía no cargó el nombre de su cuenta.
 const BANCO_FALLBACK = 'Cuenta bancaria del negocio'
@@ -139,6 +140,22 @@ export function usePagos(opciones = {}) {
     return data
   }, [cargar])
 
+  /**
+   * Pago + productos de la boleta en una sola transacción (SQL 56): el pago,
+   * su reflejo en la caja y las entradas de stock, todo o nada.
+   */
+  const registrarCompra = useCallback(async (form, filas, permitirDiferencia) => {
+    const data = await registrarCompraRpc(form, filas, permitirDiferencia)
+    await cargar()
+    return data
+  }, [cargar])
+
+  const editarCompra = useCallback(async (pago, form, filas, motivo, permitirDiferencia) => {
+    const data = await editarCompraRpc(pago, form, filas, motivo, permitirDiferencia)
+    await cargar()
+    return data
+  }, [cargar])
+
   /** Anula un pago y revierte su movimiento de caja. */
   const anularPago = useCallback(async (pago, motivo) => {
     const data = await anularPagoRpc(pago, motivo)
@@ -148,7 +165,7 @@ export function usePagos(opciones = {}) {
 
   return {
     pagos, empleados, turnoAbierto, bancoCuenta, cuentas, loading, error,
-    registrarPago, editarPago, anularPago, historialDePago,
+    registrarPago, editarPago, anularPago, historialDePago, registrarCompra, editarCompra,
     recargar: cargar,
   }
 }

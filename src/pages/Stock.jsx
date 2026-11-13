@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react'
 import {
   Plus, RefreshCw, Package, AlertTriangle, CheckCircle2, Edit2, Trash2,
-  Search, Clock, ChevronDown, ChevronUp, ChefHat, Layers, ClipboardCheck
+  Search, Clock, ChevronDown, ChevronUp, ChefHat, Layers, ClipboardCheck, PackageSearch
 } from 'lucide-react'
 import { useStock, ESTADO_STOCK, ESTADO_CONFIG, costoReal, CATEGORIAS_STOCK, getTipoStock } from '../hooks/useStock'
 import { normalizeSearch } from '../utils/normalize'
 import MovimientoModal from '../components/stock/MovimientoModal'
 import ConteoModal from '../components/stock/ConteoModal'
+import FaltantesModal from '../components/stock/FaltantesModal'
 import { TIPOS_STOCK } from '../lib/stockNiveles'
 
 function PrecioCell({ item, onSave }) {
@@ -185,7 +186,7 @@ function ItemRow({ item, showCostColumns = true, updatePrecio, openEdit, setDele
               onClick={() => openEdit(item, 'entrada')}
               className="h-7 px-2 rounded-lg flex items-center gap-1 text-[11px] font-semibold"
               style={{ color: '#3FBF8A', border: '1px solid rgba(63,191,138,0.35)' }}
-              title="Cargar una entrada (compra) de este ítem"
+              title="Entrada a mano, sin boleta. Las compras con boleta se cargan en Caja → Pagos con sus productos."
             >
               <Plus size={12} /> Entrada
             </button>
@@ -246,7 +247,13 @@ function ItemRow({ item, showCostColumns = true, updatePrecio, openEdit, setDele
                           <span className="text-[10px] tabular-nums flex-shrink-0" style={{ color: 'var(--text-xmuted)' }}>
                             {parseFloat(m.stock_antes ?? 0).toFixed(1)} - {parseFloat(m.stock_despues ?? 0).toFixed(1)}
                           </span>
-                          {m.notas && <span className="flex-1 truncate text-[10px]" style={{ color: 'var(--text-xmuted)' }}>{m.notas}</span>}
+                          {m.notas && <span className="flex-1 truncate text-[10px]" style={{ color: 'var(--text-xmuted)' }} title={m.notas}>{m.notas}</span>}
+                          {/* Quién lo hizo (desde el SQL 56). Los movimientos viejos no lo tienen. */}
+                          {m.usuario_nombre && (
+                            <span className="text-[10px] flex-shrink-0 font-medium" style={{ color: 'var(--text-muted)' }} title="Quién hizo este movimiento">
+                              {m.usuario_nombre}
+                            </span>
+                          )}
                           <span className="text-[10px] tabular-nums flex-shrink-0 ml-auto" style={{ color: 'var(--text-xmuted)' }}>
                             {fecha.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })} {fecha.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
                           </span>
@@ -344,6 +351,7 @@ export default function StockPage() {
   const [ordenFilas, setOrdenFilas] = useState('estado')
   // Tab activa: 'materia_prima' (default), 'produccion' (intermedia) o 'servicio'
   const [conteoOpen, setConteoOpen] = useState(false)
+  const [faltantesOpen, setFaltantesOpen] = useState(false)
   const [tipoActivo, setTipoActivo] = useState('materia_prima')
 
   const {
@@ -454,6 +462,15 @@ export default function StockPage() {
           <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Materia prima, producción intermedia y servicio, en tiempo real</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setFaltantesOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold"
+            style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+            title="Qué faltó y qué sobró en los conteos, en pesos"
+          >
+            <PackageSearch size={15} />
+            <span className="hidden sm:inline">Faltantes</span>
+          </button>
           <button
             onClick={() => setConteoOpen(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold"
@@ -669,6 +686,8 @@ export default function StockPage() {
         notaDefault={tipoActivo === 'servicio' ? 'Conteo cierre de servicio' : 'Conteo de inventario'}
         onConfirm={registrarConteo}
       />
+
+      <FaltantesModal open={faltantesOpen} onClose={() => setFaltantesOpen(false)} />
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

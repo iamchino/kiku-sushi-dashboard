@@ -112,6 +112,15 @@ const EMBEBIDOS = {
   egresos: (sel) => [
     /proveedor:proveedores\(/.test(sel) && `(select json_build_object('razon_social', pr.razon_social) from public.proveedores pr where pr.id = t.proveedor_id) as proveedor`,
   ].filter(Boolean),
+  // Inventario pide stock con sus movimientos y una lista de columnas. Se
+  // respetan las columnas pedidas: si alguna no existe (base sin el SQL 56)
+  // tiene que fallar como en PostgREST, para probar el reintento del front.
+  stock: (sel) => {
+    const m = sel.match(/stock_movimientos\(([^)]*)\)/)
+    if (!m) return []
+    const cols = m[1].split(',').map(c => c.trim()).filter(Boolean).map(c => `sm.${ident(c)}`).join(', ')
+    return [`(select coalesce(json_agg(mv), '[]'::json) from (select ${cols} from public.stock_movimientos sm where sm.stock_id = t.id) mv) as stock_movimientos`]
+  },
   cuenta_corriente_movimientos: (sel) => [
     /cuenta:cuentas_corrientes\(/.test(sel) && `(select json_build_object('nombre', cc.nombre) from public.cuentas_corrientes cc where cc.id = t.cuenta_id) as cuenta`,
   ].filter(Boolean),

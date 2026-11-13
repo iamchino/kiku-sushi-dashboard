@@ -33,7 +33,11 @@ for f in "$RAIZ"/supabase/migrations/2026082[0-9]*.sql "$RAIZ"/supabase/migratio
   [ -f "$f" ] || continue
   # Las migraciones "opcionales" las aplica prep-db.sh según la prueba (así se
   # puede probar el dashboard nuevo contra una base que todavía no las tiene).
-  case "$f" in *cuentas_corrientes*|*cashflow_mensual*) continue ;; esac
+  case "$f" in *cuentas_corrientes*|*cashflow_mensual*|*stock_compras*) continue ;; esac
   $PG -d kk -q -f "$f" 2>&1 | grep ERROR | grep -v "supabase_admin\|transaction_timeout\|pg_net\|supabase_realtime\|recurso_tablas_recurso_id_fkey\|rol_permisos_recurso_id_fkey" | sed "s|^|$(basename "$f"): |" || true
 done
+# registrar_movimiento_stock (Inventario → entrada / merma / ajuste) está en
+# producción desde el SQL 24 pero no en el dump de provision/: se suma acá para
+# que la base de pruebas tenga lo mismo que la real.
+$PG -d kk -q -f "$RAIZ/SQL-CIERRES/24-crear-registrar-movimiento-stock.sql" >/dev/null 2>&1 || true
 echo "base kk lista"

@@ -1,9 +1,12 @@
-import { useMemo, useState } from 'react'
-import { Wallet, Pencil } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Wallet, Pencil, Package } from 'lucide-react'
 import { usePagos } from '../../hooks/usePagos'
 import { useProveedores } from '../../hooks/useProveedores'
 import { ModalShell, Field, Select, TextArea } from '../finanzas/fields'
 import { CATEGORIAS, MEDIOS_PAGO, localDateISO, DIAS_ANTES_DE_SER_DEUDA, naturalezaPendiente } from '../../lib/finanzas'
+import ProductosBoleta from './ProductosBoleta'
+import { TOLERANCIA_BOLETA, armarFilas, cambioLaBoleta, itemsParaGuardar, problemaBoleta, puedeLlevarProductos } from '../../lib/compras'
+import { cargarItemsDePago, cargarProductosCompra } from '../../lib/comprasApi'
 
 // Alta centralizada de pagos: ESTE es el único formulario para registrar un
 // egreso del negocio. Lo usan Caja → Pagos, el arqueo del turno abierto
@@ -20,6 +23,12 @@ import { CATEGORIAS, MEDIOS_PAGO, localDateISO, DIAS_ANTES_DE_SER_DEUDA, natural
 //   · tarjetas / cheque            → se registran sin mover caja ni banco
 //
 // El trabajo transaccional lo hace el RPC registrar_pago().
+//
+// Productos de la boleta (SQL 56): en un pago de mercadería o proveedores se
+// pueden cargar los productos que vinieron. Al guardar, la base los mete al
+// stock, actualiza el precio de costo y deja todo atado a este pago; corregir
+// o anular el pago corrige o devuelve el stock. Va en una sola transacción
+// (registrar_compra / editar_compra). Sin el SQL 56 la sección no aparece.
 export default function RegistrarPagoModal({
   onClose,
   onRegistrado,
@@ -37,7 +46,9 @@ export default function RegistrarPagoModal({
   // deuda cuando faltan DIAS_ANTES_DE_SER_DEUDA días para el vencimiento.
   modoProyeccion = false,
 }) {
-  const { empleados, turnoAbierto, bancoCuenta, cuentas, registrarPago, editarPago } = usePagos({ lista: false })
+  const {
+    empleados, turnoAbierto, bancoCuenta, cuentas, registrarPago, editarPago, registrarCompra, editarCompra,
+  } = usePagos({ lista: false })
   const { proveedores } = useProveedores()
 
   const edicion = Boolean(initial)
@@ -71,6 +82,17 @@ export default function RegistrarPagoModal({
   const [motivo, setMotivo] = useState('')
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState(null)
+
+  // ── Productos de la boleta ────────────────────────────────────────────────
+  // compras.disponible: null = todavía no se sabe · false = falta el SQL 56.
+  const [compras, setCompras] = useState({ disponible: null, productos: [], cargando: false })
+  const [conProductos, setConProductos] = useState(false)
+  const [filas, setFilas] = useState([])
+  const [itemsOriginales, setItemsOriginales] = useState([])
+  const [permitirDiferencia, setPermitirDiferencia] = useState(false)
+  // Los productos que el pago ya tenía se vuelcan a las filas UNA sola vez: si
+  // el usuario quita uno, no tiene que volver al cambiar de proveedor.
+  const originalesVolcados = useRef(false)
 
   const set = (k) => (v) => setForm(f => ({ ...f, [k]: v }))
   const esSueldo        = form.categoria === 'sueldos'
@@ -159,32 +181,101 @@ export default function RegistrarPagoModal({
     return 'No es efectivo ni transferencia: se registra sin tocar la caja ni la cuenta del banco.'
   }, [modoProyeccion, form.vencimiento, pendiente, turnoAbierto, esEfectivo, esTransferencia, origenResuelto, nombreCuenta, edicion])
 
-  const valido = form.descripcion.trim() && Number(form.monto) > 0 && (!esSueldo || form.empleado_id)
+  // Lo que ya tenía cargado el pago (solo al editar). Si tenía productos, la
+  // sección arranca abierta con ellos.
+  const pagoId = initial?.id || null
+  const montoInicial = Number(initial?.monto) || 0
+  useEffect(() => {
+    if (!pagoId) return undefined
+    let vivo = true
+    cargarItemsDePago(pagoId).then(items => {
+      if (!vivo || items.length === 0) return
+      setItemsOriginales(items)
+      setConProductos(true)
+      // Si la boleta ya se había guardado con una diferencia aceptada
+      // (impuestos, envío), se respeta: no hay que volver a tildarla para
+      // corregir otra cosa.
+      const total = items.reduce((acc, it) => acc + (Number(it.subtotal) || 0), 0)
+      if (Math.abs(total - montoInicial) > TOLERANCIA_BOLETA) setPermitirDiferencia(true)
+    })
+    return () => { vivo = false }
+  }, [pagoId, montoInicial])
+
+  // La lista de productos depende del proveedor elegido: marca lo que se le
+  // compra habitualmente y trae su último precio. Se pide una vez al abrir
+  // (para saber si el SQL 56 está) y cada vez que cambia el proveedor.
+  const pideProductos = !modoProyeccion && (conProductos || puedeLlevarProductos(form.categoria))
+  useEffect(() => {
+    if (!pideProductos) return undefined
+    let vivo = true
+    setCompras(c => ({ ...c, cargando: true }))
+    cargarProductosCompra(form.proveedor_id || null)
+      .then(res => { if (vivo) setCompras({ ...res, cargando: false }) })
+      .catch(() => { if (vivo) setCompras({ disponible: false, productos: [], cargando: false }) })
+    return () => { vivo = false }
+  }, [pideProductos, form.proveedor_id])
+
+  // Con la lista en mano se arman las filas: lo que el pago ya tenía, lo que
+  // el usuario ya cargó y los habituales del proveedor que falten.
+  useEffect(() => {
+    if (!conProductos || compras.disponible !== true || compras.cargando) return
+    const existentes = originalesVolcados.current ? [] : itemsOriginales
+    if (itemsOriginales.length > 0) originalesVolcados.current = true
+    setFilas(actuales => armarFilas({ productos: compras.productos, existentes, actuales }))
+  }, [conProductos, compras, itemsOriginales])
+
+  const ofreceProductos = compras.disponible === true && !modoProyeccion && !esSueldo
+    && (puedeLlevarProductos(form.categoria) || itemsOriginales.length > 0)
+  const filasAEnviar = ofreceProductos && conProductos ? filas : []
+  const hayItems = itemsParaGuardar(filasAEnviar).length > 0
+  // El pago va por registrar_compra / editar_compra si lleva productos o si
+  // los tenía (para que sacarlos también devuelva el stock).
+  const vaComoCompra = compras.disponible === true && (hayItems || itemsOriginales.length > 0)
+  const saleDelStock = vaComoCompra && itemsOriginales.length > 0 && !hayItems
+  const problemaProductos = hayItems
+    ? problemaBoleta({ filas: filasAEnviar, monto: form.monto, permitirDiferencia })
+    : null
+  const proveedorNombre = (proveedores || []).find(p => p.id === form.proveedor_id)?.razon_social || ''
+
+  const valido = form.descripcion.trim() && Number(form.monto) > 0 && (!esSueldo || form.empleado_id) && !problemaProductos
 
   const guardar = async () => {
     setBusy(true); setError(null)
     try {
+      const nItems = itemsParaGuardar(filasAEnviar).length
+      const colaStock = !vaComoCompra ? ''
+        : nItems > 0
+          ? (edicion
+              ? (cambioLaBoleta(itemsOriginales, filasAEnviar) ? ' El stock se actualizó con los cambios de la boleta.' : '')
+              : ` ${nItems === 1 ? 'Entró 1 producto' : `Entraron ${nItems} productos`} al stock con el precio de la boleta.`)
+          : ' Los productos que tenía la boleta salieron del stock.'
       if (edicion) {
-        const resultado = await editarPago(initial, { ...form, origen: origenResuelto, cuenta_id: cuentaResuelta }, motivo)
+        const datos = { ...form, origen: origenResuelto, cuenta_id: cuentaResuelta }
+        const resultado = vaComoCompra
+          ? await editarCompra(initial, datos, filasAEnviar, motivo, permitirDiferencia)
+          : await editarPago(initial, datos, motivo)
         onRegistrado?.(
-          resultado?.descuenta_arqueo
+          (resultado?.descuenta_arqueo
             ? 'Pago corregido. El movimiento de la caja del día se actualizó con él.'
             : resultado?.origen === 'caja_fuerte'
               ? 'Pago corregido. El movimiento de la caja fuerte se actualizó con él.'
-              : 'Pago corregido.',
+              : 'Pago corregido.') + colaStock,
           resultado,
         )
         onClose()
         return
       }
-      const resultado = await registrarPago({
+      const datosAlta = {
         ...form,
         estado: modoProyeccion ? 'pendiente' : form.estado,
         origen: origenResuelto,
         cuenta_id: cuentaResuelta,
-      })
+      }
+      const resultado = vaComoCompra
+        ? await registrarCompra(datosAlta, filasAEnviar, permitirDiferencia)
+        : await registrarPago(datosAlta)
       onRegistrado?.(
-        form.estado === 'pendiente'
+        (form.estado === 'pendiente'
           ? (naturalezaPendiente(form.vencimiento || null) === 'deuda'
               ? 'Guardado. Como vence enseguida, entró directo como DEUDA.'
               : 'Guardado como PROYECCIÓN. Va a pasar a deuda solo, cerca del vencimiento.')
@@ -196,7 +287,7 @@ export default function RegistrarPagoModal({
             ? 'Pago registrado. Salió de la caja fuerte: su saldo ya lo descuenta.'
             : turnoAbierto
               ? 'Pago registrado y vinculado al turno abierto (no toca el efectivo de la caja).'
-              : 'Pago registrado. No había turno de caja abierto, quedó sin vincular.',
+              : 'Pago registrado. No había turno de caja abierto, quedó sin vincular.') + colaStock,
         resultado,
       )
       onClose()
@@ -207,7 +298,8 @@ export default function RegistrarPagoModal({
   }
 
   return (
-    <ModalShell title={edicion ? 'Editar pago' : titulo} icon={edicion ? Pencil : Wallet} onClose={onClose} maxW="max-w-md">
+    <ModalShell title={edicion ? 'Editar pago' : titulo} icon={edicion ? Pencil : Wallet} onClose={onClose}
+      maxW={ofreceProductos && conProductos ? 'max-w-2xl' : 'max-w-md'}>
       <div className="p-5 space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <Select label="Categoría" value={form.categoria} onChange={set('categoria')} required
@@ -268,6 +360,44 @@ export default function RegistrarPagoModal({
               ...(proveedores || []).map(p => ({ value: p.id, label: p.razon_social }))]} />
         )}
 
+        {/* Productos de la boleta: entran al stock con este mismo pago. */}
+        {ofreceProductos && !conProductos && (
+          <button type="button" onClick={() => setConProductos(true)}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left"
+            style={{ border: '1px dashed var(--accent-border)', background: 'var(--accent-soft)' }}>
+            <Package size={16} className="flex-shrink-0" style={{ color: 'var(--accent-lift)' }} />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold" style={{ color: 'var(--accent-lift)' }}>
+                Cargar los productos de la boleta
+              </span>
+              <span className="block text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                Entran al stock y actualizan el precio de costo, atados a este pago.
+              </span>
+            </span>
+          </button>
+        )}
+        {ofreceProductos && conProductos && (
+          <ProductosBoleta
+            productos={compras.productos}
+            filas={filas}
+            setFilas={setFilas}
+            monto={form.monto}
+            onUsarTotal={(total) => { set('monto')(String(total)); setPermitirDiferencia(false) }}
+            permitirDiferencia={permitirDiferencia}
+            setPermitirDiferencia={setPermitirDiferencia}
+            proveedorNombre={proveedorNombre}
+            cargando={compras.cargando && filas.length === 0}
+            onCerrar={() => { setConProductos(false); setPermitirDiferencia(false) }}
+          />
+        )}
+        {saleDelStock && (
+          <p className="text-[11px] px-3 py-2 rounded-lg"
+            style={{ background: 'rgba(232,162,63,0.10)', border: '1px solid rgba(232,162,63,0.30)', color: 'var(--warn, #E8A23F)' }}>
+            Este pago tenía {itemsOriginales.length === 1 ? '1 producto cargado' : `${itemsOriginales.length} productos cargados`}: si
+            guardás sin productos, esas cantidades salen del stock.
+          </p>
+        )}
+
         {modoProyeccion ? (
           <div className="grid grid-cols-2 gap-3">
             <Field label="Vence el" type="date" value={form.vencimiento} onChange={set('vencimiento')} />
@@ -299,6 +429,9 @@ export default function RegistrarPagoModal({
             placeholder="Ej: el monto de la factura era otro" />
         )}
 
+        {problemaProductos && (
+          <p className="text-xs" style={{ color: 'var(--warn, #E8A23F)' }} data-problema-productos>{problemaProductos}</p>
+        )}
         {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
         <button onClick={guardar} disabled={busy || !valido}
           className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
@@ -307,7 +440,9 @@ export default function RegistrarPagoModal({
             ? (edicion ? 'Guardando…' : 'Registrando…')
             : edicion
               ? 'Guardar cambios'
-              : (modoProyeccion ? 'Agregar a la proyección' : (pendiente ? 'Agregar a pendientes' : 'Registrar pago'))}
+              : (modoProyeccion ? 'Agregar a la proyección'
+                  : hayItems ? (pendiente ? 'Agregar a pendientes y cargar al stock' : 'Registrar pago y cargar al stock')
+                  : (pendiente ? 'Agregar a pendientes' : 'Registrar pago'))}
         </button>
       </div>
     </ModalShell>

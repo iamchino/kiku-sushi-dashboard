@@ -4,7 +4,7 @@ import { CATEGORIAS_STOCK } from '../../hooks/useStock'
 import { TIPOS_STOCK, normTipoStock } from '../../lib/stockNiveles'
 
 const TIPOS = [
-  { id: 'entrada', label: 'Entrada', icon: Truck, color: '#3FBF8A', desc: 'Suma stock al item' },
+  { id: 'entrada', label: 'Entrada', icon: Truck, color: '#3FBF8A', desc: 'Suma stock a mano, sin boleta. Si hay boleta, cargala en Caja → Pagos con sus productos: entra sola al stock.' },
   { id: 'ajuste', label: 'Ajuste', icon: RotateCcw, color: '#6B93E6', desc: 'Setea el stock exacto contado' },
   { id: 'merma', label: 'Merma', icon: Minus, color: '#E34D6B', desc: 'Resta stock por uso, perdida o ajuste' },
 ]
@@ -260,7 +260,7 @@ export default function MovimientoModal({
                       onChange={e => setNotasMov(e.target.value)}
                       className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
                       style={{ ...inputStyle, background: 'var(--bg-card)' }}
-                      placeholder="Ej: compra del martes, proveedor X"
+                      placeholder="Ej: bonificación del proveedor, devolución"
                     />
                   </div>
                 </div>

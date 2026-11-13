@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import ComprasDelProveedor from '../components/pagos/ComprasDelProveedor'
 import { Plus, Search, Edit2, Trash2, X, RefreshCw, Truck, Phone, CreditCard, FileText, AlertTriangle, ChevronDown, ChevronUp, Calendar, CalendarClock } from 'lucide-react'
 import { useProveedores } from '../hooks/useProveedores'
 
@@ -365,6 +366,7 @@ function ProveedorCard({ prov, onEdit, onDelete }) {
               <p className="text-xs whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{prov.notas}</p>
             </div>
           )}
+          <ComprasDelProveedor proveedorId={prov.id} />
         </div>
       )}
     </div>

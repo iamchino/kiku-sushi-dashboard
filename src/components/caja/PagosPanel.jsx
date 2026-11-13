@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react'
-import { Wallet, Plus, AlertTriangle, Link2, Clock, CheckCircle2, Pencil, Trash2, History, Search, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Wallet, Plus, AlertTriangle, Link2, Clock, CheckCircle2, Pencil, Trash2, History, Search, X, Package } from 'lucide-react'
 import { usePagos } from '../../hooks/usePagos'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 import HistorialPago from '../pagos/HistorialPago'
 import ConfirmDelete from '../finanzas/ConfirmDelete'
 import { CATEGORIAS, fmtMoney, fmtFecha, catLabel, catColor, medioLabel, localDateISO } from '../../lib/finanzas'
 import { normalizeSearch } from '../../utils/normalize'
+import { contarItemsDePagos } from '../../lib/comprasApi'
 
 // Pagos centralizados: TODOS los egresos del negocio se registran acá, con la
 // caja abierta o cerrada. Un pago es un egreso — Finanzas lo ve al instante.
@@ -65,6 +66,15 @@ export default function PagosPanel() {
   const [aviso, setAviso] = useState(null)
   const [anulando, setAnulando] = useState(null)
   const [verHistorial, setVerHistorial] = useState(null)
+
+  // Qué pagos metieron mercadería al stock (boleta con productos, SQL 56).
+  // Es un adorno de la lista: si la base no lo tiene, queda vacío.
+  const [itemsPorPago, setItemsPorPago] = useState(() => new Map())
+  useEffect(() => {
+    let vivo = true
+    contarItemsDePagos(pagosDelFiltro.map(p => p.id)).then(m => { if (vivo) setItemsPorPago(m) })
+    return () => { vivo = false }
+  }, [pagosDelFiltro])
 
   const total = useMemo(
     () => pagos.filter(p => p.estado === 'pagado').reduce((acc, p) => acc + Number(p.monto || 0), 0),
@@ -213,6 +223,12 @@ export default function PagosPanel() {
                         <Link2 size={10} /> {p.cuenta?.nombre || 'cuenta del negocio'}
                       </span>
                     )}
+                    {itemsPorPago.get(p.id) && (
+                      <span className="flex items-center gap-1" style={{ color: 'var(--accent-lift)' }}
+                        title="Esta boleta cargó productos al stock. Se ven y se corrigen con el lápiz.">
+                        <Package size={10} /> {itemsPorPago.get(p.id).n === 1 ? '1 producto al stock' : `${itemsPorPago.get(p.id).n} productos al stock`}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
@@ -261,6 +277,10 @@ export default function PagosPanel() {
             anulando.pagado_desde
               ? ' La plata vuelve a la caja de donde había salido y el arqueo se corrige solo.'
               : ' No había salido de ninguna caja.'
+          }${
+            itemsPorPago.get(anulando.id)
+              ? ` También salen del stock ${itemsPorPago.get(anulando.id).n === 1 ? 'el producto que cargó' : `los ${itemsPorPago.get(anulando.id).n} productos que cargó`} esta boleta.`
+              : ''
           } Queda en el historial del pago con la fecha y quién lo hizo.`}
           onClose={() => setAnulando(null)}
           onConfirm={async () => {

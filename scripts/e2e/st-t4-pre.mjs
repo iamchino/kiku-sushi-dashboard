@@ -1,0 +1,36 @@
+// El dashboard nuevo contra una base que todavía NO tiene el SQL 56: nada se
+// rompe, solo no aparece lo nuevo.
+import { abrir, BASE, sql as sqlBase, check, resumen } from './lib.mjs'
+const DB = process.env.DB || 'kkpre56'
+const sql = (q) => sqlBase(q, DB)
+
+const { browser, page, errores } = await abrir('admin', { viewport: { width: 1360, height: 1000 } })
+await page.goto(BASE + '/caja', { waitUntil: 'networkidle' })
+await page.getByRole('button', { name: /^Pagos$/ }).click()
+await page.getByRole('button', { name: /Registrar pago/ }).first().click()
+const modal = page.locator('.fixed.inset-0').filter({ has: page.getByRole('heading', { name: 'Registrar pago' }) })
+const campo = (label) => modal.locator(`xpath=.//label[starts-with(normalize-space(.), "${label}")]/following-sibling::*[1]/descendant-or-self::*[self::input or self::select or self::textarea][1] | .//label[starts-with(normalize-space(.), "${label}")]/following-sibling::select[1]`).first()
+await campo('Categoría').selectOption('mercaderia')
+await campo('Proveedor').selectOption({ label: 'Pescadería Mar' })
+await page.waitForTimeout(1200)
+check('sin el SQL 56 no se ofrece cargar productos', await modal.getByRole('button', { name: /Cargar los productos de la boleta/ }).count() === 0)
+await campo('Descripción').fill('Pago como siempre')
+await campo('Monto').fill('15000')
+await campo('Medio de pago').selectOption('transferencia')
+check('el botón es el de siempre', (await modal.locator('button.w-full').last().innerText()).trim() === 'Registrar pago')
+await modal.locator('button.w-full').last().click()
+await modal.waitFor({ state: 'detached' })
+check('el pago se registra por el camino de siempre', sql("select count(*) || '|' || max(monto) from egresos where descripcion = 'Pago como siempre'") === '1|15000.00')
+await page.getByText('Pago como siempre').first().waitFor()
+check('la lista de pagos carga, sin marcas de stock', await page.getByText(/al stock/).count() === 0)
+
+await page.goto(BASE + '/stock', { waitUntil: 'networkidle' })
+await page.getByText('Salmón rosado', { exact: true }).first().waitFor()
+check('Inventario carga igual (reintenta sin las columnas nuevas)', await page.locator('tbody tr').count() >= 6)
+await page.getByRole('button', { name: 'Faltantes' }).click()
+const rep = page.getByRole('dialog', { name: 'Faltantes de stock' })
+await rep.getByText(/falta correr el SQL 56/).waitFor()
+check('el reporte avisa que falta el SQL 56', true)
+check('sin errores de consola', errores.length === 0, errores.join(' | '))
+await browser.close()
+process.exit(resumen() ? 1 : 0)
