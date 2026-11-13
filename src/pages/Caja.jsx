@@ -28,6 +28,8 @@ import { calculateDiscountAmount, calculateOrderSubtotal, calculateOrderTotal, c
 import { colorMedioPago, esCuentaCorriente, etiquetaMedioPago, lineasDePago, resumenMediosPago } from '../lib/pagosPedido'
 import { cargarCuentasDePagos, cargarEstadoCuentas } from '../lib/cuentasCorrientesApi'
 import { exportarReporteContable, resumenEgresos } from '../lib/reporteContable'
+import { desgloseIvaDePedido, desgloseIvaDePedidos, etiquetaIva } from '../lib/ivaVentas'
+import { cargarComprobantesEmitidos, cargarNumerosDePedido } from '../lib/ivaVentasApi'
 import { cargarEgresosPeriodo } from '../lib/pagos'
 import { descargarFacturaPdf } from '../lib/facturaPdf'
 import ArqueoCajaSection from '../components/caja/ArqueoCajaSection'
@@ -512,8 +514,11 @@ function EditPedidoModal({ pedido, open, saving, onClose, onSave }) {
   )
 }
 
-function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, onTicket, onEdit, onNotaCredito, onPdf, onPdfDirecto, cuentasDePagos }) {
+function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, onTicket, onEdit, onNotaCredito, onPdf, onPdfDirecto, cuentasDePagos, alicuota = 21 }) {
   const comprobante = getAuthorizedComprobante(pedido)
+  // De lo facturado en esta orden (ya restadas sus notas de crédito), cuánto
+  // es IVA y cuánto queda sin IVA.
+  const iva = desgloseIvaDePedido(pedido, alicuota)
   const anulados = getComprobantesAnulados(pedido)
   const notasCredito = getNotasCredito(pedido)
   const totalNc = notasCredito.reduce((acc, nc) => acc + Number(nc.importe_total || 0), 0)
@@ -609,6 +614,16 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
             {notasCredito.length > 0 && comprobante && (
               <p className="text-[10px] font-semibold" style={{ color: 'var(--accent-lift)' }}>
                 Neto: ${formatMoney(netoFacturado)}
+              </p>
+            )}
+            {iva.iva > 0 && (
+              <p
+                data-iva-orden
+                className="mt-1 text-[10px]"
+                style={{ color: 'var(--text-muted)' }}
+                title="De lo facturado en esta orden, ya restadas las notas de crédito: el IVA va a ARCA, el resto queda en el negocio"
+              >
+                {etiquetaIva(alicuota)}: ${formatMoney(iva.iva)} · sin IVA: ${formatMoney(iva.neto)}
               </p>
             )}
           </div>
@@ -840,6 +855,11 @@ export default function CajaPage() {
 
   const resumenPagos = useMemo(() => resumenMediosPago(pedidos), [pedidos])
 
+  // IVA de lo facturado: cuánto va a ARCA y cuánto queda sin IVA. Sale de las
+  // mismas facturas y notas de crédito que "Neto facturado".
+  const alicuota = Number(config?.alicuota_iva) || 21
+  const ivaVentas = useMemo(() => desgloseIvaDePedidos(pedidos, alicuota), [pedidos, alicuota])
+
   // Nombre de la cuenta corriente de cada cobro a cuenta (canjes). Se pide
   // solo si hay alguno en pantalla.
   const [cuentasDePagos, setCuentasDePagos] = useState(() => new Map())
@@ -878,6 +898,13 @@ export default function CajaPage() {
       // Estado de las cuentas corrientes (canjes). Vacío si el usuario no
       // tiene esa sección: el reporte sale igual, sin esas hojas.
       const cuentasCorrientes = await cargarEstadoCuentas(dateFrom, dateTo).catch(() => null)
+      // Facturas y notas de crédito EMITIDAS en el período, para la hoja "IVA
+      // ventas". Si no se pueden leer, esa hoja se arma con las de los pedidos
+      // que están en pantalla (el reporte sale igual).
+      const comprobantesEmitidos = await cargarComprobantesEmitidos(dateFrom, dateTo).catch(() => null)
+      const numerosDePedido = comprobantesEmitidos
+        ? await cargarNumerosDePedido(comprobantesEmitidos, pedidos).catch(() => null)
+        : null
       await exportarReporteContable({
         pedidos,
         egresos,
@@ -886,8 +913,11 @@ export default function CajaPage() {
         desde: dateFrom,
         hasta: dateTo,
         negocio: config?.nombre_fantasia || config?.razon_social || 'Kiku Sushi',
+        comprobantesEmitidos,
+        numerosDePedido,
+        alicuota,
       })
-      setNotice({ type: 'ok', text: 'Reporte descargado. Cobros, pagos y sueldos del período en un Excel.' })
+      setNotice({ type: 'ok', text: 'Reporte descargado. Cobros, pagos, sueldos y el IVA de las ventas del período en un Excel.' })
     } catch (err) {
       setNotice({ type: 'error', text: `No se pudo armar el reporte: ${err.message || err}` })
     } finally {
@@ -1056,7 +1086,7 @@ export default function CajaPage() {
               <button
                 onClick={handleExportar}
                 disabled={loading || exportando}
-                title="Excel con cobros por medio, pagos y sueldos por empleado del período mostrado"
+                title="Excel con cobros por medio, pagos, sueldos por empleado y el IVA de las ventas del período mostrado"
                 className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50"
                 style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
               >
@@ -1176,6 +1206,20 @@ export default function CajaPage() {
             />
             <FilaMetrica label="Neto facturado" value={`$${formatMoney(stats.netoFacturado)}`} color="var(--accent-lift)" fuerte />
             <FilaMetrica
+              label={`↳ ${etiquetaIva(alicuota)}`}
+              hint="va a ARCA"
+              value={`$${formatMoney(ivaVentas.iva)}`}
+              color="#F2B35C"
+              apagado={!ivaVentas.iva}
+            />
+            <FilaMetrica
+              label="↳ Sin IVA"
+              hint="queda en el negocio"
+              value={`$${formatMoney(ivaVentas.neto)}`}
+              color="#5FD3A3"
+              apagado={!ivaVentas.neto}
+            />
+            <FilaMetrica
               label="Pagado (egresos)"
               value={`-$${formatMoney(resumenPagado.total)}`}
               hint={egresosError ? 'sin acceso' : (resumenPagado.cantidad > 0 ? `${resumenPagado.cantidad} ${resumenPagado.cantidad === 1 ? 'pago' : 'pagos'}` : null)}
@@ -1188,6 +1232,15 @@ export default function CajaPage() {
               color={resumenPagos.totalCobrado - resumenPagado.total < 0 ? '#F2708C' : '#5FD3A3'}
               fuerte
             />
+            {/* La API devuelve hasta 1000 pedidos por consulta: en un período
+                largo estos totales pueden quedar cortos, y con plata de ARCA
+                de por medio conviene avisarlo. */}
+            {pedidos.length > 0 && pedidos.length % 1000 === 0 && (
+              <p data-aviso-tope className="px-3 pb-2 pt-1 text-[10px] leading-snug" style={{ color: '#F2B35C' }}>
+                Se cargaron {pedidos.length.toLocaleString('es-AR')} pedidos y puede haber más: estos totales pueden quedar cortos.
+                El IVA del período completo está en Finanzas → Resumen y en el Excel (hoja «IVA ventas»).
+              </p>
+            )}
           </GrupoMetricas>
           )}
         </section>
@@ -1279,6 +1332,7 @@ export default function CajaPage() {
                     key={pedido.id}
                     pedido={pedido}
                     cuentasDePagos={cuentasDePagos}
+                    alicuota={alicuota}
                     arcaReady={arcaReady}
                     busy={busyId === pedido.id}
                     onComanda={imprimirComanda}

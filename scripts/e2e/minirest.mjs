@@ -4,11 +4,13 @@
 // triggers y los checks son los reales.
 //
 //   node minirest.mjs <puerto> <db>
+//   MAX_ROWS=1000 node minirest.mjs <puerto> <db>   # con el tope de filas de la API
 import http from 'node:http'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 
 const [,, PORT = '54321', DB = 'kk54'] = process.argv
+const MAX_ROWS = Number(process.env.MAX_ROWS) || 0   // 0 = sin tope
 const PSQL = ['-h', '/var/tmp/pgtest', '-p', '5499', '-U', 'postgres', '-d', DB, '-At', '-v', 'ON_ERROR_STOP=1', '-q', '-f', '-']
 const log = []
 export const requests = log
@@ -46,7 +48,7 @@ select set_config('request.jwt.claim.sub', ${q(claims.sub)}, true),
 ` : ''
   const script = `begin;\n${pre}set local role ${rol};\n${sqlJson};\ncommit;\n`
   try {
-    const out = execFileSync('psql', PSQL, { input: script, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] })
+    const out = execFileSync('psql', PSQL, { input: script, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 256 * 1024 * 1024 })
     return { ok: true, out: out.trim() }
   } catch (e) {
     const err = String(e.stderr || e.message)
@@ -158,8 +160,13 @@ function manejarRest(req, url, bodyTxt) {
   const quiereFilas = /return=representation/.test(prefer) || params.has('select')
   if (req.method === 'GET' || req.method === 'HEAD') {
     const extra = (EMBEBIDOS[path]?.(params.get('select') || '') || [])
-    const lim = params.get('limit') ? `limit ${Number(params.get('limit'))}` : ''
-    sql = `select coalesce(json_agg(x), '[]'::json) from (select t.*${extra.length ? ', ' + extra.join(', ') : ''} from public.${tabla} t ${filtros(params)} ${orden(params)} ${lim}) x`
+    // limit/offset (.range() de supabase-js) y, con MAX_ROWS=1000, el mismo
+    // tope de filas por consulta que trae la API de Supabase por defecto.
+    let limN = params.get('limit') ? Number(params.get('limit')) : null
+    if (MAX_ROWS && (limN === null || limN > MAX_ROWS)) limN = MAX_ROWS
+    const lim = limN !== null ? `limit ${limN}` : ''
+    const off = params.get('offset') ? `offset ${Number(params.get('offset'))}` : ''
+    sql = `select coalesce(json_agg(x), '[]'::json) from (select t.*${extra.length ? ', ' + extra.join(', ') : ''} from public.${tabla} t ${filtros(params)} ${orden(params)} ${lim} ${off}) x`
   } else if (req.method === 'POST') {
     const filas = Array.isArray(body) ? body : [body]
     const cols = [...new Set(filas.flatMap(f => Object.keys(f)))]

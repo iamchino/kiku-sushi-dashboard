@@ -2,7 +2,7 @@
 # prep-db.sh <db> <si|no|lista> [sin-datos]
 #   Clona la plantilla `kk`, siembra la matriz de permisos y, según el 2º
 #   argumento, aplica las migraciones opcionales (cuentas corrientes, cash
-#   flow, stock + compras). Sin "sin-datos"
+#   flow, stock + compras, IVA de ventas). Sin "sin-datos"
 #   carga además seed-ui.sql (mesas, pedidos y turno para las pruebas de UI).
 set -e
 DB=$1; CON=$2
@@ -23,7 +23,7 @@ $PG -d $DB -q -c "do \$\$ begin
 end \$\$"
 # Migraciones opcionales: "si" = todas, "no" = ninguna, o una lista separada
 # por comas de palabras del nombre (p. ej. "cuentas_corrientes").
-OPCIONALES="20261112000000_cuentas_corrientes 20261113000000_cashflow_mensual 20261114000000_stock_compras"
+OPCIONALES="20261112000000_cuentas_corrientes 20261113000000_cashflow_mensual 20261114000000_stock_compras 20261115000000_iva_ventas"
 for m in $OPCIONALES; do
   aplicar=no
   if [ "$CON" = "si" ]; then aplicar=si; fi

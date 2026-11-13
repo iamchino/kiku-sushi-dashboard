@@ -12,6 +12,7 @@ import EgresoModal from './EgresoModal'
 import ConfirmDelete from './ConfirmDelete'
 import HistorialPago from '../pagos/HistorialPago'
 import CajaFuerteResumen from './CajaFuerteResumen'
+import IvaVentasResumen from './IvaVentasResumen'
 
 // Resumen de Finanzas: la "foto del negocio" en una sola pantalla, pensada
 // para leerse de un vistazo sin conocer el sistema. Todo lo que se puede
@@ -286,6 +287,9 @@ export default function ResumenFinanzas({ desde, hasta, label }) {
         <Kpi label="Margen" value={loading ? '—' : `${resumen.margen.toFixed(1)}%`} icon={Percent}
           sub="De cada $100 que entran, cuánto queda" />
       </div>
+
+      {/* De lo facturado, cuánto es IVA (ARCA) y cuánto queda sin IVA */}
+      <IvaVentasResumen desde={desde} hasta={hasta} label={label} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* ¿A dónde se va la plata? */}

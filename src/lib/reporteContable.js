@@ -9,6 +9,9 @@
 //   · cuentas corrientes (canjes) → `cuentas_corrientes_saldos` y sus
 //     movimientos. Lo cobrado a cuenta figura en Cobros con su medio propio,
 //     pero NO suma al total cobrado: no es plata que haya entrado.
+//   · IVA de las ventas → facturas y notas de crédito EMITIDAS en el período
+//     (por fecha de emisión, como las declara el contador), con el neto y el
+//     IVA de cada una. La lógica está en lib/ivaVentas.js.
 //
 // La librería xlsx se carga recién al exportar (import dinámico) para no
 // engordar el bundle de todo el dashboard.
@@ -16,6 +19,7 @@ import { lineasDePago, etiquetaMedioPago, esCuentaCorriente, MEDIOS_PAGO_ORDEN }
 import { estadoCuenta, fechaCorta } from './cuentasCorrientes'
 import { COND_IVA_RECEPTOR_LABEL, fechaHoyAR, getAuthorizedComprobante, getFacturasAutorizadas, getNotasCredito, nombreComprobante } from './fiscal'
 import { catLabel, medioLabel } from './finanzas'
+import { bloqueResumenIva, comprobantesDePedidos, desgloseIva, filasLibroIva } from './ivaVentas'
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
@@ -91,7 +95,10 @@ function nombreEmpleado(e) {
   return e?.descripcion || 'Sin empleado'
 }
 
-export function armarHojas({ pedidos = [], egresos = [], cuentasCorrientes = null, cuentasDePagos = null, desde, hasta, negocio }) {
+export function armarHojas({
+  pedidos = [], egresos = [], cuentasCorrientes = null, cuentasDePagos = null, desde, hasta, negocio,
+  comprobantesEmitidos = null, numerosDePedido = null, alicuota = 21,
+}) {
   // ── Cobros: una fila por línea de pago ──────────────────────────────────
   const cobrosFilas = []
   const cobrosPorMedio = new Map()
@@ -208,6 +215,21 @@ export function armarHojas({ pedidos = [], egresos = [], cuentasCorrientes = nul
   const totalCobrado = [...cobrosPorMedio.values()].reduce((a, v) => a + v.monto, 0)
   const totalPagado = egresos.reduce((a, e) => a + Number(e.monto || 0), 0)
 
+  // ── IVA de las ventas ───────────────────────────────────────────────────
+  // Por fecha de EMISIÓN del comprobante. Si esa lista no vino (no se pudo
+  // leer), se arma con las facturas de los pedidos del período, que es lo que
+  // muestra Caja, y el bloque lo aclara.
+  const porEmision = Array.isArray(comprobantesEmitidos)
+  const comprobantesIva = porEmision ? comprobantesEmitidos : comprobantesDePedidos(activos)
+  const numeroPedidoIva = new Map(pedidos.map(p => [p.id, p.numero]))
+  if (numerosDePedido) numerosDePedido.forEach((nro, id) => numeroPedidoIva.set(id, nro))
+  const ivaDesglose = desgloseIva(comprobantesIva, alicuota)
+  const ivaFilas = filasLibroIva(comprobantesIva, { alicuota, numeroPedido: numeroPedidoIva })
+  const bloqueIva = bloqueResumenIva(ivaDesglose, { alicuota, desde, hasta, porEmision })
+  if (porEmision && Math.abs(ivaDesglose.total - (facturado - nc)) >= 0.01) {
+    bloqueIva.push(['Puede no coincidir con el "Neto facturado" de arriba: acá cada comprobante cuenta por su fecha de emisión; arriba, por la fecha del pedido.'])
+  }
+
   // ── Resumen ─────────────────────────────────────────────────────────────
   const medios = [
     ...MEDIOS_PAGO_ORDEN.map(m => m.id),
@@ -246,6 +268,8 @@ export function armarHojas({ pedidos = [], egresos = [], cuentasCorrientes = nul
     ['Notas de crédito', $(-nc), `${cantNc} NC`],
     ['Neto facturado', $(facturado - nc)],
     ['Pedidos sin cobro registrado', sinCobro],
+    [],
+    ...bloqueIva.map(fila => fila.map(v => (typeof v === 'number' ? $(v) : v))),
   ]
 
   // ── Cuentas corrientes (canjes) ─────────────────────────────────────────
@@ -305,7 +329,11 @@ export function armarHojas({ pedidos = [], egresos = [], cuentasCorrientes = nul
     sueldosDetalle,
     cuentas: cuentasFilas,
     cuentasMovimientos,
-    totales: { vendido, facturado, nc, totalCobrado, totalPagado, canjes: canjes.monto },
+    ivaVentas: ivaFilas,
+    totales: {
+      vendido, facturado, nc, totalCobrado, totalPagado, canjes: canjes.monto,
+      iva: ivaDesglose.iva, netoSinIva: ivaDesglose.neto, facturadoEmitido: ivaDesglose.total, ivaPorEmision: porEmision,
+    },
   }
 }
 
@@ -331,19 +359,33 @@ function aplicarFormatoMoneda(XLSX, ws, columnas) {
   }
 }
 
-export async function exportarReporteContable({ pedidos, egresos, cuentasCorrientes, cuentasDePagos, desde, hasta, negocio }) {
+export async function exportarReporteContable({
+  pedidos, egresos, cuentasCorrientes, cuentasDePagos, desde, hasta, negocio,
+  comprobantesEmitidos = null, numerosDePedido = null, alicuota = 21,
+}) {
   const XLSX = await import('xlsx')
-  const hojas = armarHojas({ pedidos, egresos, cuentasCorrientes, cuentasDePagos, desde, hasta, negocio })
+  const hojas = armarHojas({
+    pedidos, egresos, cuentasCorrientes, cuentasDePagos, desde, hasta, negocio,
+    comprobantesEmitidos, numerosDePedido, alicuota,
+  })
   const wb = XLSX.utils.book_new()
 
   const wsResumen = XLSX.utils.aoa_to_sheet(hojas.resumen)
-  wsResumen['!cols'] = [{ wch: 34 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }]
+  wsResumen['!cols'] = [{ wch: 46 }, { wch: 16 }, { wch: 18 }, { wch: 16 }, { wch: 16 }]
   XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen')
 
   const wsCobros = XLSX.utils.json_to_sheet(hojas.cobros.length ? hojas.cobros : [{ 'Sin cobros en el período': '' }])
   wsCobros['!cols'] = anchos(hojas.cobros)
   aplicarFormatoMoneda(XLSX, wsCobros, [6])
   XLSX.utils.book_append_sheet(wb, wsCobros, 'Cobros')
+
+  // IVA de las ventas: una fila por factura y por nota de crédito emitida.
+  const wsIva = XLSX.utils.json_to_sheet(
+    hojas.ivaVentas.length ? hojas.ivaVentas : [{ 'Sin comprobantes emitidos en el período': '' }],
+  )
+  wsIva['!cols'] = anchos(hojas.ivaVentas)
+  aplicarFormatoMoneda(XLSX, wsIva, [6, 7, 8])
+  XLSX.utils.book_append_sheet(wb, wsIva, 'IVA ventas')
 
   const wsPagos = XLSX.utils.json_to_sheet(hojas.pagos.length ? hojas.pagos : [{ 'Sin pagos en el período': '' }])
   wsPagos['!cols'] = anchos(hojas.pagos)

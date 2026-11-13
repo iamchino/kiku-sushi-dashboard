@@ -33,7 +33,7 @@ for f in "$RAIZ"/supabase/migrations/2026082[0-9]*.sql "$RAIZ"/supabase/migratio
   [ -f "$f" ] || continue
   # Las migraciones "opcionales" las aplica prep-db.sh según la prueba (así se
   # puede probar el dashboard nuevo contra una base que todavía no las tiene).
-  case "$f" in *cuentas_corrientes*|*cashflow_mensual*|*stock_compras*) continue ;; esac
+  case "$f" in *cuentas_corrientes*|*cashflow_mensual*|*stock_compras*|*iva_ventas*) continue ;; esac
   $PG -d kk -q -f "$f" 2>&1 | grep ERROR | grep -v "supabase_admin\|transaction_timeout\|pg_net\|supabase_realtime\|recurso_tablas_recurso_id_fkey\|rol_permisos_recurso_id_fkey" | sed "s|^|$(basename "$f"): |" || true
 done
 # registrar_movimiento_stock (Inventario → entrada / merma / ajuste) está en
