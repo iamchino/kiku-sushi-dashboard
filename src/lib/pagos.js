@@ -209,3 +209,19 @@ export async function cargarEgresosPeriodo(desde, hasta) {
   if (error) throw new Error(error.message)
   return data || []
 }
+
+/**
+ * Todo lo cargado a un proveedor (pagado y pendiente), lo más nuevo primero.
+ * Lo usa la ficha del proveedor: "Facturas y pagos".
+ */
+export async function cargarPagosDeProveedor(proveedorId, limite = 300) {
+  const { data, error } = await supabase
+    .from('egresos')
+    .select('id, fecha, descripcion, monto, estado, medio_pago, comprobante_nro, vencimiento, categoria')
+    .eq('proveedor_id', proveedorId)
+    .order('fecha', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(limite)
+  if (error) throw new Error(error.message)
+  return data || []
+}

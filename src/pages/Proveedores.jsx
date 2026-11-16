@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react'
 import ComprasDelProveedor from '../components/pagos/ComprasDelProveedor'
+import PagosDelProveedor from '../components/pagos/PagosDelProveedor'
+import { usePermisos } from '../context/usePermisos'
 import { Plus, Search, Edit2, Trash2, X, RefreshCw, Truck, Phone, CreditCard, FileText, AlertTriangle, ChevronDown, ChevronUp, Calendar, CalendarClock } from 'lucide-react'
 import { useProveedores } from '../hooks/useProveedores'
 
@@ -283,7 +285,7 @@ function ProveedorModal({ initial, onClose, onSave }) {
 }
 
 // ── Tarjeta proveedor ─────────────────────────────────────────────────────────
-function ProveedorCard({ prov, onEdit, onDelete }) {
+function ProveedorCard({ prov, onEdit, onDelete, verPagos }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -366,6 +368,8 @@ function ProveedorCard({ prov, onEdit, onDelete }) {
               <p className="text-xs whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>{prov.notas}</p>
             </div>
           )}
+          {/* Lo que se le pagó y lo que se le debe: solo para quien ve Pagos o Finanzas. */}
+          {verPagos && <PagosDelProveedor proveedorId={prov.id} />}
           <ComprasDelProveedor proveedorId={prov.id} />
         </div>
       )}
@@ -422,6 +426,9 @@ export default function ProveedoresPage() {
   const [search, setSearch]       = useState('')
   const [modal, setModal]         = useState(null) // null | 'nuevo' | proveedor (editar)
   const [toDelete, setToDelete]   = useState(null)
+  // Las facturas y pagos de cada proveedor son plata: solo con Pagos o Finanzas.
+  const { puede } = usePermisos()
+  const verPagos = puede('pagos') || puede('finanzas')
 
   const filtrados = proveedores.filter(p =>
     [p.razon_social, p.cuit_cuil, p.alias, p.telefono].some(
@@ -534,6 +541,7 @@ export default function ProveedoresPage() {
               prov={p}
               onEdit={p => setModal(p)}
               onDelete={p => setToDelete(p)}
+              verPagos={verPagos}
             />
           ))}
           <p className="text-[11px] text-center pt-1" style={{ color: 'var(--text-xmuted)' }}>

@@ -94,3 +94,21 @@ export function shiftRef(gran, ref, dir) {
   if (gran === 'anio') d.setFullYear(d.getFullYear() + dir)
   return d
 }
+
+/**
+ * Resumen de lo cargado a un proveedor: cuánto se le pagó, cuánto se le debe
+ * y cuánto de eso ya venció. `pagos` = filas de egresos.
+ */
+export function resumenPagosProveedor(pagos, hoyISO = localDateISO()) {
+  const r = { pagado: 0, cantPagados: 0, pendiente: 0, cantPendientes: 0, vencido: 0, cantVencidos: 0 }
+  for (const p of pagos || []) {
+    const monto = Number(p?.monto) || 0
+    if (p?.estado === 'pendiente') {
+      r.pendiente += monto; r.cantPendientes += 1
+      if (p.vencimiento && p.vencimiento < hoyISO) { r.vencido += monto; r.cantVencidos += 1 }
+    } else {
+      r.pagado += monto; r.cantPagados += 1
+    }
+  }
+  return r
+}

@@ -19,7 +19,7 @@ import {
   WalletCards,
   FileSpreadsheet,
   Download,
-  X, Banknote, Landmark, ChevronDown } from 'lucide-react'
+  X, Banknote, Landmark, ChevronDown, FileX2, Undo2 } from 'lucide-react'
 import { useFacturacion } from '../hooks/useFacturacion'
 import { supabase } from '../lib/supabase'
 import { esNotaCredito, formatReceiptNumber, getAuthorizedComprobante, getComprobantesAnulados, getNotasCredito, nombreComprobante } from '../lib/fiscal'
@@ -30,6 +30,8 @@ import { cargarCuentasDePagos, cargarEstadoCuentas } from '../lib/cuentasCorrien
 import { exportarReporteContable, resumenEgresos } from '../lib/reporteContable'
 import { desgloseIvaDePedido, desgloseIvaDePedidos, etiquetaIva } from '../lib/ivaVentas'
 import { cargarComprobantesEmitidos, cargarNumerosDePedido } from '../lib/ivaVentasApi'
+import { estadoFacturacion, idsSinFacturaVigente, marcaDe, resumenFacturacion } from '../lib/sinFactura'
+import { cargarMarcasSinFactura, desmarcarSinFactura, marcarSinFactura } from '../lib/sinFacturaApi'
 import { cargarEgresosPeriodo } from '../lib/pagos'
 import { descargarFacturaPdf } from '../lib/facturaPdf'
 import ArqueoCajaSection from '../components/caja/ArqueoCajaSection'
@@ -39,9 +41,12 @@ import { usePermisos } from '../context/usePermisos'
 import FacturarModal from '../components/caja/FacturarModal'
 import NotaCreditoModal from '../components/caja/NotaCreditoModal'
 import ComprobanteDatosModal from '../components/caja/ComprobanteDatosModal'
+import SinFacturaModal from '../components/caja/SinFacturaModal'
 
 const FILTERS = [
   { id: 'pendientes', label: 'Pendientes de facturación' },
+  // Solo si la base tiene la marca (SQL 58): lo que se decidió no facturar.
+  { id: 'sin_factura', label: 'No se facturan', requiereMarca: true },
   { id: 'facturados', label: 'Facturados' },
   { id: 'con_nc', label: 'Con NC' },
   { id: 'todos', label: 'Todos' },
@@ -514,7 +519,7 @@ function EditPedidoModal({ pedido, open, saving, onClose, onSave }) {
   )
 }
 
-function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, onTicket, onEdit, onNotaCredito, onPdf, onPdfDirecto, cuentasDePagos, alicuota = 21 }) {
+function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, onTicket, onEdit, onNotaCredito, onPdf, onPdfDirecto, cuentasDePagos, alicuota = 21, marca = null, puedeMarcar = false, onSinFactura, onQuitarSinFactura }) {
   const comprobante = getAuthorizedComprobante(pedido)
   // De lo facturado en esta orden (ya restadas sus notas de crédito), cuánto
   // es IVA y cuánto queda sin IVA.
@@ -657,10 +662,27 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
             </div>
           ) : (
             <div className="flex flex-col items-end gap-1">
-              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C' }}>
-                <AlertTriangle size={12} />
-                {anulados.length ? 'Factura anulada' : 'Sin CAE'}
-              </span>
+              {marca ? (
+                <span
+                  data-sin-factura
+                  title={`Marcado como "no se factura"${marca.usuario_nombre ? ` por ${marca.usuario_nombre}` : ''}`}
+                  className="inline-flex max-w-[260px] items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold"
+                  style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                >
+                  <FileX2 size={12} className="flex-shrink-0" />
+                  <span className="truncate">No se factura · {marca.motivo}</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C' }}>
+                  <AlertTriangle size={12} />
+                  {anulados.length ? 'Factura anulada' : 'Sin CAE'}
+                </span>
+              )}
+              {marca && (marca.usuario_nombre || marca.created_at) && (
+                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                  {[marca.usuario_nombre, marca.created_at ? new Date(marca.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }) : null].filter(Boolean).join(' · ')}
+                </span>
+              )}
               {anulados.map(f => (
                 <button
                   key={f.id}
@@ -784,6 +806,29 @@ function PedidoCajaCard({ pedido, arcaReady, busy, onComanda, onNoFiscalTicket, 
             Nota Crédito
           </button>
         )}
+        {!comprobante && puedeMarcar && (marca ? (
+          <button
+            onClick={() => onQuitarSinFactura(pedido)}
+            disabled={busy}
+            title="Sacar la marca: el pedido vuelve a Pendientes de facturación"
+            className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-50"
+            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+          >
+            <Undo2 size={14} />
+            Volver a pendientes
+          </button>
+        ) : (
+          <button
+            onClick={() => onSinFactura(pedido)}
+            disabled={busy}
+            title="Este pedido no se va a facturar: sale de Pendientes y queda anotado el motivo"
+            className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-50"
+            style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+          >
+            <FileX2 size={14} />
+            No se factura
+          </button>
+        ))}
         <button
           onClick={() => onTicket(pedido)}
           disabled={busy || (!comprobante && !arcaReady)}
@@ -805,7 +850,7 @@ export default function CajaPage() {
   const [customFrom, setCustomFrom] = useState('')
   const [customTo,   setCustomTo]   = useState('')
 
-  const { puede } = usePermisos()
+  const { puede, puedeEditar } = usePermisos()
 
   // `caja_historico` separa operar el turno de ver la foto del negocio. Sin ese
   // permiso la pantalla queda fija en HOY: se factura, se cargan pagos y se
@@ -854,6 +899,25 @@ export default function CajaPage() {
   const seccionesVisibles = SECCIONES_CAJA.filter(t => !t.recurso || puede(t.recurso))
 
   const resumenPagos = useMemo(() => resumenMediosPago(pedidos), [pedidos])
+
+  // Pedidos marcados como "no se factura" (SQL 58). Se consultan solo los que
+  // no tienen factura vigente. Si la base no tiene la tabla, `disponible`
+  // queda en false y la pantalla es la de siempre.
+  const [marcas, setMarcas] = useState(() => new Map())
+  const [sinFacturaDisponible, setSinFacturaDisponible] = useState(false)
+  const [sinFacturaTarget, setSinFacturaTarget] = useState(null)   // pedido a marcar
+  const [ultimoMotivo, setUltimoMotivo] = useState('')
+  const idsParaMarcas = useMemo(() => idsSinFacturaVigente(pedidos).sort().join(','), [pedidos])
+  useEffect(() => {
+    let vivo = true
+    cargarMarcasSinFactura(idsParaMarcas ? idsParaMarcas.split(',') : [])
+      .then(res => { if (vivo) { setMarcas(res.marcas); setSinFacturaDisponible(res.disponible) } })
+      .catch(() => {})
+    return () => { vivo = false }
+  }, [idsParaMarcas])
+  const facturacion = useMemo(() => resumenFacturacion(pedidos, marcas), [pedidos, marcas])
+  const puedeMarcarSinFactura = sinFacturaDisponible && (puedeEditar('caja') || puedeEditar('finanzas'))
+  const filtrosVisibles = FILTERS.filter(f => !f.requiereMarca || sinFacturaDisponible)
 
   // IVA de lo facturado: cuánto va a ARCA y cuánto queda sin IVA. Sale de las
   // mismas facturas y notas de crédito que "Neto facturado".
@@ -931,8 +995,33 @@ export default function CajaPage() {
     if (filter === 'con_nc') {
       return pedidos.filter(pedido => (pedido.comprobantes_fiscales || []).some(c => esNotaCredito(c.tipo_cbte) && c.estado === 'autorizado'))
     }
-    return pedidos.filter(pedido => !getAuthorizedComprobante(pedido))
-  }, [filter, pedidos])
+    if (filter === 'sin_factura') return pedidos.filter(pedido => estadoFacturacion(pedido, marcas) === 'sin_factura')
+    // Pendientes: sin factura vigente y sin la marca "no se factura".
+    return pedidos.filter(pedido => estadoFacturacion(pedido, marcas) === 'pendiente')
+  }, [filter, pedidos, marcas])
+
+  const confirmarSinFactura = async (motivo) => {
+    const pedido = sinFacturaTarget
+    const fila = await marcarSinFactura(pedido.id, motivo)
+    setMarcas(prev => new Map(prev).set(pedido.id, fila || { pedido_id: pedido.id, motivo }))
+    setUltimoMotivo(motivo)
+    setSinFacturaTarget(null)
+    setNotice({ type: 'ok', text: `Pedido #${pedido.id.slice(-4).toUpperCase()} marcado como "no se factura". Está en la lista «No se facturan».` })
+  }
+
+  const quitarSinFactura = async (pedido) => {
+    setBusyId(pedido.id)
+    setNotice(null)
+    try {
+      await desmarcarSinFactura(pedido.id)
+      setMarcas(prev => { const m = new Map(prev); m.delete(pedido.id); return m })
+      setNotice({ type: 'ok', text: `Pedido #${pedido.id.slice(-4).toUpperCase()} de vuelta en Pendientes de facturación.` })
+    } catch (err) {
+      setNotice({ type: 'error', text: err.message || 'No se pudo sacar la marca.' })
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   const handleTicket = async (pedido) => {
     // Si ya está facturado, reimprime directo. Si no, abre modal para elegir tipo.
@@ -1152,7 +1241,10 @@ export default function CajaPage() {
         <section className={`grid gap-3 ${veHistorico ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
           <GrupoMetricas titulo="Facturación" color="#f97316" icon={Receipt}>
             <FilaMetrica label="Pedidos" value={stats.pedidos} />
-            <FilaMetrica label="Pendientes facturación" value={stats.pendientes} color="#F2B35C" apagado={stats.pendientes === 0} />
+            <FilaMetrica label="Pendientes facturación" value={facturacion.pendientes} color="#F2B35C" apagado={facturacion.pendientes === 0} />
+            {sinFacturaDisponible && (
+              <FilaMetrica label="No se facturan" value={facturacion.sinFactura} color="var(--text-secondary)" apagado={facturacion.sinFactura === 0} />
+            )}
             <FilaMetrica label="Facturados" value={stats.facturados} color="#5FD3A3" apagado={stats.facturados === 0} />
             <FilaMetrica label="Notas de crédito" value={stats.notasCredito} color="#F2708C" apagado={stats.notasCredito === 0} />
           </GrupoMetricas>
@@ -1198,6 +1290,14 @@ export default function CajaPage() {
               color="#F2B35C"
               apagado={stats.total - stats.totalFacturado <= 0}
             />
+            {facturacion.sinFactura > 0 && (
+              <FilaMetrica
+                label="↳ Marcado «no se factura»"
+                hint={`${facturacion.sinFactura} ${facturacion.sinFactura === 1 ? 'pedido' : 'pedidos'}`}
+                value={`$${formatMoney(facturacion.montoSinFactura)}`}
+                color="var(--text-secondary)"
+              />
+            )}
             <FilaMetrica
               label="Notas de crédito"
               value={`-$${formatMoney(stats.totalNotasCredito)}`}
@@ -1302,7 +1402,7 @@ export default function CajaPage() {
         ) : (
           <section className="mt-5">
             <div className="mb-3 flex flex-wrap gap-2">
-              {FILTERS.map(item => (
+              {filtrosVisibles.map(item => (
                 <button
                   key={item.id}
                   onClick={() => setFilter(item.id)}
@@ -1333,6 +1433,10 @@ export default function CajaPage() {
                     pedido={pedido}
                     cuentasDePagos={cuentasDePagos}
                     alicuota={alicuota}
+                    marca={marcaDe(pedido, marcas)}
+                    puedeMarcar={puedeMarcarSinFactura}
+                    onSinFactura={(p) => { setNotice(null); setSinFacturaTarget(p) }}
+                    onQuitarSinFactura={quitarSinFactura}
                     arcaReady={arcaReady}
                     busy={busyId === pedido.id}
                     onComanda={imprimirComanda}
@@ -1367,6 +1471,15 @@ export default function CajaPage() {
         onClose={() => setFacturarTarget(null)}
         onConfirm={handleConfirmarFactura}
       />
+
+      {sinFacturaTarget && (
+        <SinFacturaModal
+          pedido={sinFacturaTarget}
+          motivoInicial={ultimoMotivo}
+          onClose={() => setSinFacturaTarget(null)}
+          onConfirm={confirmarSinFactura}
+        />
+      )}
 
       <ComprobanteDatosModal
         open={Boolean(datosTarget)}

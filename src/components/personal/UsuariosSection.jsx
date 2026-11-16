@@ -354,7 +354,11 @@ function UsuarioModal({ empleadosSinLogin, onClose, onSave }) {
   return (
     <ModalShell title="Nuevo usuario" icon={UserCog} onClose={onClose} maxW="max-w-sm">
       <div className="p-5 space-y-4">
-        <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="empleado@kikusushi.com.ar" required />
+        <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="nombreapellido@kikusushi.com.ar" required />
+        <p className="-mt-2 text-[11px] leading-4" style={{ color: 'var(--text-muted)' }}>
+          Nombre y apellido de la persona, todo junto, en minúsculas y sin acentos: <strong>juanperez@kikusushi.com.ar</strong>.
+          Sin apodos: este mail es el que queda anotado en cada cosa que haga. No hace falta que la casilla exista.
+        </p>
         <Field label="Contraseña" type="text" value={password} onChange={setPassword} placeholder="Mínimo 8 caracteres" required />
         <Select label="Rol" value={role} onChange={setRole} options={ROLES} required />
         <Select label="Vincular a empleado (opcional)" value={empleadoId} onChange={setEmpleadoId}

@@ -12,6 +12,7 @@
     "verificar:cuentas": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-cuentas-corrientes.mjs",
     "verificar:compras": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-compras.mjs",
     "verificar:iva": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-iva.mjs",
+    "verificar:sinfactura": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-sin-factura.mjs",
     "preview": "vite preview",
     "android:sync": "vite build && npx cap sync android",
     "android:open": "vite build && npx cap sync android && npx cap open android"

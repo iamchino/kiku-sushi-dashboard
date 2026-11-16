@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Wallet, Plus, AlertTriangle, Link2, Clock, CheckCircle2, Pencil, Trash2, History, Search, X, Package } from 'lucide-react'
+import { Wallet, Plus, AlertTriangle, Link2, Clock, CheckCircle2, Pencil, Trash2, History, Search, X, Package, FileText } from 'lucide-react'
 import { usePagos } from '../../hooks/usePagos'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 import HistorialPago from '../pagos/HistorialPago'
@@ -49,15 +49,16 @@ export default function PagosPanel() {
 
   const { pagos: pagosDelFiltro, turnoAbierto, loading, error, recargar, anularPago } = usePagos({ desde, hasta, categoria, estado })
 
-  // Lupa: busca por descripción, proveedor, empleado, categoría, medio, notas
-  // o monto. Sin acentos y por palabras ("carn efec" → carnicería en efectivo).
+  // Lupa: busca por descripción, proveedor, empleado, categoría, medio, número
+  // de comprobante, notas o monto. Sin acentos y por palabras ("carn efec" →
+  // carnicería en efectivo; "0003-1234" → la factura con ese número).
   const pagos = useMemo(() => {
     const palabras = normalizeSearch(busqueda).split(/\s+/).filter(Boolean)
     if (palabras.length === 0) return pagosDelFiltro
     return pagosDelFiltro.filter(p => {
       const texto = normalizeSearch([
         p.descripcion, p.proveedor?.razon_social, p.empleado?.nombre, p.empleado?.apellido,
-        catLabel(p.categoria), medioLabel(p.medio_pago), p.notas, String(p.monto ?? ''), fmtMoney(p.monto || 0),
+        catLabel(p.categoria), medioLabel(p.medio_pago), p.comprobante_nro, p.notas, String(p.monto ?? ''), fmtMoney(p.monto || 0),
       ].filter(Boolean).join(' '))
       return palabras.every(w => texto.includes(w))
     })
@@ -142,7 +143,7 @@ export default function PagosPanel() {
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-xmuted)' }} />
           <input
             value={busqueda} onChange={e => setBusqueda(e.target.value)}
-            placeholder="Buscar pago (nombre, proveedor, monto…)"
+            placeholder="Buscar pago (proveedor, N° de factura, monto…)"
             aria-label="Buscar pago"
             className="w-full rounded-lg pl-8 pr-8 py-2 text-xs outline-none"
             style={{ ...selectStyle, color: 'var(--text-primary)' }}
@@ -203,6 +204,14 @@ export default function PagosPanel() {
                       {catLabel(p.categoria)}
                     </span>
                     <span style={{ color: 'var(--text-xmuted)' }}>{fmtFecha(p.fecha)} · {medioLabel(p.medio_pago)}</span>
+                    {/* El número de la factura o del recibo, a la vista: antes
+                        había que abrir el lápiz para saber cuál era. */}
+                    {String(p.comprobante_nro || '').trim() && (
+                      <span data-comprobante className="flex items-center gap-1 font-semibold" style={{ color: 'var(--text-secondary)' }}
+                        title="Número de factura o recibo">
+                        <FileText size={10} /> Comp. {String(p.comprobante_nro).trim()}
+                      </span>
+                    )}
                     {p.estado === 'pendiente' && (
                       <span className="flex items-center gap-1" style={{ color: '#E8A23F' }}>
                         <Clock size={10} /> pendiente{p.vencimiento ? ` · vence ${fmtFecha(p.vencimiento)}` : ''}

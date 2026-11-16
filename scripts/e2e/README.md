@@ -16,6 +16,7 @@ scripts/e2e/correr-cuentas-corrientes.sh   # cobro con cuenta corriente, caja, a
 scripts/e2e/correr-cashflow.sh             # Finanzas → Cash flow (SQL 55)
 scripts/e2e/correr-stock-compras.sh        # boleta con productos, quién movió el stock, faltantes (SQL 56)
 scripts/e2e/correr-iva.sh                  # IVA de las ventas en Caja, Excel y Finanzas (SQL 57)
+scripts/e2e/correr-administracion.sh       # "no se factura", comprobante en Pagos, facturas por proveedor, cierre de caja (SQL 58)
 ```
 
 Cada una arma la base plantilla si no existe, compila el dashboard apuntando al
@@ -34,6 +35,7 @@ backend local, corre la batería de SQL y las de navegador, y deja capturas en
 | `cc-t*.mjs` | Flujos en el navegador (sección, cobrar mesa, cerrar pedido, pago dividido, Caja, Excel, arqueo, cierre de turno, permisos, celular, base sin el SQL 54, tarjeta / sin pago). |
 | `st-sql.sql`, `st-t*.mjs` | Stock + compras: boleta con productos (alta, corrección, anulación, todo o nada con la caja), precio de costo, habituales por proveedor, quién hizo cada movimiento, reporte de faltantes y su Excel, permisos y base sin el SQL 56. `seed-stock.sql` carga proveedores y productos; `st-capturas.mjs` saca las capturas para mostrar. |
 | `iva-sql.sql`, `iva-t*.mjs` | IVA de las ventas: resumen por fecha de emisión, notas de crédito, comprobantes sin desglose, permisos; Caja (Totales y cada orden), Excel (hoja "IVA ventas" completa aunque pase las 1000 filas), Finanzas como rol finanzas, celular y base sin el SQL 57. `seed-iva.sql` carga los casos de hoy y un día con 1200 facturas (recibe la fecha con `-v hoy=…`). |
+| `sf-sql.sql`, `adm-t*.mjs` | Pedidos de administración: marca "no se factura" (SQL, Caja, celular, base sin el SQL 58), N° de comprobante y buscador en Pagos, "Facturas y pagos" del proveedor, aviso al cerrar con medios sin cargar, freno al guardar en la caja fuerte y el recorrido completo para corregir un cierre viejo (reabrir → editar el movimiento → volver a cerrar → corrección de la caja fuerte). `seed-adm.sql` recibe la fecha con `-v hoy=…`. |
 | `cf-sql.sql`, `cf-t*.mjs` | Cash flow: agregado por mes y zona horaria, RLS, edición de estimados, saldo, Excel, rol de solo lectura, base sin el SQL 55. `seed-cashflow.sql` carga tres meses de cobros y pagos de ejemplo (más de 1000 cobros por mes) y `cf-capturas.mjs` saca las capturas para mostrar. |
 
 ## Para probar otra cosa

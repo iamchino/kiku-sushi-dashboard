@@ -192,6 +192,7 @@ function HistorialDePagos({ desde, hasta }) {
                 </p>
                 <p className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
                   {catLabel(e.categoria)} · {fmtFecha(e.fecha)} · {medioLabel(e.medio_pago)}
+                  {String(e.comprobante_nro || '').trim() && <span style={{ color: 'var(--text-secondary)' }}> · Comp. {String(e.comprobante_nro).trim()}</span>}
                   {e.estado === 'pendiente' && <span style={{ color: '#E8A23F' }}> · pendiente</span>}
                 </p>
               </div>

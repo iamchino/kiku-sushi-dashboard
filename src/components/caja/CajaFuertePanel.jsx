@@ -237,6 +237,11 @@ function AgregarModal({ onClose, onSave, turnoAbierto, ultimoCierre }) {
         </div>
 
         <Field label="Monto" value={monto} onChange={setMonto} inputMode="decimal" placeholder="0" required />
+        {Number(monto) > 0 && (
+          <p data-eco-monto className="-mt-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            Vas a guardar <strong style={{ color: 'var(--text-secondary)' }}>{fmtMoney(Number(monto))}</strong>. Revisá los ceros antes de confirmar.
+          </p>
+        )}
         <TextArea label={origen === 'caja' ? 'Nota (opcional)' : 'Motivo (opcional)'} value={nota} onChange={setNota}
           rows={2} placeholder={origen === 'caja' ? 'Cierre del sábado…' : 'Aporte para cambio…'} />
 

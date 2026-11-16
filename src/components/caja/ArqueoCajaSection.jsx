@@ -257,18 +257,27 @@ function EmptyTurnoForm({ onOpen, saving, aperturaSugerida }) {
  * movimientos, que es justo lo que acá no queremos ni traer. La RPC devuelve el
  * saldo resultante en su respuesta y se descarta a propósito.
  */
-function GuardarEnCajaFuerte({ onListo }) {
+function GuardarEnCajaFuerte({ onListo, efectivoEnCaja = null }) {
   const [abierto, setAbierto] = useState(false)
   const [monto, setMonto] = useState('')
   const [notas, setNotas] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  // Un cero de más acá deja la caja en negativo y la caja fuerte inflada (pasó:
+  // $11.600.000 por $1.160.000). Si el monto supera el efectivo que el sistema
+  // calcula que hay en la caja, se frena y hay que confirmarlo aparte.
+  const [confirmarExceso, setConfirmarExceso] = useState(false)
 
-  const cerrar = () => { setAbierto(false); setMonto(''); setNotas(''); setError(null) }
+  const cerrar = () => { setAbierto(false); setMonto(''); setNotas(''); setError(null); setConfirmarExceso(false) }
+
+  const importeTipeado = parseAmount(monto)
+  const supera = efectivoEnCaja !== null && Number.isFinite(Number(efectivoEnCaja))
+    && importeTipeado > Number(efectivoEnCaja) + 0.005
 
   const guardar = async () => {
     const importe = parseAmount(monto)
     if (importe <= 0) { setError('Poné un monto mayor a cero.'); return }
+    if (supera && !confirmarExceso) { setConfirmarExceso(true); return }
     setSaving(true); setError(null)
     try {
       const { error: e } = await supabase.rpc('retirar_a_caja_fuerte', {
@@ -313,11 +322,17 @@ function GuardarEnCajaFuerte({ onListo }) {
                 autoFocus
                 inputMode="decimal"
                 value={monto}
-                onChange={e => { setMonto(e.target.value); setError(null) }}
+                onChange={e => { setMonto(e.target.value); setError(null); setConfirmarExceso(false) }}
                 placeholder="0"
                 className="w-full rounded-lg px-3 py-2 text-sm outline-none"
                 style={inputStyle()}
               />
+              {importeTipeado > 0 && (
+                <p data-eco-monto className="mt-1 text-[11px]" style={{ color: supera ? '#F2B35C' : 'var(--text-muted)' }}>
+                  Vas a guardar <strong>${formatMoney(importeTipeado)}</strong>
+                  {efectivoEnCaja !== null && ` · en la caja hay $${formatMoney(efectivoEnCaja)} en efectivo`}
+                </p>
+              )}
             </Field>
             <Field label="Nota (opcional)">
               <input
@@ -329,6 +344,13 @@ function GuardarEnCajaFuerte({ onListo }) {
               />
             </Field>
           </div>
+          {confirmarExceso && (
+            <p data-aviso-exceso className="rounded-lg px-3 py-2 text-xs leading-5" style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C' }}>
+              <strong>Es más de lo que hay en la caja.</strong> Según el sistema hay ${formatMoney(efectivoEnCaja)} en efectivo y estás
+              por guardar ${formatMoney(importeTipeado)}: la caja quedaría en negativo. Revisá que no haya un cero de más.
+              Si el monto está bien, tocá «Guardar igual».
+            </p>
+          )}
           {error && <p className="text-xs" style={{ color: '#F2708C' }}>{error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={cerrar} disabled={saving}
@@ -340,7 +362,7 @@ function GuardarEnCajaFuerte({ onListo }) {
               className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
               style={{ background: 'var(--cta)' }}>
               {saving ? <Loader2 size={13} className="animate-spin" /> : <ArrowUpRight size={13} />}
-              Guardar
+              {confirmarExceso ? 'Guardar igual' : 'Guardar'}
             </button>
           </div>
         </div>
@@ -533,6 +555,26 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
   // cerrar, porque cerrar así deja la diferencia como "sobrante".
   const mediosNegativos = medios.filter(medio => Number(medio.esperado || 0) < 0)
 
+  // Medios con plata esperada que quedaron sin cargar. Un casillero vacío se
+  // guarda como $0 y el cierre queda con un "faltante" que no es tal: es lo
+  // que pasaba cuando se cerraba sin completar transferencias y tarjetas.
+  const sinCargar = medios.filter(medio =>
+    String(contadoPorMedio[medio.id] ?? '').trim() === '' && Number(medio.esperado || 0) > 0.005)
+  const sinCargarNoEfectivo = sinCargar.filter(medio => medio.id !== 'efectivo')
+  const faltanteSinCargar = sinCargar.reduce((acc, medio) => acc + Number(medio.esperado || 0), 0)
+  // Transferencias y tarjetas no se "cuentan": se confirman contra el banco y
+  // el posnet. Si coinciden con lo esperado, se completan de un toque. El
+  // efectivo no: ese se cuenta siempre a mano.
+  const usarEsperadoNoEfectivo = () => {
+    setContadoPorMedio(prev => {
+      const next = { ...prev }
+      // Con coma decimal: es el formato que parseAmount lee sin ambigüedad.
+      sinCargarNoEfectivo.forEach(medio => { next[medio.id] = Number(medio.esperado || 0).toFixed(2).replace('.', ',') })
+      return next
+    })
+    setError(null)
+  }
+
   // El submit del formulario ya NO cierra el turno: solo abre la confirmación.
   const pedirConfirmacion = (e) => {
     e.preventDefault()
@@ -625,6 +667,20 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
           })}
         </div>
 
+        {sinCargarNoEfectivo.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs"
+            style={{ background: 'var(--bg-input)', border: '1px dashed var(--border)', color: 'var(--text-secondary)' }}>
+            <span>
+              {sinCargarNoEfectivo.map(m => m.label).join(', ')}: si lo que entró al banco y al posnet coincide con lo esperado, completalo de un toque.
+            </span>
+            <button type="button" onClick={usarEsperadoNoEfectivo} data-usar-esperado
+              className="rounded-lg px-3 py-1.5 text-xs font-semibold"
+              style={{ color: 'var(--accent-lift)', border: '1px solid var(--accent-border)', background: 'var(--accent-soft)' }}>
+              Usar lo esperado
+            </button>
+          </div>
+        )}
+
         <Field label="Nota cierre">
           <input
             value={notas}
@@ -680,6 +736,19 @@ function CierreTurnoPanel({ turno, resumen, onClose, saving }) {
               <p className="mt-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C' }}>
                 Atención: {resumen.pedidosSinPago.length} pedido(s) del turno todavía no tienen pago registrado (${formatMoney(resumen.pedidosSinPagoTotal)}).
               </p>
+            )}
+            {sinCargar.length > 0 && (
+              <div data-aviso-sin-cargar className="mt-2 rounded-lg px-3 py-2 text-xs leading-5" style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C' }}>
+                <p>
+                  <strong>No cargaste lo contado en {sinCargar.map(m => m.label.toLowerCase()).join(', ')}.</strong>{' '}
+                  Si confirmás así se guarda en $0 y el cierre va a mostrar que faltan ${formatMoney(faltanteSinCargar)}, aunque la plata esté.
+                </p>
+                <button type="button" onClick={() => setConfirmando(false)}
+                  className="mt-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold"
+                  style={{ color: 'var(--text-primary)', border: '1px solid rgba(242,179,92,0.5)' }}>
+                  Volver y completar
+                </button>
+              </div>
             )}
             {mediosNegativos.length > 0 && (
               <p className="mt-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'rgba(242,179,92,0.12)', color: '#F2B35C' }}>
@@ -2097,7 +2166,10 @@ export default function ArqueoCajaSection({ dateFrom, dateTo }) {
               />
 
               {puedeGuardarEnCajaFuerte && (
-                <GuardarEnCajaFuerte onListo={(texto) => { setNotice({ type: 'ok', text: texto }); refetch() }} />
+                <GuardarEnCajaFuerte
+                  efectivoEnCaja={resumen.efectivoEsperado}
+                  onListo={(texto) => { setNotice({ type: 'ok', text: texto }); refetch() }}
+                />
               )}
 
               <PagosBancoList movimientos={resumen.movimientosBanco} />
