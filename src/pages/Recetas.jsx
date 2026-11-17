@@ -18,7 +18,8 @@ function MargenBadge({ margen }) {
 
   const bajo = margen < 30
   return (
-    <span
+    <span data-margen
+      title="Margen sin IVA: el costo contra el precio de carta sin el IVA"
       className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${bajo ? 'animate-pulse' : ''}`}
       style={{
         background: bajo ? 'rgba(227,77,107,0.08)' : 'rgba(63,191,138,0.06)',
@@ -613,7 +614,7 @@ export default function RecetasPage() {
                 <span className="w-1 h-1 rounded-full" style={{ background: 'var(--border)' }} />
                 <span className="flex items-center gap-1" style={{ color: '#E34D6B' }}>
                   <AlertTriangle size={11} />
-                  <span className="font-semibold">{stats.bajoMargen}</span> con margen bajo (&lt;30%)
+                  <span className="font-semibold">{stats.bajoMargen}</span> con margen bajo (&lt;30%, sin IVA)
                 </span>
               </>
             )}
@@ -670,7 +671,7 @@ export default function RecetasPage() {
                       <tr style={{ borderBottom: '1px solid var(--border)' }}>
                         <th className="w-10" />
                         {esRecetas ? (
-                          [activeTab === 'reventa' ? 'Bebida / artículo' : 'Receta', esTabFinal ? 'Producto' : 'Stock', 'Ing.', 'Costo', 'Venta', 'Margen', ''].map((h, i) => (
+                          [activeTab === 'reventa' ? 'Bebida / artículo' : 'Receta', esTabFinal ? 'Producto' : 'Stock', 'Ing.', 'Costo', 'Venta', 'Margen sin IVA', ''].map((h, i) => (
                             <th
                               key={i}
                               className={`px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-left whitespace-nowrap
@@ -685,7 +686,7 @@ export default function RecetasPage() {
                             </th>
                           ))
                         ) : (
-                          ['Combo', 'Producto', 'Piezas', 'Costo', 'Venta', 'Margen', ''].map((h, i) => (
+                          ['Combo', 'Producto', 'Piezas', 'Costo', 'Venta', 'Margen sin IVA', ''].map((h, i) => (
                             <th
                               key={i}
                               className={`px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-left whitespace-nowrap

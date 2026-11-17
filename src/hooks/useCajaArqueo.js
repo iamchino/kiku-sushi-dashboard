@@ -151,8 +151,10 @@ function sum(rows, pick) {
  * Calcula el desglose por medio (ventas, movimientos, apertura, esperado) de UN
  * turno cualquiera a partir de los pagos y movimientos cargados. Reutilizable
  * tanto para el turno activo como para un turno reabierto que se está editando.
+ * También lo usa el recuadro "Disponible hoy" de Finanzas (lib/disponibleApi):
+ * así el efectivo esperado que muestra es exactamente el del arqueo.
  */
-function resumenDeTurno(turno, pagos, movimientos) {
+export function resumenDeTurno(turno, pagos, movimientos) {
   const pagosTurno = turno
     ? pagos.filter(pago => belongsToTurn(pago, turno, 'caja_turno_id'))
     : []

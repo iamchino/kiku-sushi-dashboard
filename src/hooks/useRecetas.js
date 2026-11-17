@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { normTipoStock, esElaborado } from '../lib/stockNiveles'
 import { precioVentaDe } from '../utils/precio'
+import { margenSinIva } from '../lib/margen'
 
 export function costoStockUnitario(stock, allRecetas = [], visited = new Set()) {
   if (esElaborado(stock) && stock.receta_id && !visited.has(stock.receta_id)) {
@@ -106,7 +107,8 @@ export function useRecetas() {
       const porciones = parseFloat(r.porciones) || 1
       const costoPorc = cost / porciones
       const pv = precioVenta(r, menuItems)
-      const margen = (pv && pv > 0) ? ((pv - costoPorc) / pv) * 100 : null
+      // Contra el precio de carta SIN IVA (el costo se carga sin IVA).
+      const margen = (pv && pv > 0) ? margenSinIva(pv, costoPorc) : null
       const mi = menuItems.find(m => m.id === r.menu_item_id) || null
       const variantes = mi?.menu_item_variantes || []
 
@@ -129,7 +131,7 @@ export function useRecetas() {
         const precioVar = parseFloat(v.precio) || 0
         const piezasVar = parseFloat(v.piezas) || 1
         const costoVar = costoPorc * piezasVar
-        const margenVar = precioVar > 0 ? ((precioVar - costoVar) / precioVar) * 100 : null
+        const margenVar = precioVar > 0 ? margenSinIva(precioVar, costoVar) : null
         return {
           id: v.id,
           nombre: v.nombre,

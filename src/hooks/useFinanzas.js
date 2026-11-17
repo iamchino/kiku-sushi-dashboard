@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { esCanje, totalCanjes } from '../lib/finanzas'
 
 // Convierte 'YYYY-MM-DD' (local) a límites ISO en UTC, sin perder horas de la noche.
 function rangoISO(desde, hasta) {
@@ -10,7 +11,8 @@ function rangoISO(desde, hasta) {
 
 // Resumen financiero del período [desde, hasta] (ambos 'YYYY-MM-DD').
 //   ingresos  → cobros registrados en `pagos`
-//   egresos   → tabla `egresos` (solo estado 'pagado' impacta el resultado)
+//   egresos   → tabla `egresos` (solo estado 'pagado' impacta el resultado, y
+//               sin los pagados con canje: ahí no salió plata)
 //   turnos    → cierres de caja (caja_turnos) del período
 export function useFinanzas(desde, hasta) {
   const [pagos, setPagos]           = useState([])
@@ -33,7 +35,7 @@ export function useFinanzas(desde, hasta) {
           .neq('medio_pago', 'cuenta_corriente')
           .gte('created_at', start).lte('created_at', end),
         supabase.from('egresos')
-          .select('monto, categoria, estado, fecha')
+          .select('monto, categoria, estado, fecha, medio_pago')
           .gte('fecha', desde).lte('fecha', hasta),
         supabase.from('caja_turnos')
           .select('*')
@@ -64,7 +66,10 @@ export function useFinanzas(desde, hasta) {
 
   const resumen = useMemo(() => {
     const ingresos = pagos.reduce((s, p) => s + Number(p.monto || 0), 0)
-    const egresosPagados = egresos.filter(e => e.estado === 'pagado')
+    // Pagado con canje = factura cancelada sin plata. Se informa aparte y
+    // queda fuera de "Salió", de "Quedó" y de "¿A dónde se va la plata?".
+    const egresosPagados = egresos.filter(e => e.estado === 'pagado' && !esCanje(e))
+    const canjes = totalCanjes(egresos)
     const totalEgresos = egresosPagados.reduce((s, e) => s + Number(e.monto || 0), 0)
     const resultado = ingresos - totalEgresos
     const margen = ingresos > 0 ? (resultado / ingresos) * 100 : 0
@@ -92,6 +97,7 @@ export function useFinanzas(desde, hasta) {
     return {
       ingresos, totalEgresos, resultado, margen,
       porCategoria, porMedio, totalPendiente,
+      totalCanje: canjes.total, cantCanje: canjes.cantidad,
       cantPedidos: pagos.length,
     }
   }, [pagos, egresos, pendientes])

@@ -4,7 +4,7 @@ import { usePagos } from '../../hooks/usePagos'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 import HistorialPago from '../pagos/HistorialPago'
 import ConfirmDelete from '../finanzas/ConfirmDelete'
-import { CATEGORIAS, fmtMoney, fmtFecha, catLabel, catColor, medioLabel, localDateISO } from '../../lib/finanzas'
+import { CATEGORIAS, fmtMoney, fmtFecha, catLabel, catColor, medioLabel, localDateISO, esCanje, totalCanjes } from '../../lib/finanzas'
 import { normalizeSearch } from '../../utils/normalize'
 import { contarItemsDePagos } from '../../lib/comprasApi'
 
@@ -34,7 +34,9 @@ function calcularRango(rango, desdeCustom, hastaCustom) {
   return { desde: null, hasta: null }
 }
 
-export default function PagosPanel() {
+// `onCambio`: avisa a la pantalla que lo contiene cada vez que un pago se
+// registra, se corrige o se anula (Caja lo usa para refrescar los Totales).
+export default function PagosPanel({ onCambio = null }) {
   const [rango, setRango] = useState('mes')
   const [desdeCustom, setDesdeCustom] = useState('')
   const [hastaCustom, setHastaCustom] = useState('')
@@ -77,10 +79,12 @@ export default function PagosPanel() {
     return () => { vivo = false }
   }, [pagosDelFiltro])
 
+  // "Total pagado" es plata: lo cancelado con canje se informa al lado.
   const total = useMemo(
-    () => pagos.filter(p => p.estado === 'pagado').reduce((acc, p) => acc + Number(p.monto || 0), 0),
+    () => pagos.filter(p => p.estado === 'pagado' && !esCanje(p)).reduce((acc, p) => acc + Number(p.monto || 0), 0),
     [pagos],
   )
+  const canjes = useMemo(() => totalCanjes(pagos), [pagos])
 
   const chipStyle = (activo) => activo
     ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
@@ -186,6 +190,11 @@ export default function PagosPanel() {
             </span>
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
               Total pagado: <strong style={{ color: 'var(--text-primary)' }}>{fmtMoney(total)}</strong>
+              {canjes.cantidad > 0 && (
+                <span data-total-canje title="Facturas canceladas con canje: quedan pagadas, pero no salió plata">
+                  {' '}· con canje: <strong style={{ color: 'var(--text-secondary)' }}>{fmtMoney(canjes.total)}</strong>
+                </span>
+              )}
             </span>
           </div>
           <div className="space-y-1.5">
@@ -215,6 +224,13 @@ export default function PagosPanel() {
                     {p.estado === 'pendiente' && (
                       <span className="flex items-center gap-1" style={{ color: '#E8A23F' }}>
                         <Clock size={10} /> pendiente{p.vencimiento ? ` · vence ${fmtFecha(p.vencimiento)}` : ''}
+                      </span>
+                    )}
+                    {esCanje(p) && (
+                      <span data-canje className="font-semibold px-1.5 py-0.5 rounded-full"
+                        style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)' }}
+                        title="Se canceló con canje: quedó pagado, pero no salió plata">
+                        sin plata
                       </span>
                     )}
                     {p.caja_turno_id && (
@@ -275,7 +291,7 @@ export default function PagosPanel() {
         <RegistrarPagoModal
           initial={modal === true ? null : modal}
           onClose={() => setModal(false)}
-          onRegistrado={(mensaje) => { setAviso(mensaje); recargar() }}
+          onRegistrado={(mensaje) => { setAviso(mensaje); recargar(); onCambio?.() }}
         />
       )}
 
@@ -294,6 +310,7 @@ export default function PagosPanel() {
           onClose={() => setAnulando(null)}
           onConfirm={async () => {
             await anularPago(anulando)
+            onCambio?.()
             setAviso('Pago anulado. Si salía de una caja, el movimiento se revirtió con él.')
           }}
         />

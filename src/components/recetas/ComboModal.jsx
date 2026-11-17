@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { X, Loader2, Plus, Trash2, Package } from 'lucide-react'
 import { precioVentaDe } from '../../utils/precio'
+import { margenSinIva, textoSinIva } from '../../lib/margen'
 import Buscador from '../ui/Buscador'
 import { unidadesDeItem } from '../../hooks/useCombos'
 
@@ -68,8 +69,9 @@ export default function ComboModal({
     ? parseFloat(precio)
     : (precioMenuVinculado && !isNaN(precioMenuVinculado) ? precioMenuVinculado : null)
 
+  // Contra el precio de carta SIN IVA: el costo se carga sin IVA.
   const margen = precioVentaFinal && precioVentaFinal > 0 && costoTotal > 0
-    ? ((precioVentaFinal - costoTotal) / precioVentaFinal) * 100
+    ? margenSinIva(precioVentaFinal, costoTotal)
     : null
 
   // Piezas del combo (lo que se muestra en el resumen): la cantidad de cada fila.
@@ -321,7 +323,10 @@ export default function ComboModal({
                     <div className="flex items-center justify-between text-xs">
                       <span style={{ color: 'var(--text-muted)' }}>Precio de venta</span>
                       <span className="font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                        ${precioVentaFinal.toLocaleString('es-AR')}
+                        ${precioVentaFinal.toLocaleString('es-AR')}{' '}
+                        <span className="ml-1 font-normal" style={{ color: 'var(--text-xmuted)' }} data-precio-sin-iva>
+                          sin IVA {textoSinIva(precioVentaFinal)}
+                        </span>
                       </span>
                     </div>
                     <div
@@ -336,7 +341,7 @@ export default function ComboModal({
                       <span className="font-semibold" style={{
                         color: margen !== null && margen < 30 ? '#E34D6B' : '#3FBF8A',
                       }}>
-                        Margen: {margen !== null ? `${margen.toFixed(1)}%` : '—'}
+                        Margen sin IVA: {margen !== null ? `${margen.toFixed(1)}%` : '—'}
                       </span>
                       {margen !== null && margen < 30 && (
                         <span className="text-[10px] font-medium" style={{ color: '#E34D6B' }}>

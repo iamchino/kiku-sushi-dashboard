@@ -944,6 +944,10 @@ export default function CajaPage() {
   // cargan: esa tarjeta no se muestra.
   const [egresos, setEgresos] = useState([])
   const [egresosError, setEgresosError] = useState(null)
+  // Sube cada vez que se registra, corrige o anula un pago en la pestaña
+  // Pagos: sin esto los Totales y el Excel seguían con los pagos de antes
+  // hasta tocar "Actualizar".
+  const [versionPagos, setVersionPagos] = useState(0)
   useEffect(() => {
     if (!veHistorico) { setEgresos([]); return }
     let vivo = true
@@ -951,7 +955,7 @@ export default function CajaPage() {
       .then(rows => { if (vivo) { setEgresos(rows); setEgresosError(null) } })
       .catch(err => { if (vivo) { setEgresos([]); setEgresosError(err.message) } })
     return () => { vivo = false }
-  }, [veHistorico, dateFrom, dateTo, loading])
+  }, [veHistorico, dateFrom, dateTo, loading, versionPagos])
   const resumenPagado = useMemo(() => resumenEgresos(egresos), [egresos])
 
   const [exportando, setExportando] = useState(false)
@@ -1326,6 +1330,16 @@ export default function CajaPage() {
               color="#f97316"
               apagado={!resumenPagado.total}
             />
+            {/* Facturas canceladas con canje: están pagadas, pero no salió
+                plata. Por eso van aparte y no restan en "Cobrado − pagado". */}
+            {resumenPagado.canje.cantidad > 0 && (
+              <FilaMetrica
+                label="↳ Pagado con canje"
+                hint={`no es plata · ${resumenPagado.canje.cantidad} ${resumenPagado.canje.cantidad === 1 ? 'pago' : 'pagos'}`}
+                value={`$${formatMoney(resumenPagado.canje.total)}`}
+                color="var(--text-secondary)"
+              />
+            )}
             <FilaMetrica
               label="Cobrado − pagado"
               value={`${resumenPagos.totalCobrado - resumenPagado.total < 0 ? '-' : ''}$${formatMoney(Math.abs(resumenPagos.totalCobrado - resumenPagado.total))}`}
@@ -1396,7 +1410,7 @@ export default function CajaPage() {
         {seccion === 'caja_fuerte' ? (
           <div className="mt-5"><CajaFuertePanel /></div>
         ) : seccion === 'pagos' ? (
-          <div className="mt-5"><PagosPanel /></div>
+          <div className="mt-5"><PagosPanel onCambio={() => setVersionPagos(v => v + 1)} /></div>
         ) : seccion === 'arqueo' ? (
           <ArqueoCajaSection dateFrom={dateFrom} dateTo={dateTo} />
         ) : (

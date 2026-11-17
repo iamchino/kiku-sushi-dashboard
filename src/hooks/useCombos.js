@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { costoStockUnitario } from './useRecetas'
 import { precioVentaDe } from '../utils/precio'
+import { margenSinIva } from '../lib/margen'
 
 /**
  * Hook para gestionar combos (agrupación de recetas con cantidades).
@@ -117,7 +118,7 @@ export function useCombos(recetasConCostos = [], menuItems = []) {
 
       // Margen
       const margen = precioVenta && precioVenta > 0
-        ? ((precioVenta - costoTotal) / precioVenta) * 100
+        ? margenSinIva(precioVenta, costoTotal)
         : null
 
       // Resumen de composición

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { X, Loader2, Plus, Trash2 } from 'lucide-react'
 import { TIPOS_RECETA, UNIDADES_RINDE, tipoReceta, normTipoStock, unidadRindeCorta } from '../../lib/stockNiveles'
 import { precioVentaDe } from '../../utils/precio'
+import { esMargenBajo, margenSinIva, textoSinIva } from '../../lib/margen'
 import Buscador from '../ui/Buscador'
 
 export default function RecetaModal({
@@ -90,8 +91,9 @@ export default function RecetaModal({
 
   const menuItem = menuItems.find(m => m.id === menuItemId)
   const precioVenta = precioVentaDe(menuItem)
+  // Contra el precio de carta SIN IVA: el costo se carga sin IVA.
   const margen = precioVenta && precioVenta > 0
-    ? ((precioVenta - costoPorPorcion) / precioVenta) * 100
+    ? margenSinIva(precioVenta, costoPorPorcion)
     : null
 
   // ── Ingredientes CRUD ─────────────────────────────────────────────────────
@@ -409,15 +411,16 @@ export default function RecetaModal({
                 {/* ── Márgenes por VARIANTE ── */}
                 {variantes.length > 0 ? (
                   <div className="space-y-1.5 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
-                    <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-xmuted)' }}>
-                      Margen por tamaño
+                    <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-xmuted)' }}
+                      title="El costo contra el precio de carta sin el IVA">
+                      Margen por tamaño · sin IVA
                     </p>
                     {variantes.map(v => {
                       const piezasVar = parseFloat(v.piezas) || 1
                       const precioVar = parseFloat(v.precio) || 0
                       const costoVar = costoPorPorcion * piezasVar
-                      const margenVar = precioVar > 0 ? ((precioVar - costoVar) / precioVar) * 100 : null
-                      const bajo = margenVar !== null && margenVar < 30
+                      const margenVar = precioVar > 0 ? margenSinIva(precioVar, costoVar) : null
+                      const bajo = esMargenBajo(margenVar)
 
                       return (
                         <div
@@ -434,6 +437,7 @@ export default function RecetaModal({
                             </span>
                             <span className="ml-2" style={{ color: 'var(--text-xmuted)' }}>
                               Costo: ${costoVar.toFixed(0)} · Venta: ${precioVar.toLocaleString('es-AR')}
+                              {precioVar > 0 && ` (sin IVA ${textoSinIva(precioVar)})`}
                             </span>
                           </div>
                           <span className="font-bold" style={{ color: bajo ? '#E34D6B' : '#3FBF8A' }}>
@@ -450,7 +454,10 @@ export default function RecetaModal({
                     <div className="flex items-center justify-between text-xs">
                       <span style={{ color: 'var(--text-muted)' }}>Precio de venta</span>
                       <span className="font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                        ${precioVenta.toLocaleString('es-AR')}
+                        ${precioVenta.toLocaleString('es-AR')}{' '}
+                        <span className="ml-1 font-normal" style={{ color: 'var(--text-xmuted)' }} data-precio-sin-iva>
+                          sin IVA {textoSinIva(precioVenta)}
+                        </span>
                       </span>
                     </div>
                     <div
@@ -465,7 +472,7 @@ export default function RecetaModal({
                       <span className="font-semibold" style={{
                         color: margen !== null && margen < 30 ? '#E34D6B' : '#3FBF8A',
                       }}>
-                        Margen: {margen !== null ? `${margen.toFixed(1)}%` : '—'}
+                        Margen sin IVA: {margen !== null ? `${margen.toFixed(1)}%` : '—'}
                       </span>
                       {margen !== null && margen < 30 && (
                         <span className="text-[10px] font-medium" style={{ color: '#E34D6B' }}>

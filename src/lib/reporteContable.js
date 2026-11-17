@@ -18,7 +18,7 @@
 import { lineasDePago, etiquetaMedioPago, esCuentaCorriente, MEDIOS_PAGO_ORDEN } from './pagosPedido'
 import { estadoCuenta, fechaCorta } from './cuentasCorrientes'
 import { COND_IVA_RECEPTOR_LABEL, fechaHoyAR, getAuthorizedComprobante, getFacturasAutorizadas, getNotasCredito, nombreComprobante } from './fiscal'
-import { catLabel, medioLabel } from './finanzas'
+import { catLabel, esCanje, medioLabel, sinCanjes, totalCanjes } from './finanzas'
 import { bloqueResumenIva, comprobantesDePedidos, desgloseIva, filasLibroIva } from './ivaVentas'
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -72,17 +72,23 @@ const CANAL = {
 // Datos (la consulta de egresos vive en lib/pagos.js: cargarEgresosPeriodo)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Resumen de egresos por medio de pago, para la tarjeta de Totales. */
+/**
+ * Resumen de egresos por medio de pago, para la tarjeta de Totales.
+ * Lo pagado con canje va aparte (`canje`): la factura quedó cancelada pero no
+ * salió plata, así que no entra en `total`, en `porMedio` ni en `cantidad`.
+ */
 export function resumenEgresos(egresos = []) {
   const porMedio = new Map()
-  let total = 0
+  let total = 0, cantidad = 0
   egresos.forEach(e => {
     if (e.estado && e.estado !== 'pagado') return
+    if (esCanje(e)) return
     const monto = Number(e.monto || 0)
     total += monto
+    cantidad += 1
     porMedio.set(e.medio_pago, (porMedio.get(e.medio_pago) || 0) + monto)
   })
-  return { total, porMedio, cantidad: egresos.length }
+  return { total, porMedio, cantidad, canje: totalCanjes(egresos) }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,15 +151,19 @@ export function armarHojas({
     'Proveedor / Empleado': e.proveedor?.razon_social || nombreEmpleado(e) || '',
     'Período': e.periodo || '',
     'Medio de pago': medioLabel(e.medio_pago),
-    'Salió de': e.pagado_desde === 'caja' ? 'Caja del día'
+    'Salió de': esCanje(e) ? 'Canje (sin plata)'
+      : e.pagado_desde === 'caja' ? 'Caja del día'
       : e.pagado_desde === 'caja_fuerte' ? 'Caja fuerte'
       : e.pagado_desde === 'banco' ? (e.cuenta?.nombre || 'Banco') : '',
     'Comprobante': e.comprobante_nro || '',
     'Monto': num(e.monto),
   }))
+  // Lo pagado con canje figura en la hoja Pagos (con su medio), pero no es
+  // dinero: no suma en "pagado por medio", ni por categoría, ni en el total.
+  const canjesPagados = totalCanjes(egresos)
   const pagosPorMedio = new Map()
   const pagosPorCategoria = new Map()
-  egresos.forEach(e => {
+  sinCanjes(egresos).forEach(e => {
     const m = Number(e.monto || 0)
     pagosPorMedio.set(e.medio_pago, (pagosPorMedio.get(e.medio_pago) || 0) + m)
     pagosPorCategoria.set(e.categoria, (pagosPorCategoria.get(e.categoria) || 0) + m)
@@ -213,7 +223,7 @@ export function armarHojas({
     nc += ncs.reduce((a, c) => a + Number(c.importe_total || 0), 0)
   })
   const totalCobrado = [...cobrosPorMedio.values()].reduce((a, v) => a + v.monto, 0)
-  const totalPagado = egresos.reduce((a, e) => a + Number(e.monto || 0), 0)
+  const totalPagado = sinCanjes(egresos).reduce((a, e) => a + Number(e.monto || 0), 0)
 
   // ── IVA de las ventas ───────────────────────────────────────────────────
   // Por fecha de EMISIÓN del comprobante. Si esa lista no vino (no se pudo
@@ -253,12 +263,18 @@ export function armarHojas({
     ...(canjes.cobros > 0
       ? [['Cuenta corriente (canjes: no es dinero, no suma al total)', canjes.cobros, $(canjes.monto)]]
       : []),
+    ...(canjesPagados.cantidad > 0
+      ? [[`Pagado con canje (${canjesPagados.cantidad === 1 ? '1 pago' : `${canjesPagados.cantidad} pagos`}: no es dinero, no suma al total)`, '', '', $(canjesPagados.total)]]
+      : []),
     [],
     ['PAGOS POR CATEGORÍA'],
     ['Categoría', 'Pagado'],
     ...[...pagosPorCategoria.entries()]
       .sort((a, b) => b[1] - a[1])
       .map(([cat, m]) => [catLabel(cat), $(m)]),
+    ...(canjesPagados.cantidad > 0
+      ? [['Aparte, pagado con canje (no es dinero)', $(canjesPagados.total)]]
+      : []),
     [],
     ['VENTAS Y FACTURACIÓN'],
     ['Pedidos', activos.length],
@@ -332,6 +348,8 @@ export function armarHojas({
     ivaVentas: ivaFilas,
     totales: {
       vendido, facturado, nc, totalCobrado, totalPagado, canjes: canjes.monto,
+      // Facturas canceladas con canje: pagadas, pero sin plata (no están en totalPagado).
+      pagadoConCanje: canjesPagados.total,
       iva: ivaDesglose.iva, netoSinIva: ivaDesglose.neto, facturadoEmitido: ivaDesglose.total, ivaPorEmision: porEmision,
     },
   }

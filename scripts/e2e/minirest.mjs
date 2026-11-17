@@ -104,6 +104,11 @@ function orden(params) {
   return partes.length ? `order by ${partes.join(', ')}` : ''
 }
 
+// Ingredientes de una receta, cada uno con su producto de stock adentro.
+const INGREDIENTES_DE = (recetaId) => `select coalesce(jsonb_agg(to_jsonb(ri) || jsonb_build_object('stock',
+    (select to_jsonb(s) from public.stock s where s.id = ri.stock_id))), '[]'::jsonb)
+  from public.receta_ingredientes ri where ri.receta_id = ${recetaId}`
+
 // Embebidos que el front pide (select=…,tabla(…)). Se arman a mano.
 const EMBEBIDOS = {
   pedidos: (sel) => [
@@ -125,6 +130,21 @@ const EMBEBIDOS = {
   },
   cuenta_corriente_movimientos: (sel) => [
     /cuenta:cuentas_corrientes\(/.test(sel) && `(select json_build_object('nombre', cc.nombre) from public.cuentas_corrientes cc where cc.id = t.cuenta_id) as cuenta`,
+  ].filter(Boolean),
+  // Recetas (Producto → Recetas): cada receta con sus ingredientes y el
+  // producto de stock de cada uno; la carta con sus variantes; los combos con
+  // sus recetas adentro. Es lo que necesita la pantalla para costear.
+  recetas: (sel) => [
+    /receta_ingredientes/.test(sel) && `(${INGREDIENTES_DE('t.id')}) as receta_ingredientes`,
+  ].filter(Boolean),
+  menu_items: (sel) => [
+    /menu_item_variantes\(/.test(sel) && `(select coalesce(json_agg(v order by v.orden), '[]'::json) from public.menu_item_variantes v where v.menu_item_id = t.id) as menu_item_variantes`,
+  ].filter(Boolean),
+  combos: (sel) => [
+    /combo_items\(/.test(sel) && `(select coalesce(jsonb_agg(to_jsonb(ci) || jsonb_build_object('recetas',
+        (select to_jsonb(r) || jsonb_build_object('receta_ingredientes', (${INGREDIENTES_DE('r.id')}))
+           from public.recetas r where r.id = ci.receta_id))), '[]'::jsonb)
+      from public.combo_items ci where ci.combo_id = t.id) as combo_items`,
   ].filter(Boolean),
 }
 

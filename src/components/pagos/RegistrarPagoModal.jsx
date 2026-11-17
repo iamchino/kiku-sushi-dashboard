@@ -3,9 +3,9 @@ import { Wallet, Pencil, Package } from 'lucide-react'
 import { usePagos } from '../../hooks/usePagos'
 import { useProveedores } from '../../hooks/useProveedores'
 import { ModalShell, Field, Select, TextArea } from '../finanzas/fields'
-import { CATEGORIAS, MEDIOS_PAGO, localDateISO, DIAS_ANTES_DE_SER_DEUDA, naturalezaPendiente } from '../../lib/finanzas'
+import { CATEGORIAS, MEDIOS_PAGO, MEDIO_CANJE, errorDeCanje, fmtPlata, localDateISO, DIAS_ANTES_DE_SER_DEUDA, naturalezaPendiente } from '../../lib/finanzas'
 import ProductosBoleta from './ProductosBoleta'
-import { TOLERANCIA_BOLETA, armarFilas, cambioLaBoleta, itemsParaGuardar, problemaBoleta, puedeLlevarProductos } from '../../lib/compras'
+import { TOLERANCIA_BOLETA, armarFilas, cambioLaBoleta, itemsParaGuardar, numero, pareceMiles, problemaBoleta, puedeLlevarProductos } from '../../lib/compras'
 import { cargarItemsDePago, cargarProductosCompra } from '../../lib/comprasApi'
 
 // Alta centralizada de pagos: ESTE es el único formulario para registrar un
@@ -21,6 +21,9 @@ import { cargarItemsDePago, cargarProductosCompra } from '../../lib/comprasApi'
 //                                    pero NO afecta el arqueo: esa cuenta no la
 //                                    controla la caja del local
 //   · tarjetas / cheque            → se registran sin mover caja ni banco
+//   · canje                        → la factura se canceló SIN plata: queda
+//                                    pagada, no mueve nada y no cuenta como
+//                                    plata que salió (SQL 59)
 //
 // El trabajo transaccional lo hace el RPC registrar_pago().
 //
@@ -99,6 +102,15 @@ export default function RegistrarPagoModal({
   const pendiente       = form.estado === 'pendiente'
   const esEfectivo      = form.medio_pago === 'efectivo'
   const esTransferencia = form.medio_pago === 'transferencia'
+  const esCanje         = form.medio_pago === MEDIO_CANJE
+
+  // Un canje ya es la forma en que se canceló la factura: no puede quedar
+  // pendiente. Al elegirlo el estado pasa a Pagado (y la base lo exige igual).
+  const elegirMedio = (v) => setForm(f => ({ ...f, medio_pago: v, ...(v === MEDIO_CANJE ? { estado: 'pagado' } : {}) }))
+  // En una proyección el pago siempre queda pendiente: ahí el canje no va.
+  const mediosOfrecidos = MEDIOS_PAGO
+    .filter(m => !modoProyeccion || m.id !== MEDIO_CANJE)
+    .map(m => ({ value: m.id, label: m.id === MEDIO_CANJE ? 'Canje (no sale plata)' : m.label }))
 
   // De dónde sale la plata, ya resuelto para que el select nunca mienta:
   //   · efectivo      → caja del día | caja fuerte | ninguno
@@ -178,8 +190,9 @@ export default function RegistrarPagoModal({
         : `Sale de ${nombreCuenta}. Queda registrado como egreso; no afecta ningún arqueo.`
       return 'Transferencia sin origen registrado: queda anotada, sin descontar de ninguna cuenta.'
     }
+    if (esCanje) return 'Canje: la factura se cancela sin plata. Queda como pagada y no toca ninguna caja ni cuenta; tampoco cuenta como plata que salió en Finanzas ni en el cash flow. Si a cambio la otra parte va a consumir en el local, creá o ampliá su cuenta en Dinero → Cuentas corrientes.'
     return 'No es efectivo ni transferencia: se registra sin tocar la caja ni la cuenta del banco.'
-  }, [modoProyeccion, form.vencimiento, pendiente, turnoAbierto, esEfectivo, esTransferencia, origenResuelto, nombreCuenta, edicion])
+  }, [modoProyeccion, form.vencimiento, pendiente, turnoAbierto, esEfectivo, esTransferencia, esCanje, origenResuelto, nombreCuenta, edicion])
 
   // Lo que ya tenía cargado el pago (solo al editar). Si tenía productos, la
   // sección arranca abierta con ellos.
@@ -237,7 +250,14 @@ export default function RegistrarPagoModal({
     : null
   const proveedorNombre = (proveedores || []).find(p => p.id === form.proveedor_id)?.razon_social || ''
 
-  const valido = form.descripcion.trim() && Number(form.monto) > 0 && (!esSueldo || form.empleado_id) && !problemaProductos
+  // El monto, leído igual que lo lee la boleta: punto o coma decimal
+  // ("16644.03", "16644,03") y el formato argentino completo ("16.644,03").
+  // Un punto solo es DECIMAL: "16.644" son dieciséis pesos. Por eso debajo del
+  // campo se repite lo que se entendió, y se avisa si tiene pinta de miles.
+  const montoNum = numero(form.monto)
+  const montoEnMiles = pareceMiles(form.monto)
+
+  const valido = form.descripcion.trim() && montoNum > 0 && (!esSueldo || form.empleado_id) && !problemaProductos
 
   const guardar = async () => {
     setBusy(true); setError(null)
@@ -250,7 +270,7 @@ export default function RegistrarPagoModal({
               : ` ${nItems === 1 ? 'Entró 1 producto' : `Entraron ${nItems} productos`} al stock con el precio de la boleta.`)
           : ' Los productos que tenía la boleta salieron del stock.'
       if (edicion) {
-        const datos = { ...form, origen: origenResuelto, cuenta_id: cuentaResuelta }
+        const datos = { ...form, monto: montoNum, origen: origenResuelto, cuenta_id: cuentaResuelta }
         const resultado = vaComoCompra
           ? await editarCompra(initial, datos, filasAEnviar, motivo, permitirDiferencia)
           : await editarPago(initial, datos, motivo)
@@ -259,7 +279,9 @@ export default function RegistrarPagoModal({
             ? 'Pago corregido. El movimiento de la caja del día se actualizó con él.'
             : resultado?.origen === 'caja_fuerte'
               ? 'Pago corregido. El movimiento de la caja fuerte se actualizó con él.'
-              : 'Pago corregido.') + colaStock,
+              : esCanje && initial.medio_pago !== MEDIO_CANJE
+                ? 'Pago corregido: quedó cancelado con canje. No cuenta como plata que salió.'
+                : 'Pago corregido.') + colaStock,
           resultado,
         )
         onClose()
@@ -267,6 +289,7 @@ export default function RegistrarPagoModal({
       }
       const datosAlta = {
         ...form,
+        monto: montoNum,
         estado: modoProyeccion ? 'pendiente' : form.estado,
         origen: origenResuelto,
         cuenta_id: cuentaResuelta,
@@ -279,6 +302,8 @@ export default function RegistrarPagoModal({
           ? (naturalezaPendiente(form.vencimiento || null) === 'deuda'
               ? 'Guardado. Como vence enseguida, entró directo como DEUDA.'
               : 'Guardado como PROYECCIÓN. Va a pasar a deuda solo, cerca del vencimiento.')
+          : esCanje
+          ? 'Pago registrado como canje: quedó cancelado sin plata y no cuenta en lo que salió.'
           : resultado?.origen === 'banco'
           ? `Pago registrado. Salió de ${resultado?.cuenta_nombre || nombreCuenta}: queda a la vista en el turno, sin afectar el arqueo.`
           : resultado?.descuenta_arqueo
@@ -292,7 +317,7 @@ export default function RegistrarPagoModal({
       )
       onClose()
     } catch (err) {
-      setError(err.message)
+      setError(errorDeCanje(err.message))
       setBusy(false)
     }
   }
@@ -305,8 +330,8 @@ export default function RegistrarPagoModal({
           <Select label="Categoría" value={form.categoria} onChange={set('categoria')} required
             options={CATEGORIAS.map(c => ({ value: c.id, label: c.label }))} />
           <Select label={modoProyeccion ? 'Medio de pago previsto' : 'Medio de pago'}
-            value={form.medio_pago} onChange={set('medio_pago')} required
-            options={MEDIOS_PAGO.map(m => ({ value: m.id, label: m.label }))} />
+            value={form.medio_pago} onChange={elegirMedio} required
+            options={mediosOfrecidos} />
         </div>
 
         {esEfectivo && !pendiente && (
@@ -349,6 +374,21 @@ export default function RegistrarPagoModal({
           <Field label="Monto" value={form.monto} onChange={set('monto')} inputMode="decimal" placeholder="0" required />
           <Field label="Fecha" type="date" value={form.fecha} onChange={set('fecha')} />
         </div>
+        {/* Lo que se entendió del monto, antes de guardar. */}
+        {String(form.monto).trim() !== '' && (montoNum === null ? (
+          <p className="-mt-2 text-[11px]" style={{ color: 'var(--warn, #E8A23F)' }} data-eco-monto>
+            Ese monto no es un número. Escribilo como 16644.03 o 16.644,03.
+          </p>
+        ) : montoNum > 0 && (
+          <p className="-mt-2 text-[11px]" style={{ color: 'var(--text-muted)' }} data-eco-monto>
+            Se registra por <strong style={{ color: 'var(--text-primary)' }}>{fmtPlata(montoNum)}</strong>
+            {montoEnMiles !== null && (
+              <span style={{ color: 'var(--warn, #E8A23F)' }}>
+                {' '}· Ojo: un punto solo se lee como decimal. Si son {fmtPlata(montoEnMiles)}, escribilo sin puntos ({montoEnMiles}).
+              </span>
+            )}
+          </p>
+        ))}
 
         {esSueldo ? (
           <Select label="Empleado" value={form.empleado_id} onChange={set('empleado_id')} required
@@ -406,7 +446,10 @@ export default function RegistrarPagoModal({
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <Select label="Estado" value={form.estado} onChange={set('estado')}
-              options={[{ value: 'pagado', label: 'Pagado' }, { value: 'pendiente', label: 'Pendiente (cta. por pagar)' }]} />
+              hint={esCanje ? 'Con canje siempre queda pagado.' : undefined}
+              options={esCanje
+                ? [{ value: 'pagado', label: 'Pagado (con canje)' }]
+                : [{ value: 'pagado', label: 'Pagado' }, { value: 'pendiente', label: 'Pendiente (cta. por pagar)' }]} />
             {pendiente
               ? <Field label="Vencimiento" type="date" value={form.vencimiento} onChange={set('vencimiento')} />
               : <Field label="Comprobante (opcional)" value={form.comprobante_nro} onChange={set('comprobante_nro')} placeholder="Nº factura / recibo" />}

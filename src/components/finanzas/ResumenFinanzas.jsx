@@ -13,6 +13,7 @@ import ConfirmDelete from './ConfirmDelete'
 import HistorialPago from '../pagos/HistorialPago'
 import CajaFuerteResumen from './CajaFuerteResumen'
 import IvaVentasResumen from './IvaVentasResumen'
+import DisponibleHoy from './DisponibleHoy'
 
 // Resumen de Finanzas: la "foto del negocio" en una sola pantalla, pensada
 // para leerse de un vistazo sin conocer el sistema. Todo lo que se puede
@@ -282,7 +283,9 @@ export default function ResumenFinanzas({ desde, hasta, label }) {
         <Kpi label="Entró" value={loading ? '—' : fmtMoney(resumen.ingresos)} icon={TrendingUp} color="#3FBF8A"
           sub={`${resumen.cantPedidos} cobros · ${label}`} />
         <Kpi label="Salió" value={loading ? '—' : fmtMoney(resumen.totalEgresos)} icon={ArrowDownCircle} color="#F2708C"
-          sub="Gastos pagados del período" />
+          sub={resumen.cantCanje > 0
+            ? `Gastos pagados del período · aparte, ${fmtMoney(resumen.totalCanje)} con canje (no es plata)`
+            : 'Gastos pagados del período'} />
         <Kpi label="Quedó" value={loading ? '—' : fmtMoney(resumen.resultado)} icon={positivo ? TrendingUp : TrendingDown}
           color={positivo ? '#3FBF8A' : '#F2708C'} sub="Entró − Salió" />
         <Kpi label="Margen" value={loading ? '—' : `${resumen.margen.toFixed(1)}%`} icon={Percent}
@@ -291,6 +294,9 @@ export default function ResumenFinanzas({ desde, hasta, label }) {
 
       {/* De lo facturado, cuánto es IVA (ARCA) y cuánto queda sin IVA */}
       <IvaVentasResumen desde={desde} hasta={hasta} label={label} />
+
+      {/* Con cuánta plata se cuenta hoy: caja, caja fuerte y bancos */}
+      <DisponibleHoy />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* ¿A dónde se va la plata? */}

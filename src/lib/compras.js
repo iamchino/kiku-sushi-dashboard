@@ -30,6 +30,17 @@ export function numero(v) {
   return Number.isFinite(n) ? n : null
 }
 
+/**
+ * Si el texto de un monto tiene pinta de miles con punto ("16.644",
+ * "1.250.000"), devuelve ese número leído como miles (16644). En el campo
+ * Monto un punto solo es decimal —"16.644" son dieciséis pesos con sesenta y
+ * cuatro—, así que conviene avisarlo antes de guardar. Si no, null.
+ */
+export function pareceMiles(v) {
+  const s = String(v ?? '').trim().replace(/\s|\$/g, '')
+  return /^\d{1,3}(\.\d{3})+$/.test(s) ? Number(s.replace(/\./g, '')) : null
+}
+
 // Redondeos como los hace la base: cantidad a 2 decimales, precio a 4. El
 // EPSILON evita que 1,005 quede en 1,00 por el punto flotante.
 const r2 = (n) => Math.round(((Number(n) || 0) + Number.EPSILON) * 100) / 100
@@ -60,6 +71,23 @@ export function diferenciaBoleta(monto, filas) {
 
 export function boletaCierra(monto, filas) {
   return Math.abs(diferenciaBoleta(monto, filas)) <= TOLERANCIA_BOLETA
+}
+
+// El precio de cada producto va SIN IVA (el del renglón de la factura): ese
+// IVA no es costo. Cuando los productos se cargan así, el monto del pago los
+// supera justo por el IVA.
+export const IVA_COMPRAS = 21
+
+/**
+ * True si lo que le falta a los productos para llegar al monto del pago es,
+ * redondeos aparte, el IVA de esos productos. Sirve para decirle a quien carga
+ * que va bien: esa diferencia es el IVA de la factura y solo hay que tildarla.
+ */
+export function diferenciaEsIva(monto, filas, alicuota = IVA_COMPRAS) {
+  const total = totalProductos(filas)
+  const dif = diferenciaBoleta(monto, filas)
+  if (!(total > 0) || !(dif > TOLERANCIA_BOLETA)) return false
+  return Math.abs(dif - r2(total * alicuota / 100)) <= Math.max(2, TOLERANCIA_BOLETA)
 }
 
 /**

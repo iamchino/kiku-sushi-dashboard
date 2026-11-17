@@ -34,6 +34,9 @@ export default function PagosDelProveedor({ proveedorId }) {
         {estado.pagos.length > 0 && (
           <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
             Pagado <strong style={{ color: 'var(--text-secondary)' }}>{fmtMoney(resumen.pagado)}</strong>
+            {resumen.cantCanjeados > 0 && (
+              <> · Canje <strong style={{ color: 'var(--text-secondary)' }}>{fmtMoney(resumen.canjeado)}</strong></>
+            )}
             {resumen.cantPendientes > 0 && (
               <> · Pendiente <strong style={{ color: '#E8A23F' }}>{fmtMoney(resumen.pendiente)}</strong></>
             )}

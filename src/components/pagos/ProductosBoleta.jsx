@@ -2,8 +2,8 @@ import { useMemo } from 'react'
 import { Package, Trash2, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import Buscador from '../ui/Buscador'
 import {
-  cantidadTxt, diferenciaBoleta, boletaCierra, filaCargada, filasCargadas, plata,
-  productosDisponibles, subtotalFila, totalProductos, numero,
+  cantidadTxt, diferenciaBoleta, diferenciaEsIva, boletaCierra, filaCargada, filasCargadas, plata,
+  productosDisponibles, subtotalFila, totalProductos, numero, IVA_COMPRAS,
 } from '../../lib/compras'
 
 // Los productos de una boleta, dentro de Registrar pago. Lo que se carga acá
@@ -92,6 +92,8 @@ export default function ProductosBoleta({
   const dif = diferenciaBoleta(monto, filas)
   const cierra = boletaCierra(monto, filas)
   const hayMonto = numero(monto) > 0
+  // La diferencia es justo el IVA: los precios están cargados sin IVA, bien.
+  const esIva = hayMonto && diferenciaEsIva(monto, filas)
 
   const opciones = useMemo(() => {
     const libres = productosDisponibles(productos, filas)
@@ -134,6 +136,9 @@ export default function ProductosBoleta({
           </p>
           <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
             Lo que cargues acá entra al stock al guardar y actualiza el precio de costo. Completá solo la cantidad de lo que vino.
+          </p>
+          <p className="mt-0.5 text-[11px]" style={{ color: 'var(--text-muted)' }} data-ayuda-iva>
+            El precio va <strong style={{ color: 'var(--text-secondary)' }}>sin IVA</strong>, como figura en cada renglón de la factura, y en la unidad de Inventario. El IVA queda en la diferencia con el monto del pago.
           </p>
         </div>
         {puedeCerrar && (
@@ -211,6 +216,12 @@ export default function ProductosBoleta({
                     </label>
                   )}
                 </div>
+                {esIva && (
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }} data-diferencia-iva>
+                    Esa diferencia es justo el {IVA_COMPRAS}% de los productos: es el IVA de la factura.
+                    {permitirDiferencia ? ' Está bien así: se guarda con la diferencia.' : ' Tildá la casilla y se guarda con la diferencia.'}
+                  </p>
+                )}
               </div>
             ))}
           </div>

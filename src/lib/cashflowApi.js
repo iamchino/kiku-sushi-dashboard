@@ -86,8 +86,10 @@ const SELECT_DETALLE = 'id, fecha, vencimiento, estado, categoria, descripcion, 
  */
 export async function cargarDetalleCelda({ categorias, mes, esMesEnCurso }) {
   const hasta = finDeMes(mes)
+  // Sin los pagados con canje: tampoco están en el número de la celda
+  // (cashflow_mensual los deja afuera porque no salió plata).
   const pagadosQ = supabase.from('egresos').select(SELECT_DETALLE)
-    .eq('estado', 'pagado').in('categoria', categorias)
+    .eq('estado', 'pagado').neq('medio_pago', 'canje').in('categoria', categorias)
     .gte('fecha', mes).lte('fecha', hasta)
     .order('fecha', { ascending: true }).limit(300)
   let pendientesQ = supabase.from('egresos').select(SELECT_DETALLE)

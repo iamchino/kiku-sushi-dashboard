@@ -21,7 +21,42 @@ export const MEDIOS_PAGO = [
   { id: 'tarjeta_debito',  label: 'Tarjeta débito' },
   { id: 'cheque',          label: 'Cheque' },
   { id: 'otro',            label: 'Otro' },
+  // Canje (desde el SQL 59): la factura se canceló sin plata (se cambió por
+  // una cata, por consumo en el local…). El pago queda PAGADO, pero no es
+  // plata que salió: no cuenta en "Salió", ni en el cash flow, ni en los
+  // Totales de Caja. Es el espejo de "Cuenta corriente" del lado de los cobros.
+  { id: 'canje',           label: 'Canje' },
 ]
+
+export const MEDIO_CANJE = 'canje'
+
+/** True si el pago (fila de `egresos`) se canceló con canje: no salió plata. */
+export const esCanje = (egreso) => egreso?.medio_pago === MEDIO_CANJE
+
+/** Solo los pagos que movieron plata (sin los canjes). */
+export const sinCanjes = (egresos) => (egresos || []).filter(e => !esCanje(e))
+
+/**
+ * Lo pagado con canje dentro de una lista de egresos: { total, cantidad }.
+ * Cuenta solo los que están pagados (un canje nunca queda pendiente).
+ */
+export function totalCanjes(egresos) {
+  let total = 0, cantidad = 0
+  for (const e of egresos || []) {
+    if (!esCanje(e) || (e.estado && e.estado !== 'pagado')) continue
+    total += Number(e.monto) || 0
+    cantidad += 1
+  }
+  return { total, cantidad }
+}
+
+// El constraint viejo de la tabla no conoce 'canje': sin el SQL 59 la base
+// rechaza el pago con el nombre del check. Se traduce a algo que se entienda.
+export function errorDeCanje(mensaje) {
+  return /egresos_medio_pago_check/i.test(String(mensaje || ''))
+    ? 'Para pagar con canje falta correr el SQL 59 en Supabase. Mientras tanto, guardalo con otro medio de pago.'
+    : mensaje
+}
 
 // Un pago pendiente vive en dos estados según su vencimiento:
 //   PROYECCIÓN → falta más que esto para vencer (o no tiene fecha)
@@ -43,6 +78,18 @@ export const medioLabel = (id) => MEDIOS_PAGO.find(m => m.id === id)?.label || i
 
 // $ 1.234.567 (sin decimales, formato es-AR)
 export const fmtMoney = (n) => `$${Math.round(Number(n || 0)).toLocaleString('es-AR')}`
+
+/**
+ * "$1.250.000,50": la plata con centavos solo si los tiene (un saldo de banco
+ * o el total de una factura los traen, y redondearlos confunde al cotejar).
+ * Negativos: "-$35.000".
+ */
+export function fmtPlata(n) {
+  const v = Number(n) || 0
+  const conCentavos = Math.abs(Math.round(v * 100)) % 100 !== 0
+  const txt = Math.abs(v).toLocaleString('es-AR', { minimumFractionDigits: conCentavos ? 2 : 0, maximumFractionDigits: 2 })
+  return `${v < 0 ? '-' : ''}$${txt}`
+}
 
 // 'YYYY-MM-DD' → 'DD/MM/YYYY' sin problemas de zona horaria
 export const fmtFecha = (s) => {
@@ -96,16 +143,22 @@ export function shiftRef(gran, ref, dir) {
 }
 
 /**
- * Resumen de lo cargado a un proveedor: cuánto se le pagó, cuánto se le debe
- * y cuánto de eso ya venció. `pagos` = filas de egresos.
+ * Resumen de lo cargado a un proveedor: cuánto se le pagó con plata, cuánto se
+ * canceló con canje, cuánto se le debe y cuánto de eso ya venció.
+ * `pagos` = filas de egresos.
  */
 export function resumenPagosProveedor(pagos, hoyISO = localDateISO()) {
-  const r = { pagado: 0, cantPagados: 0, pendiente: 0, cantPendientes: 0, vencido: 0, cantVencidos: 0 }
+  const r = {
+    pagado: 0, cantPagados: 0, canjeado: 0, cantCanjeados: 0,
+    pendiente: 0, cantPendientes: 0, vencido: 0, cantVencidos: 0,
+  }
   for (const p of pagos || []) {
     const monto = Number(p?.monto) || 0
     if (p?.estado === 'pendiente') {
       r.pendiente += monto; r.cantPendientes += 1
       if (p.vencimiento && p.vencimiento < hoyISO) { r.vencido += monto; r.cantVencidos += 1 }
+    } else if (esCanje(p)) {
+      r.canjeado += monto; r.cantCanjeados += 1
     } else {
       r.pagado += monto; r.cantPagados += 1
     }

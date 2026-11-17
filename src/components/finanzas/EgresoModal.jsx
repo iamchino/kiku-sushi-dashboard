@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AlertTriangle, ArrowDownCircle } from 'lucide-react'
 import { Field, Select, TextArea, ModalShell } from './fields'
-import { CATEGORIAS, MEDIOS_PAGO, localDateISO } from '../../lib/finanzas'
+import { CATEGORIAS, MEDIOS_PAGO, MEDIO_CANJE, errorDeCanje, localDateISO } from '../../lib/finanzas'
 
 const SUBTIPOS_SUELDO = ['sueldo', 'adelanto', 'aguinaldo', 'extra']
 
@@ -35,6 +35,9 @@ export default function EgresoModal({ initial, defaults, proveedores = [], emple
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const esSueldo = form.categoria === 'sueldos'
+  // Canje = la factura se canceló sin plata: siempre queda pagada (SQL 59).
+  const esCanje = form.medio_pago === MEDIO_CANJE
+  const elegirMedio = (v) => setForm(f => ({ ...f, medio_pago: v, ...(v === MEDIO_CANJE ? { estado: 'pagado' } : {}) }))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -68,7 +71,7 @@ export default function EgresoModal({ initial, defaults, proveedores = [], emple
       await onSave(payload)
       onClose()
     } catch (e) {
-      setErr(e.message)
+      setErr(errorDeCanje(e.message))
     } finally {
       setSaving(false)
     }
@@ -96,8 +99,8 @@ export default function EgresoModal({ initial, defaults, proveedores = [], emple
         <div className="grid grid-cols-2 gap-3">
           <Select label="Categoría" value={form.categoria} onChange={v => set('categoria', v)}
             options={CATEGORIAS.map(c => ({ value: c.id, label: c.label }))} />
-          <Select label="Medio de pago" value={form.medio_pago} onChange={v => set('medio_pago', v)}
-            options={MEDIOS_PAGO.map(m => ({ value: m.id, label: m.label }))} />
+          <Select label="Medio de pago" value={form.medio_pago} onChange={elegirMedio}
+            options={MEDIOS_PAGO.map(m => ({ value: m.id, label: m.id === MEDIO_CANJE ? 'Canje (no sale plata)' : m.label }))} />
         </div>
 
         {esSueldo && empleados.length > 0 && (
@@ -118,7 +121,9 @@ export default function EgresoModal({ initial, defaults, proveedores = [], emple
 
         <div className="grid grid-cols-2 gap-3">
           <Select label="Estado" value={form.estado} onChange={v => set('estado', v)}
-            options={[{ value: 'pagado', label: 'Pagado' }, { value: 'pendiente', label: 'Pendiente (por pagar)' }]} />
+            options={esCanje
+              ? [{ value: 'pagado', label: 'Pagado (con canje)' }]
+              : [{ value: 'pagado', label: 'Pagado' }, { value: 'pendiente', label: 'Pendiente (por pagar)' }]} />
           {form.estado === 'pendiente' && (
             <Field label="Vencimiento" value={form.vencimiento} onChange={v => set('vencimiento', v)} type="date" />
           )}
@@ -131,6 +136,13 @@ export default function EgresoModal({ initial, defaults, proveedores = [], emple
 
         <TextArea label="Notas" value={form.notas} onChange={v => set('notas', v)}
           placeholder="Detalle adicional…" />
+
+        {esCanje && (
+          <p className="text-[11px] px-3 py-2 rounded-lg" data-aviso-canje
+            style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-border)', color: 'var(--accent-lift)' }}>
+            Canje: la factura se cancela sin plata. Queda como pagada y no cuenta como plata que salió en Finanzas ni en el cash flow.
+          </p>
+        )}
 
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose}
