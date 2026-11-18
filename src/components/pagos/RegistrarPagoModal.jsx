@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Wallet, Pencil, Package } from 'lucide-react'
+import { Wallet, Pencil, Package, Repeat } from 'lucide-react'
 import { usePagos } from '../../hooks/usePagos'
 import { useProveedores } from '../../hooks/useProveedores'
 import { ModalShell, Field, Select, TextArea } from '../finanzas/fields'
@@ -7,6 +7,8 @@ import { CATEGORIAS, MEDIOS_PAGO, MEDIO_CANJE, errorDeCanje, fmtPlata, localDate
 import ProductosBoleta from './ProductosBoleta'
 import { TOLERANCIA_BOLETA, armarFilas, cambioLaBoleta, itemsParaGuardar, numero, pareceMiles, problemaBoleta, puedeLlevarProductos } from '../../lib/compras'
 import { cargarItemsDePago, cargarProductosCompra } from '../../lib/comprasApi'
+import { explicarRepeticion, limpiarMes, mesTexto } from '../../lib/gastosFijos'
+import { gastoFijoDesdePago, gastosFijosDisponibles } from '../../lib/gastosFijosApi'
 
 // Alta centralizada de pagos: ESTE es el único formulario para registrar un
 // egreso del negocio. Lo usan Caja → Pagos, el arqueo del turno abierto
@@ -32,6 +34,11 @@ import { cargarItemsDePago, cargarProductosCompra } from '../../lib/comprasApi'
 // stock, actualiza el precio de costo y deja todo atado a este pago; corregir
 // o anular el pago corrige o devuelve el stock. Va en una sola transacción
 // (registrar_compra / editar_compra). Sin el SQL 56 la sección no aparece.
+//
+// Gastos fijos (SQL 60): al cargar un pago nuevo se puede tildar "Se repite
+// todos los meses". Después del alta, gasto_fijo_desde_pago() arma el gasto
+// fijo con este pago como el de su mes, y desde el mes siguiente el sistema
+// crea solo el pendiente. Sin el SQL 60 la casilla no aparece.
 export default function RegistrarPagoModal({
   onClose,
   onRegistrado,
@@ -83,6 +90,19 @@ export default function RegistrarPagoModal({
         cuenta_id: '',
       })
   const [motivo, setMotivo] = useState('')
+  // "Se repite todos los meses" (solo en un alta, con el SQL 60).
+  const [fijos, setFijos] = useState(null)          // null = no se sabe · true/false
+  const [repetir, setRepetir] = useState(false)
+  const [diaRep, setDiaRep] = useState('')
+  const [nombreRep, setNombreRep] = useState('')
+  const [nombreTocado, setNombreTocado] = useState(false)
+  const [diaTocado, setDiaTocado] = useState(false)
+  useEffect(() => {
+    if (edicion) return undefined
+    let vivo = true
+    gastosFijosDisponibles().then(ok => { if (vivo) setFijos(ok) }).catch(() => { if (vivo) setFijos(false) })
+    return () => { vivo = false }
+  }, [edicion])
   const [busy, setBusy]   = useState(false)
   const [error, setError] = useState(null)
 
@@ -98,6 +118,19 @@ export default function RegistrarPagoModal({
   const originalesVolcados = useRef(false)
 
   const set = (k) => (v) => setForm(f => ({ ...f, [k]: v }))
+  // Al marcar pagado un pendiente (corrección), la fecha del pago pasa a ser
+  // hoy, si nadie la tocó: la fecha de carga del pendiente no es el día en que
+  // salió la plata. Si se vuelve a pendiente, se restaura.
+  const fechaOriginal = initial?.fecha?.slice(0, 10) || null
+  const conEstado = (f, estado) => {
+    const n = { ...f, estado }
+    if (edicion && initial?.estado === 'pendiente') {
+      if (estado === 'pagado' && f.fecha === fechaOriginal) n.fecha = localDateISO()
+      if (estado === 'pendiente' && f.fecha === localDateISO() && fechaOriginal) n.fecha = fechaOriginal
+    }
+    return n
+  }
+  const elegirEstado = (v) => setForm(f => conEstado(f, v))
   const esSueldo        = form.categoria === 'sueldos'
   const pendiente       = form.estado === 'pendiente'
   const esEfectivo      = form.medio_pago === 'efectivo'
@@ -106,7 +139,7 @@ export default function RegistrarPagoModal({
 
   // Un canje ya es la forma en que se canceló la factura: no puede quedar
   // pendiente. Al elegirlo el estado pasa a Pagado (y la base lo exige igual).
-  const elegirMedio = (v) => setForm(f => ({ ...f, medio_pago: v, ...(v === MEDIO_CANJE ? { estado: 'pagado' } : {}) }))
+  const elegirMedio = (v) => setForm(f => (v === MEDIO_CANJE ? conEstado({ ...f, medio_pago: v }, 'pagado') : { ...f, medio_pago: v }))
   // En una proyección el pago siempre queda pendiente: ahí el canje no va.
   const mediosOfrecidos = MEDIOS_PAGO
     .filter(m => !modoProyeccion || m.id !== MEDIO_CANJE)
@@ -257,7 +290,21 @@ export default function RegistrarPagoModal({
   const montoNum = numero(form.monto)
   const montoEnMiles = pareceMiles(form.monto)
 
+  // El gasto fijo: el día sale del vencimiento (o de la fecha) y el nombre de
+  // la descripción sin el mes, hasta que alguien los cambie a mano.
+  const ofreceRepetir = fijos === true && !edicion && !esSueldo && !esCanje && !(ofreceProductos && conProductos)
+  const diaSugerido = String(Number(String((pendiente && form.vencimiento) || form.fecha || '').slice(8, 10)) || '')
+  const diaRepetir = diaTocado ? diaRep : diaSugerido
+  const nombreRepetir = nombreTocado ? nombreRep : limpiarMes(form.descripcion)
+  const diaRepNum = Number(diaRepetir)
+  const repeticionValida = Number.isInteger(diaRepNum) && diaRepNum >= 1 && diaRepNum <= 31 && nombreRepetir.trim().length > 0
+  const vaARepetir = ofreceRepetir && repetir
+  const repeticion = vaARepetir
+    ? explicarRepeticion({ estado: modoProyeccion ? 'pendiente' : form.estado, fecha: form.fecha, vencimiento: form.vencimiento, dia: diaRepNum, nombre: nombreRepetir })
+    : null
+
   const valido = form.descripcion.trim() && montoNum > 0 && (!esSueldo || form.empleado_id) && !problemaProductos
+    && (!vaARepetir || repeticionValida)
 
   const guardar = async () => {
     setBusy(true); setError(null)
@@ -297,6 +344,16 @@ export default function RegistrarPagoModal({
       const resultado = vaComoCompra
         ? await registrarCompra(datosAlta, filasAEnviar, permitirDiferencia)
         : await registrarPago(datosAlta)
+      // El pago ya está guardado: si el gasto fijo falla, se avisa sin perderlo.
+      let colaFijo = ''
+      if (vaARepetir && resultado?.egreso_id) {
+        try {
+          await gastoFijoDesdePago(resultado.egreso_id, diaRepNum, nombreRepetir.trim())
+          colaFijo = ` Quedó como gasto fijo: desde ${repeticion.siguiente ? mesTexto(repeticion.siguiente) : 'el mes que viene'} se carga solo como pendiente.`
+        } catch (err) {
+          colaFijo = ` El pago se guardó, pero no se pudo armar el gasto fijo (${err.message}). Cargalo desde «Gastos fijos».`
+        }
+      }
       onRegistrado?.(
         (form.estado === 'pendiente'
           ? (naturalezaPendiente(form.vencimiento || null) === 'deuda'
@@ -312,7 +369,7 @@ export default function RegistrarPagoModal({
             ? 'Pago registrado. Salió de la caja fuerte: su saldo ya lo descuenta.'
             : turnoAbierto
               ? 'Pago registrado y vinculado al turno abierto (no toca el efectivo de la caja).'
-              : 'Pago registrado. No había turno de caja abierto, quedó sin vincular.') + colaStock,
+              : 'Pago registrado. No había turno de caja abierto, quedó sin vincular.') + colaStock + colaFijo,
         resultado,
       )
       onClose()
@@ -445,7 +502,7 @@ export default function RegistrarPagoModal({
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            <Select label="Estado" value={form.estado} onChange={set('estado')}
+            <Select label="Estado" value={form.estado} onChange={elegirEstado}
               hint={esCanje ? 'Con canje siempre queda pagado.' : undefined}
               options={esCanje
                 ? [{ value: 'pagado', label: 'Pagado (con canje)' }]
@@ -454,6 +511,44 @@ export default function RegistrarPagoModal({
               ? <Field label="Vencimiento" type="date" value={form.vencimiento} onChange={set('vencimiento')} />
               : <Field label="Comprobante (opcional)" value={form.comprobante_nro} onChange={set('comprobante_nro')} placeholder="Nº factura / recibo" />}
           </div>
+        )}
+
+        {/* Gasto fijo: se carga una vez y el sistema crea el de cada mes. */}
+        {ofreceRepetir && (
+          <div className="rounded-lg px-3 py-2.5 space-y-2.5" data-repetir
+            style={{ border: `1px ${repetir ? 'solid' : 'dashed'} var(--accent-border)`, background: repetir ? 'var(--accent-soft)' : 'transparent' }}>
+            <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer" style={{ color: 'var(--accent-lift)' }}>
+              <input type="checkbox" checked={repetir} onChange={e => setRepetir(e.target.checked)} />
+              <Repeat size={14} /> Se repite todos los meses
+            </label>
+            {!repetir ? (
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                Alquiler, autónomos, F931…: se carga una vez y el sistema crea el pendiente de cada mes.
+              </p>
+            ) : (
+              <>
+                <div className="grid grid-cols-[110px_1fr] gap-3">
+                  <Field label="Vence el día" value={diaRepetir} inputMode="numeric" placeholder="10"
+                    onChange={(x) => { setDiaTocado(true); setDiaRep(x) }} />
+                  <Field label="Nombre para los próximos meses" value={nombreRepetir} maxLength={120}
+                    onChange={(x) => { setNombreTocado(true); setNombreRep(x) }} />
+                </div>
+                <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }} data-explica-repeticion>
+                  {repeticionValida
+                    ? repeticion.texto
+                    : 'Completá el día (de 1 a 31) y el nombre.'}
+                  {' '}Se cambia o se pausa en «Gastos fijos».
+                </p>
+              </>
+            )}
+          </div>
+        )}
+        {edicion && initial?.gasto_fijo_id && (
+          <p className="text-[11px] flex items-start gap-1.5" style={{ color: 'var(--text-muted)' }} data-es-gasto-fijo>
+            <Repeat size={12} className="mt-0.5 flex-shrink-0" />
+            Es de un gasto fijo. Lo que corrijas acá vale para este mes; si lo marcás pagado con otro monto, los meses que vienen toman ese monto.
+            El día y el nombre se cambian en «Gastos fijos».
+          </p>
         )}
 
         <TextArea label="Notas (opcional)" value={form.notas} onChange={set('notas')} rows={2}

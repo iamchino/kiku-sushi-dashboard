@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { editarPago as editarPagoRpc, anularPago as anularPagoRpc, historialDePago } from '../lib/pagos'
 import { registrarCompra as registrarCompraRpc, editarCompra as editarCompraRpc } from '../lib/comprasApi'
+import { generarGastosFijosHoy } from '../lib/gastosFijosApi'
 
 // Texto por defecto si la instalación todavía no cargó el nombre de su cuenta.
 const BANCO_FALLBACK = 'Cuenta bancaria del negocio'
@@ -45,6 +46,9 @@ export function usePagos(opciones = {}) {
   const cargar = useCallback(async () => {
     setLoading(true); setError(null)
     try {
+      // Antes de leer la lista: los pendientes de los gastos fijos que
+      // correspondan a este mes (SQL 60). Una vez por día; sin el SQL no hace nada.
+      if (lista) await generarGastosFijosHoy()
       let pagosQuery = null
       if (lista) {
         const armar = (conCuenta) => {

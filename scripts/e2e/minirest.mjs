@@ -119,6 +119,9 @@ const EMBEBIDOS = {
   egresos: (sel) => [
     /proveedor:proveedores\(/.test(sel) && `(select json_build_object('razon_social', pr.razon_social) from public.proveedores pr where pr.id = t.proveedor_id) as proveedor`,
   ].filter(Boolean),
+  gastos_fijos: (sel) => [
+    /proveedor:proveedores\(/.test(sel) && `(select json_build_object('razon_social', pr.razon_social) from public.proveedores pr where pr.id = t.proveedor_id) as proveedor`,
+  ].filter(Boolean),
   // Inventario pide stock con sus movimientos y una lista de columnas. Se
   // respetan las columnas pedidas: si alguna no existe (base sin el SQL 56)
   // tiene que fallar como en PostgREST, para probar el reintento del front.

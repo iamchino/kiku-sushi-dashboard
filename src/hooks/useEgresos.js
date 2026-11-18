@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { editarPago, anularPago, historialDePago } from '../lib/pagos'
+import { generarGastosFijosHoy } from '../lib/gastosFijosApi'
 
 const SELECT = '*, proveedor:proveedores(razon_social), empleado:empleados(nombre, apellido)'
 
@@ -16,6 +17,9 @@ export function useEgresos(desde, hasta) {
   const fetchEgresos = useCallback(async () => {
     setLoading(true); setError(null)
     try {
+      // Antes de leer: los pendientes de los gastos fijos que correspondan a
+      // este mes (SQL 60). Una vez por día; sin el SQL no hace nada.
+      await generarGastosFijosHoy()
       const rangoQuery = supabase
         .from('egresos')
         .select(SELECT)

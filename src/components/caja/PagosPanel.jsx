@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Wallet, Plus, AlertTriangle, Link2, Clock, CheckCircle2, Pencil, Trash2, History, Search, X, Package, FileText } from 'lucide-react'
+import { Wallet, Plus, AlertTriangle, Link2, Clock, CheckCircle2, Pencil, Trash2, History, Search, X, Package, FileText, Repeat } from 'lucide-react'
 import { usePagos } from '../../hooks/usePagos'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 import HistorialPago from '../pagos/HistorialPago'
@@ -7,6 +7,8 @@ import ConfirmDelete from '../finanzas/ConfirmDelete'
 import { CATEGORIAS, fmtMoney, fmtFecha, catLabel, catColor, medioLabel, localDateISO, esCanje, totalCanjes } from '../../lib/finanzas'
 import { normalizeSearch } from '../../utils/normalize'
 import { contarItemsDePagos } from '../../lib/comprasApi'
+import { gastosFijosDisponibles } from '../../lib/gastosFijosApi'
+import GastosFijosModal from '../pagos/GastosFijosModal'
 
 // Pagos centralizados: TODOS los egresos del negocio se registran acá, con la
 // caja abierta o cerrada. Un pago es un egreso — Finanzas lo ve al instante.
@@ -69,6 +71,14 @@ export default function PagosPanel({ onCambio = null }) {
   const [aviso, setAviso] = useState(null)
   const [anulando, setAnulando] = useState(null)
   const [verHistorial, setVerHistorial] = useState(null)
+  // Gastos fijos (SQL 60): el botón aparece solo si la base los tiene.
+  const [fijos, setFijos] = useState(false)
+  const [verFijos, setVerFijos] = useState(false)
+  useEffect(() => {
+    let vivo = true
+    gastosFijosDisponibles().then(ok => { if (vivo) setFijos(ok) }).catch(() => {})
+    return () => { vivo = false }
+  }, [])
 
   // Qué pagos metieron mercadería al stock (boleta con productos, SQL 56).
   // Es un adorno de la lista: si la base no lo tiene, queda vacío.
@@ -108,11 +118,20 @@ export default function PagosPanel({ onCambio = null }) {
             </p>
           </div>
         </div>
-        <button onClick={() => { setAviso(null); setModal(true) }}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
-          style={{ background: 'var(--cta)' }}>
-          <Plus size={14} /> Registrar pago
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {fijos && (
+            <button onClick={() => { setAviso(null); setVerFijos(true) }}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}>
+              <Repeat size={14} /> Gastos fijos
+            </button>
+          )}
+          <button onClick={() => { setAviso(null); setModal(true) }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
+            style={{ background: 'var(--cta)' }}>
+            <Plus size={14} /> Registrar pago
+          </button>
+        </div>
       </div>
 
       {/* Filtros: fecha + categoría + estado */}
@@ -226,6 +245,12 @@ export default function PagosPanel({ onCambio = null }) {
                         <Clock size={10} /> pendiente{p.vencimiento ? ` · vence ${fmtFecha(p.vencimiento)}` : ''}
                       </span>
                     )}
+                    {p.gasto_fijo_id && (
+                      <span data-gasto-fijo-chip className="flex items-center gap-1" style={{ color: 'var(--text-muted)' }}
+                        title="Gasto fijo: se carga solo todos los meses">
+                        <Repeat size={10} /> fijo
+                      </span>
+                    )}
                     {esCanje(p) && (
                       <span data-canje className="font-semibold px-1.5 py-0.5 rounded-full"
                         style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)' }}
@@ -293,6 +318,10 @@ export default function PagosPanel({ onCambio = null }) {
           onClose={() => setModal(false)}
           onRegistrado={(mensaje) => { setAviso(mensaje); recargar(); onCambio?.() }}
         />
+      )}
+
+      {verFijos && (
+        <GastosFijosModal onClose={() => setVerFijos(false)} onCambio={() => { recargar(); onCambio?.() }} />
       )}
 
       {anulando && (

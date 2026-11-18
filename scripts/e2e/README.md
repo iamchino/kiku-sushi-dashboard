@@ -18,6 +18,7 @@ scripts/e2e/correr-stock-compras.sh        # boleta con productos, quién movió
 scripts/e2e/correr-iva.sh                  # IVA de las ventas en Caja, Excel y Finanzas (SQL 57)
 scripts/e2e/correr-administracion.sh       # "no se factura", comprobante en Pagos, facturas por proveedor, cierre de caja (SQL 58)
 scripts/e2e/correr-finanzas.sh             # pagar con canje, "Disponible hoy" con el saldo de los bancos, margen sin IVA (SQL 59)
+scripts/e2e/correr-gastos-fijos.sh         # gastos fijos: se cargan una vez y el pendiente de cada mes se crea solo (SQL 60)
 ```
 
 Cada una arma la base plantilla si no existe, compila el dashboard apuntando al
@@ -38,6 +39,7 @@ backend local, corre la batería de SQL y las de navegador, y deja capturas en
 | `iva-sql.sql`, `iva-t*.mjs` | IVA de las ventas: resumen por fecha de emisión, notas de crédito, comprobantes sin desglose, permisos; Caja (Totales y cada orden), Excel (hoja "IVA ventas" completa aunque pase las 1000 filas), Finanzas como rol finanzas, celular y base sin el SQL 57. `seed-iva.sql` carga los casos de hoy y un día con 1200 facturas (recibe la fecha con `-v hoy=…`). |
 | `sf-sql.sql`, `adm-t*.mjs` | Pedidos de administración: marca "no se factura" (SQL, Caja, celular, base sin el SQL 58), N° de comprobante y buscador en Pagos, "Facturas y pagos" del proveedor, aviso al cerrar con medios sin cargar, freno al guardar en la caja fuerte y el recorrido completo para corregir un cierre viejo (reabrir → editar el movimiento → volver a cerrar → corrección de la caja fuerte). `seed-adm.sql` recibe la fecha con `-v hoy=…`. |
 | `fz-sql.sql`, `fz-t*.mjs` | Consultas de administración del 17/11: pagar con canje (queda pagado, sin caja ni cuenta, fuera de "Salió", del cash flow y de los totales del Excel; base sin el SQL 59), "Disponible hoy" (caja, caja fuerte y el saldo de cada cuenta cargado a mano, con historial, aviso de saldo viejo, solo lectura y celular), margen de recetas, bebidas y combos contra el precio sin IVA, y la boleta con productos (el precio va sin IVA; reconoce cuando la diferencia es el 21 %). `seed-finanzas.sql` recibe la fecha con `-v hoy=…` y deja recetas con márgenes conocidos. |
+| `gf-sql.sql`, `gf-t*.mjs` | Gastos fijos: vencimiento de cada mes (31 → último día), un pendiente por mes aunque se llame mil veces, catch-up de meses (tope 12), un pendiente borrado no vuelve, "Se repite todos los meses" desde un pago, el monto que se actualiza con lo último pagado (no un mes viejo, no el canje), pausa/reanudación, permisos y llamada sin usuario (pg_cron). En el navegador: el F931 de la captura, alta/pausa/corrección/borrado, generación al abrir Pagos, fecha de pago = hoy al marcar pagado, rol de solo lectura, celular y base sin el SQL 60. Usa `seed-finanzas.sql`. |
 | `cf-sql.sql`, `cf-t*.mjs` | Cash flow: agregado por mes y zona horaria, RLS, edición de estimados, saldo, Excel, rol de solo lectura, base sin el SQL 55. `seed-cashflow.sql` carga tres meses de cobros y pagos de ejemplo (más de 1000 cobros por mes) y `cf-capturas.mjs` saca las capturas para mostrar. |
 
 ## Para probar otra cosa

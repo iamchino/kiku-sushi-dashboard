@@ -145,7 +145,7 @@ export const CAMPO_PAGO = {
   caja_turno_id: 'turno de caja',
   pagado_desde: 'de dónde salió',
   cuenta_id: 'cuenta',
-  recurrente: 'recurrente',
+  recurrente: 'gasto fijo',
 }
 
 const ORIGEN_TEXTO = {
@@ -167,7 +167,7 @@ export function valorPago(campo, valor) {
 
 // Los cambios de un renglón 'editado', ya filtrados y traducidos.
 // Se ocultan los campos que no le dicen nada a nadie.
-const OCULTOS = new Set(['id', 'created_at', 'updated_at', 'usuario_id', 'periodo'])
+const OCULTOS = new Set(['id', 'created_at', 'updated_at', 'usuario_id', 'periodo', 'gasto_fijo_id'])
 
 export function cambiosDePago(fila) {
   const cambios = fila?.detalle?.cambios

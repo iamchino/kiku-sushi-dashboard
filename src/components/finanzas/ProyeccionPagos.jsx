@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { AlertTriangle, CalendarClock, CheckCircle2, Edit2, Flame, History, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, CalendarClock, CheckCircle2, Edit2, Flame, History, Plus, Repeat, Trash2 } from 'lucide-react'
 import { useEgresos } from '../../hooks/useEgresos'
 import { useProveedores } from '../../hooks/useProveedores'
 import { useEmpleados } from '../../hooks/useEmpleados'
@@ -8,6 +8,8 @@ import EgresoModal from './EgresoModal'
 import ConfirmDelete from './ConfirmDelete'
 import HistorialPago from '../pagos/HistorialPago'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
+import GastosFijosModal from '../pagos/GastosFijosModal'
+import { gastosFijosDisponibles } from '../../lib/gastosFijosApi'
 
 // Proyección de pagos: lo pendiente de pagar, separado en dos naturalezas:
 //
@@ -66,6 +68,11 @@ function FilaPendiente({ e, hoy, onEditar, onEliminar }) {
               {catLabel(e.categoria)}
             </span>
             {e.vencimiento && <span>{fmtFecha(e.vencimiento)}</span>}
+            {e.gasto_fijo_id && (
+              <span data-gasto-fijo-chip className="flex items-center gap-0.5" title="Gasto fijo: se carga solo todos los meses">
+                · <Repeat size={9} /> fijo
+              </span>
+            )}
             <span style={{ color: urgente ? '#F2708C' : 'var(--text-muted)', fontWeight: urgente ? 600 : 400 }}>
               · {tiempoLabel(e, hoy)}
             </span>
@@ -129,6 +136,14 @@ export default function ProyeccionPagos() {
   const [nueva, setNueva] = useState(false)
   const [borrando, setBorrando] = useState(null)
   const [aviso, setAviso] = useState(null)
+  // Gastos fijos (SQL 60): el botón aparece solo si la base los tiene.
+  const [fijos, setFijos] = useState(false)
+  const [verFijos, setVerFijos] = useState(false)
+  useEffect(() => {
+    let vivo = true
+    gastosFijosDisponibles().then(ok => { if (vivo) setFijos(ok) }).catch(() => {})
+    return () => { vivo = false }
+  }, [])
 
   const hoy = localDateISO()
 
@@ -167,11 +182,20 @@ export default function ProyeccionPagos() {
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
           Lo que falta pagar: cuánto y cuándo. Los pagos ya hechos están en el Resumen.
         </p>
-        <button onClick={() => { setAviso(null); setNueva(true) }}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
-          style={{ background: 'var(--cta)' }}>
-          <Plus size={14} /> Nueva proyección de pago
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {fijos && (
+            <button onClick={() => { setAviso(null); setVerFijos(true) }}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }}>
+              <Repeat size={14} /> Gastos fijos
+            </button>
+          )}
+          <button onClick={() => { setAviso(null); setNueva(true) }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
+            style={{ background: 'var(--cta)' }}>
+            <Plus size={14} /> Nueva proyección de pago
+          </button>
+        </div>
       </div>
 
       {aviso && (
@@ -252,6 +276,10 @@ export default function ProyeccionPagos() {
           onClose={() => setNueva(false)}
           onRegistrado={(mensaje) => { setAviso(mensaje); refetch() }}
         />
+      )}
+
+      {verFijos && (
+        <GastosFijosModal onClose={() => setVerFijos(false)} onCambio={() => refetch()} />
       )}
 
       {editando && (

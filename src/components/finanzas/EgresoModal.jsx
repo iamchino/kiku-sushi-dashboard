@@ -37,7 +37,19 @@ export default function EgresoModal({ initial, defaults, proveedores = [], emple
   const esSueldo = form.categoria === 'sueldos'
   // Canje = la factura se canceló sin plata: siempre queda pagada (SQL 59).
   const esCanje = form.medio_pago === MEDIO_CANJE
-  const elegirMedio = (v) => setForm(f => ({ ...f, medio_pago: v, ...(v === MEDIO_CANJE ? { estado: 'pagado' } : {}) }))
+  // Al marcar pagado un pendiente, la fecha del pago pasa a ser hoy si nadie
+  // la tocó (la de carga del pendiente no es el día en que salió la plata).
+  // Si se vuelve a pendiente, se restaura.
+  const fechaOriginal = initial?.fecha?.slice(0, 10) || null
+  const conEstado = (f, estado) => {
+    const n = { ...f, estado }
+    if (initial?.estado === 'pendiente') {
+      if (estado === 'pagado' && f.fecha === fechaOriginal) n.fecha = localDateISO()
+      if (estado === 'pendiente' && f.fecha === localDateISO() && fechaOriginal) n.fecha = fechaOriginal
+    }
+    return n
+  }
+  const elegirMedio = (v) => setForm(f => (v === MEDIO_CANJE ? conEstado({ ...f, medio_pago: v }, 'pagado') : { ...f, medio_pago: v }))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -61,7 +73,8 @@ export default function EgresoModal({ initial, defaults, proveedores = [], emple
       medio_pago: form.medio_pago,
       estado: form.estado,
       vencimiento: form.estado === 'pendiente' ? (form.vencimiento || null) : null,
-      periodo: (form.fecha || localDateISO()).slice(0, 7),
+      // El de un gasto fijo es el mes al que corresponde: no se mueve con la fecha.
+      periodo: initial?.gasto_fijo_id && initial?.periodo ? initial.periodo : (form.fecha || localDateISO()).slice(0, 7),
       proveedor_id: form.proveedor_id || null,
       empleado_id: form.empleado_id || null,
       comprobante_nro: form.comprobante_nro?.trim() || null,
@@ -120,7 +133,7 @@ export default function EgresoModal({ initial, defaults, proveedores = [], emple
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <Select label="Estado" value={form.estado} onChange={v => set('estado', v)}
+          <Select label="Estado" value={form.estado} onChange={v => setForm(f => conEstado(f, v))}
             options={esCanje
               ? [{ value: 'pagado', label: 'Pagado (con canje)' }]
               : [{ value: 'pagado', label: 'Pagado' }, { value: 'pendiente', label: 'Pendiente (por pagar)' }]} />
