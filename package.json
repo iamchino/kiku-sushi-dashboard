@@ -15,6 +15,7 @@
     "verificar:sinfactura": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-sin-factura.mjs",
     "verificar:finanzas": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-finanzas.mjs",
     "verificar:gastosfijos": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-gastos-fijos.mjs",
+    "verificar:tarjeta": "node --import ./scripts/registrar-resolver.mjs scripts/verificar-tarjeta.mjs",
     "preview": "vite preview",
     "android:sync": "vite build && npx cap sync android",
     "android:open": "vite build && npx cap sync android && npx cap open android"

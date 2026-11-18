@@ -136,6 +136,7 @@ export default function RegistrarPagoModal({
   const esEfectivo      = form.medio_pago === 'efectivo'
   const esTransferencia = form.medio_pago === 'transferencia'
   const esCanje         = form.medio_pago === MEDIO_CANJE
+  const esTarjetaCredito = form.medio_pago === 'tarjeta_credito'
 
   // Un canje ya es la forma en que se canceló la factura: no puede quedar
   // pendiente. Al elegirlo el estado pasa a Pagado (y la base lo exige igual).
@@ -198,6 +199,7 @@ export default function RegistrarPagoModal({
   }
 
   const efectoCaja = useMemo(() => {
+    if ((pendiente || modoProyeccion) && esTarjetaCredito) return 'Tarjeta de crédito sin pagar: queda en Finanzas → Proyección de pagos → «Tarjeta de crédito» y se marca pagado junto con el resumen («Pagar el resumen»). No toca ninguna caja.'
     if (modoProyeccion) {
       const natural = naturalezaPendiente(form.vencimiento || null)
       if (!form.vencimiento) {
@@ -223,9 +225,10 @@ export default function RegistrarPagoModal({
         : `Sale de ${nombreCuenta}. Queda registrado como egreso; no afecta ningún arqueo.`
       return 'Transferencia sin origen registrado: queda anotada, sin descontar de ninguna cuenta.'
     }
+    if (esTarjetaCredito && !edicion) return 'Tarjeta de crédito: la plata sale cuando se paga el resumen. Si todavía no lo pagaste, guardalo como Pendiente: queda en Proyección → «Tarjeta de crédito» y se marca pagado junto con el resumen.'
     if (esCanje) return 'Canje: la factura se cancela sin plata. Queda como pagada y no toca ninguna caja ni cuenta; tampoco cuenta como plata que salió en Finanzas ni en el cash flow. Si a cambio la otra parte va a consumir en el local, creá o ampliá su cuenta en Dinero → Cuentas corrientes.'
     return 'No es efectivo ni transferencia: se registra sin tocar la caja ni la cuenta del banco.'
-  }, [modoProyeccion, form.vencimiento, pendiente, turnoAbierto, esEfectivo, esTransferencia, esCanje, origenResuelto, nombreCuenta, edicion])
+  }, [modoProyeccion, form.vencimiento, pendiente, turnoAbierto, esEfectivo, esTransferencia, esCanje, esTarjetaCredito, origenResuelto, nombreCuenta, edicion])
 
   // Lo que ya tenía cargado el pago (solo al editar). Si tenía productos, la
   // sección arranca abierta con ellos.

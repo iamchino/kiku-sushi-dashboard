@@ -242,7 +242,9 @@ export default function PagosPanel({ onCambio = null }) {
                     )}
                     {p.estado === 'pendiente' && (
                       <span className="flex items-center gap-1" style={{ color: '#E8A23F' }}>
-                        <Clock size={10} /> pendiente{p.vencimiento ? ` · vence ${fmtFecha(p.vencimiento)}` : ''}
+                        <Clock size={10} /> pendiente{p.medio_pago === 'tarjeta_credito'
+                          ? ' · en la tarjeta, se paga con el resumen'
+                          : p.vencimiento ? ` · vence ${fmtFecha(p.vencimiento)}` : ''}
                       </span>
                     )}
                     {p.gasto_fijo_id && (

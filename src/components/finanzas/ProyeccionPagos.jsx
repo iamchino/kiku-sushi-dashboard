@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CalendarClock, CheckCircle2, Edit2, Flame, History, Plus, Repeat, Trash2 } from 'lucide-react'
+import { AlertTriangle, CalendarClock, CheckCircle2, CreditCard, Edit2, Flame, History, Plus, Repeat, Trash2 } from 'lucide-react'
 import { useEgresos } from '../../hooks/useEgresos'
 import { useProveedores } from '../../hooks/useProveedores'
 import { useEmpleados } from '../../hooks/useEmpleados'
@@ -10,6 +10,9 @@ import HistorialPago from '../pagos/HistorialPago'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 import GastosFijosModal from '../pagos/GastosFijosModal'
 import { gastosFijosDisponibles } from '../../lib/gastosFijosApi'
+import { resumenTarjeta, separarPendientes, textoCompras, textoFilaTarjeta } from '../../lib/tarjeta'
+import { usePermisos } from '../../context/usePermisos'
+import PagarResumenModal from './PagarResumenModal'
 
 // Proyección de pagos: lo pendiente de pagar, separado en dos naturalezas:
 //
@@ -20,6 +23,11 @@ import { gastosFijosDisponibles } from '../../lib/gastosFijosApi'
 //
 // Un pendiente pasa de proyección a deuda solo, cuando el calendario lo
 // alcanza. Se marca pagado editándolo con el lápiz.
+//
+// TARJETA DE CRÉDITO (18/11): los pendientes con medio "Tarjeta crédito" no
+// son deuda con el proveedor (ya cobró): son compras que se pagan con el
+// resumen. Van aparte, con su total, y "Pagar el resumen" los marca pagados
+// juntos con la fecha del pago (src/lib/tarjeta.js).
 
 
 function sumar(items) {
@@ -48,8 +56,8 @@ function tiempoLabel(e, hoy) {
   return `vence en ${d} días`
 }
 
-function FilaPendiente({ e, hoy, onEditar, onEliminar }) {
-  const urgente = e.vencimiento && diasHasta(e.vencimiento, hoy) <= 0
+function FilaPendiente({ e, hoy, onEditar, onEliminar, tarjeta = false }) {
+  const urgente = !tarjeta && e.vencimiento && diasHasta(e.vencimiento, hoy) <= 0
   const [historial, setHistorial] = useState(false)
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg px-3 py-2.5"
@@ -67,14 +75,14 @@ function FilaPendiente({ e, hoy, onEditar, onEliminar }) {
               style={{ background: `${catColor(e.categoria)}22`, color: catColor(e.categoria) }}>
               {catLabel(e.categoria)}
             </span>
-            {e.vencimiento && <span>{fmtFecha(e.vencimiento)}</span>}
+            {!tarjeta && e.vencimiento && <span>{fmtFecha(e.vencimiento)}</span>}
             {e.gasto_fijo_id && (
               <span data-gasto-fijo-chip className="flex items-center gap-0.5" title="Gasto fijo: se carga solo todos los meses">
                 · <Repeat size={9} /> fijo
               </span>
             )}
             <span style={{ color: urgente ? '#F2708C' : 'var(--text-muted)', fontWeight: urgente ? 600 : 400 }}>
-              · {tiempoLabel(e, hoy)}
+              · {tarjeta ? textoFilaTarjeta(e) : tiempoLabel(e, hoy)}
             </span>
           </p>
         </div>
@@ -136,6 +144,9 @@ export default function ProyeccionPagos() {
   const [nueva, setNueva] = useState(false)
   const [borrando, setBorrando] = useState(null)
   const [aviso, setAviso] = useState(null)
+  const [pagandoResumen, setPagandoResumen] = useState(false)
+  const { puedeEditar } = usePermisos()
+  const editable = puedeEditar('finanzas') || puedeEditar('pagos')
   // Gastos fijos (SQL 60): el botón aparece solo si la base los tiene.
   const [fijos, setFijos] = useState(false)
   const [verFijos, setVerFijos] = useState(false)
@@ -147,17 +158,21 @@ export default function ProyeccionPagos() {
 
   const hoy = localDateISO()
 
+  // Lo de la tarjeta va aparte: no es deuda con el proveedor.
+  const { tarjeta, resto } = useMemo(() => separarPendientes(pendientes), [pendientes])
+  const enTarjeta = resumenTarjeta(tarjeta)
+
   const grupos = useMemo(() => {
     const limiteDeuda = sumarDias(hoy, DIAS_ANTES_DE_SER_DEUDA)
     const vencidos = [], porVencer = [], proyectados = [], sinFecha = []
-    pendientes.forEach(e => {
+    resto.forEach(e => {
       if (!e.vencimiento) sinFecha.push(e)
       else if (e.vencimiento < hoy) vencidos.push(e)
       else if (e.vencimiento <= limiteDeuda) porVencer.push(e)
       else proyectados.push(e)
     })
     return { vencidos, porVencer, proyectados, sinFecha }
-  }, [pendientes, hoy])
+  }, [resto, hoy])
 
   const totalDeuda = sumar(grupos.vencidos) + sumar(grupos.porVencer)
   const totalProyeccion = sumar(grupos.proyectados) + sumar(grupos.sinFecha)
@@ -206,7 +221,7 @@ export default function ProyeccionPagos() {
       )}
 
       {/* Deuda vs proyección: dos números distintos, no una sola bolsa */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className={`grid grid-cols-1 gap-3 ${tarjeta.length > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
         <div className="rounded-xl p-4"
           style={{ background: 'var(--bg-card)', border: `1px solid ${totalDeuda > 0 ? 'rgba(242,112,140,0.4)' : 'var(--border-card)'}`, boxShadow: 'var(--shadow-card)' }}>
           <div className="flex items-center gap-2">
@@ -237,6 +252,21 @@ export default function ProyeccionPagos() {
               : 'Nada comprometido a futuro'}
           </p>
         </div>
+        {tarjeta.length > 0 && (
+          <div className="rounded-xl p-4" data-total-tarjeta
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}>
+            <div className="flex items-center gap-2">
+              <CreditCard size={15} style={{ color: '#C9A0F2' }} />
+              <p className="text-[11px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-xmuted)' }}>Tarjeta de crédito</p>
+            </div>
+            <p className="mt-1 text-3xl font-bold tracking-tight" style={{ color: '#C9A0F2' }}>
+              {fmtMoney(enTarjeta.total)}
+            </p>
+            <p className="mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              {textoCompras(enTarjeta.cantidad)} sin pagar · se pagan con el resumen
+            </p>
+          </div>
+        )}
       </div>
 
       {pendientes.length === 0 ? (
@@ -261,6 +291,34 @@ export default function ProyeccionPagos() {
             items={grupos.proyectados} hoy={hoy} onEditar={setEditando} onEliminar={setBorrando} />
           <Grupo titulo="Proyección · sin fecha de vencimiento" color="#94a3b8"
             items={grupos.sinFecha} hoy={hoy} onEditar={setEditando} onEliminar={setBorrando} />
+          {tarjeta.length > 0 && (
+            <div className="rounded-xl p-4" data-seccion-tarjeta
+              style={{ background: 'var(--bg-card)', border: '1px solid rgba(201,160,242,0.35)', boxShadow: 'var(--shadow-card)' }}>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: '#C9A0F2' }}>
+                    <CreditCard size={14} /> Tarjeta de crédito · se pagan con el resumen
+                  </p>
+                  <p className="text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
+                    El proveedor ya cobró: la plata sale cuando se paga la tarjeta. No es deuda vencida.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{fmtMoney(enTarjeta.total)}</span>
+                  {editable && (
+                    <button onClick={() => { setAviso(null); setPagandoResumen(true) }}
+                      className="rounded-lg px-3 py-1.5 text-xs font-semibold"
+                      style={{ background: 'rgba(201,160,242,0.12)', color: '#C9A0F2', border: '1px solid rgba(201,160,242,0.35)' }}>
+                      Pagar el resumen
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {tarjeta.map(e => <FilaPendiente key={e.id} e={e} hoy={hoy} tarjeta onEditar={setEditando} onEliminar={setBorrando} />)}
+              </div>
+            </div>
+          )}
           <p className="text-center text-[10px]" style={{ color: 'var(--text-xmuted)' }}>
             Un pago pasa de proyección a deuda solo, {DIAS_ANTES_DE_SER_DEUDA} días antes de su vencimiento ·
             para pagarlo registralo en Caja → Pagos o marcalo pagado con el lápiz
@@ -276,6 +334,11 @@ export default function ProyeccionPagos() {
           onClose={() => setNueva(false)}
           onRegistrado={(mensaje) => { setAviso(mensaje); refetch() }}
         />
+      )}
+
+      {pagandoResumen && (
+        <PagarResumenModal items={tarjeta} onClose={() => setPagandoResumen(false)}
+          onPagado={(msg) => { if (msg) setAviso(msg); refetch() }} />
       )}
 
       {verFijos && (

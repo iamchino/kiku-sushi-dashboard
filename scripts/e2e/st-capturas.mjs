@@ -44,7 +44,8 @@ await a.page.screenshot({ path: `${DIR}/stock-1-boleta.png` })
 await modal.locator('button.w-full').last().click()
 await modal.waitFor({ state: 'detached' })
 await a.page.getByText(/Entraron 2 productos al stock/).waitFor()
-await a.page.getByText('2 productos al stock').waitFor()
+// La marca de la fila (exacta): el aviso de arriba también dice "2 productos al stock".
+await a.page.getByText('2 productos al stock', { exact: true }).waitFor()
 await a.page.setViewportSize({ width: 1360, height: 820 })
 await a.page.screenshot({ path: `${DIR}/stock-2-pagos.png` })
 
