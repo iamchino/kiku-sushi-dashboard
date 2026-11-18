@@ -12,7 +12,7 @@ import { fechaHoyAR } from '../lib/fiscal'
  */
 export function useCashflow({ primerMes, cantidad }) {
   const mesActual = mesDe(fechaHoyAR())
-  const [datos, setDatos] = useState({ filas: [], estimados: [], config: null })
+  const [datos, setDatos] = useState({ filas: [], estimados: [], config: null, fijos: [], fijosGenerados: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [faltaMigracion, setFaltaMigracion] = useState(false)
@@ -28,14 +28,14 @@ export function useCashflow({ primerMes, cantidad }) {
         // Primero la config: dice desde qué mes hay que traer el resto.
         const { config, faltaMigracion: falta } = await cargarConfigCashflow()
         if (falta) {
-          if (vivo) { setFaltaMigracion(true); setDatos({ filas: [], estimados: [], config: null }); setError(null) }
+          if (vivo) { setFaltaMigracion(true); setDatos({ filas: [], estimados: [], config: null, fijos: [], fijosGenerados: [] }); setError(null) }
           return
         }
         const desde = primerMesDeCalculo(primerMes, mesActual, config?.saldo_desde ? mesDe(config.saldo_desde) : null)
         const res = await cargarCashflow(desde, ultimoMes)   // la base toma el mes entero
         if (!vivo) return
         setFaltaMigracion(res.faltaMigracion)
-        setDatos({ filas: res.filas, estimados: res.estimados, config: res.config || config })
+        setDatos({ filas: res.filas, estimados: res.estimados, config: res.config || config, fijos: res.fijos || [], fijosGenerados: res.fijosGenerados || [] })
         setError(null)
       } catch (err) {
         if (vivo) setError(err.message || 'No se pudo cargar el cash flow.')
@@ -47,7 +47,7 @@ export function useCashflow({ primerMes, cantidad }) {
   }, [primerMes, ultimoMes, mesActual, version])
 
   const modelo = useMemo(
-    () => armarCashflow({ meses, filas: datos.filas, estimados: datos.estimados, config: datos.config, mesActual }),
+    () => armarCashflow({ meses, filas: datos.filas, estimados: datos.estimados, config: datos.config, mesActual, fijos: datos.fijos, fijosGenerados: datos.fijosGenerados }),
     [meses, datos, mesActual],
   )
 

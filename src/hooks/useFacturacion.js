@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { endOfDay, startOfDay } from 'date-fns'
 import { supabase } from '../lib/supabase'
 import {
@@ -59,7 +59,12 @@ export function useFacturacion(options = {}) {
     `caja-facturacion-${globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2, 10)}`
   ))
 
+  // Si se cambian las fechas rápido, una lectura vieja (más lenta) no pisa a
+  // la nueva: solo guarda su resultado la última que se pidió.
+  const ultimaLectura = useRef(0)
+
   const fetchData = useCallback(async () => {
+    const lectura = ++ultimaLectura.current
     setLoading(true)
     setError(null)
     setSetupWarning(null)
@@ -118,6 +123,8 @@ export function useFacturacion(options = {}) {
       .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle()
+
+    if (lectura !== ultimaLectura.current) return
 
     if (pedidosError) setError(pedidosError.message)
     if (configError) setSetupWarning('Falta configurar los datos fiscales de Kiku en Supabase.')

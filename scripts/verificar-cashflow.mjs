@@ -163,4 +163,51 @@ assert.deepEqual(filaDe('SALDO FINAL').slice(1), [-4480000, -9149000, -13666450,
 assert.equal(filaDe('Estado')[1], 'NEGATIVO'); assert.equal(filaDe('Mercadería como % de ingresos')[1], 78.6)
 assert.deepEqual(cf.matrizParaExcel(m2).find(r => r[0] === 'SALDO FINAL').slice(1), ['', '', '', ''], 'sin saldo configurado las celdas quedan vacías')
 
-console.log('✓ Cash flow: reproduce la planilla de administración; real / en curso / futuro, saldo, estados, series y Excel.')
+// ══ Gastos fijos (SQL 60) en los meses que vienen ═══════════════════════════
+{
+  const mesActual = '2026-11-01'
+  const meses = cf.listaMeses('2026-10-01', 5)          // oct (pasado) … feb
+  const fijos = [
+    { id: 'alq', descripcion: 'Alquiler Local', categoria: 'alquiler', monto: 1150000, dia_vencimiento: 10, desde: '2026-11', activo: true },
+    { id: 'f931', descripcion: 'F931', categoria: 'impuestos', monto: '355413', dia_vencimiento: 31, desde: '2026-12', activo: true },
+    { id: 'seg', descripcion: 'Seguro', categoria: 'otros', monto: 49358, dia_vencimiento: 14, desde: '2026-11', activo: false },
+  ]
+  // Noviembre del alquiler ya se creó (está en lo pendiente cargado); diciembre del F931 se armó desde un pago.
+  const generados = [{ gasto_fijo_id: 'alq', periodo: '2026-11' }, { gasto_fijo_id: 'f931', periodo: '2026-12' }]
+  const filas = [
+    { mes: '2026-11-01', concepto: 'alquiler', pagado: 0, pendiente: 1150000, cantidad: 1 },
+    { mes: '2026-12-01', concepto: 'impuestos', pagado: 0, pendiente: 355413, cantidad: 1 },
+  ]
+  const mapa = cf.fijosPorMes({ fijos, generados, meses, mesActual })
+  assert.equal(mapa.has('2026-10-01|local_servicios'), false, 'los meses pasados no llevan fijos')
+  assert.equal(mapa.has('2026-11-01|local_servicios'), false, 'noviembre del alquiler ya se creó: no se cuenta dos veces')
+  assert.equal(mapa.get('2026-12-01|local_servicios').monto, 1150000)
+  assert.equal(mapa.get('2026-12-01|local_servicios').items[0].vencimiento, '2026-12-10')
+  assert.equal(mapa.has('2026-12-01|impuestos'), false, 'el F931 de diciembre ya tiene su pago')
+  assert.equal(mapa.get('2027-01-01|impuestos').monto, 355413)
+  assert.equal(mapa.get('2027-02-01|impuestos').items[0].vencimiento, '2027-02-28', 'el 31 cae el último día')
+  assert.equal([...mapa.keys()].some(k => k.endsWith('|inversiones_otros')), false, 'uno pausado no suma')
+
+  const m = cf.armarCashflow({ meses, filas, estimados: [{ mes: '2027-02-01', concepto: 'local_servicios', monto: 2000000 }], config: null, mesActual, fijos, fijosGenerados: generados })
+  const col = (mes) => m.columnas.find(c => c.mes === mes)
+  assert.equal(col('2026-10-01').grupos.local_servicios.valor, 0, 'pasado: solo lo real')
+  assert.equal(col('2026-11-01').grupos.local_servicios.valor, 1150000, 'noviembre: el pendiente ya creado, una sola vez')
+  assert.equal(col('2026-12-01').grupos.local_servicios.valor, 1150000, 'diciembre: el alquiler sin crear todavía')
+  assert.equal(col('2026-12-01').grupos.local_servicios.fijo, 1150000)
+  assert.equal(col('2026-12-01').grupos.local_servicios.origen, 'cargado')
+  assert.equal(col('2026-12-01').grupos.impuestos.valor, 355413, 'el F931 de diciembre, por su pago')
+  assert.equal(col('2027-01-01').grupos.impuestos.valor, 355413)
+  assert.equal(col('2027-01-01').totalEgresos, 1150000 + 355413)
+  assert.equal(col('2027-01-01').fijoProyectado, 1150000 + 355413)
+  assert.equal(col('2027-02-01').grupos.local_servicios.valor, 2000000, 'un estimado mayor manda')
+  assert.equal(col('2027-02-01').grupos.local_servicios.origen, 'estimado')
+  assert.equal(m.total.fijoProyectado, 1150000 + (1150000 + 355413) * 2)
+  const fila = cf.matrizParaExcel(m).find(r => String(r[0]).startsWith('Gastos fijos de los meses que vienen'))
+  assert.deepEqual(fila.slice(1), [0, 0, 1150000, 1505413, 1505413, 4160826])
+  // Sin gastos fijos (o sin el SQL 60) el cash flow queda igual que antes.
+  const sin = cf.armarCashflow({ meses, filas, estimados: [], config: null, mesActual })
+  assert.equal(sin.columnas[2].totalEgresos, 355413)
+  assert.equal(sin.total.fijoProyectado, 0)
+}
+
+console.log('✓ Cash flow: reproduce la planilla de administración; real / en curso / futuro, saldo, estados, series, Excel y gastos fijos en los meses que vienen.')

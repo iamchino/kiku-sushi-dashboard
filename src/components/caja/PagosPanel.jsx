@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Wallet, Plus, AlertTriangle, Link2, Clock, CheckCircle2, Pencil, Trash2, History, Search, X, Package, FileText, Repeat } from 'lucide-react'
+import { Wallet, Plus, AlertTriangle, Link2, Clock, CheckCircle2, Pencil, Trash2, History, Search, X, Package, FileText, Repeat, Receipt } from 'lucide-react'
 import { usePagos } from '../../hooks/usePagos'
 import RegistrarPagoModal from '../pagos/RegistrarPagoModal'
 import HistorialPago from '../pagos/HistorialPago'
 import ConfirmDelete from '../finanzas/ConfirmDelete'
-import { CATEGORIAS, fmtMoney, fmtFecha, catLabel, catColor, medioLabel, localDateISO, esCanje, totalCanjes } from '../../lib/finanzas'
+import { CATEGORIAS, fmtMoney, fmtPlata, fmtFecha, catLabel, catColor, medioLabel, localDateISO, esCanje, totalCanjes } from '../../lib/finanzas'
 import { normalizeSearch } from '../../utils/normalize'
 import { contarItemsDePagos } from '../../lib/comprasApi'
 import { gastosFijosDisponibles } from '../../lib/gastosFijosApi'
 import GastosFijosModal from '../pagos/GastosFijosModal'
+import { etiquetaAlicuota } from '../../lib/ivaCompras'
 
 // Pagos centralizados: TODOS los egresos del negocio se registran acá, con la
 // caja abierta o cerrada. Un pago es un egreso — Finanzas lo ve al instante.
@@ -245,6 +246,12 @@ export default function PagosPanel({ onCambio = null }) {
                         <Clock size={10} /> pendiente{p.medio_pago === 'tarjeta_credito'
                           ? ' · en la tarjeta, se paga con el resumen'
                           : p.vencimiento ? ` · vence ${fmtFecha(p.vencimiento)}` : ''}
+                      </span>
+                    )}
+                    {p.iva_credito !== null && p.iva_credito !== undefined && (
+                      <span data-iva-chip className="flex items-center gap-1" style={{ color: 'var(--text-muted)' }}
+                        title={`${etiquetaAlicuota(p.iva_alicuota)} · crédito fiscal${p.factura_fecha ? ` · factura del ${fmtFecha(p.factura_fecha)}` : ''}`}>
+                        <Receipt size={10} /> IVA {fmtPlata(p.iva_credito)}
                       </span>
                     )}
                     {p.gasto_fijo_id && (

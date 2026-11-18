@@ -57,11 +57,12 @@ export default function DetalleCeldaModal({ grupo, mes, celda, esMesEnCurso, onC
   return (
     <ModalShell title={`${grupo.label} · ${labelMes(mes, { largo: true })}`} icon={ListChecks} onClose={onClose} maxW="max-w-lg">
       <div className="p-5 space-y-4">
-        <div className="grid grid-cols-3 gap-2 rounded-lg p-3 text-xs" style={{ background: 'var(--bg-input)' }}>
+        <div className={`grid gap-2 rounded-lg p-3 text-xs ${celda.fijo > 0 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`} style={{ background: 'var(--bg-input)' }}>
           {[
             ['Estimado', celda.estimado === null ? '—' : fmtPlata(celda.estimado)],
             ['Pagado', fmtPlata(celda.real)],
             ['A pagar (cargado)', fmtPlata(celda.pendiente)],
+            ...(celda.fijo > 0 ? [['Gastos fijos', fmtPlata(celda.fijo)]] : []),
           ].map(([l, v]) => (
             <div key={l}>
               <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-xmuted)' }}>{l}</p>
@@ -86,6 +87,11 @@ export default function DetalleCeldaModal({ grupo, mes, celda, esMesEnCurso, onC
             <Lista titulo="Pagado" items={estado.pagados} campoFecha="fecha" vacio="Sin pagos registrados en este mes." />
             <Lista titulo="A pagar" items={estado.pendientes} campoFecha="vencimiento"
               vacio="Sin pagos pendientes cargados para este mes." />
+            {celda.fijo > 0 && (
+              <div data-detalle-fijos>
+                <Lista titulo="Gastos fijos (se crean el día 1)" items={celda.fijos} campoFecha="vencimiento" vacio="" />
+              </div>
+            )}
           </>
         )}
 

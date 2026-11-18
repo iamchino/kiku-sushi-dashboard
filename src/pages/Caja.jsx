@@ -33,6 +33,7 @@ import { cargarComprobantesEmitidos, cargarNumerosDePedido } from '../lib/ivaVen
 import { estadoFacturacion, idsSinFacturaVigente, marcaDe, resumenFacturacion } from '../lib/sinFactura'
 import { cargarMarcasSinFactura, desmarcarSinFactura, marcarSinFactura } from '../lib/sinFacturaApi'
 import { cargarEgresosPeriodo } from '../lib/pagos'
+import { cargarComprasConIva } from '../lib/ivaComprasApi'
 import { descargarFacturaPdf } from '../lib/facturaPdf'
 import ArqueoCajaSection from '../components/caja/ArqueoCajaSection'
 import PagosPanel from '../components/caja/PagosPanel'
@@ -973,6 +974,8 @@ export default function CajaPage() {
       const numerosDePedido = comprobantesEmitidos
         ? await cargarNumerosDePedido(comprobantesEmitidos, pedidos).catch(() => null)
         : null
+      // Facturas de proveedores con el IVA cargado (SQL 61), para la hoja "IVA compras".
+      const comprasConIva = await cargarComprasConIva(dateFrom, dateTo).catch(() => null)
       await exportarReporteContable({
         pedidos,
         egresos,
@@ -984,8 +987,11 @@ export default function CajaPage() {
         comprobantesEmitidos,
         numerosDePedido,
         alicuota,
+        comprasConIva,
       })
-      setNotice({ type: 'ok', text: 'Reporte descargado. Cobros, pagos, sueldos y el IVA de las ventas del período en un Excel.' })
+      setNotice({ type: 'ok', text: comprasConIva
+        ? 'Reporte descargado. Cobros, pagos, sueldos y el IVA de las ventas y de las compras del período en un Excel.'
+        : 'Reporte descargado. Cobros, pagos, sueldos y el IVA de las ventas del período en un Excel.' })
     } catch (err) {
       setNotice({ type: 'error', text: `No se pudo armar el reporte: ${err.message || err}` })
     } finally {

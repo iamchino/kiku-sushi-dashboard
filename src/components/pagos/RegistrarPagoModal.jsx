@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Wallet, Pencil, Package, Repeat } from 'lucide-react'
+import { Wallet, Pencil, Package, Repeat, Receipt } from 'lucide-react'
 import { usePagos } from '../../hooks/usePagos'
 import { useProveedores } from '../../hooks/useProveedores'
 import { ModalShell, Field, Select, TextArea } from '../finanzas/fields'
@@ -9,6 +9,8 @@ import { TOLERANCIA_BOLETA, armarFilas, cambioLaBoleta, itemsParaGuardar, numero
 import { cargarItemsDePago, cargarProductosCompra } from '../../lib/comprasApi'
 import { explicarRepeticion, limpiarMes, mesTexto } from '../../lib/gastosFijos'
 import { gastoFijoDesdePago, gastosFijosDisponibles } from '../../lib/gastosFijosApi'
+import { ALICUOTAS_COMPRA, alicuotaDe, ivaDesdeTotal, validarIva } from '../../lib/ivaCompras'
+import { guardarIvaDePago, ivaComprasDisponible } from '../../lib/ivaComprasApi'
 
 // Alta centralizada de pagos: ESTE es el único formulario para registrar un
 // egreso del negocio. Lo usan Caja → Pagos, el arqueo del turno abierto
@@ -39,6 +41,12 @@ import { gastoFijoDesdePago, gastosFijosDisponibles } from '../../lib/gastosFijo
 // todos los meses". Después del alta, gasto_fijo_desde_pago() arma el gasto
 // fijo con este pago como el de su mes, y desde el mes siguiente el sistema
 // crea solo el pendiente. Sin el SQL 60 la casilla no aparece.
+//
+// IVA de la factura (SQL 61): crédito fiscal. Se elige la alícuota (el IVA se
+// calcula del monto) o se escribe a mano si la factura tiene varias. Va por
+// egreso_guardar_iva() después del alta o la corrección; si el IVA anterior
+// queda más grande que el monto nuevo, el IVA se guarda primero. Sin el SQL 61
+// la sección no aparece.
 export default function RegistrarPagoModal({
   onClose,
   onRegistrado,
@@ -90,6 +98,19 @@ export default function RegistrarPagoModal({
         cuenta_id: '',
       })
   const [motivo, setMotivo] = useState('')
+  // IVA de la factura (SQL 61).
+  const ivaInicial = initial?.iva_credito ?? null
+  const [ivaOk, setIvaOk] = useState(null)
+  const [conIva, setConIva] = useState(ivaInicial !== null)
+  const [alicuota, setAlicuota] = useState(initial?.iva_alicuota || '21')
+  const [ivaTexto, setIvaTexto] = useState(ivaInicial !== null ? String(ivaInicial) : '')
+  const [ivaTocado, setIvaTocado] = useState(ivaInicial !== null)
+  const [fechaFactura, setFechaFactura] = useState(initial?.factura_fecha?.slice(0, 10) || '')
+  useEffect(() => {
+    let vivo = true
+    ivaComprasDisponible().then(ok => { if (vivo) setIvaOk(ok) }).catch(() => { if (vivo) setIvaOk(false) })
+    return () => { vivo = false }
+  }, [])
   // "Se repite todos los meses" (solo en un alta, con el SQL 60).
   const [fijos, setFijos] = useState(null)          // null = no se sabe · true/false
   const [repetir, setRepetir] = useState(false)
@@ -306,8 +327,43 @@ export default function RegistrarPagoModal({
     ? explicarRepeticion({ estado: modoProyeccion ? 'pendiente' : form.estado, fecha: form.fecha, vencimiento: form.vencimiento, dia: diaRepNum, nombre: nombreRepetir })
     : null
 
+  // IVA: con una alícuota se calcula del monto, hasta que alguien lo escriba.
+  const ofreceIva = ivaOk === true && !esSueldo
+  const tasaIva = ALICUOTAS_COMPRA.find(a => a.id === alicuota)?.tasa || null
+  const ivaEscrito = ivaTocado || !tasaIva ? ivaTexto : (montoNum > 0 ? String(ivaDesdeTotal(montoNum, tasaIva)) : '')
+  const fechaFacturaEf = fechaFactura || form.fecha
+  const ivaCheck = ofreceIva && conIva
+    ? validarIva({ monto: montoNum, iva: ivaEscrito, fechaFactura: fechaFacturaEf })
+    : null
+  const elegirAlicuota = (id) => {
+    setAlicuota(id)
+    // Al elegir una alícuota, el IVA se vuelve a calcular; con "Varias" queda
+    // lo que estaba para corregirlo a mano.
+    if (id !== 'mixto') setIvaTocado(false)
+    else { setIvaTexto(ivaEscrito); setIvaTocado(true) }
+  }
+
   const valido = form.descripcion.trim() && montoNum > 0 && (!esSueldo || form.empleado_id) && !problemaProductos
-    && (!vaARepetir || repeticionValida)
+    && (!vaARepetir || repeticionValida) && (!ivaCheck || ivaCheck.ok)
+
+  // ¿Hay que tocar el IVA? (alta con IVA, o corrección que lo pone, cambia o saca)
+  const ivaNuevo = ofreceIva && conIva && ivaCheck?.ok ? ivaCheck.iva : null
+  const ivaCambia = ofreceIva && (edicion
+    ? (ivaNuevo !== (ivaInicial === null ? null : Number(ivaInicial))
+        || (ivaNuevo !== null && (alicuotaParaGuardar() !== (initial?.iva_alicuota || null) || fechaFacturaEf !== (initial?.factura_fecha?.slice(0, 10) || null))))
+    : ivaNuevo !== null)
+  function alicuotaParaGuardar() {
+    if (alicuota !== 'mixto') return ivaTocado && tasaIva && Math.abs(ivaDesdeTotal(montoNum, tasaIva) - (ivaCheck?.iva || 0)) > 1
+      ? alicuotaDe(montoNum, ivaCheck?.iva)
+      : alicuota
+    return 'mixto'
+  }
+  const guardarIva = (egresoId) => guardarIvaDePago(egresoId, {
+    iva: ivaNuevo, alicuota: ivaNuevo === null ? null : alicuotaParaGuardar(), facturaFecha: ivaNuevo === null ? null : fechaFacturaEf,
+  })
+  const textoIva = () => (ivaNuevo === null
+    ? ' Se sacó el IVA de la factura.'
+    : ` IVA de la factura: ${fmtPlata(ivaNuevo)} (crédito fiscal).`)
 
   const guardar = async () => {
     setBusy(true); setError(null)
@@ -321,9 +377,17 @@ export default function RegistrarPagoModal({
           : ' Los productos que tenía la boleta salieron del stock.'
       if (edicion) {
         const datos = { ...form, monto: montoNum, origen: origenResuelto, cuenta_id: cuentaResuelta }
+        // Si el IVA nuevo entra en el monto viejo (o se saca), va primero: así
+        // bajar el monto y el IVA a la vez no choca con la regla de la base.
+        let colaIva = ''
+        const ivaPrimero = ivaCambia && (ivaNuevo === null || ivaNuevo <= Number(initial.monto))
+        if (ivaPrimero) { await guardarIva(initial.id); colaIva = textoIva() }
         const resultado = vaComoCompra
           ? await editarCompra(initial, datos, filasAEnviar, motivo, permitirDiferencia)
           : await editarPago(initial, datos, motivo)
+        if (ivaCambia && !ivaPrimero) {
+          try { await guardarIva(initial.id); colaIva = textoIva() } catch (err) { colaIva = ` El pago se corrigió, pero no el IVA (${err.message}).` }
+        }
         onRegistrado?.(
           (resultado?.descuenta_arqueo
             ? 'Pago corregido. El movimiento de la caja del día se actualizó con él.'
@@ -331,7 +395,7 @@ export default function RegistrarPagoModal({
               ? 'Pago corregido. El movimiento de la caja fuerte se actualizó con él.'
               : esCanje && initial.medio_pago !== MEDIO_CANJE
                 ? 'Pago corregido: quedó cancelado con canje. No cuenta como plata que salió.'
-                : 'Pago corregido.') + colaStock,
+                : 'Pago corregido.') + colaStock + colaIva,
           resultado,
         )
         onClose()
@@ -347,7 +411,11 @@ export default function RegistrarPagoModal({
       const resultado = vaComoCompra
         ? await registrarCompra(datosAlta, filasAEnviar, permitirDiferencia)
         : await registrarPago(datosAlta)
-      // El pago ya está guardado: si el gasto fijo falla, se avisa sin perderlo.
+      // El pago ya está guardado: si el IVA o el gasto fijo fallan, se avisa sin perderlo.
+      let colaIva = ''
+      if (ivaCambia && resultado?.egreso_id) {
+        try { await guardarIva(resultado.egreso_id); colaIva = textoIva() } catch (err) { colaIva = ` El pago se guardó, pero no el IVA (${err.message}). Cargalo con el lápiz.` }
+      }
       let colaFijo = ''
       if (vaARepetir && resultado?.egreso_id) {
         try {
@@ -372,7 +440,7 @@ export default function RegistrarPagoModal({
             ? 'Pago registrado. Salió de la caja fuerte: su saldo ya lo descuenta.'
             : turnoAbierto
               ? 'Pago registrado y vinculado al turno abierto (no toca el efectivo de la caja).'
-              : 'Pago registrado. No había turno de caja abierto, quedó sin vincular.') + colaStock + colaFijo,
+              : 'Pago registrado. No había turno de caja abierto, quedó sin vincular.') + colaStock + colaIva + colaFijo,
         resultado,
       )
       onClose()
@@ -513,6 +581,56 @@ export default function RegistrarPagoModal({
             {pendiente
               ? <Field label="Vencimiento" type="date" value={form.vencimiento} onChange={set('vencimiento')} />
               : <Field label="Comprobante (opcional)" value={form.comprobante_nro} onChange={set('comprobante_nro')} placeholder="Nº factura / recibo" />}
+          </div>
+        )}
+
+        {/* IVA de la factura: el crédito fiscal (SQL 61). */}
+        {ofreceIva && !conIva && (
+          <button type="button" onClick={() => setConIva(true)} data-abrir-iva
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left"
+            style={{ border: '1px dashed var(--border)' }}>
+            <Receipt size={15} className="flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Cargar el IVA de la factura</span>
+              <span className="block text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                Factura A de un proveedor: su IVA es crédito fiscal y se suma en Finanzas y en el Excel del contador.
+              </span>
+            </span>
+          </button>
+        )}
+        {ofreceIva && conIva && (
+          <div className="rounded-lg px-3 py-2.5 space-y-2.5" data-iva-factura
+            style={{ border: '1px solid var(--border)', background: 'var(--bg-input)' }}>
+            <div className="flex items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                <Receipt size={14} /> IVA de la factura
+              </p>
+              <button type="button" onClick={() => setConIva(false)} className="text-[11px] underline" style={{ color: 'var(--text-muted)' }}>
+                {ivaInicial !== null ? 'Sacar el IVA' : 'No cargar IVA'}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Alícuota del IVA">
+              {ALICUOTAS_COMPRA.map(a => (
+                <button key={a.id} type="button" onClick={() => elegirAlicuota(a.id)} aria-pressed={alicuota === a.id}
+                  className="rounded-lg px-2.5 py-1 text-xs font-semibold"
+                  style={alicuota === a.id
+                    ? { background: 'var(--accent-soft)', color: 'var(--accent-lift)', border: '1px solid var(--accent-border)' }
+                    : { background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                  {a.label}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="IVA ($)" value={ivaEscrito} inputMode="decimal"
+                onChange={(x) => { setIvaTexto(x); setIvaTocado(true) }} />
+              <Field label="Fecha de la factura" type="date" value={fechaFacturaEf} onChange={setFechaFactura} />
+            </div>
+            <p className="text-[11px]" data-eco-iva style={{ color: ivaCheck && !ivaCheck.ok ? '#F2708C' : 'var(--text-muted)' }}>
+              {ivaCheck && ivaCheck.ok
+                ? <>Sin IVA (neto y otros): <strong style={{ color: 'var(--text-primary)' }}>{fmtPlata(ivaCheck.sinIva)}</strong> · IVA: <strong style={{ color: 'var(--text-primary)' }}>{fmtPlata(ivaCheck.iva)}</strong>
+                    {alicuota === 'mixto' ? ' · con varias alícuotas, escribí la suma de los renglones de IVA' : ''}</>
+                : ivaCheck?.error}
+            </p>
           </div>
         )}
 

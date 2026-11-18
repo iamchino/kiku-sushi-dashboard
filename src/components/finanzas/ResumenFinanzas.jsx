@@ -13,6 +13,7 @@ import ConfirmDelete from './ConfirmDelete'
 import HistorialPago from '../pagos/HistorialPago'
 import CajaFuerteResumen from './CajaFuerteResumen'
 import IvaVentasResumen from './IvaVentasResumen'
+import IvaComprasResumen from './IvaComprasResumen'
 import DisponibleHoy from './DisponibleHoy'
 
 // Resumen de Finanzas: la "foto del negocio" en una sola pantalla, pensada
@@ -294,6 +295,9 @@ export default function ResumenFinanzas({ desde, hasta, label }) {
 
       {/* De lo facturado, cuánto es IVA (ARCA) y cuánto queda sin IVA */}
       <IvaVentasResumen desde={desde} hasta={hasta} label={label} />
+
+      {/* El IVA de las facturas de los proveedores (crédito fiscal) y el saldo estimado */}
+      <IvaComprasResumen desde={desde} hasta={hasta} label={label} />
 
       {/* Con cuánta plata se cuenta hoy: caja, caja fuerte y bancos */}
       <DisponibleHoy />

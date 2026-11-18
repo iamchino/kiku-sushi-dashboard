@@ -36,6 +36,7 @@ function desglose(celda, tipo, esIngreso) {
   else {
     if (celda.real > 0 || tipo === 'curso') partes.push(`${esIngreso ? 'Cobrado' : 'Pagado'} hasta hoy ${fmtPlata(celda.real)}`)
     if (celda.pendiente > 0) partes.push(`A pagar ya cargado ${fmtPlata(celda.pendiente)}`)
+    if (celda.fijo > 0) partes.push(`Gastos fijos de este mes ${fmtPlata(celda.fijo)}`)
   }
   return partes.join(' · ')
 }
@@ -50,6 +51,7 @@ function Subtexto({ celda, tipo, esIngreso }) {
   } else {
     if (celda.real > 0) lineas.push(`pagado ${fmtPlata(celda.real)}`)
     if (celda.pendiente > 0) lineas.push(`a pagar ${fmtPlata(celda.pendiente)}`)
+    if (celda.fijo > 0) lineas.push(`fijos ${fmtPlata(celda.fijo)}`)
   }
   return lineas.map(l => (
     <span key={l} className="block text-[10px] font-normal not-italic" style={{ color: 'var(--text-xmuted)' }}>{l}</span>
@@ -80,7 +82,7 @@ function CeldaDato({ celda, tipo, mes, concepto, label, editable, verDetalle, on
   const cancelado = useRef(false)
 
   const seEdita = editable && tipo !== 'pasado'
-  const hayPagos = !esIngreso && (celda.real > 0 || celda.pendiente > 0)
+  const hayPagos = !esIngreso && (celda.real > 0 || celda.pendiente > 0 || celda.fijo > 0)
   const ayuda = desglose(celda, tipo, esIngreso)
 
   const abrir = () => {
@@ -312,6 +314,9 @@ export default function CashflowTabla({ modelo, editable, verDetalle, onGuardar,
           <FilaCalculada label="Pagos pendientes ya cargados" columnas={columnas} pick={c => (c.pendienteCargado > 0 ? c.pendienteCargado : null)}
             total={total.pendienteCargado > 0 ? total.pendienteCargado : null}
             ayuda="Lo que ya está cargado en Proyección de pagos con vencimiento en ese mes. Está incluido en los egresos de arriba." />
+          <FilaCalculada label="Gastos fijos de los meses que vienen" columnas={columnas} pick={c => (c.fijoProyectado > 0 ? c.fijoProyectado : null)}
+            total={total.fijoProyectado > 0 ? total.fijoProyectado : null}
+            ayuda="Los gastos fijos (alquiler, autónomos…) de los meses cuyo pendiente todavía no se creó: aparecen en Pagos el día 1 de cada mes. Están incluidos en los egresos de arriba." />
         </tbody>
       </table>
     </div>

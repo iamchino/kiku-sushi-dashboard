@@ -146,6 +146,9 @@ export const CAMPO_PAGO = {
   pagado_desde: 'de dónde salió',
   cuenta_id: 'cuenta',
   recurrente: 'gasto fijo',
+  iva_credito: 'IVA de la factura',
+  iva_alicuota: 'alícuota del IVA',
+  factura_fecha: 'fecha de la factura',
 }
 
 const ORIGEN_TEXTO = {
@@ -157,6 +160,7 @@ const ORIGEN_TEXTO = {
 // Un valor crudo del historial, listo para mostrar.
 export function valorPago(campo, valor) {
   if (valor === null || valor === undefined || valor === '') return '—'
+  if (campo === 'iva_credito') return `$${Number(valor).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
   if (campo === 'monto') return `$${Number(valor).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
   if (campo === 'pagado_desde') return ORIGEN_TEXTO[valor] || String(valor)
   if (campo === 'caja_turno_id' || campo === 'proveedor_id' || campo === 'empleado_id') return 'asignado'

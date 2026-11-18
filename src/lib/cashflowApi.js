@@ -3,6 +3,7 @@
 // `faltaMigracion` vuelve true y la pantalla lo avisa.
 import { supabase } from './supabase'
 import { finDeMes, mesDe } from './cashflow'
+import { generarGastosFijosHoy } from './gastosFijosApi'
 
 function faltaEsquema(error) {
   const msg = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`
@@ -16,10 +17,13 @@ function faltaEsquema(error) {
  *   config     → saldo inicial / desde / mínimo (o null)
  */
 export async function cargarCashflow(desde, hasta) {
-  const [filasRes, estRes, cfgRes] = await Promise.all([
+  // Antes de leer: el pendiente de este mes de cada gasto fijo (SQL 60).
+  await generarGastosFijosHoy()
+  const [filasRes, estRes, cfgRes, fijos] = await Promise.all([
     supabase.rpc('cashflow_mensual', { p_desde: desde, p_hasta: hasta }),
     supabase.from('cashflow_estimados').select('mes, concepto, monto').gte('mes', desde).lte('mes', hasta),
     supabase.from('cashflow_config').select('saldo_inicial, saldo_desde, saldo_minimo').limit(1),
+    cargarFijosParaCashflow(),
   ])
   const primerError = filasRes.error || estRes.error || cfgRes.error
   if (primerError) {
@@ -30,8 +34,24 @@ export async function cargarCashflow(desde, hasta) {
     filas: filasRes.data || [],
     estimados: estRes.data || [],
     config: cfgRes.data?.[0] || null,
+    fijos: fijos.fijos,
+    fijosGenerados: fijos.generados,
     faltaMigracion: false,
   }
+}
+
+/**
+ * Los gastos fijos activos y los meses que ya tienen su pago (SQL 60), para
+ * sumarlos a los meses que vienen. Sin el SQL 60 (o sin permiso), vacío: el
+ * cash flow se arma igual que antes.
+ */
+async function cargarFijosParaCashflow() {
+  const [g, m] = await Promise.all([
+    supabase.from('gastos_fijos').select('id, descripcion, categoria, monto, dia_vencimiento, desde, activo').eq('activo', true),
+    supabase.from('gastos_fijos_meses').select('gasto_fijo_id, periodo'),
+  ])
+  if (g.error || m.error) return { fijos: [], generados: [] }
+  return { fijos: g.data || [], generados: m.data || [] }
 }
 
 /** Solo la configuración (para saber desde qué mes hay que traer datos). */

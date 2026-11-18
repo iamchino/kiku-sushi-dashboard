@@ -10,6 +10,11 @@
 //             más de lo estimado, manda la realidad).
 //   futuro  → el estimado, o lo pendiente ya cargado si es más.
 //
+// Gastos fijos (SQL 60): el pendiente de cada mes se crea recién el día 1 de
+// ese mes. Para que los meses que vienen no aparezcan vacíos, cada gasto fijo
+// activo suma su monto en los meses (actual y futuros) que todavía no se
+// crearon: cuenta como "ya cargado" (fijo), sin crear ningún pago.
+//
 // Los egresos se agrupan como los lleva administración en su planilla. El
 // agrupamiento vive acá: reagrupar no toca la base (los estimados se guardan
 // por id de grupo; si un id desaparece, ese estimado simplemente deja de verse).
@@ -100,15 +105,47 @@ const num = (v) => {
  *               'real' (mes pasado) · 'cargado' (real + pendiente ya en el
  *               sistema) · 'estimado' · 'vacio'
  */
-function armarCelda({ tipo, real, pendiente, estimado }) {
-  const base = real + pendiente
+function armarCelda({ tipo, real, pendiente, estimado, fijo = 0, fijos = [] }) {
   if (tipo === 'pasado') {
-    return { valor: real, real, pendiente, estimado, origen: real > 0 ? 'real' : 'vacio' }
+    return { valor: real, real, pendiente, fijo: 0, fijos: [], estimado, origen: real > 0 ? 'real' : 'vacio' }
   }
+  const base = real + pendiente + fijo
   if (estimado !== null && estimado >= base) {
-    return { valor: estimado, real, pendiente, estimado, origen: 'estimado' }
+    return { valor: estimado, real, pendiente, fijo, fijos, estimado, origen: 'estimado' }
   }
-  return { valor: base, real, pendiente, estimado, origen: base > 0 ? 'cargado' : 'vacio' }
+  return { valor: base, real, pendiente, fijo, fijos, estimado, origen: base > 0 ? 'cargado' : 'vacio' }
+}
+
+/** Último día real de un mes para un día de vencimiento (31 → 30 en noviembre). */
+function vencimientoFijo(mes, dia) {
+  const fin = finDeMes(mes)
+  const d = Math.min(Math.max(Number(dia) || 1, 1), Number(fin.slice(8, 10)))
+  return `${mes.slice(0, 8)}${String(d).padStart(2, '0')}`
+}
+
+/**
+ * Los gastos fijos que todavía no se crearon, por mes y grupo, desde el mes
+ * actual en adelante. `generados` = filas de gastos_fijos_meses (los meses que
+ * ya tienen su pago: ese pago ya está en lo cargado y no se cuenta dos veces).
+ * @returns Map `${mes}|${grupo}` → { monto, items: [{ id, descripcion, monto, vencimiento, categoria }] }
+ */
+export function fijosPorMes({ fijos = [], generados = [], meses = [], mesActual }) {
+  const hechos = new Set(generados.map(g => `${g.gasto_fijo_id}|${String(g.periodo).slice(0, 7)}`))
+  const mapa = new Map()
+  for (const mes of meses) {
+    if (mes < mesActual) continue
+    const periodo = mes.slice(0, 7)
+    for (const g of fijos) {
+      if (g.activo === false || !g.desde || g.desde > periodo) continue
+      if (hechos.has(`${g.id}|${periodo}`)) continue
+      const k = `${mes}|${grupoDeCategoria(g.categoria)}`
+      const prev = mapa.get(k) || { monto: 0, items: [] }
+      prev.monto += num(g.monto)
+      prev.items.push({ id: g.id, descripcion: g.descripcion, monto: num(g.monto), vencimiento: vencimientoFijo(mes, g.dia_vencimiento), categoria: g.categoria })
+      mapa.set(k, prev)
+    }
+  }
+  return mapa
 }
 
 function ratio(parte, total) {
@@ -153,8 +190,10 @@ export function primerMesDeCalculo(primerVisible, mesActual, saldoDesde) {
  * @param {Array}    estimados  filas de cashflow_estimados: { mes, concepto, monto }
  * @param {object}   config     { saldo_inicial, saldo_desde, saldo_minimo } o null
  * @param {string}   mesActual  'YYYY-MM-01'
+ * @param {Array}    fijos      gastos fijos activos (SQL 60): { id, descripcion, categoria, monto, dia_vencimiento, desde, activo }
+ * @param {Array}    fijosGenerados  gastos_fijos_meses: { gasto_fijo_id, periodo } (los meses que ya tienen su pago)
  */
-export function armarCashflow({ meses = [], filas = [], estimados = [], config = null, mesActual }) {
+export function armarCashflow({ meses = [], filas = [], estimados = [], config = null, mesActual, fijos = [], fijosGenerados = [] }) {
   // real / pendiente por mes y grupo
   const datos = new Map()            // `${mes}|${concepto}` → { real, pendiente }
   const sinFecha = { monto: 0, cantidad: 0 }
@@ -180,7 +219,11 @@ export function armarCashflow({ meses = [], filas = [], estimados = [], config =
   const celdaDe = (mes, concepto, tipo) => {
     const d = datos.get(`${mes}|${concepto}`) || { real: 0, pendiente: 0 }
     const e = est.has(`${mes}|${concepto}`) ? est.get(`${mes}|${concepto}`) : null
-    return armarCelda({ tipo, real: d.real, pendiente: concepto === CONCEPTO_INGRESOS ? 0 : d.pendiente, estimado: e })
+    const f = concepto === CONCEPTO_INGRESOS ? null : fijosMapa.get(`${mes}|${concepto}`)
+    return armarCelda({
+      tipo, real: d.real, pendiente: concepto === CONCEPTO_INGRESOS ? 0 : d.pendiente, estimado: e,
+      fijo: f ? f.monto : 0, fijos: f ? f.items : [],
+    })
   }
 
   const columnaDe = (mes) => {
@@ -189,8 +232,9 @@ export function armarCashflow({ meses = [], filas = [], estimados = [], config =
     const grupos = Object.fromEntries(GRUPOS.map(g => [g.id, celdaDe(mes, g.id, tipo)]))
     const totalEgresos = GRUPOS.reduce((a, g) => a + grupos[g.id].valor, 0)
     const pendienteCargado = GRUPOS.reduce((a, g) => a + grupos[g.id].pendiente, 0)
+    const fijoProyectado = GRUPOS.reduce((a, g) => a + grupos[g.id].fijo, 0)
     const flujo = ingresos.valor - totalEgresos
-    return { mes, tipo, ingresos, grupos, totalEgresos, pendienteCargado, flujo }
+    return { mes, tipo, ingresos, grupos, totalEgresos, pendienteCargado, fijoProyectado, flujo }
   }
 
   // El saldo se arrastra desde saldo_desde aunque ese mes no esté a la vista.
@@ -199,6 +243,7 @@ export function armarCashflow({ meses = [], filas = [], estimados = [], config =
   const ultimo = meses[meses.length - 1]
   const desdeCalculo = saldoDesde && primero && saldoDesde < primero ? saldoDesde : primero
   const mesesCalculo = primero ? listaMeses(desdeCalculo, diferenciaMeses(desdeCalculo, ultimo) + 1) : []
+  const fijosMapa = fijosPorMes({ fijos, generados: fijosGenerados, meses: mesesCalculo, mesActual })
 
   let saldo = saldoDesde ? saldoInicial : null
   let acumulado = 0
@@ -233,6 +278,7 @@ export function armarCashflow({ meses = [], filas = [], estimados = [], config =
     grupos: tGrupos,
     totalEgresos: tEgresos,
     pendienteCargado: columnas.reduce((a, c) => a + c.pendienteCargado, 0),
+    fijoProyectado: columnas.reduce((a, c) => a + c.fijoProyectado, 0),
     flujo: tIngresos - tEgresos,
     saldoFinal: columnas.length ? columnas[columnas.length - 1].saldoFinal : null,
     indicadores: {
@@ -309,7 +355,7 @@ export function matrizParaExcel(modelo, { negocio = '' } = {}) {
   const tipoLabel = { pasado: 'Real', curso: 'En curso', futuro: 'Estimado' }
   return [
     [`Cash flow mensual${negocio ? ` — ${negocio}` : ''}`],
-    ['Montos en pesos. Meses pasados: real. Mes en curso y futuros: estimado o pagos ya cargados, lo que sea mayor.'],
+    ['Montos en pesos. Meses pasados: real. Mes en curso y futuros: estimado o pagos ya cargados (con los gastos fijos), lo que sea mayor.'],
     [],
     ['Concepto', ...cols.map(c => labelMes(c.mes)), 'Total'],
     ['', ...cols.map(c => tipoLabel[c.tipo]), ''],
@@ -331,5 +377,6 @@ export function matrizParaExcel(modelo, { negocio = '' } = {}) {
     fila('Personal como % de ingresos', c => pct(c.indicadores.personal), pct(modelo.total.indicadores.personal)),
     fila('Flujo neto como % de ingresos', c => pct(c.indicadores.flujo), pct(modelo.total.indicadores.flujo)),
     fila('Pagos pendientes ya cargados (incluidos arriba)', c => c.pendienteCargado, modelo.total.pendienteCargado),
+    fila('Gastos fijos de los meses que vienen (incluidos arriba)', c => c.fijoProyectado, modelo.total.fijoProyectado),
   ]
 }

@@ -65,6 +65,8 @@ preparar() {  # preparar <db> <opcionales>
 }
 echo "── navegador, con el SQL 60 aplicado"
 preparar kkgf si; correr kkgf gf-t1-gastos-fijos
+echo "── navegador, el Cash flow con los gastos fijos de los meses que vienen"
+preparar kkgf3 si; correr kkgf3 gf-t3-cashflow
 echo "── navegador, SIN el SQL 60"
 preparar kkpregf cuentas_corrientes,cashflow_mensual,stock_compras,iva_ventas,pedidos_sin_factura,canje_y_saldos_cuentas; correr kkpregf gf-t2-pre
 

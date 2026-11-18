@@ -26,7 +26,12 @@ const mes = { total: 409980 + (mismoMes ? 1452000 : 0), iva: 71153.55 + (mismoMe
 await esperar(new RegExp(`FACTURADO \\${plata(mes.total).replace(/\./g, '\\.')}`, 'i'))
 let t = await texto()
 // Debajo de los cuatro números y arriba de "Disponible hoy" (17/11), que va antes de los gráficos.
-check('el recuadro aparece en el Resumen, debajo de los cuatro números', /IVA de las ventas ·/.test(t) && (await card.evaluate(el => el.previousElementSibling?.className.includes('grid') && el.nextElementSibling?.hasAttribute('data-disponible') && el.nextElementSibling.nextElementSibling?.className.includes('grid'))), t.slice(0, 160))
+// Entre los dos, el de "IVA de las compras" (SQL 61, 18/11) cuando está.
+check('el recuadro aparece en el Resumen, debajo de los cuatro números', /IVA de las ventas ·/.test(t) && (await card.evaluate(el => {
+  let sig = el.nextElementSibling
+  if (sig?.hasAttribute('data-iva-compras')) sig = sig.nextElementSibling
+  return el.previousElementSibling?.className.includes('grid') && sig?.hasAttribute('data-disponible') && sig.nextElementSibling?.className.includes('grid')
+})), t.slice(0, 160))
 check('mes: facturado, IVA y sin IVA (más de 1000 facturas, sumadas en la base)', t.includes(`FACTURADO ${plata(mes.total)}`) && t.includes(`IVA · VA A ARCA ${plata(mes.iva)}`) && t.includes(`SIN IVA · QUEDA EN EL NEGOCIO ${plata(mes.neto)}`), t)
 check('mes: cantidad de facturas con separador de miles', t.includes(`${mes.facturas.toLocaleString('es-AR')} facturas · 2 notas de crédito ya restadas`), t)
 await page.screenshot({ path: 'shots/iva-4-finanzas-mes.png' })

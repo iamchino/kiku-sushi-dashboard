@@ -20,6 +20,7 @@ import { estadoCuenta, fechaCorta } from './cuentasCorrientes'
 import { COND_IVA_RECEPTOR_LABEL, fechaHoyAR, getAuthorizedComprobante, getFacturasAutorizadas, getNotasCredito, nombreComprobante } from './fiscal'
 import { catLabel, esCanje, medioLabel, sinCanjes, totalCanjes } from './finanzas'
 import { bloqueResumenIva, comprobantesDePedidos, desgloseIva, filasLibroIva } from './ivaVentas'
+import { bloqueResumenIvaCompras, filasLibroIvaCompras } from './ivaCompras'
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
@@ -104,6 +105,9 @@ function nombreEmpleado(e) {
 export function armarHojas({
   pedidos = [], egresos = [], cuentasCorrientes = null, cuentasDePagos = null, desde, hasta, negocio,
   comprobantesEmitidos = null, numerosDePedido = null, alicuota = 21,
+  // Pagos con el IVA de la factura cargado, por fecha de la factura (SQL 61).
+  // null = no se pudo leer o falta el SQL: no va la hoja "IVA compras".
+  comprasConIva = null,
 }) {
   // ── Cobros: una fila por línea de pago ──────────────────────────────────
   const cobrosFilas = []
@@ -286,6 +290,10 @@ export function armarHojas({
     ['Pedidos sin cobro registrado', sinCobro],
     [],
     ...bloqueIva.map(fila => fila.map(v => (typeof v === 'number' ? $(v) : v))),
+    ...(Array.isArray(comprasConIva)
+      ? [[], ...bloqueResumenIvaCompras(comprasConIva, { ivaVentas: ivaDesglose.iva })
+          .map(fila => fila.map(v => (typeof v === 'number' ? $(v) : v)))]
+      : []),
   ]
 
   // ── Cuentas corrientes (canjes) ─────────────────────────────────────────
@@ -346,6 +354,7 @@ export function armarHojas({
     cuentas: cuentasFilas,
     cuentasMovimientos,
     ivaVentas: ivaFilas,
+    ivaCompras: Array.isArray(comprasConIva) ? filasLibroIvaCompras(comprasConIva) : null,
     totales: {
       vendido, facturado, nc, totalCobrado, totalPagado, canjes: canjes.monto,
       // Facturas canceladas con canje: pagadas, pero sin plata (no están en totalPagado).
@@ -379,12 +388,12 @@ function aplicarFormatoMoneda(XLSX, ws, columnas) {
 
 export async function exportarReporteContable({
   pedidos, egresos, cuentasCorrientes, cuentasDePagos, desde, hasta, negocio,
-  comprobantesEmitidos = null, numerosDePedido = null, alicuota = 21,
+  comprobantesEmitidos = null, numerosDePedido = null, alicuota = 21, comprasConIva = null,
 }) {
   const XLSX = await import('xlsx')
   const hojas = armarHojas({
     pedidos, egresos, cuentasCorrientes, cuentasDePagos, desde, hasta, negocio,
-    comprobantesEmitidos, numerosDePedido, alicuota,
+    comprobantesEmitidos, numerosDePedido, alicuota, comprasConIva,
   })
   const wb = XLSX.utils.book_new()
 
@@ -404,6 +413,16 @@ export async function exportarReporteContable({
   wsIva['!cols'] = anchos(hojas.ivaVentas)
   aplicarFormatoMoneda(XLSX, wsIva, [6, 7, 8])
   XLSX.utils.book_append_sheet(wb, wsIva, 'IVA ventas')
+
+  // IVA de las compras: una fila por factura de proveedor con el IVA cargado.
+  if (hojas.ivaCompras) {
+    const wsIvaC = XLSX.utils.json_to_sheet(
+      hojas.ivaCompras.length ? hojas.ivaCompras : [{ 'Sin facturas de proveedores con IVA cargado en el período': '' }],
+    )
+    wsIvaC['!cols'] = anchos(hojas.ivaCompras)
+    aplicarFormatoMoneda(XLSX, wsIvaC, [6, 7, 8])
+    XLSX.utils.book_append_sheet(wb, wsIvaC, 'IVA compras')
+  }
 
   const wsPagos = XLSX.utils.json_to_sheet(hojas.pagos.length ? hojas.pagos : [{ 'Sin pagos en el período': '' }])
   wsPagos['!cols'] = anchos(hojas.pagos)
